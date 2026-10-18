@@ -1,0 +1,48 @@
+[package]
+name = "rcalc"
+version = "1.0.0"
+edition = "2021"
+rust-version = "1.88"
+description = "A portable, self-contained desktop calculator inspired by Windows Calculator"
+license = "MIT"
+
+[dependencies]
+winit = { version = "0.30", default-features = false, features = ["rwh_06"] }
+softbuffer = { version = "0.4", default-features = false }
+tiny-skia = { version = "0.11", default-features = false, features = ["std", "simd"] }
+ab_glyph = { version = "0.2", default-features = false, features = ["std"] }
+num-bigint = { version = "0.4", default-features = false, features = ["std"] }
+num-integer = { version = "0.1", default-features = false, features = ["std"] }
+num-traits = { version = "0.2", default-features = false, features = ["std"] }
+accesskit = "0.25"
+accesskit_winit = { version = "0.34", default-features = false, features = ["rwh_06"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.52", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Dwm",
+    "Win32_Graphics_Gdi",
+    "Win32_System_DataExchange",
+    "Win32_System_Memory",
+    "Win32_System_Ole",
+    "Win32_System_Registry",
+    "Win32_System_SystemInformation",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 2
+
+[dev-dependencies]
+# PNG output for the screenshot test (`cargo test -- --ignored screenshots`).
+tiny-skia = { version = "0.11", default-features = false, features = ["std", "simd", "png-format"] }
