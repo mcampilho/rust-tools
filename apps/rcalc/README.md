@@ -3,9 +3,11 @@
 A portable desktop calculator written in Rust. Its layout and behaviour follow
 [Windows Calculator](https://github.com/microsoft/calculator): the Fluent-style
 keypad, the navigation pane, the history and memory panel, and its keyboard
-shortcuts. The release build is a single ~1.7 MB `.exe`. It needs no
-installation, no administrator rights, no network, and no runtime beyond
-what ships with Windows.
+shortcuts. The release build is a single ~1.9 MB `.exe` with an embedded
+icon. It needs no installation, no administrator rights, no network, and no
+runtime beyond what ships with Windows. The UI is available in 10 languages,
+and rcalc can stay resident in the notification area and open with the
+keyboard's Calculator key.
 
 | Standard | Scientific | Programmer | Date | Converter |
 |---|---|---|---|---|
@@ -17,9 +19,13 @@ Wide windows dock the history and memory panel on the right:
 
 > rcalc is an independent project and is not affiliated with Microsoft. The
 > reference app was used only as a guide to behaviour and appearance (it is MIT
-> licensed). No source code, logos, icons or other assets were copied: every icon
-> is drawn from vector paths in `src/ui/icons.rs`, and the window icon is generated
-> at runtime.
+> licensed). No source code, logos, icons, translations or other assets were
+> copied: every icon is drawn from vector paths in `src/ui/icons.rs`, and the
+> application icon is drawn in `src/ui/appicon.rs` at build time and runtime.
+
+| Deutsch | 日本語 | 中文 | Français |
+|---|---|---|---|
+| ![de-DE](docs/screenshots/de-DE_standard.png) | ![ja-JP](docs/screenshots/ja-JP_scientific.png) | ![zh-CN](docs/screenshots/zh-CN_date.png) | ![fr-FR](docs/screenshots/fr-FR_calendar.png) |
 
 ## Features
 
@@ -58,6 +64,57 @@ definitions where one exists (an inch is exactly 0.0254 m, a pound exactly
 **History and memory.** History is shared by Standard and Scientific; clicking
 an entry restores it. Memory works in all three calculator modes: MS, MR, M+,
 M-, MC, plus per-item MC/M+/M- in the list. Both are saved between runs.
+
+**Languages.** The UI comes in 10 languages: de-DE, en-GB, en-US, es-ES,
+fr-FR, it-IT, ja-JP, pt-BR, pt-PT and zh-CN. "Use system setting" (the
+default) follows the Windows display language. You can also pick a language
+in Settings; it applies immediately, with no restart. The language also sets:
+
+- decimal and thousands separators: `1.234,5` in German, `1 234,5` in French
+  and European Portuguese;
+- the keypad's decimal key;
+- date formats ("Samstag, 17. Oktober 2026", "2026年10月17日土曜日"), month
+  and weekday names, and the first day of the week in the calendar;
+- the date-difference wording ("1 Jahr, 2 Monate, 2 Wochen, 5 Tage");
+- converter unit and currency names;
+- accessible names for screen readers.
+
+Japanese and Chinese text uses the Windows CJK fonts (Yu Gothic, Microsoft
+YaHei), which are loaded only when needed.
+
+**Resident mode (notification area).** Starting `rcalc.exe --tray` keeps
+rcalc running hidden, with an icon in the notification area:
+
+- Clicking the icon (or choosing *Open Calculator*) shows the window instantly.
+- Closing the window only hides it; *Exit* in the icon's menu quits.
+- Hidden, it releases its render buffers. Measured private memory is about
+  7 MB at a hidden start and about 12 MB after the window has been shown once.
+- To have it ready after sign-in, put a shortcut to `rcalc.exe --tray` in the
+  Startup folder (`shell:startup`).
+
+**Single instance and the Calculator key.** Launching rcalc while it is
+already running brings the running window to the front, and the new process
+exits within milliseconds. `--new-window` forces a separate instance.
+
+- *Settings → Calculator key* makes the keyboard Calculator key
+  (`VK_LAUNCH_APP2`) open rcalc instead of Windows Calculator. It only
+  changes the current user's
+  `HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\AppKey\18\ShellExecute`
+  value. Turning it off removes that value again, which restores the Windows
+  default.
+- While resident (`--tray`), rcalc also registers the Calculator key as a hotkey.
+  The key then shows the hidden window directly, even without the Settings
+  option. If the registry option points to a moved or deleted copy of rcalc,
+  the toggle shows as off; turn it on again from the new location.
+
+**Command line.**
+
+```
+rcalc.exe [--tray] [--new-window]
+  --tray        start hidden in the notification area and stay resident
+  --new-window  start a separate instance instead of activating a running one
+  --help        show this summary
+```
 
 **Other.**
 - Copy and paste (Ctrl+C/Ctrl+V). Pasted text is parsed as a full expression,
@@ -111,15 +168,33 @@ target\release\rcalc.exe
 cargo test
 ```
 
-The suite has 56 unit tests and 7 integration tests. They cover the decimal
+The suite has 65 unit tests and 7 integration tests. They cover the decimal
 engine, the parser and evaluator, all three keypad engines, programmer
 overflow, dates, converters, the persistence round-trip, and the app's
-keyboard and state handling. To render every view to `target/screens/*.png`
-for visual review:
+keyboard and state handling. Three tests check the localization:
+
+- every row of the translation table is complete, with matching placeholders;
+- every user-visible English literal in the UI sources has a translation;
+- rendering every view, flyout and converter in German leaves no English
+  words on screen.
+
+A registry test exercises the Calculator-key code on a temporary key under
+`HKCU\Software\rcalc-test-<pid>` and deletes it afterwards. To render every
+view to `target/screens/*.png` for visual review, in English and in five
+other languages:
 
 ```bash
 cargo test --lib screenshots -- --ignored
 ```
+
+### Executable icon and version info
+
+`build.rs` renders the icon (16–256 px) into a `.ico` and compiles it, with
+version information, using the Windows resource compiler: `rc.exe` from the
+Windows SDK for MSVC, or `windres` for GNU. The Build Tools environment (or
+`dev.ps1`) puts `rc.exe` on `PATH`; `RC` / `WINDRES` can point to it
+explicitly. Without a resource compiler the build still succeeds, with a
+warning and without the icon.
 
 ## Why this GUI stack
 
@@ -141,7 +216,8 @@ the accessibility tree. Frames are drawn only in response to input.
 
 Measured on the development machine with the release build: the window
 appears about 0.3 s after process start. Private memory is about 11 MB, and
-the app uses 0 ms CPU while idle.
+the app uses 0 ms CPU while idle. A second launch that hands over to the
+resident instance exits within about 0.2 s, process start included.
 
 ## Portability
 
@@ -294,8 +370,16 @@ Arrow keys move between days, `PageUp`/`PageDown` change the month, and
   15 significant digits, for |x| < 170.
 - **Trigonometric arguments** in radians are limited to |x| < 1e45. Larger
   values return "Invalid input".
-- **Formatting** is fixed to en-US: `.` is the decimal point and `,` the
-  thousands separator. The UI is English only.
+- **Number and date formats follow the UI language**, not the separate
+  Windows regional settings. For example, en-US with German regional settings
+  still shows `1,234.5`.
+- **Translations** were written for this project and have not been reviewed
+  by native speakers. Function captions on the keys (sin, mod, exp, AND,
+  RoL…) and the expression-line function names stay in English, as in
+  Windows Calculator. Corrections go in `src/i18n/strings.txt`, one line per
+  string.
+- **Tray icon placement.** Windows 10 puts new notification-area icons in
+  the overflow (^) area. Drag the icon onto the taskbar to keep it visible.
 - **Visuals.** There are no animations or Mica/acrylic translucency. Text is
   anti-aliased in grayscale, not ClearType.
 - **Dead keys.** On layouts where `^` is a dead key (Portuguese, French and
@@ -315,10 +399,14 @@ src/
   date.rs     calendar arithmetic
   app.rs      application state, actions, keyboard shortcuts, persistence mapping
   storage.rs  settings file location and atomic save
-  platform.rs Win32 clipboard, local date, theme and accent
+  i18n/       translation table (strings.txt), number separators, date formats
+  platform.rs Win32 clipboard, local date, UI language, theme and accent
+  winshell.rs tray icon, single-instance activation, Calculator key
   format.rs   digit grouping
-  ui/         renderer (gfx), theme, icons, widgets, layouts (view), screenshot test
-  main.rs     window, input, accessibility bridge
+  ui/         renderer (gfx), theme, icons, app icon, widgets, layouts (view),
+              screenshot and translation-coverage tests
+  main.rs     window, input, accessibility bridge, command line, tray events
+build.rs      renders the .ico and embeds icon + version info into the exe
 tests/        integration tests
 ```
 

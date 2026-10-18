@@ -6,6 +6,7 @@ use crate::calc::{Engine, HistoryEntry, Key, Kind};
 use crate::convert::{self, Category};
 use crate::date::{self, Date};
 use crate::expr::{BinOp, Constant, Unary};
+use crate::i18n::{self, Lang};
 use crate::num::func::{Angle, Trig};
 use crate::num::Dec;
 use crate::platform;
@@ -56,6 +57,7 @@ pub enum ComboId {
     Days,
     ConvFrom,
     ConvTo,
+    Language,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -112,6 +114,8 @@ pub enum Action {
     ConvField(u8),
     Theme(ThemePref),
     KeepOnTop(bool),
+    /// Point the keyboard Calculator key at rcalc (true) or Windows Calculator.
+    CalcKey(bool),
     Copy,
     Paste,
     /// Inert element (labels, modal scrim without action).
@@ -142,11 +146,15 @@ pub struct App {
     pub bitpad: bool,
     pub date: DateState,
     pub categories: Vec<Category>,
-    pub currency_source: String,
+    pub currency_source: convert::RateSource,
     pub conv_sel: Vec<(usize, usize)>,
     pub conv_active: u8,
     pub conv_entry: String,
     pub theme_pref: ThemePref,
+    /// UI language; `None` follows the Windows display language.
+    pub lang_pref: Option<Lang>,
+    /// The keyboard Calculator key currently opens this executable.
+    pub calc_key: bool,
     pub keep_on_top: bool,
     pub overlay: Overlay,
     pub panel_tab: PanelTab,
@@ -193,6 +201,8 @@ impl App {
             conv_active: 0,
             conv_entry: "0".into(),
             theme_pref: ThemePref::System,
+            lang_pref: None,
+            calc_key: false,
             keep_on_top: false,
             overlay: Overlay::None,
             panel_tab: PanelTab::History,
@@ -202,6 +212,11 @@ impl App {
             toast: None,
             window_size: None,
         }
+    }
+
+    /// Makes the preferred (or system) language current.
+    pub fn apply_language(&self) {
+        i18n::set_lang(self.lang_pref.unwrap_or_else(i18n::system_lang));
     }
 
     pub fn scroll(&self, id: ScrollId) -> f32 {
@@ -351,6 +366,10 @@ impl App {
                 self.keep_on_top = *on;
                 self.overlay = Overlay::None;
             }
+            Action::CalcKey(on) => match platform::set_calc_key(*on) {
+                Ok(()) => self.calc_key = *on,
+                Err(e) => self.toast = Some(format!("{}: {e}", i18n::tr("Could not change the Calculator key"))),
+            },
             Action::Copy => self.copy(),
             Action::Paste => self.paste(),
             Action::None => {}
@@ -470,6 +489,9 @@ impl App {
             ComboId::DateMode => vec!["Difference between dates".into(), "Add or subtract days".into()],
             ComboId::Years | ComboId::Months | ComboId::Days => (0..=999).map(|n| n.to_string()).collect(),
             ComboId::ConvFrom | ComboId::ConvTo => self.conv_category().units.iter().map(|u| u.name.clone()).collect(),
+            ComboId::Language => std::iter::once("Use system setting".to_string())
+                .chain(Lang::ALL.iter().map(|l| l.native_name().to_string()))
+                .collect(),
         }
     }
 
@@ -481,6 +503,10 @@ impl App {
             ComboId::Days => self.date.days as usize,
             ComboId::ConvFrom => self.conv_units().0,
             ComboId::ConvTo => self.conv_units().1,
+            ComboId::Language => self
+                .lang_pref
+                .and_then(|l| Lang::ALL.iter().position(|x| *x == l))
+                .map_or(0, |i| i + 1),
         }
     }
 
@@ -503,6 +529,10 @@ impl App {
             ComboId::Years => self.date.years = i as u32,
             ComboId::Months => self.date.months = i as u32,
             ComboId::Days => self.date.days = i as u32,
+            ComboId::Language => {
+                self.lang_pref = if i == 0 { None } else { Some(Lang::ALL[i - 1]) };
+                self.apply_language();
+            }
             ComboId::ConvFrom | ComboId::ConvTo => {
                 if let Mode::Converter(c) = self.mode {
                     let sel = &mut self.conv_sel[c as usize];
@@ -633,18 +663,19 @@ impl App {
                 if e.error().is_some() {
                     return None;
                 }
-                let t = e.display_text();
-                Some(t.chars().filter(|c| *c != ',' && *c != ' ').collect())
+                let t: String = e.display_text().chars().filter(|c| *c != ',' && *c != ' ').collect();
+                // Decimal separator follows the UI language (no grouping).
+                Some(if self.mode == Mode::Programmer { t } else { i18n::num(&t) })
             }
             Mode::Converter(_) => {
                 let (a, b) = self.conv_texts();
                 let t = if self.conv_active == 0 { b } else { a };
-                Some(t.replace(',', ""))
+                Some(i18n::num(&t.replace(',', "")))
             }
             Mode::Date => Some(if self.date.add_mode {
-                self.date_result().map(|d| d.long_text()).unwrap_or_default()
+                self.date_result().map(i18n::dates::long_date).unwrap_or_default()
             } else {
-                self.date_difference().text()
+                i18n::dates::difference(&self.date_difference())
             }),
             Mode::Settings => None,
         }
@@ -664,6 +695,12 @@ impl App {
     }
 
     pub fn paste_text(&mut self, text: &str) {
+        let text = if self.mode == Mode::Programmer {
+            text.to_string()
+        } else {
+            i18n::delocalize(text)
+        };
+        let text = text.as_str();
         match self.mode {
             Mode::Converter(_) => {
                 let t: String = text.trim().chars().filter(|c| *c != ',').collect();
@@ -704,6 +741,8 @@ impl App {
             _ => Mode::Standard,
         };
         self.mode = mode;
+        self.lang_pref = s.get("lang").and_then(Lang::from_tag);
+        self.apply_language();
         self.theme_pref = match s.get("theme") {
             Some("light") => ThemePref::Light,
             Some("dark") => ThemePref::Dark,
@@ -791,6 +830,7 @@ impl App {
         s.set("radix", self.prog.radix.label());
         s.set("shift", self.prog.shift.name());
         s.set("date_mode", if self.date.add_mode { "add" } else { "difference" });
+        s.set("lang", self.lang_pref.map_or("system", |l| l.tag()));
         if let Some((w, h)) = self.window_size {
             s.set("width", format!("{w:.0}"));
             s.set("height", format!("{h:.0}"));
@@ -1080,7 +1120,7 @@ mod tests {
         let mut a = app();
         a.date.from = Date::new(2026, 1, 31).unwrap();
         a.date.to = Date::new(2026, 3, 1).unwrap();
-        assert_eq!(a.date_difference().text(), "1 month, 1 day");
+        assert_eq!(i18n::dates::difference_in(Lang::EnUS, &a.date_difference()), "1 month, 1 day");
         a.combo_pick(ComboId::Months, 1);
         assert_eq!(a.date_result(), Date::new(2026, 2, 28));
         a.apply(&Action::DateSubtract(true));

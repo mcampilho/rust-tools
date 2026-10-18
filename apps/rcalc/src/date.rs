@@ -12,22 +12,6 @@ pub struct Date {
 pub const MIN_YEAR: i32 = 1;
 pub const MAX_YEAR: i32 = 9999;
 
-pub const MONTHS: [&str; 12] = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-];
-pub const WEEKDAYS: [&str; 7] = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
 pub fn is_leap(y: i32) -> bool {
     (y % 4 == 0 && y % 100 != 0) || y % 400 == 0
 }
@@ -105,16 +89,6 @@ impl Date {
         let s = if subtract { -1 } else { 1 };
         self.add_months(s * (years * 12 + months))?.add_days(s * days)
     }
-
-    pub fn long_text(self) -> String {
-        format!(
-            "{}, {} {}, {}",
-            WEEKDAYS[self.weekday()],
-            MONTHS[self.m as usize - 1],
-            self.d,
-            self.y
-        )
-    }
 }
 
 impl PartialOrd for Date {
@@ -136,36 +110,6 @@ pub struct Difference {
     pub weeks: i64,
     pub days: i64,
     pub total_days: i64,
-}
-
-impl Difference {
-    /// "1 year, 2 months, 3 weeks, 4 days", or "Same dates".
-    pub fn text(&self) -> String {
-        if self.total_days == 0 {
-            return "Same dates".into();
-        }
-        let mut parts = Vec::new();
-        for (n, one, many) in [
-            (self.years, "year", "years"),
-            (self.months, "month", "months"),
-            (self.weeks, "week", "weeks"),
-            (self.days, "day", "days"),
-        ] {
-            if n != 0 {
-                parts.push(format!("{n} {}", if n == 1 { one } else { many }));
-            }
-        }
-        parts.join(", ")
-    }
-
-    pub fn total_text(&self) -> String {
-        let n = self.total_days;
-        format!(
-            "{} {}",
-            crate::format::group_decimal(&n.to_string()),
-            if n == 1 { "day" } else { "days" }
-        )
-    }
 }
 
 /// Calendar difference between two dates (order does not matter).
@@ -207,9 +151,9 @@ mod tests {
 
     #[test]
     fn weekdays() {
-        assert_eq!(WEEKDAYS[d(2026, 10, 17).weekday()], "Saturday");
-        assert_eq!(WEEKDAYS[d(2000, 1, 1).weekday()], "Saturday");
-        assert_eq!(d(2024, 2, 29).long_text(), "Thursday, February 29, 2024");
+        assert_eq!(d(2026, 10, 17).weekday(), 6);
+        assert_eq!(d(2000, 1, 1).weekday(), 6);
+        assert_eq!(d(2024, 2, 29).weekday(), 4);
     }
 
     #[test]
@@ -235,12 +179,11 @@ mod tests {
         let diff = difference(d(2026, 1, 1), d(2027, 3, 20));
         assert_eq!((diff.years, diff.months, diff.weeks, diff.days), (1, 2, 2, 5));
         assert_eq!(diff.total_days, 443);
-        assert_eq!(diff.text(), "1 year, 2 months, 2 weeks, 5 days");
-        assert_eq!(difference(d(2026, 5, 5), d(2026, 5, 5)).text(), "Same dates");
-        assert_eq!(difference(d(2026, 5, 12), d(2026, 5, 5)).text(), "1 week");
+        let back = difference(d(2026, 5, 12), d(2026, 5, 5));
+        assert_eq!((back.weeks, back.days, back.total_days), (1, 0, 7));
         // month-end anchoring
         let diff = difference(d(2024, 1, 31), d(2024, 2, 29));
         assert_eq!((diff.months, diff.days), (1, 0));
-        assert_eq!(difference(d(2024, 1, 1), d(2025, 1, 1)).total_text(), "366 days");
+        assert_eq!(difference(d(2024, 1, 1), d(2025, 1, 1)).total_days, 366);
     }
 }

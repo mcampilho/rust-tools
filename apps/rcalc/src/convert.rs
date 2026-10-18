@@ -279,9 +279,26 @@ fn temperature() -> Category {
 
 // ---------------------------------------------------------------- currency
 
-/// Bundled reference rates (units per 1 US dollar). These are an
-/// approximate offline snapshot, not live market data.
-pub const CURRENCY_SNAPSHOT: &str = "approximate 2025 reference rates";
+/// Where currency rates come from.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RateSource {
+    /// Bundled reference rates (units per 1 US dollar): an approximate
+    /// offline snapshot, not live market data.
+    Bundled,
+    /// The user's `currency.txt`, with its optional `# date:` line.
+    File(Option<String>),
+}
+
+impl RateSource {
+    /// Localized description.
+    pub fn text(&self) -> String {
+        match self {
+            RateSource::Bundled => crate::i18n::tr("Offline: approximate 2025 reference rates").to_string(),
+            RateSource::File(Some(d)) => crate::i18n::tf("Rates from your currency file ({})", &[d]),
+            RateSource::File(None) => crate::i18n::tr("Rates from your currency file").to_string(),
+        }
+    }
+}
 
 const RATES: &[(&str, &str, &str)] = &[
     ("USD", "United States - Dollar", "1"),
@@ -321,7 +338,7 @@ const RATES: &[(&str, &str, &str)] = &[
 pub struct Currency {
     pub category: Category,
     /// Where the rates came from (bundled snapshot or the user's file).
-    pub source: String,
+    pub source: RateSource,
 }
 
 /// Builds the currency category from the bundled rates, overridden by a
@@ -329,7 +346,7 @@ pub struct Currency {
 /// `CODE = units per USD [= optional name]`; `#` starts a comment.
 pub fn currency(user_file: Option<&str>) -> Currency {
     let mut list: Vec<(String, String, Dec)> = RATES.iter().map(|(c, n, r)| (c.to_string(), n.to_string(), num(r))).collect();
-    let mut source = format!("Offline: {CURRENCY_SNAPSHOT}");
+    let mut source = RateSource::Bundled;
     if let Some(text) = user_file {
         let mut applied = 0;
         let mut date = None;
@@ -363,10 +380,7 @@ pub fn currency(user_file: Option<&str>) -> Currency {
             applied += 1;
         }
         if applied > 0 {
-            source = match date {
-                Some(d) => format!("Rates from your currency file ({d})"),
-                None => "Rates from your currency file".into(),
-            };
+            source = RateSource::File(date);
         }
     }
     let units: Vec<Unit> = list
@@ -440,7 +454,7 @@ mod tests {
     #[test]
     fn currency_override() {
         let c = currency(Some("# date: 2026-10-01\nEUR = 0.5\nXYZ = 4 = Test - Thing\nbad line\n"));
-        assert!(c.source.contains("2026-10-01"));
+        assert_eq!(c.source, RateSource::File(Some("2026-10-01".into())));
         let cat = &c.category;
         let usd = cat.find("USD").unwrap();
         let r = cat.convert(&Dec::from_i64(10), usd, cat.find("EUR").unwrap()).unwrap();
@@ -450,6 +464,6 @@ mod tests {
         let r = cat.convert(&Dec::from_i64(8), xyz, cat.find("EUR").unwrap()).unwrap();
         assert_eq!(r.format(16, false), "1");
         let bundled = currency(None);
-        assert!(bundled.source.starts_with("Offline"));
+        assert_eq!(bundled.source, RateSource::Bundled);
     }
 }

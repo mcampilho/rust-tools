@@ -1,0 +1,374 @@
+# UI translations. One string per line, columns separated by "|":
+# en-US (key)|en-GB|de-DE|es-ES|fr-FR|it-IT|ja-JP|pt-BR|pt-PT|zh-CN
+# An empty cell falls back to en-US (en-GB) or pt-BR (pt-PT). "{}" is a placeholder.
+#
+# ---- navigation and modes
+Calculator||Rechner|Calculadora|Calculatrice|Calcolatrice|電卓|Calculadora||计算器
+Standard||Standard|Estándar|Standard|Standard|標準|Padrão||标准
+Scientific||Wissenschaftlich|Científica|Scientifique|Scientifica|関数電卓|Científica||科学
+Programmer||Programmierer|Programador|Programmeur|Programmatore|プログラマー|Programador||程序员
+Date calculation||Datumsberechnung|Cálculo de fecha|Calcul de date|Calcolo data|日付の計算|Cálculo de data|Cálculo de datas|日期计算
+Converter||Konverter|Convertidor|Convertisseur|Convertitore|コンバーター|Conversor||转换器
+Settings||Einstellungen|Configuración|Paramètres|Impostazioni|設定|Configurações|Definições|设置
+Open navigation||Navigation öffnen|Abrir navegación|Ouvrir la navigation|Apri spostamento|ナビゲーションを開く|Abrir navegação||打开导航
+Close navigation||Navigation schließen|Cerrar navegación|Fermer la navigation|Chiudi spostamento|ナビゲーションを閉じる|Fechar navegação||关闭导航
+Keep on top||Immer im Vordergrund|Mantener en primer plano|Toujours visible|Mantieni in primo piano|常に手前に表示|Manter na parte superior|Manter no topo|置顶
+Back to full view||Zurück zur Vollansicht|Volver a la vista completa|Retour à la vue complète|Torna alla visualizzazione completa|フル ビューに戻る|Voltar para a exibição completa|Voltar à vista completa|返回完整视图
+Open history flyout||Verlauf öffnen|Abrir historial|Ouvrir l’historique|Apri cronologia|履歴を開く|Abrir histórico||打开历史记录
+Open memory flyout||Speicher öffnen|Abrir memoria|Ouvrir la mémoire|Apri memoria|メモリを開く|Abrir memória||打开内存
+History||Verlauf|Historial|Historique|Cronologia|履歴|Histórico||历史记录
+Memory||Speicher|Memoria|Mémoire|Memoria|メモリ|Memória||内存
+There's no history yet||Es ist noch kein Verlauf vorhanden|Todavía no hay historial|Il n’y a pas encore d’historique|Non è ancora presente alcuna cronologia|履歴はまだありません|Ainda não há histórico||尚无历史记录
+There's nothing saved in memory||Im Speicher ist nichts gespeichert|No hay nada guardado en memoria|Aucune valeur en mémoire|Non ci sono elementi salvati in memoria|メモリに保存されているものはありません|Não há nada salvo na memória|Não há nada guardado na memória|内存中没有保存任何内容
+Clear all history||Gesamten Verlauf löschen|Borrar todo el historial|Effacer tout l’historique|Cancella tutta la cronologia|すべての履歴をクリア|Limpar todo o histórico||清除所有历史记录
+Clear all memory||Gesamten Speicher löschen|Borrar toda la memoria|Effacer toute la mémoire|Cancella tutta la memoria|すべてのメモリをクリア|Limpar toda a memória||清除所有内存
+Memory recall||Speicher abrufen|Recuperar memoria|Rappel mémoire|Richiama memoria|メモリ呼び出し|Recuperar memória||内存调用
+Memory add||Zum Speicher addieren|Sumar a memoria|Ajouter à la mémoire|Aggiungi alla memoria|メモリに加算|Adicionar à memória||内存加
+Memory subtract||Vom Speicher subtrahieren|Restar de memoria|Soustraire de la mémoire|Sottrai dalla memoria|メモリから減算|Subtrair da memória||内存减
+Memory store||Im Speicher ablegen|Almacenar en memoria|Stocker en mémoire|Memorizza|メモリに保存|Armazenar na memória|Guardar na memória|内存存储
+Memory item {}||Speichereintrag {}|Elemento de memoria {}|Élément de mémoire {}|Elemento di memoria {}|メモリ項目 {}|Item de memória {}||内存项 {}
+Clear memory item||Speichereintrag löschen|Borrar elemento de memoria|Effacer l’élément de mémoire|Cancella elemento di memoria|メモリ項目をクリア|Limpar item de memória||清除内存项
+Add to memory item||Zum Speichereintrag addieren|Sumar al elemento de memoria|Ajouter à l’élément de mémoire|Aggiungi all’elemento di memoria|メモリ項目に加算|Adicionar ao item de memória||添加到内存项
+Subtract from memory item||Vom Speichereintrag subtrahieren|Restar del elemento de memoria|Soustraire de l’élément de mémoire|Sottrai dall’elemento di memoria|メモリ項目から減算|Subtrair do item de memória||从内存项中减去
+# ---- display
+Expression is {}||Ausdruck ist {}|La expresión es {}|L’expression est {}|L’espressione è {}|式は {}|A expressão é {}||表达式为 {}
+Display is {}||Anzeige ist {}|La pantalla muestra {}|L’affichage est {}|Il display mostra {}|表示は {}|A exibição é {}|O ecrã mostra {}|显示为 {}
+Cannot divide by zero||Division durch Null nicht möglich|No se puede dividir entre cero|Impossible de diviser par zéro|Impossibile dividere per zero|0 で割ることはできません|Não é possível dividir por zero||除数不能为零
+Result is undefined||Ergebnis ist nicht definiert|El resultado no está definido|Résultat non défini|Il risultato non è definito|結果が定義されていません|O resultado é indefinido||结果未定义
+Invalid input||Ungültige Eingabe|Entrada no válida|Entrée non valide|Input non valido|無効な入力です|Entrada inválida||输入无效
+Overflow||Überlauf|Desbordamiento|Dépassement de capacité|Overflow|オーバーフロー|Estouro|Capacidade excedida|溢出
+Overflow: wrapped to {}||Überlauf: auf {} gekürzt|Desbordamiento: ajustado a {}|Dépassement : tronqué à {}|Overflow: troncato a {}|オーバーフロー: {} に切り捨て|Estouro: truncado para {}|Capacidade excedida: truncado para {}|溢出：已截断为 {}
+Copied||Kopiert|Copiado|Copié|Copiato|コピーしました|Copiado||已复制
+Number too large to paste||Zahl zu groß zum Einfügen|Número demasiado grande para pegar|Nombre trop grand pour être collé|Numero troppo grande da incollare|貼り付ける数値が大きすぎます|Número grande demais para colar|Número demasiado grande para colar|数字太大，无法粘贴
+# ---- keypad (accessible names)
+Zero||Null|Cero|Zéro|Zero|ゼロ|Zero||零
+One||Eins|Uno|Un|Uno|1|Um||一
+Two||Zwei|Dos|Deux|Due|2|Dois||二
+Three||Drei|Tres|Trois|Tre|3|Três||三
+Four||Vier|Cuatro|Quatre|Quattro|4|Quatro||四
+Five||Fünf|Cinco|Cinq|Cinque|5|Cinco||五
+Six||Sechs|Seis|Six|Sei|6|Seis||六
+Seven||Sieben|Siete|Sept|Sette|7|Sete||七
+Eight||Acht|Ocho|Huit|Otto|8|Oito||八
+Nine||Neun|Nueve|Neuf|Nove|9|Nove||九
+Backspace||Rücktaste|Retroceso|Retour arrière|Backspace|BackSpace|Backspace|Retrocesso|退格
+Clear entry||Eingabe löschen|Borrar entrada|Effacer l’entrée|Cancella voce|入力のクリア|Limpar entrada||清除输入
+Clear||Löschen|Borrar|Effacer|Cancella|クリア|Limpar||清除
+Percent||Prozent|Porcentaje|Pourcentage|Percentuale|パーセント|Porcentagem|Percentagem|百分比
+Reciprocal||Kehrwert|Recíproco|Inverse|Reciproco|逆数|Recíproco||倒数
+Square||Quadrat|Cuadrado|Carré|Quadrato|平方|Quadrado||平方
+Square root||Quadratwurzel|Raíz cuadrada|Racine carrée|Radice quadrata|平方根|Raiz quadrada||平方根
+Cube||Kubik|Cubo|Cube|Cubo|3 乗|Cubo||立方
+Cube root||Kubikwurzel|Raíz cúbica|Racine cubique|Radice cubica|立方根|Raiz cúbica||立方根
+Divide by||Dividieren durch|Dividir entre|Diviser par|Dividi per|除算|Dividir por||除以
+Multiply by||Multiplizieren mit|Multiplicar por|Multiplier par|Moltiplica per|乗算|Multiplicar por||乘以
+Minus||Minus|Menos|Moins|Meno|マイナス|Menos||减
+Plus||Plus|Más|Plus|Più|プラス|Mais||加
+Positive negative||Positiv negativ|Positivo negativo|Positif négatif|Positivo negativo|正負|Positivo negativo||正负
+Decimal separator||Dezimaltrennzeichen|Separador decimal|Séparateur décimal|Separatore decimale|小数点|Separador decimal||小数分隔符
+Equals||Gleich|Igual a|Égal à|Uguale|等号|Igual a||等于
+Second functions||Zweite Funktionen|Segundas funciones|Fonctions secondaires|Seconde funzioni|第 2 関数|Segundas funções||第二功能
+Pi||Pi|Pi|Pi|Pi|円周率|Pi||圆周率
+Euler's number||Eulersche Zahl|Número de Euler|Nombre d’Euler|Numero di Eulero|ネイピア数|Número de Euler||欧拉数
+Absolute value||Absolutwert|Valor absoluto|Valeur absolue|Valore assoluto|絶対値|Valor absoluto||绝对值
+Exponential notation||Exponentialschreibweise|Notación exponencial|Notation exponentielle|Notazione esponenziale|指数表記|Notação exponencial||指数表示法
+Modulo||Modulo|Módulo|Modulo|Modulo|剰余|Módulo||取模
+Left parenthesis||Linke Klammer|Paréntesis de apertura|Parenthèse ouvrante|Parentesi aperta|左かっこ|Parêntese esquerdo|Parêntese de abertura|左括号
+Right parenthesis||Rechte Klammer|Paréntesis de cierre|Parenthèse fermante|Parentesi chiusa|右かっこ|Parêntese direito|Parêntese de fecho|右括号
+Factorial||Fakultät|Factorial|Factorielle|Fattoriale|階乗|Fatorial||阶乘
+X to the exponent||X hoch Exponent|X elevado al exponente|X puissance exposant|X elevato all’esponente|X のべき乗|X elevado ao expoente||X 的指数
+Y root of x||Y-te Wurzel aus X|Raíz Y de X|Racine Y de X|Radice Y di X|X の Y 乗根|Raiz Y de X||X 的 Y 次方根
+Ten to the exponent||Zehn hoch Exponent|Diez elevado al exponente|Dix puissance exposant|Dieci elevato all’esponente|10 のべき乗|Dez elevado ao expoente||10 的指数
+Two to the exponent||Zwei hoch Exponent|Dos elevado al exponente|Deux puissance exposant|Due elevato all’esponente|2 のべき乗|Dois elevado ao expoente||2 的指数
+E to the exponent||E hoch Exponent|E elevado al exponente|E puissance exposant|E elevato all’esponente|e のべき乗|E elevado ao expoente||e 的指数
+Log||Logarithmus|Logaritmo|Logarithme|Logaritmo|常用対数|Logaritmo||对数
+Log base y||Logarithmus zur Basis Y|Logaritmo en base Y|Logarithme en base Y|Logaritmo in base Y|底 Y の対数|Logaritmo na base Y||以 Y 为底的对数
+Natural log||Natürlicher Logarithmus|Logaritmo natural|Logarithme népérien|Logaritmo naturale|自然対数|Logaritmo natural||自然对数
+Degrees, switch to radians||Grad, zu Bogenmaß wechseln|Grados, cambiar a radianes|Degrés, passer en radians|Gradi, passa a radianti|度、ラジアンに切り替え|Graus, mudar para radianos||度，切换到弧度
+Radians, switch to gradians||Bogenmaß, zu Neugrad wechseln|Radianes, cambiar a gradianes|Radians, passer en grades|Radianti, passa a gradienti|ラジアン、グラードに切り替え|Radianos, mudar para grados||弧度，切换到百分度
+Gradians, switch to degrees||Neugrad, zu Grad wechseln|Gradianes, cambiar a grados|Grades, passer en degrés|Gradienti, passa a gradi|グラード、度に切り替え|Grados, mudar para graus||百分度，切换到度
+Scientific notation (F-E)||Wissenschaftliche Schreibweise (F-E)|Notación científica (F-E)|Notation scientifique (F-E)|Notazione scientifica (F-E)|指数表示 (F-E)|Notação científica (F-E)||科学记数法 (F-E)
+Trigonometry||Trigonometrie|Trigonometría|Trigonométrie|Trigonometria|三角関数|Trigonometria||三角学
+Function||Funktion|Función|Fonction|Funzione|関数|Função||函数
+Inverse functions||Umkehrfunktionen|Funciones inversas|Fonctions inverses|Funzioni inverse|逆関数|Funções inversas||反函数
+Hyperbolic functions||Hyperbelfunktionen|Funciones hiperbólicas|Fonctions hyperboliques|Funzioni iperboliche|双曲線関数|Funções hiperbólicas||双曲函数
+Floor||Abrunden|Redondeo por defecto|Partie entière inférieure|Arrotonda per difetto|床関数|Arredondar para baixo||向下取整
+Ceiling||Aufrunden|Redondeo por exceso|Partie entière supérieure|Arrotonda per eccesso|天井関数|Arredondar para cima||向上取整
+Random||Zufallszahl|Aleatorio|Aléatoire|Casuale|乱数|Aleatório||随机数
+Degrees minutes seconds||Grad Minuten Sekunden|Grados minutos segundos|Degrés minutes secondes|Gradi minuti secondi|度分秒|Graus minutos segundos||度分秒
+Decimal degrees||Dezimalgrad|Grados decimales|Degrés décimaux|Gradi decimali|10 進度|Graus decimais||十进制度
+Sine||Sinus|Seno|Sinus|Seno|正弦|Seno||正弦
+Cosine||Kosinus|Coseno|Cosinus|Coseno|余弦|Cosseno||余弦
+Tangent||Tangens|Tangente|Tangente|Tangente|正接|Tangente||正切
+Secant||Sekans|Secante|Sécante|Secante|正割|Secante||正割
+Cosecant||Kosekans|Cosecante|Cosécante|Cosecante|余割|Cossecante||余割
+Cotangent||Kotangens|Cotangente|Cotangente|Cotangente|余接|Cotangente||余切
+Arc sine||Arkussinus|Arcoseno|Arc sinus|Arcoseno|逆正弦|Arco seno||反正弦
+Arc cosine||Arkuskosinus|Arcocoseno|Arc cosinus|Arcocoseno|逆余弦|Arco cosseno||反余弦
+Arc tangent||Arkustangens|Arcotangente|Arc tangente|Arcotangente|逆正接|Arco tangente||反正切
+Arc secant||Arkussekans|Arcosecante|Arc sécante|Arcosecante|逆正割|Arco secante||反正割
+Arc cosecant||Arkuskosekans|Arcocosecante|Arc cosécante|Arcocosecante|逆余割|Arco cossecante||反余割
+Arc cotangent||Arkuskotangens|Arcocotangente|Arc cotangente|Arcocotangente|逆余接|Arco cotangente||反余切
+Hyperbolic sine||Sinus hyperbolicus|Seno hiperbólico|Sinus hyperbolique|Seno iperbolico|双曲線正弦|Seno hiperbólico||双曲正弦
+Hyperbolic cosine||Kosinus hyperbolicus|Coseno hiperbólico|Cosinus hyperbolique|Coseno iperbolico|双曲線余弦|Cosseno hiperbólico||双曲余弦
+Hyperbolic tangent||Tangens hyperbolicus|Tangente hiperbólica|Tangente hyperbolique|Tangente iperbolica|双曲線正接|Tangente hiperbólica||双曲正切
+Hyperbolic secant||Sekans hyperbolicus|Secante hiperbólica|Sécante hyperbolique|Secante iperbolica|双曲線正割|Secante hiperbólica||双曲正割
+Hyperbolic cosecant||Kosekans hyperbolicus|Cosecante hiperbólica|Cosécante hyperbolique|Cosecante iperbolica|双曲線余割|Cossecante hiperbólica||双曲余割
+Hyperbolic cotangent||Kotangens hyperbolicus|Cotangente hiperbólica|Cotangente hyperbolique|Cotangente iperbolica|双曲線余接|Cotangente hiperbólica||双曲余切
+Inverse hyperbolic sine||Areasinus hyperbolicus|Seno hiperbólico inverso|Sinus hyperbolique inverse|Seno iperbolico inverso|逆双曲線正弦|Seno hiperbólico inverso||反双曲正弦
+Inverse hyperbolic cosine||Areakosinus hyperbolicus|Coseno hiperbólico inverso|Cosinus hyperbolique inverse|Coseno iperbolico inverso|逆双曲線余弦|Cosseno hiperbólico inverso||反双曲余弦
+Inverse hyperbolic tangent||Areatangens hyperbolicus|Tangente hiperbólica inversa|Tangente hyperbolique inverse|Tangente iperbolica inversa|逆双曲線正接|Tangente hiperbólica inversa||反双曲正切
+Inverse hyperbolic secant||Areasekans hyperbolicus|Secante hiperbólica inversa|Sécante hyperbolique inverse|Secante iperbolica inversa|逆双曲線正割|Secante hiperbólica inversa||反双曲正割
+Inverse hyperbolic cosecant||Areakosekans hyperbolicus|Cosecante hiperbólica inversa|Cosécante hyperbolique inverse|Cosecante iperbolica inversa|逆双曲線余割|Cossecante hiperbólica inversa||反双曲余割
+Inverse hyperbolic cotangent||Areakotangens hyperbolicus|Cotangente hiperbólica inversa|Cotangente hyperbolique inverse|Cotangente iperbolica inversa|逆双曲線余接|Cotangente hiperbólica inversa||反双曲余切
+# ---- programmer
+Full keypad||Vollständige Tastatur|Teclado completo|Pavé complet|Tastierino completo|フル キーパッド|Teclado completo||完整键盘
+Bit toggling keypad||Bitumschalttastatur|Teclado de alternancia de bits|Pavé de basculement de bits|Tastierino attivazione/disattivazione bit|ビット切り替えキーパッド|Teclado de alternância de bits||位切换键盘
+Word size {}, change||Wortgröße {}, ändern|Tamaño de palabra {}, cambiar|Taille du mot {}, modifier|Dimensione parola {}, cambia|ワード サイズ {}、変更|Tamanho da palavra {}, alterar||字长 {}，更改
+Bitwise||Bitweise|Bit a bit|Opérateurs de bits|Bit per bit|ビット単位|Bit a bit||按位
+Bit shift||Bitverschiebung|Desplazamiento de bits|Décalage de bits|Spostamento bit|ビット シフト|Deslocamento de bits||位移位
+Arithmetic shift||Arithmetische Verschiebung|Desplazamiento aritmético|Décalage arithmétique|Spostamento aritmetico|算術シフト|Deslocamento aritmético||算术移位
+Logical shift||Logische Verschiebung|Desplazamiento lógico|Décalage logique|Spostamento logico|論理シフト|Deslocamento lógico||逻辑移位
+Rotate circular shift||Rotation (zirkulär)|Desplazamiento circular|Rotation circulaire|Rotazione circolare|循環シフト|Deslocamento circular||循环移位
+Rotate left||Links rotieren|Girar a la izquierda|Rotation à gauche|Ruota a sinistra|左に回転|Girar para a esquerda|Rodar para a esquerda|循环左移
+Rotate right||Rechts rotieren|Girar a la derecha|Rotation à droite|Ruota a destra|右に回転|Girar para a direita|Rodar para a direita|循环右移
+Left shift||Linksverschiebung|Desplazamiento a la izquierda|Décalage à gauche|Spostamento a sinistra|左シフト|Deslocamento para a esquerda||左移
+Right shift||Rechtsverschiebung|Desplazamiento a la derecha|Décalage à droite|Spostamento a destra|右シフト|Deslocamento para a direita||右移
+Bit {}, {}||Bit {}, {}|Bit {}, {}|Bit {}, {}|Bit {}, {}|ビット {}、{}|Bit {}, {}||位 {}，{}
+And||Und|Y|Et|And|AND|E||与
+Or||Oder|O|Ou|Or|OR|Ou||或
+Not||Nicht|No|Non|Not|NOT|Não||非
+Nand||Nicht und|NAND|Non-et|Nand|NAND|NAND||与非
+Nor||Nicht oder|NOR|Non-ou|Nor|NOR|NOR||或非
+Exclusive or||Exklusives Oder|O exclusivo|Ou exclusif|Or esclusivo|排他的論理和|Ou exclusivo||异或
+# ---- date calculation
+Calculation mode||Berechnungsmodus|Modo de cálculo|Mode de calcul|Modalità di calcolo|計算モード|Modo de cálculo||计算模式
+Difference between dates||Differenz zwischen Datumsangaben|Diferencia entre fechas|Différence entre les dates|Differenza tra date|日付間の差|Diferença entre datas||日期之间的相隔时间
+Add or subtract days||Tage addieren oder subtrahieren|Sumar o restar días|Ajouter ou soustraire des jours|Aggiungi o sottrai giorni|日数の加算または減算|Adicionar ou subtrair dias||添加或减去天数
+From||Von|Desde|De|Da|開始日|De||从
+To||Bis|Hasta|À|A|終了日|Até||至
+Difference||Differenz|Diferencia|Différence|Differenza|差|Diferença||相隔时间
+Difference {}||Differenz {}|Diferencia {}|Différence {}|Differenza {}|差 {}|Diferença {}||相隔时间 {}
+Same dates||Gleiche Daten|Mismas fechas|Dates identiques|Date uguali|同じ日付|Mesmas datas|Datas iguais|相同日期
+Add||Addieren|Sumar|Ajouter|Aggiungi|加算|Adicionar||添加
+Subtract||Subtrahieren|Restar|Soustraire|Sottrai|減算|Subtrair||减去
+Years||Jahre|Años|Années|Anni|年|Anos||年
+Months||Monate|Meses|Mois|Mesi|月|Meses||月
+Days||Tage|Días|Jours|Giorni|日|Dias||天
+Date||Datum|Fecha|Date|Data|日付|Data||日期
+Resulting date {}||Ergebnisdatum {}|Fecha resultante {}|Date obtenue {}|Data risultante {}|結果の日付 {}|Data resultante {}||结果日期 {}
+Outside the supported range ({}–{})||Außerhalb des unterstützten Bereichs ({}–{})|Fuera del intervalo admitido ({}–{})|En dehors de la plage prise en charge ({}–{})|Fuori dall’intervallo supportato ({}–{})|サポートされている範囲外です ({}–{})|Fora do intervalo com suporte ({}–{})|Fora do intervalo suportado ({}–{})|超出支持的范围 ({}–{})
+Previous month||Vorheriger Monat|Mes anterior|Mois précédent|Mese precedente|前の月|Mês anterior||上个月
+Next month||Nächster Monat|Mes siguiente|Mois suivant|Mese successivo|次の月|Próximo mês|Mês seguinte|下个月
+# ---- converter
+Input value {} {}||Eingabewert {} {}|Valor de entrada {} {}|Valeur d’entrée {} {}|Valore di input {} {}|入力値 {} {}|Valor de entrada {} {}||输入值 {} {}
+Converts into {} {}||Wird umgerechnet in {} {}|Se convierte en {} {}|Est converti en {} {}|Viene convertito in {} {}|変換後 {} {}|Converte para {} {}||转换为 {} {}
+Input unit||Eingabeeinheit|Unidad de entrada|Unité d’entrée|Unità di input|入力単位|Unidade de entrada||输入单位
+Output unit||Ausgabeeinheit|Unidad de salida|Unité de sortie|Unità di output|出力単位|Unidade de saída||输出单位
+Offline: approximate 2025 reference rates||Offline: ungefähre Referenzkurse von 2025|Sin conexión: tipos de referencia aproximados de 2025|Hors connexion : taux de référence approximatifs de 2025|Offline: tassi di riferimento approssimativi del 2025|オフライン: 2025 年のおおよその参考レート|Offline: taxas de referência aproximadas de 2025||离线：2025 年的近似参考汇率
+Rates from your currency file||Kurse aus Ihrer Währungsdatei|Tipos de tu archivo de divisas|Taux de votre fichier de devises|Tassi dal tuo file di valute|通貨ファイルのレート|Taxas do seu arquivo de moedas|Taxas do seu ficheiro de moedas|来自你的货币文件的汇率
+Rates from your currency file ({})||Kurse aus Ihrer Währungsdatei ({})|Tipos de tu archivo de divisas ({})|Taux de votre fichier de devises ({})|Tassi dal tuo file di valute ({})|通貨ファイルのレート ({})|Taxas do seu arquivo de moedas ({})|Taxas do seu ficheiro de moedas ({})|来自你的货币文件的汇率 ({})
+{}. Rates may be out of date; place a currency.txt next to the settings file to update them.||{}. Die Kurse sind möglicherweise veraltet. Legen Sie eine currency.txt neben die Einstellungsdatei, um sie zu aktualisieren.|{}. Los tipos pueden estar desactualizados; coloca un archivo currency.txt junto al archivo de configuración para actualizarlos.|{}. Les taux peuvent être obsolètes ; placez un fichier currency.txt à côté du fichier de paramètres pour les mettre à jour.|{}. I tassi potrebbero non essere aggiornati; inserisci un file currency.txt accanto al file delle impostazioni per aggiornarli.|{}。レートが古い可能性があります。更新するには、設定ファイルの横に currency.txt を置いてください。|{}. As taxas podem estar desatualizadas; coloque um currency.txt ao lado do arquivo de configurações para atualizá-las.|{}. As taxas podem estar desatualizadas; coloque um currency.txt junto ao ficheiro de definições para as atualizar.|{}。汇率可能已过时；请将 currency.txt 放在设置文件旁边以更新汇率。
+# ---- converter categories
+Currency||Währung|Moneda|Devise|Valuta|通貨|Moeda||货币
+Volume||Volumen|Volumen|Volume|Volume|体積|Volume||体积
+Length||Länge|Longitud|Longueur|Lunghezza|長さ|Comprimento||长度
+Weight and mass||Gewicht und Masse|Peso y masa|Poids et masse|Peso e massa|重量と質量|Peso e massa||重量和质量
+Temperature||Temperatur|Temperatura|Température|Temperatura|温度|Temperatura||温度
+Energy||Energie|Energía|Énergie|Energia|エネルギー|Energia||能量
+Area||Fläche|Área|Superficie|Area|面積|Área||面积
+Speed||Geschwindigkeit|Velocidad|Vitesse|Velocità|速度|Velocidade||速度
+Time||Zeit|Tiempo|Temps|Tempo|時間|Tempo||时间
+Power||Leistung|Potencia|Puissance|Potenza|仕事率|Potência||功率
+Data||Daten|Datos|Données|Dati|データ|Dados||数据
+Pressure||Druck|Presión|Pression|Pressione|圧力|Pressão||压力
+Angle||Winkel|Ángulo|Angle|Angolo|角度|Ângulo||角度
+# ---- units: volume
+Milliliters|Millilitres|Milliliter|Mililitros|Millilitres|Millilitri|ミリリットル|Mililitros||毫升
+Cubic centimeters|Cubic centimetres|Kubikzentimeter|Centímetros cúbicos|Centimètres cubes|Centimetri cubi|立方センチメートル|Centímetros cúbicos||立方厘米
+Liters|Litres|Liter|Litros|Litres|Litri|リットル|Litros||升
+Cubic meters|Cubic metres|Kubikmeter|Metros cúbicos|Mètres cubes|Metri cubi|立方メートル|Metros cúbicos||立方米
+Teaspoons (US)||Teelöffel (US)|Cucharaditas (EE. UU.)|Cuillères à café (US)|Cucchiaini (USA)|小さじ (米国)|Colheres de chá (EUA)||茶匙(美制)
+Tablespoons (US)||Esslöffel (US)|Cucharadas (EE. UU.)|Cuillères à soupe (US)|Cucchiai (USA)|大さじ (米国)|Colheres de sopa (EUA)||汤匙(美制)
+Fluid ounces (US)||Flüssigunzen (US)|Onzas líquidas (EE. UU.)|Onces liquides (US)|Once liquide (USA)|液量オンス (米国)|Onças fluidas (EUA)||液盎司(美制)
+Cups (US)||Tassen (US)|Tazas (EE. UU.)|Tasses (US)|Tazze (USA)|カップ (米国)|Xícaras (EUA)|Chávenas (EUA)|杯(美制)
+Pints (US)||Pints (US)|Pintas (EE. UU.)|Pintes (US)|Pinte (USA)|パイント (米国)|Pints (EUA)|Pintos (EUA)|品脱(美制)
+Quarts (US)||Quarts (US)|Cuartos (EE. UU.)|Quarts (US)|Quarti (USA)|クォート (米国)|Quartos (EUA)||夸脱(美制)
+Gallons (US)||Gallonen (US)|Galones (EE. UU.)|Gallons (US)|Galloni (USA)|ガロン (米国)|Galões (EUA)||加仑(美制)
+Cubic inches||Kubikzoll|Pulgadas cúbicas|Pouces cubes|Pollici cubi|立方インチ|Polegadas cúbicas||立方英寸
+Cubic feet||Kubikfuß|Pies cúbicos|Pieds cubes|Piedi cubi|立方フィート|Pés cúbicos||立方英尺
+Cubic yards||Kubikyard|Yardas cúbicas|Yards cubes|Iarde cubiche|立方ヤード|Jardas cúbicas||立方码
+Teaspoons (UK)||Teelöffel (UK)|Cucharaditas (R. U.)|Cuillères à café (R.-U.)|Cucchiaini (Regno Unito)|小さじ (英国)|Colheres de chá (Reino Unido)||茶匙(英制)
+Tablespoons (UK)||Esslöffel (UK)|Cucharadas (R. U.)|Cuillères à soupe (R.-U.)|Cucchiai (Regno Unito)|大さじ (英国)|Colheres de sopa (Reino Unido)||汤匙(英制)
+Fluid ounces (UK)||Flüssigunzen (UK)|Onzas líquidas (R. U.)|Onces liquides (R.-U.)|Once liquide (Regno Unito)|液量オンス (英国)|Onças fluidas (Reino Unido)||液盎司(英制)
+Pints (UK)||Pints (UK)|Pintas (R. U.)|Pintes (R.-U.)|Pinte (Regno Unito)|パイント (英国)|Pints (Reino Unido)|Pintos (Reino Unido)|品脱(英制)
+Quarts (UK)||Quarts (UK)|Cuartos (R. U.)|Quarts (R.-U.)|Quarti (Regno Unito)|クォート (英国)|Quartos (Reino Unido)||夸脱(英制)
+Gallons (UK)||Gallonen (UK)|Galones (R. U.)|Gallons (R.-U.)|Galloni (Regno Unito)|ガロン (英国)|Galões (Reino Unido)||加仑(英制)
+# ---- units: length
+Nanometers|Nanometres|Nanometer|Nanómetros|Nanomètres|Nanometri|ナノメートル|Nanômetros|Nanómetros|纳米
+Microns||Mikrometer|Micras|Microns|Micron|ミクロン|Mícrons||微米
+Millimeters|Millimetres|Millimeter|Milímetros|Millimètres|Millimetri|ミリメートル|Milímetros||毫米
+Centimeters|Centimetres|Zentimeter|Centímetros|Centimètres|Centimetri|センチメートル|Centímetros||厘米
+Meters|Metres|Meter|Metros|Mètres|Metri|メートル|Metros||米
+Kilometers|Kilometres|Kilometer|Kilómetros|Kilomètres|Chilometri|キロメートル|Quilômetros|Quilómetros|千米
+Inches||Zoll|Pulgadas|Pouces|Pollici|インチ|Polegadas||英寸
+Feet||Fuß|Pies|Pieds|Piedi|フィート|Pés||英尺
+Yards||Yard|Yardas|Yards|Iarde|ヤード|Jardas||码
+Miles||Meilen|Millas|Miles|Miglia|マイル|Milhas||英里
+Nautical miles||Seemeilen|Millas náuticas|Milles marins|Miglia nautiche|海里|Milhas náuticas||海里
+# ---- units: weight and mass
+Carats||Karat|Quilates|Carats|Carati|カラット|Quilates||克拉
+Milligrams||Milligramm|Miligramos|Milligrammes|Milligrammi|ミリグラム|Miligramas||毫克
+Centigrams||Zentigramm|Centigramos|Centigrammes|Centigrammi|センチグラム|Centigramas||厘克
+Decigrams||Dezigramm|Decigramos|Décigrammes|Decigrammi|デシグラム|Decigramas||分克
+Grams||Gramm|Gramos|Grammes|Grammi|グラム|Gramas||克
+Dekagrams||Dekagramm|Decagramos|Décagrammes|Decagrammi|デカグラム|Decagramas||十克
+Hectograms||Hektogramm|Hectogramos|Hectogrammes|Ettogrammi|ヘクトグラム|Hectogramas||百克
+Kilograms||Kilogramm|Kilogramos|Kilogrammes|Chilogrammi|キログラム|Quilogramas||千克
+Metric tonnes||Tonnen|Toneladas métricas|Tonnes métriques|Tonnellate metriche|メートル トン|Toneladas métricas||公吨
+Ounces||Unzen|Onzas|Onces|Once|オンス|Onças||盎司
+Pounds||Pfund|Libras|Livres|Libbre|ポンド|Libras||磅
+Stone||Stone|Stones|Stones|Stone|ストーン|Stones||英石
+Short tons (US)||Amerikanische Tonnen|Toneladas cortas (EE. UU.)|Tonnes courtes (US)|Tonnellate corte (USA)|米トン|Toneladas curtas (EUA)||短吨(美制)
+Long tons (UK)||Britische Tonnen|Toneladas largas (R. U.)|Tonnes longues (R.-U.)|Tonnellate lunghe (Regno Unito)|英トン|Toneladas longas (Reino Unido)||长吨(英制)
+# ---- units: temperature
+Celsius||Celsius|Celsius|Celsius|Celsius|摂氏|Celsius||摄氏度
+Fahrenheit||Fahrenheit|Fahrenheit|Fahrenheit|Fahrenheit|華氏|Fahrenheit||华氏度
+Kelvin||Kelvin|Kelvin|Kelvin|Kelvin|ケルビン|Kelvin||开尔文
+# ---- units: energy
+Electron volts||Elektronenvolt|Electronvoltios|Électronvolts|Elettronvolt|電子ボルト|Elétron-volts|Eletrão-volts|电子伏特
+Joules||Joule|Julios|Joules|Joule|ジュール|Joules||焦耳
+Kilojoules||Kilojoule|Kilojulios|Kilojoules|Kilojoule|キロジュール|Quilojoules||千焦
+Thermal calories||Thermochemische Kalorien|Calorías termoquímicas|Calories thermochimiques|Calorie termochimiche|熱化学カロリー|Calorias termoquímicas||热化学卡
+Food calories||Nahrungskalorien|Calorías alimentarias|Calories alimentaires|Calorie alimentari|食品カロリー|Calorias alimentares||大卡
+Foot-pounds||Foot-pound|Pies-libra|Pieds-livres|Piedi-libbre|フィート ポンド|Pés-libras||英尺-磅
+British thermal units||British Thermal Units|Unidades térmicas británicas|Unités thermiques britanniques|Unità termiche britanniche|英国熱量単位|Unidades térmicas britânicas||英制热单位
+Kilowatt-hours||Kilowattstunden|Kilovatios-hora|Kilowattheures|Chilowattora|キロワット時|Quilowatts-hora||千瓦时
+# ---- units: area
+Square millimeters|Square millimetres|Quadratmillimeter|Milímetros cuadrados|Millimètres carrés|Millimetri quadrati|平方ミリメートル|Milímetros quadrados||平方毫米
+Square centimeters|Square centimetres|Quadratzentimeter|Centímetros cuadrados|Centimètres carrés|Centimetri quadrati|平方センチメートル|Centímetros quadrados||平方厘米
+Square meters|Square metres|Quadratmeter|Metros cuadrados|Mètres carrés|Metri quadrati|平方メートル|Metros quadrados||平方米
+Hectares||Hektar|Hectáreas|Hectares|Ettari|ヘクタール|Hectares||公顷
+Square kilometers|Square kilometres|Quadratkilometer|Kilómetros cuadrados|Kilomètres carrés|Chilometri quadrati|平方キロメートル|Quilômetros quadrados|Quilómetros quadrados|平方千米
+Square inches||Quadratzoll|Pulgadas cuadradas|Pouces carrés|Pollici quadrati|平方インチ|Polegadas quadradas||平方英寸
+Square feet||Quadratfuß|Pies cuadrados|Pieds carrés|Piedi quadrati|平方フィート|Pés quadrados||平方英尺
+Square yards||Quadratyard|Yardas cuadradas|Yards carrés|Iarde quadrate|平方ヤード|Jardas quadradas||平方码
+Acres||Acres|Acres|Acres|Acri|エーカー|Acres||英亩
+Square miles||Quadratmeilen|Millas cuadradas|Miles carrés|Miglia quadrate|平方マイル|Milhas quadradas||平方英里
+# ---- units: speed
+Centimeters per second|Centimetres per second|Zentimeter pro Sekunde|Centímetros por segundo|Centimètres par seconde|Centimetri al secondo|センチメートル毎秒|Centímetros por segundo||厘米/秒
+Meters per second|Metres per second|Meter pro Sekunde|Metros por segundo|Mètres par seconde|Metri al secondo|メートル毎秒|Metros por segundo||米/秒
+Kilometers per hour|Kilometres per hour|Kilometer pro Stunde|Kilómetros por hora|Kilomètres par heure|Chilometri orari|キロメートル毎時|Quilômetros por hora|Quilómetros por hora|千米/小时
+Feet per second||Fuß pro Sekunde|Pies por segundo|Pieds par seconde|Piedi al secondo|フィート毎秒|Pés por segundo||英尺/秒
+Miles per hour||Meilen pro Stunde|Millas por hora|Miles par heure|Miglia orarie|マイル毎時|Milhas por hora||英里/小时
+Knots||Knoten|Nudos|Nœuds|Nodi|ノット|Nós||节
+Mach (sea level)||Mach (Meereshöhe)|Mach (nivel del mar)|Mach (niveau de la mer)|Mach (livello del mare)|マッハ (海面)|Mach (nível do mar)||马赫(海平面)
+# ---- units: time
+Microseconds||Mikrosekunden|Microsegundos|Microsecondes|Microsecondi|マイクロ秒|Microssegundos||微秒
+Milliseconds||Millisekunden|Milisegundos|Millisecondes|Millisecondi|ミリ秒|Milissegundos||毫秒
+Seconds||Sekunden|Segundos|Secondes|Secondi|秒|Segundos||秒
+Minutes||Minuten|Minutos|Minutes|Minuti|分|Minutos||分钟
+Hours||Stunden|Horas|Heures|Ore|時間|Horas||小时
+Weeks||Wochen|Semanas|Semaines|Settimane|週|Semanas||周
+Years (365 days)||Jahre (365 Tage)|Años (365 días)|Années (365 jours)|Anni (365 giorni)|年 (365 日)|Anos (365 dias)||年(365 天)
+# ---- units: power
+Watts||Watt|Vatios|Watts|Watt|ワット|Watts||瓦特
+Kilowatts||Kilowatt|Kilovatios|Kilowatts|Chilowatt|キロワット|Quilowatts||千瓦
+Horsepower (US)||Pferdestärken (US)|Caballos de fuerza (EE. UU.)|Chevaux-vapeur (US)|Cavalli vapore (USA)|馬力 (米国)|Cavalos-vapor (EUA)||马力(美制)
+Foot-pounds/minute||Foot-pound/Minute|Pies-libra/minuto|Pieds-livres/minute|Piedi-libbre/minuto|フィート ポンド/分|Pés-libras/minuto||英尺-磅/分钟
+BTUs/minute||BTU/Minute|BTU/minuto|BTU/minute|BTU/minuto|BTU/分|BTUs/minuto||BTU/分钟
+# ---- units: data
+Bits||Bits|Bits|Bits|Bit|ビット|Bits||位
+Nibbles||Nibbles|Nibbles|Quartets|Nibble|ニブル|Nibbles||半字节
+Bytes||Bytes|Bytes|Octets|Byte|バイト|Bytes||字节
+Kilobits||Kilobits|Kilobits|Kilobits|Kilobit|キロビット|Kilobits||千位
+Kibibits||Kibibits|Kibibits|Kibibits|Kibibit|キビビット|Kibibits||Kibibit
+Kilobytes||Kilobytes|Kilobytes|Kilo-octets|Kilobyte|キロバイト|Kilobytes||千字节
+Kibibytes||Kibibytes|Kibibytes|Kibioctets|Kibibyte|キビバイト|Kibibytes||KiB
+Megabits||Megabits|Megabits|Mégabits|Megabit|メガビット|Megabits||兆位
+Mebibits||Mebibits|Mebibits|Mébibits|Mebibit|メビビット|Mebibits||Mebibit
+Megabytes||Megabytes|Megabytes|Mégaoctets|Megabyte|メガバイト|Megabytes||兆字节
+Mebibytes||Mebibytes|Mebibytes|Mébioctets|Mebibyte|メビバイト|Mebibytes||MiB
+Gigabits||Gigabits|Gigabits|Gigabits|Gigabit|ギガビット|Gigabits||千兆位
+Gibibits||Gibibits|Gibibits|Gibibits|Gibibit|ギビビット|Gibibits||Gibibit
+Gigabytes||Gigabytes|Gigabytes|Gigaoctets|Gigabyte|ギガバイト|Gigabytes||千兆字节
+Gibibytes||Gibibytes|Gibibytes|Gibioctets|Gibibyte|ギビバイト|Gibibytes||GiB
+Terabits||Terabits|Terabits|Térabits|Terabit|テラビット|Terabits||太位
+Tebibits||Tebibits|Tebibits|Tébibits|Tebibit|テビビット|Tebibits||Tebibit
+Terabytes||Terabytes|Terabytes|Téraoctets|Terabyte|テラバイト|Terabytes||太字节
+Tebibytes||Tebibytes|Tebibytes|Tébioctets|Tebibyte|テビバイト|Tebibytes||TiB
+Petabits||Petabits|Petabits|Pétabits|Petabit|ペタビット|Petabits||拍位
+Petabytes||Petabytes|Petabytes|Pétaoctets|Petabyte|ペタバイト|Petabytes||拍字节
+Pebibytes||Pebibytes|Pebibytes|Pébioctets|Pebibyte|ペビバイト|Pebibytes||PiB
+# ---- units: pressure
+Atmospheres||Atmosphären|Atmósferas|Atmosphères|Atmosfere|気圧|Atmosferas||标准大气压
+Bars||Bar|Bares|Bars|Bar|バール|Bars||巴
+Kilopascals||Kilopascal|Kilopascales|Kilopascals|Kilopascal|キロパスカル|Quilopascals||千帕
+Millimeters of mercury|Millimetres of mercury|Millimeter Quecksilbersäule|Milímetros de mercurio|Millimètres de mercure|Millimetri di mercurio|水銀柱ミリメートル|Milímetros de mercúrio||毫米汞柱
+Pascals||Pascal|Pascales|Pascals|Pascal|パスカル|Pascals||帕斯卡
+Pounds per square inch||Pfund pro Quadratzoll|Libras por pulgada cuadrada|Livres par pouce carré|Libbre per pollice quadrato|ポンド毎平方インチ|Libras por polegada quadrada||磅/平方英寸
+# ---- units: angle
+Degrees||Grad|Grados|Degrés|Gradi|度|Graus||度
+Radians||Bogenmaß|Radianes|Radians|Radianti|ラジアン|Radianos||弧度
+Gradians||Neugrad|Gradianes|Grades|Gradienti|グラード|Grados||百分度
+# ---- currencies
+United States - Dollar||USA – Dollar|Estados Unidos - Dólar|États-Unis - Dollar|Stati Uniti - Dollaro|米国 - ドル|Estados Unidos - Dólar||美国 - 美元
+Europe - Euro||Europa – Euro|Europa - Euro|Europe - Euro|Europa - Euro|ヨーロッパ - ユーロ|Europa - Euro||欧洲 - 欧元
+United Kingdom - Pound||Vereinigtes Königreich – Pfund|Reino Unido - Libra|Royaume-Uni - Livre|Regno Unito - Sterlina|英国 - ポンド|Reino Unido - Libra||英国 - 英镑
+Japan - Yen||Japan – Yen|Japón - Yen|Japon - Yen|Giappone - Yen|日本 - 円|Japão - Iene||日本 - 日元
+China - Yuan||China – Yuan|China - Yuan|Chine - Yuan|Cina - Yuan|中国 - 人民元|China - Yuan||中国 - 人民币
+India - Rupee||Indien – Rupie|India - Rupia|Inde - Roupie|India - Rupia|インド - ルピー|Índia - Rúpia||印度 - 卢比
+Canada - Dollar||Kanada – Dollar|Canadá - Dólar|Canada - Dollar|Canada - Dollaro|カナダ - ドル|Canadá - Dólar||加拿大 - 加元
+Australia - Dollar||Australien – Dollar|Australia - Dólar|Australie - Dollar|Australia - Dollaro|オーストラリア - ドル|Austrália - Dólar||澳大利亚 - 澳元
+New Zealand - Dollar||Neuseeland – Dollar|Nueva Zelanda - Dólar|Nouvelle-Zélande - Dollar|Nuova Zelanda - Dollaro|ニュージーランド - ドル|Nova Zelândia - Dólar||新西兰 - 新西兰元
+Switzerland - Franc||Schweiz – Franken|Suiza - Franco|Suisse - Franc|Svizzera - Franco|スイス - フラン|Suíça - Franco||瑞士 - 法郎
+Sweden - Krona||Schweden – Krone|Suecia - Corona|Suède - Couronne|Svezia - Corona|スウェーデン - クローナ|Suécia - Coroa||瑞典 - 克朗
+Norway - Krone||Norwegen – Krone|Noruega - Corona|Norvège - Couronne|Norvegia - Corona|ノルウェー - クローネ|Noruega - Coroa||挪威 - 克朗
+Denmark - Krone||Dänemark – Krone|Dinamarca - Corona|Danemark - Couronne|Danimarca - Corona|デンマーク - クローネ|Dinamarca - Coroa||丹麦 - 克朗
+Poland - Zloty||Polen – Złoty|Polonia - Esloti|Pologne - Zloty|Polonia - Złoty|ポーランド - ズウォティ|Polônia - Zlóti|Polónia - Zlóti|波兰 - 兹罗提
+Czechia - Koruna||Tschechien – Krone|Chequia - Corona|Tchéquie - Couronne|Cechia - Corona|チェコ - コルナ|Tchéquia - Coroa|Chéquia - Coroa|捷克 - 克朗
+Hungary - Forint||Ungarn – Forint|Hungría - Forinto|Hongrie - Forint|Ungheria - Fiorino|ハンガリー - フォリント|Hungria - Florim||匈牙利 - 福林
+Romania - Leu||Rumänien – Leu|Rumanía - Leu|Roumanie - Leu|Romania - Leu|ルーマニア - レウ|Romênia - Leu|Roménia - Leu|罗马尼亚 - 列伊
+Türkiye - Lira||Türkei – Lira|Turquía - Lira|Turquie - Livre|Turchia - Lira|トルコ - リラ|Turquia - Lira||土耳其 - 里拉
+Brazil - Real||Brasilien – Real|Brasil - Real|Brésil - Real|Brasile - Real|ブラジル - レアル|Brasil - Real||巴西 - 雷亚尔
+Mexico - Peso||Mexiko – Peso|México - Peso|Mexique - Peso|Messico - Peso|メキシコ - ペソ|México - Peso||墨西哥 - 比索
+South Africa - Rand||Südafrika – Rand|Sudáfrica - Rand|Afrique du Sud - Rand|Sudafrica - Rand|南アフリカ - ランド|África do Sul - Rand||南非 - 兰特
+Korea - Won||Korea – Won|Corea - Won|Corée - Won|Corea - Won|韓国 - ウォン|Coreia - Won||韩国 - 韩元
+Singapore - Dollar||Singapur – Dollar|Singapur - Dólar|Singapour - Dollar|Singapore - Dollaro|シンガポール - ドル|Singapura - Dólar||新加坡 - 新加坡元
+Hong Kong SAR - Dollar||Hongkong (SAR) – Dollar|Hong Kong RAE - Dólar|Hong Kong RAS - Dollar|RAS di Hong Kong - Dollaro|香港特別行政区 - ドル|RAE de Hong Kong - Dólar||香港特别行政区 - 港元
+Taiwan - Dollar||Taiwan – Dollar|Taiwán - Dólar|Taïwan - Dollar|Taiwan - Dollaro|台湾 - ドル|Taiwan - Dólar||台湾 - 新台币
+Thailand - Baht||Thailand – Baht|Tailandia - Baht|Thaïlande - Baht|Thailandia - Baht|タイ - バーツ|Tailândia - Baht||泰国 - 泰铢
+Malaysia - Ringgit||Malaysia – Ringgit|Malasia - Ringgit|Malaisie - Ringgit|Malaysia - Ringgit|マレーシア - リンギット|Malásia - Ringgit||马来西亚 - 林吉特
+Indonesia - Rupiah||Indonesien – Rupiah|Indonesia - Rupia|Indonésie - Roupie|Indonesia - Rupia|インドネシア - ルピア|Indonésia - Rupia||印度尼西亚 - 印尼盾
+Philippines - Peso||Philippinen – Peso|Filipinas - Peso|Philippines - Peso|Filippine - Peso|フィリピン - ペソ|Filipinas - Peso||菲律宾 - 比索
+United Arab Emirates - Dirham||Vereinigte Arabische Emirate – Dirham|Emiratos Árabes Unidos - Dírham|Émirats arabes unis - Dirham|Emirati Arabi Uniti - Dirham|アラブ首長国連邦 - ディルハム|Emirados Árabes Unidos - Dirham||阿拉伯联合酋长国 - 迪拉姆
+Saudi Arabia - Riyal||Saudi-Arabien – Riyal|Arabia Saudí - Riyal|Arabie saoudite - Riyal|Arabia Saudita - Riyal|サウジアラビア - リヤル|Arábia Saudita - Rial||沙特阿拉伯 - 里亚尔
+Israel - New Shekel||Israel – Neuer Schekel|Israel - Nuevo séquel|Israël - Nouveau shekel|Israele - Nuovo siclo|イスラエル - 新シェケル|Israel - Novo shekel||以色列 - 新谢克尔
+# ---- settings
+Appearance||Darstellung|Apariencia|Apparence|Aspetto|外観|Aparência||外观
+App theme||App-Design|Tema de la aplicación|Thème de l’application|Tema dell’app|アプリ テーマ|Tema do aplicativo|Tema da aplicação|应用主题
+Light||Hell|Claro|Clair|Chiaro|ライト|Claro||浅色
+Dark||Dunkel|Oscuro|Sombre|Scuro|ダーク|Escuro||深色
+Use system setting||Systemeinstellung verwenden|Usar la configuración del sistema|Utiliser le paramètre système|Usa impostazione di sistema|システム設定を使用|Usar configuração do sistema|Utilizar a definição do sistema|使用系统设置
+Language||Sprache|Idioma|Langue|Lingua|言語|Idioma||语言
+Calculator key||Rechnertaste|Tecla de calculadora|Touche Calculatrice|Tasto Calcolatrice|電卓キー|Tecla de calculadora||计算器键
+Open rcalc with the keyboard Calculator key||rcalc mit der Rechnertaste der Tastatur öffnen|Abrir rcalc con la tecla de calculadora del teclado|Ouvrir rcalc avec la touche Calculatrice du clavier|Apri rcalc con il tasto Calcolatrice della tastiera|キーボードの電卓キーで rcalc を開く|Abrir o rcalc com a tecla de calculadora do teclado||使用键盘上的计算器键打开 rcalc
+When enabled, the Calculator key on your keyboard opens rcalc instead of Windows Calculator. If rcalc is already running in the notification area, the key shows that window instantly.||Wenn aktiviert, öffnet die Rechnertaste Ihrer Tastatur rcalc statt des Windows-Rechners. Läuft rcalc bereits im Infobereich, wird das Fenster sofort angezeigt.|Si se activa, la tecla de calculadora del teclado abre rcalc en lugar de la Calculadora de Windows. Si rcalc ya se está ejecutando en el área de notificación, la tecla muestra esa ventana al instante.|Lorsque cette option est activée, la touche Calculatrice de votre clavier ouvre rcalc au lieu de la Calculatrice Windows. Si rcalc s’exécute déjà dans la zone de notification, la touche affiche immédiatement sa fenêtre.|Se attivato, il tasto Calcolatrice della tastiera apre rcalc invece della Calcolatrice di Windows. Se rcalc è già in esecuzione nell’area di notifica, il tasto mostra subito la finestra.|有効にすると、キーボードの電卓キーで Windows 電卓の代わりに rcalc が開きます。rcalc が通知領域で既に実行中の場合は、そのウィンドウがすぐに表示されます。|Quando ativado, a tecla de calculadora do teclado abre o rcalc em vez da Calculadora do Windows. Se o rcalc já estiver em execução na área de notificação, a tecla mostra essa janela instantaneamente.|Quando ativada, a tecla de calculadora do teclado abre o rcalc em vez da Calculadora do Windows. Se o rcalc já estiver em execução na área de notificação, a tecla mostra essa janela de imediato.|启用后，键盘上的计算器键将打开 rcalc 而不是 Windows 计算器。如果 rcalc 已在通知区域中运行，按下该键会立即显示其窗口。
+Could not change the Calculator key||Die Rechnertaste konnte nicht geändert werden|No se pudo cambiar la tecla de calculadora|Impossible de modifier la touche Calculatrice|Impossibile modificare il tasto Calcolatrice|電卓キーを変更できませんでした|Não foi possível alterar a tecla de calculadora||无法更改计算器键
+Background mode||Hintergrundmodus|Modo en segundo plano|Mode arrière-plan|Modalità in background|バックグラウンド モード|Modo em segundo plano||后台模式
+Start rcalc with {} to keep it running in the notification area for instant access. Closing the window then hides it; use the tray icon menu to exit.||Starten Sie rcalc mit {}, damit es für den sofortigen Zugriff im Infobereich weiterläuft. Beim Schließen wird das Fenster dann nur ausgeblendet; zum Beenden verwenden Sie das Menü des Infobereichsymbols.|Inicia rcalc con {} para mantenerlo en ejecución en el área de notificación y acceder al instante. Al cerrar la ventana, esta se oculta; usa el menú del icono de la bandeja para salir.|Démarrez rcalc avec {} pour le garder en cours d’exécution dans la zone de notification et y accéder instantanément. La fermeture de la fenêtre la masque alors ; utilisez le menu de l’icône pour quitter.|Avvia rcalc con {} per mantenerlo in esecuzione nell’area di notifica e accedervi all’istante. Chiudendo la finestra, questa viene nascosta; usa il menu dell’icona per uscire.|rcalc を {} で起動すると、通知領域で実行し続けてすぐに利用できます。ウィンドウを閉じると非表示になります。終了するにはトレイ アイコンのメニューを使用します。|Inicie o rcalc com {} para mantê-lo em execução na área de notificação e acessá-lo instantaneamente. Fechar a janela apenas a oculta; use o menu do ícone da bandeja para sair.|Inicie o rcalc com {} para o manter em execução na área de notificação e aceder-lhe de imediato. Fechar a janela apenas a oculta; utilize o menu do ícone para sair.|使用 {} 启动 rcalc，使其在通知区域中保持运行，以便即时访问。关闭窗口时只会隐藏它；请使用托盘图标菜单退出。
+Saved data||Gespeicherte Daten|Datos guardados|Données enregistrées|Dati salvati|保存されたデータ|Dados salvos|Dados guardados|保存的数据
+History, memory and settings are stored in {}.||Verlauf, Speicher und Einstellungen werden in {} gespeichert.|El historial, la memoria y la configuración se almacenan en {}.|L’historique, la mémoire et les paramètres sont stockés dans {}.|Cronologia, memoria e impostazioni sono archiviate in {}.|履歴、メモリ、設定は {} に保存されます。|O histórico, a memória e as configurações são armazenados em {}.|O histórico, a memória e as definições são guardados em {}.|历史记录、内存和设置存储在 {} 中。
+Portable mode.||Portabler Modus.|Modo portátil.|Mode portable.|Modalità portatile.|ポータブル モード。|Modo portátil.||便携模式。
+Settings and history are not saved on this system.||Einstellungen und Verlauf werden auf diesem System nicht gespeichert.|La configuración y el historial no se guardan en este sistema.|Les paramètres et l’historique ne sont pas enregistrés sur ce système.|Le impostazioni e la cronologia non vengono salvate su questo sistema.|このシステムでは設定と履歴は保存されません。|As configurações e o histórico não são salvos neste sistema.|As definições e o histórico não são guardados neste sistema.|此系统上不会保存设置和历史记录。
+Warning: {}||Warnung: {}|Advertencia: {}|Avertissement : {}|Avviso: {}|警告: {}|Aviso: {}||警告：{}
+To run fully portable, create an empty file named {} next to rcalc.exe.||Für einen vollständig portablen Betrieb erstellen Sie neben rcalc.exe eine leere Datei namens {}.|Para ejecutarlo de forma totalmente portátil, crea un archivo vacío llamado {} junto a rcalc.exe.|Pour une utilisation entièrement portable, créez un fichier vide nommé {} à côté de rcalc.exe.|Per un’esecuzione completamente portatile, crea un file vuoto denominato {} accanto a rcalc.exe.|完全にポータブルで実行するには、rcalc.exe の横に {} という名前の空のファイルを作成します。|Para executar de forma totalmente portátil, crie um arquivo vazio chamado {} ao lado de rcalc.exe.|Para executar de forma totalmente portátil, crie um ficheiro vazio chamado {} junto a rcalc.exe.|若要完全便携运行，请在 rcalc.exe 旁边创建一个名为 {} 的空文件。
+Currency rates||Wechselkurse|Tipos de cambio|Taux de change|Tassi di cambio|為替レート|Taxas de câmbio||汇率
+{}. Currency conversion works offline from bundled reference rates that are not live market data. To use your own rates, create {} in the data folder with lines like "EUR = 0.92" (units per US dollar), optionally starting with "# date: 2026-10-01".||{}. Die Währungsumrechnung funktioniert offline mit mitgelieferten Referenzkursen, die keine aktuellen Marktdaten sind. Um eigene Kurse zu verwenden, erstellen Sie {} im Datenordner mit Zeilen wie "EUR = 0.92" (Einheiten pro US-Dollar), optional beginnend mit "# date: 2026-10-01".|{}. La conversión de divisas funciona sin conexión con tipos de referencia incluidos que no son datos de mercado en tiempo real. Para usar tus propios tipos, crea {} en la carpeta de datos con líneas como "EUR = 0.92" (unidades por dólar estadounidense), opcionalmente empezando por "# date: 2026-10-01".|{}. La conversion de devises fonctionne hors connexion avec des taux de référence intégrés qui ne sont pas des données de marché en temps réel. Pour utiliser vos propres taux, créez {} dans le dossier de données avec des lignes comme "EUR = 0.92" (unités par dollar américain), en commençant éventuellement par "# date: 2026-10-01".|{}. La conversione di valuta funziona offline con tassi di riferimento inclusi che non sono dati di mercato in tempo reale. Per usare i tuoi tassi, crea {} nella cartella dei dati con righe come "EUR = 0.92" (unità per dollaro USA), facoltativamente iniziando con "# date: 2026-10-01".|{}。通貨換算は、リアルタイムの市場データではない同梱の参考レートを使ってオフラインで動作します。独自のレートを使用するには、データ フォルダーに {} を作成し、"EUR = 0.92" (1 米ドルあたりの単位数) のような行を記述します。先頭に "# date: 2026-10-01" を付けることもできます。|{}. A conversão de moedas funciona offline com taxas de referência incluídas que não são dados de mercado em tempo real. Para usar suas próprias taxas, crie {} na pasta de dados com linhas como "EUR = 0.92" (unidades por dólar americano), opcionalmente começando com "# date: 2026-10-01".|{}. A conversão de moedas funciona offline com taxas de referência incluídas que não são dados de mercado em tempo real. Para utilizar as suas próprias taxas, crie {} na pasta de dados com linhas como "EUR = 0.92" (unidades por dólar americano), opcionalmente a começar por "# date: 2026-10-01".|{}。货币转换使用随附的参考汇率离线工作，这些汇率不是实时市场数据。若要使用你自己的汇率，请在数据文件夹中创建 {}，并写入类似 "EUR = 0.92"(每美元的单位数)的行，可选择以 "# date: 2026-10-01" 开头。
+Keyboard||Tastatur|Teclado|Clavier|Tastiera|キーボード|Teclado||键盘
+Digits, + - * / and Enter work as expected. Esc clears, Delete clears the entry, Backspace deletes a digit, F9 negates. Ctrl+C/Ctrl+V copy and paste, Ctrl+M/P/Q/R/L are MS, M+, M-, MR and MC, Ctrl+H opens history. Alt+1, Alt+2, Alt+4 and Alt+5 switch to Standard, Scientific, Programmer and Date calculation. Tab moves between controls and Space activates the focused control. See README for the full list.||Ziffern, + - * / und die Eingabetaste funktionieren wie erwartet. Esc löscht alles, Entf löscht die Eingabe, die Rücktaste löscht eine Ziffer, F9 kehrt das Vorzeichen um. Strg+C/Strg+V kopieren und einfügen, Strg+M/P/Q/R/L entsprechen MS, M+, M-, MR und MC, Strg+H öffnet den Verlauf. Alt+1, Alt+2, Alt+4 und Alt+5 wechseln zu Standard, Wissenschaftlich, Programmierer und Datumsberechnung. Tab wechselt zwischen Steuerelementen, die Leertaste aktiviert das fokussierte Element. Die vollständige Liste steht in der README.|Los dígitos, + - * / y Entrar funcionan como se espera. Esc borra todo, Supr borra la entrada, Retroceso elimina un dígito y F9 cambia el signo. Ctrl+C/Ctrl+V copian y pegan, Ctrl+M/P/Q/R/L son MS, M+, M-, MR y MC, Ctrl+H abre el historial. Alt+1, Alt+2, Alt+4 y Alt+5 cambian a Estándar, Científica, Programador y Cálculo de fecha. Tab se mueve entre controles y Espacio activa el control seleccionado. Consulta el README para ver la lista completa.|Les chiffres, + - * / et Entrée fonctionnent comme prévu. Échap efface tout, Suppr efface l’entrée, Retour arrière supprime un chiffre, F9 inverse le signe. Ctrl+C/Ctrl+V copient et collent, Ctrl+M/P/Q/R/L correspondent à MS, M+, M-, MR et MC, Ctrl+H ouvre l’historique. Alt+1, Alt+2, Alt+4 et Alt+5 basculent vers Standard, Scientifique, Programmeur et Calcul de date. Tab passe d’un contrôle à l’autre et Espace active le contrôle sélectionné. Voir le README pour la liste complète.|Cifre, + - * / e Invio funzionano come previsto. Esc cancella tutto, Canc cancella la voce, Backspace elimina una cifra, F9 cambia il segno. Ctrl+C/Ctrl+V copiano e incollano, Ctrl+M/P/Q/R/L corrispondono a MS, M+, M-, MR e MC, Ctrl+H apre la cronologia. Alt+1, Alt+2, Alt+4 e Alt+5 passano a Standard, Scientifica, Programmatore e Calcolo data. Tab si sposta tra i controlli e Spazio attiva il controllo selezionato. Vedi il README per l’elenco completo.|数字、+ - * /、Enter は通常どおり動作します。Esc ですべてクリア、Delete で入力をクリア、BackSpace で 1 桁削除、F9 で符号を反転します。Ctrl+C/Ctrl+V でコピーと貼り付け、Ctrl+M/P/Q/R/L は MS、M+、M-、MR、MC、Ctrl+H で履歴を開きます。Alt+1、Alt+2、Alt+4、Alt+5 で標準、関数電卓、プログラマー、日付の計算に切り替わります。Tab でコントロール間を移動し、Space でフォーカスのあるコントロールを実行します。完全な一覧は README を参照してください。|Dígitos, + - * / e Enter funcionam como esperado. Esc limpa tudo, Delete limpa a entrada, Backspace apaga um dígito e F9 inverte o sinal. Ctrl+C/Ctrl+V copiam e colam, Ctrl+M/P/Q/R/L são MS, M+, M-, MR e MC, Ctrl+H abre o histórico. Alt+1, Alt+2, Alt+4 e Alt+5 alternam para Padrão, Científica, Programador e Cálculo de data. Tab move entre os controles e Espaço ativa o controle em foco. Veja o README para a lista completa.|Dígitos, + - * / e Enter funcionam como esperado. Esc limpa tudo, Delete limpa a entrada, Retrocesso apaga um dígito e F9 inverte o sinal. Ctrl+C/Ctrl+V copiam e colam, Ctrl+M/P/Q/R/L são MS, M+, M-, MR e MC, Ctrl+H abre o histórico. Alt+1, Alt+2, Alt+4 e Alt+5 mudam para Padrão, Científica, Programador e Cálculo de datas. Tab move entre os controlos e Espaço ativa o controlo em foco. Consulte o README para a lista completa.|数字、+ - * / 和 Enter 键按预期工作。Esc 清除全部，Delete 清除输入，Backspace 删除一位数字，F9 取反。Ctrl+C/Ctrl+V 复制和粘贴，Ctrl+M/P/Q/R/L 分别对应 MS、M+、M-、MR 和 MC，Ctrl+H 打开历史记录。Alt+1、Alt+2、Alt+4 和 Alt+5 分别切换到标准、科学、程序员和日期计算。Tab 在控件之间移动，空格键激活焦点所在的控件。完整列表请参阅 README。
+About||Info|Acerca de|À propos|Informazioni|バージョン情報|Sobre|Acerca de|关于
+rcalc {} — a portable calculator written in Rust. Its design is inspired by Windows Calculator; it is an independent project and is not affiliated with or endorsed by Microsoft.||rcalc {} – ein portabler, in Rust geschriebener Rechner. Das Design ist vom Windows-Rechner inspiriert; es handelt sich um ein unabhängiges Projekt, das nicht mit Microsoft verbunden ist und nicht von Microsoft unterstützt wird.|rcalc {}: una calculadora portátil escrita en Rust. Su diseño está inspirado en la Calculadora de Windows; es un proyecto independiente que no está afiliado ni respaldado por Microsoft.|rcalc {} — une calculatrice portable écrite en Rust. Son design s’inspire de la Calculatrice Windows ; il s’agit d’un projet indépendant, non affilié à Microsoft ni approuvé par Microsoft.|rcalc {}: una calcolatrice portatile scritta in Rust. Il design è ispirato alla Calcolatrice di Windows; è un progetto indipendente, non affiliato né approvato da Microsoft.|rcalc {} — Rust で書かれたポータブル電卓です。デザインは Windows 電卓に着想を得ていますが、独立したプロジェクトであり、Microsoft とは提携しておらず、承認も受けていません。|rcalc {}: uma calculadora portátil escrita em Rust. Seu design é inspirado na Calculadora do Windows; é um projeto independente, não afiliado nem endossado pela Microsoft.|rcalc {}: uma calculadora portátil escrita em Rust. O design é inspirado na Calculadora do Windows; é um projeto independente, não afiliado nem apoiado pela Microsoft.|rcalc {} — 用 Rust 编写的便携式计算器。其设计灵感来自 Windows 计算器；这是一个独立项目，与 Microsoft 无关，也未获得 Microsoft 认可。
+# ---- tray
+Open Calculator||Rechner öffnen|Abrir Calculadora|Ouvrir la calculatrice|Apri Calcolatrice|電卓を開く|Abrir Calculadora||打开计算器
+Exit||Beenden|Salir|Quitter|Esci|終了|Sair||退出

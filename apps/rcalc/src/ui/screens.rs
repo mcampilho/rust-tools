@@ -34,6 +34,129 @@ fn keys(a: &mut App, ks: &[Key]) {
     }
 }
 
+/// Drives the app through every mode and overlay, calling `f` after each step.
+fn tour(a: &mut App, mut f: impl FnMut(&App, &str)) {
+    keys(
+        a,
+        &[
+            Key::Digit(1),
+            Key::Digit(2),
+            Key::Point,
+            Key::Digit(5),
+            Key::Bin(BinOp::Add),
+            Key::Digit(5),
+            Key::Equals,
+        ],
+    );
+    f(a, "standard");
+    a.apply(&Action::Mem(crate::app::MemOp::Store));
+    a.apply(&Action::Open(Overlay::Panel(PanelTab::History)));
+    f(a, "history");
+    a.apply(&Action::Open(Overlay::Panel(PanelTab::Memory)));
+    f(a, "memory");
+    a.apply(&Action::OpenNav);
+    f(a, "nav");
+    a.apply(&Action::Navigate(Mode::Scientific));
+    f(a, "scientific");
+    for o in [Overlay::Trig, Overlay::Func] {
+        a.apply(&Action::Open(o));
+        f(a, "sci-flyout");
+        a.apply(&Action::CloseOverlay);
+    }
+    keys(a, &[Key::Digit(1), Key::Bin(BinOp::Div), Key::Digit(0), Key::Equals]);
+    f(a, "error");
+    a.apply(&Action::Navigate(Mode::Programmer));
+    f(a, "programmer");
+    for o in [Overlay::Bitwise, Overlay::Shift] {
+        a.apply(&Action::Open(o));
+        f(a, "prog-flyout");
+        a.apply(&Action::CloseOverlay);
+    }
+    a.apply(&Action::BitPad(true));
+    f(a, "bits");
+    a.apply(&Action::Navigate(Mode::Date));
+    f(a, "date");
+    a.apply(&Action::Open(Overlay::Calendar(0)));
+    f(a, "calendar");
+    a.apply(&Action::CloseOverlay);
+    a.apply(&Action::ComboPick(ComboId::DateMode, 1));
+    f(a, "date-add");
+    for i in 0..a.categories.len() {
+        a.apply(&Action::Navigate(Mode::Converter(i as u8)));
+        keys(a, &[Key::Digit(3)]);
+        f(a, "converter");
+        a.apply(&Action::Open(Overlay::Combo(ComboId::ConvFrom)));
+        f(a, "converter-combo");
+        a.apply(&Action::CloseOverlay);
+    }
+    a.apply(&Action::Navigate(Mode::Settings));
+    f(a, "settings");
+    a.apply(&Action::Open(Overlay::Combo(ComboId::Language)));
+    f(a, "language");
+    a.apply(&Action::CloseOverlay);
+}
+
+/// Every piece of English UI text that reaches the screen has a translation
+/// (checked by rendering all views in German).
+#[test]
+fn rendered_views_are_translated() {
+    let Ok(mut g) = Gfx::new() else { return };
+    let mut a = app();
+    a.lang_pref = Some(crate::i18n::Lang::DeDE);
+    a.apply_language();
+    crate::i18n::tests::take_misses();
+    let input = Input::default();
+    tour(&mut a, |a, _| {
+        g.resize(400, 1400);
+        let mut ui = Ui::new(&mut g, Theme::new(true, Color::rgb(0x0078D4)), 1.0, &input);
+        view::build(a, &mut ui);
+    });
+    let missing: Vec<String> = crate::i18n::tests::take_misses()
+        .into_iter()
+        .filter(|s| crate::i18n::tests::has_english_leftover(crate::i18n::Lang::DeDE, s))
+        // File names, command-line flags, language names and key captions stay as-is.
+        .filter(|s| !s.contains("rcalc") && !s.chars().all(|c| !c.is_lowercase()))
+        .filter(|s| !crate::i18n::Lang::ALL.iter().any(|l| l.native_name() == s))
+        .collect();
+    crate::i18n::set_lang(crate::i18n::Lang::EnUS);
+    assert!(
+        missing.is_empty(),
+        "untranslated text on screen:
+{}",
+        missing.join(
+            "
+"
+        )
+    );
+}
+
+#[test]
+#[ignore]
+fn localized_screenshots() {
+    let mut g = Gfx::new().expect("fonts");
+    for lang in [
+        crate::i18n::Lang::DeDE,
+        crate::i18n::Lang::JaJP,
+        crate::i18n::Lang::ZhCN,
+        crate::i18n::Lang::FrFR,
+        crate::i18n::Lang::PtPT,
+    ] {
+        let mut a = app();
+        a.lang_pref = Some(lang);
+        a.apply_language();
+        g.clear_cache();
+        let tag = lang.tag();
+        let mut n = 0;
+        tour(&mut a, |a, step| {
+            if ["standard", "scientific", "date-add", "settings", "nav", "calendar", "history"].contains(&step) {
+                n += 1;
+                shot(&mut g, a, &format!("{tag}_{n:02}_{step}"), 360, 600, 1.0, n % 2 == 0);
+            }
+        });
+    }
+    crate::i18n::set_lang(crate::i18n::Lang::EnUS);
+}
+
 #[test]
 #[ignore]
 fn screenshots() {

@@ -5,6 +5,7 @@
 //! that list for hit testing, keyboard focus and the accessibility tree, and
 //! dispatches the widget's [`Action`] when it is activated.
 
+pub mod appicon;
 pub mod gfx;
 pub mod icons;
 pub mod theme;
@@ -14,6 +15,7 @@ pub mod view;
 mod screens;
 
 use crate::app::{Action, ScrollId};
+use crate::i18n::tr;
 use gfx::{Align, Color, FontId, Gfx, Rect};
 use icons::Icon;
 use std::hash::{Hash, Hasher};
@@ -213,7 +215,7 @@ impl<'a> Ui<'a> {
             rect,
             action: Action::None,
             role,
-            label: text.to_string(),
+            label: tr(text).to_string(),
             value: None,
             enabled: true,
             checked: None,
@@ -316,7 +318,7 @@ impl<'a> Ui<'a> {
             rect: r,
             action: b.action,
             role: b.role,
-            label: b.label.to_string(),
+            label: tr(b.label).to_string(),
             value: None,
             enabled: b.enabled,
             checked: b.checked,
@@ -335,6 +337,7 @@ impl<'a> Ui<'a> {
     pub fn paint_content(&mut self, c: &Content, r: Rect, fg: Color) {
         match c {
             Content::Text(s, size, font) => {
+                let s = tr(s);
                 let px = self.fs(*size);
                 let px = self.g.fit_size(s, r.w - self.px(8.0), px, px * 0.6, *font);
                 self.g.text_in(s, r, px, *font, fg, Align::Center);
@@ -344,6 +347,7 @@ impl<'a> Ui<'a> {
                 icons::draw(self.g, *icon, r, px, fg);
             }
             Content::Dropdown(icon, s, size) => {
+                let s = tr(s);
                 let px = self.fs(*size);
                 let pad = self.px(12.0);
                 let mut inner = Rect::new(r.x + pad, r.y, r.w - 2.0 * pad, r.h);
@@ -379,7 +383,9 @@ impl<'a> Ui<'a> {
         }
     }
 
+    /// Draws (translated) text in `r`.
     pub fn text(&mut self, s: &str, r: Rect, size: f32, font: FontId, c: Color, align: Align) -> f32 {
+        let s = tr(s);
         let px = self.fs(size);
         self.g.text_in(s, r, px, font, c, align)
     }
@@ -387,6 +393,7 @@ impl<'a> Ui<'a> {
     /// Text that shrinks to fit the rectangle width.
     #[allow(clippy::too_many_arguments)]
     pub fn fit_text(&mut self, s: &str, r: Rect, max: f32, min: f32, font: FontId, c: Color, align: Align) {
+        let s = tr(s);
         let px = self.g.fit_size(s, r.w, self.fs(max), self.fs(min), font);
         if self.g.measure(s, px, font) > r.w {
             // Still too wide at the minimum size: clip, keeping the end visible.
@@ -403,24 +410,39 @@ impl<'a> Ui<'a> {
         }
     }
 
-    /// Word-wraps `s` to `width` pixels.
+    /// Word-wraps `s` to `width` pixels. Words wider than a line (and
+    /// CJK text, which has no spaces) are broken between characters.
     pub fn wrap(&mut self, s: &str, width: f32, size: f32, font: FontId) -> Vec<String> {
         let px = self.fs(size);
         let mut lines = Vec::new();
         for para in s.split('\n') {
             let mut line = String::new();
             for word in para.split(' ') {
-                let candidate = if line.is_empty() {
-                    word.to_string()
-                } else {
-                    format!("{line} {word}")
-                };
-                if self.g.measure(&candidate, px, font) > width && !line.is_empty() {
+                let sep = if line.is_empty() { "" } else { " " };
+                let candidate = format!("{line}{sep}{word}");
+                if self.g.measure(&candidate, px, font) <= width {
+                    line = candidate;
+                    continue;
+                }
+                if !line.is_empty() && self.g.measure(word, px, font) <= width {
                     lines.push(std::mem::take(&mut line));
                     line = word.to_string();
-                } else {
-                    line = candidate;
+                    continue;
                 }
+                // Break inside the word.
+                let mut cur = std::mem::take(&mut line);
+                if !cur.is_empty() {
+                    cur.push(' ');
+                }
+                for ch in word.chars() {
+                    cur.push(ch);
+                    if self.g.measure(&cur, px, font) > width && cur.chars().count() > 1 {
+                        cur.pop();
+                        lines.push(std::mem::take(&mut cur));
+                        cur.push(ch);
+                    }
+                }
+                line = cur;
             }
             lines.push(line);
         }
@@ -429,6 +451,7 @@ impl<'a> Ui<'a> {
 
     /// Paints wrapped text starting at `r.y`; returns the height used.
     pub fn paragraph(&mut self, s: &str, r: Rect, size: f32, font: FontId, c: Color) -> f32 {
+        let s = tr(s);
         let lines = self.wrap(s, r.w, size, font);
         let lh = self.px(size * 1.45);
         let mut y = r.y;

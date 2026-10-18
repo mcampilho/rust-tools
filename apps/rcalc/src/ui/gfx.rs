@@ -138,6 +138,8 @@ struct Fonts {
     semibold: Option<FontVec>,
     /// Fallback for symbols missing from the main font; loaded on demand.
     symbol: Option<Option<FontVec>>,
+    /// CJK fallback (Japanese or Chinese glyph style), loaded on demand.
+    cjk: Option<(bool, Option<FontVec>)>,
 }
 
 fn font_dirs() -> Vec<std::path::PathBuf> {
@@ -162,7 +164,7 @@ fn load_font(names: &[&str]) -> Option<FontVec> {
     for dir in font_dirs() {
         for n in names {
             if let Ok(bytes) = std::fs::read(dir.join(n)) {
-                if let Ok(f) = FontVec::try_from_vec(bytes) {
+                if let Ok(f) = FontVec::try_from_vec_and_index(bytes, 0) {
                     return Some(f);
                 }
             }
@@ -179,6 +181,7 @@ impl Fonts {
             regular,
             semibold: load_font(&["seguisb.ttf", "DejaVuSans-Bold.ttf"]),
             symbol: None,
+            cjk: None,
         })
     }
 
@@ -186,6 +189,7 @@ impl Fonts {
         match id {
             1 => self.semibold.as_ref().unwrap_or(&self.regular),
             4 => self.symbol.as_ref().and_then(|s| s.as_ref()).unwrap_or(&self.regular),
+            5 => self.cjk.as_ref().and_then(|(_, f)| f.as_ref()).unwrap_or(&self.regular),
             _ => &self.regular,
         }
     }
@@ -208,6 +212,23 @@ impl Fonts {
             let g = s.glyph_id(c);
             if g.0 != 0 {
                 return (4, g);
+            }
+        }
+        // Han characters look different in Japanese and Chinese fonts, so the
+        // fallback follows the UI language.
+        let zh = crate::i18n::lang() == crate::i18n::Lang::ZhCN;
+        if self.cjk.as_ref().is_none_or(|(z, _)| *z != zh) {
+            let names: &[&str] = if zh {
+                &["msyh.ttc", "simsun.ttc", "YuGothM.ttc", "NotoSansCJK-Regular.ttc"]
+            } else {
+                &["YuGothM.ttc", "meiryo.ttc", "msgothic.ttc", "msyh.ttc", "NotoSansCJK-Regular.ttc"]
+            };
+            self.cjk = Some((zh, load_font(names)));
+        }
+        if let Some((_, Some(f))) = &self.cjk {
+            let g = f.glyph_id(c);
+            if g.0 != 0 {
+                return (5, g);
             }
         }
         (primary, GlyphId(0))
@@ -275,6 +296,11 @@ impl Gfx {
     }
 
     /// Discards cached glyphs (e.g. after a DPI change).
+    /// Drops all cached glyphs (after a language change swaps the CJK font).
+    pub fn clear_cache(&mut self) {
+        self.cache.clear();
+    }
+
     pub fn trim_cache(&mut self) {
         if self.cache.len() > 3000 {
             self.cache.clear();

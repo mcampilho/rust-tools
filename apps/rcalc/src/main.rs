@@ -23,6 +23,8 @@ use winit::window::{Icon as WinIcon, Theme as WinTheme, Window, WindowId, Window
 
 enum UserEvent {
     A11y(accesskit_winit::Event),
+    #[cfg(windows)]
+    Shell(rcalc::winshell::ShellEvent),
 }
 
 impl From<accesskit_winit::Event> for UserEvent {
@@ -55,6 +57,12 @@ struct Shell {
     focus_overlay: bool,
     focus_before_overlay: Option<WId>,
     theme_pref: ThemePref,
+    /// Resident mode: stay in the notification area when closed.
+    tray: bool,
+    hidden: bool,
+    lang: rcalc::i18n::Lang,
+    #[cfg(windows)]
+    shell: Option<rcalc::winshell::Shell>,
 }
 
 const DEFAULT_SIZE: (f64, f64) = (340.0, 560.0);
@@ -120,7 +128,44 @@ impl Shell {
             self.input.focus = None;
         }
         self.sync_window();
+        if rcalc::i18n::lang() != self.lang {
+            self.lang = rcalc::i18n::lang();
+            // The CJK fallback font may change with the language.
+            self.gfx.clear_cache();
+            if let Some(w) = &self.win {
+                w.window.set_title(rcalc::i18n::tr("Calculator"));
+            }
+            #[cfg(windows)]
+            if let Some(sh) = &self.shell {
+                let (tip, open, exit) = tray_labels();
+                sh.set_labels(tip, open, exit);
+            }
+        }
         self.request_redraw();
+    }
+
+    fn show_window(&mut self) {
+        if let Some(w) = &self.win {
+            w.window.set_visible(true);
+            w.window.set_minimized(false);
+            w.window.set_title(rcalc::i18n::tr("Calculator"));
+            w.window.focus_window();
+            self.hidden = false;
+            w.window.request_redraw();
+        }
+    }
+
+    /// Hides to the notification area and releases render memory.
+    fn hide_window(&mut self) {
+        self.save();
+        if let Some(w) = &self.win {
+            w.window.set_visible(false);
+        }
+        self.hidden = true;
+        self.input = Input::default();
+        self.app.overlay = Overlay::None;
+        self.gfx.resize(1, 1);
+        self.gfx.clear_cache();
     }
 
     /// Applies window-level side effects of app state (keep on top, theme).
@@ -422,34 +467,15 @@ impl Shell {
     }
 }
 
-/// Window icon drawn at startup (original artwork).
-fn app_icon(accent: Color) -> Option<WinIcon> {
-    let n = 32u32;
-    let mut pm = tiny_skia::Pixmap::new(n, n)?;
-    let mut paint = tiny_skia::Paint {
-        anti_alias: true,
-        ..Default::default()
-    };
-    let mut fill = |pm: &mut tiny_skia::Pixmap, x: f32, y: f32, w: f32, h: f32, c: (u8, u8, u8)| {
-        paint.set_color_rgba8(c.0, c.1, c.2, 255);
-        if let Some(r) = tiny_skia::Rect::from_xywh(x, y, w, h) {
-            pm.fill_rect(r, &paint, tiny_skia::Transform::identity(), None);
-        }
-    };
-    fill(&mut pm, 4.0, 1.0, 24.0, 30.0, (0x2B, 0x2B, 0x2B));
-    fill(&mut pm, 7.0, 4.0, 18.0, 7.0, (0xE8, 0xE8, 0xE8));
-    for row in 0..3 {
-        for col in 0..3 {
-            let c = if row == 2 && col == 2 {
-                (accent.r, accent.g, accent.b)
-            } else {
-                (0x9A, 0x9A, 0x9A)
-            };
-            fill(&mut pm, 7.0 + col as f32 * 6.5, 14.0 + row as f32 * 5.5, 5.0, 4.0, c);
-        }
-    }
-    // All pixels are opaque or fully transparent, so premultiplied == straight alpha.
-    WinIcon::from_rgba(pm.data().to_vec(), n, n).ok()
+/// Window icon (same artwork as the embedded .exe icon).
+fn app_icon() -> Option<WinIcon> {
+    let n = 32;
+    WinIcon::from_rgba(ui::appicon::render(n), n, n).ok()
+}
+
+fn tray_labels() -> (&'static str, &'static str, &'static str) {
+    use rcalc::i18n::tr;
+    (tr("Calculator"), tr("Open Calculator"), tr("Exit"))
 }
 
 impl ApplicationHandler<UserEvent> for Shell {
@@ -459,10 +485,10 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
         let (w, h) = self.app.window_size.unwrap_or(DEFAULT_SIZE);
         let attrs = Window::default_attributes()
-            .with_title("Calculator")
+            .with_title(rcalc::i18n::tr("Calculator"))
             .with_inner_size(LogicalSize::new(w.max(ui::view::MIN_WIDTH), h.max(ui::view::MIN_HEIGHT)))
             .with_min_inner_size(LogicalSize::new(ui::view::MIN_WIDTH, ui::view::MIN_HEIGHT))
-            .with_window_icon(app_icon(self.accent))
+            .with_window_icon(app_icon())
             .with_theme(match self.app.theme_pref {
                 ThemePref::Dark => Some(WinTheme::Dark),
                 ThemePref::Light => Some(WinTheme::Light),
@@ -490,14 +516,41 @@ impl ApplicationHandler<UserEvent> for Shell {
                 return;
             }
         };
-        window.set_visible(true);
+        if !self.tray {
+            window.set_visible(true);
+        }
+        self.hidden = self.tray;
         self.win = Some(Win { window, surface, adapter });
+        #[cfg(windows)]
+        {
+            let proxy = self.proxy.clone();
+            let (tip, open, exit) = tray_labels();
+            self.shell = rcalc::winshell::Shell::new(
+                self.tray,
+                tip,
+                (open, exit),
+                Box::new(move |e| {
+                    let _ = proxy.send_event(UserEvent::Shell(e));
+                }),
+            );
+        }
         self.theme_pref = self.app.theme_pref;
         self.request_redraw();
     }
 
     fn user_event(&mut self, _el: &ActiveEventLoop, event: UserEvent) {
-        let UserEvent::A11y(ev) = event;
+        let ev = match event {
+            UserEvent::A11y(ev) => ev,
+            #[cfg(windows)]
+            UserEvent::Shell(rcalc::winshell::ShellEvent::Activate) => return self.show_window(),
+            #[cfg(windows)]
+            UserEvent::Shell(rcalc::winshell::ShellEvent::Exit) => {
+                self.save();
+                self.shell = None;
+                _el.exit();
+                return;
+            }
+        };
         match ev.window_event {
             accesskit_winit::WindowEvent::InitialTreeRequested => {
                 let tree = self.tree();
@@ -528,8 +581,13 @@ impl ApplicationHandler<UserEvent> for Shell {
             w.adapter.process_event(&w.window, &event);
         }
         match event {
+            WindowEvent::CloseRequested if self.tray => self.hide_window(),
             WindowEvent::CloseRequested => {
                 self.save();
+                #[cfg(windows)]
+                {
+                    self.shell = None;
+                }
                 el.exit();
             }
             WindowEvent::Focused(false) => self.save(),
@@ -606,17 +664,43 @@ impl ApplicationHandler<UserEvent> for Shell {
                     self.key(&event);
                 }
             }
-            WindowEvent::RedrawRequested => self.render(),
+            WindowEvent::RedrawRequested if !self.hidden => self.render(),
             _ => {}
         }
     }
 }
 
+const USAGE: &str = "rcalc [--tray] [--new-window]
+
+  --tray        Start hidden in the notification area and stay resident:
+                closing the window hides it; the tray icon, the Calculator
+                key or launching rcalc again shows it instantly.
+  --new-window  Start a separate instance instead of activating a running one.";
+
 fn main() {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.iter().any(|a| a == "--help" || a == "-h" || a == "/?") {
+        #[cfg(windows)]
+        message_box(USAGE);
+        #[cfg(not(windows))]
+        println!("{USAGE}");
+        return;
+    }
+    let tray = args.iter().any(|a| a == "--tray" || a == "/tray");
+    let new_window = args.iter().any(|a| a == "--new-window");
+    // A second launch (including the Calculator key) shows the running
+    // instance and exits immediately.
+    #[cfg(windows)]
+    if !new_window && rcalc::winshell::activate_existing() {
+        return;
+    }
+    let _ = new_window;
+
     let mut location = storage::Location::detect();
     let store = location.load();
     let mut app = App::new(location);
     app.load(&store);
+    app.calc_key = platform::calc_key_registered();
 
     let gfx = match Gfx::new() {
         Ok(g) => g,
@@ -651,8 +735,24 @@ fn main() {
         restore_size: None,
         focus_overlay: false,
         focus_before_overlay: None,
+        tray,
+        hidden: false,
+        lang: rcalc::i18n::lang(),
+        #[cfg(windows)]
+        shell: None,
     };
     if let Err(e) = event_loop.run_app(&mut shell) {
         eprintln!("rcalc: {e}");
+    }
+}
+
+#[cfg(windows)]
+fn message_box(text: &str) {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONINFORMATION, MB_OK};
+    let w = |s: &str| s.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>();
+    let (t, c) = (w(text), w("rcalc"));
+    // SAFETY: valid NUL-terminated strings; no owner window.
+    unsafe {
+        MessageBoxW(std::ptr::null_mut(), t.as_ptr(), c.as_ptr(), MB_OK | MB_ICONINFORMATION);
     }
 }

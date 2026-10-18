@@ -36,6 +36,25 @@ mod imp {
         (rc == 0).then_some(data)
     }
 
+    /// First preferred Windows display language as a BCP 47 tag ("pt-PT").
+    pub fn ui_language() -> Option<String> {
+        use windows_sys::Win32::Globalization::{GetUserPreferredUILanguages, MUI_LANGUAGE_NAME};
+        let mut count = 0u32;
+        let mut len = 0u32;
+        // SAFETY: first call queries the buffer size, second fills it.
+        unsafe {
+            if GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &mut count, std::ptr::null_mut(), &mut len) == 0 || len == 0 {
+                return None;
+            }
+            let mut buf = vec![0u16; len as usize];
+            if GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &mut count, buf.as_mut_ptr(), &mut len) == 0 {
+                return None;
+            }
+            let end = buf.iter().position(|c| *c == 0).unwrap_or(buf.len());
+            Some(String::from_utf16_lossy(&buf[..end]))
+        }
+    }
+
     pub fn today() -> Option<Date> {
         // SAFETY: GetLocalTime only writes the provided struct.
         let st = unsafe {
@@ -128,6 +147,12 @@ mod imp {
     pub fn system_dark() -> Option<bool> {
         None
     }
+    pub fn ui_language() -> Option<String> {
+        std::env::var("LC_ALL")
+            .or_else(|_| std::env::var("LANG"))
+            .ok()
+            .map(|v| v.split('.').next().unwrap_or("").replace('_', "-"))
+    }
     pub fn accent() -> Option<u32> {
         None
     }
@@ -139,7 +164,35 @@ mod imp {
     }
 }
 
-pub use imp::{accent, get_clipboard, set_clipboard, system_dark};
+/// Whether the keyboard Calculator key can be redirected to rcalc.
+pub const CALC_KEY_SUPPORTED: bool = cfg!(windows);
+
+/// True when the Calculator key launches this executable.
+pub fn calc_key_registered() -> bool {
+    #[cfg(windows)]
+    {
+        crate::winshell::calc_key_registered()
+    }
+    #[cfg(not(windows))]
+    {
+        false
+    }
+}
+
+/// Redirects the Calculator key to rcalc (or restores the default).
+pub fn set_calc_key(enable: bool) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        crate::winshell::set_calc_key(enable)
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = enable;
+        Err("not supported on this platform".into())
+    }
+}
+
+pub use imp::{accent, get_clipboard, set_clipboard, system_dark, ui_language};
 
 pub fn today() -> Date {
     imp::today().unwrap_or(Date { y: 2026, m: 1, d: 1 })

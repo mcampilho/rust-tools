@@ -7,8 +7,9 @@ use super::{Button, Content, Role, Style, Ui, Widget};
 use crate::app::{Action, App, ComboId, MemOp, Mode, Overlay, PanelTab, ScrollId, ThemePref};
 use crate::calc::programmer::{Radix, ShiftMode};
 use crate::calc::{Engine, Key};
-use crate::date::{self, Date, MONTHS};
+use crate::date::{self, Date};
 use crate::expr::{BinOp, Constant, Unary};
+use crate::i18n::{self, dates, num, tf, tr};
 use crate::num::func::{Angle, Trig};
 
 /// Positions of controls that overlays attach to.
@@ -18,7 +19,7 @@ struct Anchors {
     func: Rect,
     bitwise: Rect,
     shift: Rect,
-    combo: [Rect; 6],
+    combo: [Rect; 7],
     cal: [Rect; 2],
     /// Area covered by the history/memory flyout.
     flyout_area: Rect,
@@ -44,7 +45,7 @@ pub fn build(app: &App, ui: &mut Ui) {
         Mode::Programmer => programmer(app, ui, main, &mut a, docked),
         Mode::Date => date_view(app, ui, main, &mut a),
         Mode::Converter(_) => converter(app, ui, main, &mut a),
-        Mode::Settings => settings(app, ui, main),
+        Mode::Settings => settings(app, ui, main, &mut a),
     }
     if let Some(p) = panel {
         side_panel(app, ui, p);
@@ -104,7 +105,7 @@ fn calc_display(ui: &mut Ui, e: &Engine, r: Rect, notice: Option<&str>) {
     let pad = ui.px(12.0);
     let mut rr = Rect::new(r.x + pad, r.y, r.w - 2.0 * pad, r.h);
     let er = rr.take_top(ui.px(26.0));
-    let expr = e.expression_text();
+    let expr = num(&e.expression_text());
     if let Some(n) = notice {
         let nr = Rect::new(er.x, er.y, er.w, er.h);
         ui.text(n, nr, 12.0, FontId::Semibold, t.accent_fg, Align::Left);
@@ -112,13 +113,17 @@ fn calc_display(ui: &mut Ui, e: &Engine, r: Rect, notice: Option<&str>) {
     }
     ui.fit_text(&expr, er, 14.0, 14.0, FontId::Regular, t.text_secondary, Align::Right);
     if !expr.is_empty() {
-        ui.label(er, &format!("Expression is {expr}"), Role::Label);
+        ui.label(er, &tf("Expression is {}", &[&expr]), Role::Label);
     }
-    let result = e.display_text();
+    let result = if e.error().is_some() {
+        tr(&e.display_text()).to_string()
+    } else {
+        num(&e.display_text())
+    };
     let max = (rr.h / ui.s * 0.62).clamp(28.0, 72.0);
     let max = if e.error().is_some() { max.min(32.0) } else { max };
     ui.fit_text(&result, rr, max, 12.0, FontId::Semibold, t.text, Align::Right);
-    ui.label(rr, &format!("Display is {result}"), Role::Display);
+    ui.label(rr, &tf("Display is {}", &[&result]), Role::Display);
 }
 
 fn memory_row(app: &App, ui: &mut Ui, r: Rect, e: &Engine, list_button: bool, only_store: bool) {
@@ -318,7 +323,7 @@ fn standard(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors, docked: bool) {
         op("+", "Plus", BinOp::Add),
         k("+/−", "Positive negative", Key::Negate, Style::Num),
         digit(0),
-        k(".", "Decimal separator", Key::Point, Style::Num),
+        k(i18n::decimal_point(), "Decimal separator", Key::Point, Style::Num),
         k("=", "Equals", Key::Equals, Style::Accent),
     ];
     apply_error_state(&mut keys, e);
@@ -478,7 +483,7 @@ fn scientific(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors, docked: bool) {
         },
         k("+/−", "Positive negative", Key::Negate, Style::Num),
         digit(0),
-        k(".", "Decimal separator", Key::Point, Style::Num),
+        k(i18n::decimal_point(), "Decimal separator", Key::Point, Style::Num),
         k("=", "Equals", Key::Equals, Style::Accent),
     ];
     apply_error_state(&mut keys, e);
@@ -495,7 +500,7 @@ fn programmer(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors, docked: bool) {
     let t = ui.t;
     let mut r = r;
     header(app, ui, r.take_top(ui.px(44.0)), docked);
-    let notice = e.overflowed.then(|| format!("Overflow: wrapped to {}", e.word.label()));
+    let notice = e.overflowed.then(|| tf("Overflow: wrapped to {}", &[e.word.label()]));
     let disp_h = (r.h * 0.17).clamp(ui.px(80.0), ui.px(150.0));
     calc_display(ui, e, r.take_top(disp_h), notice.as_deref());
     // Radix rows
@@ -507,7 +512,7 @@ fn programmer(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors, docked: bool) {
         let value = if err {
             String::new()
         } else {
-            crate::calc::programmer::format(v, radix, e.word)
+            num(&crate::calc::programmer::format(v, radix, e.word))
         };
         let label = format!("{} {}", radix.label(), value);
         ui.button(
@@ -566,7 +571,7 @@ fn programmer(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors, docked: bool) {
         Rect::new(sel.x + sel.w * 0.3, sel.bottom() - ui.px(3.0), sel.w * 0.4, ui.px(2.0)),
         t.accent_fg,
     );
-    let word_label = format!("Word size {}, change", e.word.label());
+    let word_label = tf("Word size {}, change", &[e.word.label()]);
     let wr = Rect::new(cell(2).x, row.y, cell(3).right() - cell(2).x, row.h);
     ui.button(Button::new(
         Action::CycleWord,
@@ -662,7 +667,7 @@ fn programmer(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors, docked: bool) {
     keys.push(digit(15));
     keys.push(k("+/−", "Positive negative", Key::Negate, Style::Num));
     keys.push(digit(0));
-    let mut point = k(".", "Decimal separator", Key::Point, Style::Num);
+    let mut point = k(i18n::decimal_point(), "Decimal separator", Key::Point, Style::Num);
     point.enabled = false;
     keys.push(point);
     keys.push(k("=", "Equals", Key::Equals, Style::Accent));
@@ -696,7 +701,7 @@ fn bit_pad(app: &App, ui: &mut Ui, r: Rect) {
             let x = r.x + i as f32 * cell_w + group as f32 * group_gap;
             let cr = Rect::new(x.round(), (y + row_h * 0.1).round(), cell_w.round(), (row_h * 0.55).round());
             let on = pattern >> bit & 1 == 1;
-            let label = format!("Bit {bit}, {}", if on { "1" } else { "0" });
+            let label = tf("Bit {}, {}", &[&bit.to_string(), if on { "1" } else { "0" }]);
             let size = (cell_w / ui.s * 0.6).clamp(10.0, 18.0);
             ui.button(
                 Button::new(
@@ -807,10 +812,11 @@ fn panel_list(app: &App, ui: &mut Ui, r: Rect, tab: PanelTab) {
         match tab {
             PanelTab::History => {
                 let h = &app.history[i];
-                let label = format!("{} {}", h.expression, h.result);
+                let (hx, hr) = (num(&h.expression), num(&h.result));
+                let label = format!("{hx} {hr}");
                 ui.button(Button::new(Action::HistoryItem(i), ir, &label, Content::None, Style::Subtle).role(Role::ListItem));
                 ui.fit_text(
-                    &h.expression,
+                    &hx,
                     Rect::new(inner.x, inner.y + ui.px(6.0), inner.w, ui.px(22.0)),
                     14.0,
                     9.0,
@@ -819,7 +825,7 @@ fn panel_list(app: &App, ui: &mut Ui, r: Rect, tab: PanelTab) {
                     Align::Right,
                 );
                 ui.fit_text(
-                    &h.result,
+                    &hr,
                     Rect::new(inner.x, inner.y + ui.px(28.0), inner.w, ui.px(34.0)),
                     22.0,
                     10.0,
@@ -829,12 +835,12 @@ fn panel_list(app: &App, ui: &mut Ui, r: Rect, tab: PanelTab) {
                 );
             }
             PanelTab::Memory => {
-                let v = app.format_memory(&app.memory[i]);
+                let v = num(&app.format_memory(&app.memory[i]));
                 ui.button(
                     Button::new(
                         Action::MemItem(i, MemOp::Recall),
                         ir,
-                        &format!("Memory item {v}"),
+                        &tf("Memory item {}", &[&v]),
                         Content::None,
                         Style::Subtle,
                     )
@@ -879,14 +885,10 @@ fn panel_list(app: &App, ui: &mut Ui, r: Rect, tab: PanelTab) {
 
 // ---------------------------------------------------------------- date calculation
 
-fn short_date(d: Date) -> String {
-    format!("{} {}, {}", MONTHS[d.m as usize - 1], d.d, d.y)
-}
-
 fn combo(app: &App, ui: &mut Ui, a: &mut Anchors, id: ComboId, r: Rect, label: &str) {
-    let value = app.combo_label(id);
+    let value = tr(&app.combo_label(id)).to_string();
     a.combo[id as usize] = r;
-    let full_label = format!("{label}, {value}");
+    let full_label = format!("{}, {value}", tr(label));
     let b = Button::new(
         Action::Open(Overlay::Combo(id)),
         r,
@@ -944,8 +946,8 @@ fn radio(ui: &mut Ui, action: Action, r: Rect, text: &str, on: bool) {
 
 fn date_field(ui: &mut Ui, a: &mut Anchors, idx: u8, r: Rect, d: Date, label: &str) {
     a.cal[idx as usize] = r;
-    let text = short_date(d);
-    let full = format!("{label}, {}", d.long_text());
+    let text = dates::short_date(d);
+    let full = format!("{}, {}", tr(label), dates::long_date(d));
     ui.button(
         Button::new(
             Action::Open(Overlay::Calendar(idx)),
@@ -987,13 +989,13 @@ fn date_view(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors) {
         c.take_top(ui.px(20.0));
         caption(ui, &mut c, "Difference");
         let diff = app.date_difference();
-        let text = diff.text();
+        let text = dates::difference(&diff);
         let br = c.take_top(ui.px(40.0));
         ui.fit_text(&text, br, 24.0, 14.0, FontId::Semibold, t.text, Align::Left);
-        ui.label(br, &format!("Difference {text}"), Role::Display);
+        ui.label(br, &tf("Difference {}", &[&text]), Role::Display);
         if diff.total_days != 0 && (diff.years, diff.months, diff.weeks) != (0, 0, 0) {
             let sr = c.take_top(ui.px(28.0));
-            let total = diff.total_text();
+            let total = dates::total_days(&diff);
             ui.text(&total, sr, 14.0, FontId::Regular, t.text_secondary, Align::Left);
             ui.label(sr, &total, Role::Label);
         }
@@ -1034,11 +1036,14 @@ fn date_view(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors) {
         caption(ui, &mut c, "Date");
         let br = c.take_top(ui.px(40.0));
         let text = match app.date_result() {
-            Some(d) => d.long_text(),
-            None => format!("Outside the supported range ({}–{})", date::MIN_YEAR, date::MAX_YEAR),
+            Some(d) => dates::long_date(d),
+            None => tf(
+                "Outside the supported range ({}–{})",
+                &[&date::MIN_YEAR.to_string(), &date::MAX_YEAR.to_string()],
+            ),
         };
         ui.fit_text(&text, br, 24.0, 12.0, FontId::Semibold, t.text, Align::Left);
-        ui.label(br, &format!("Resulting date {text}"), Role::Display);
+        ui.label(br, &tf("Resulting date {}", &[&text]), Role::Display);
     }
 }
 
@@ -1053,6 +1058,7 @@ fn converter(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors) {
     let pad = ui.px(16.0);
     let mut c = Rect::new(r.x + pad, r.y, r.w - 2.0 * pad, r.h);
     let (v0, v1) = app.conv_texts();
+    let (v0, v1) = (num(&v0), num(&v1));
     let cat = app.conv_category();
     let (from, to) = app.conv_units();
     let is_currency = cat.name == "Currency";
@@ -1061,11 +1067,11 @@ fn converter(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors) {
     for (idx, (text, unit, combo_id)) in [(v0, from, ComboId::ConvFrom), (v1, to, ComboId::ConvTo)].into_iter().enumerate() {
         let active = app.conv_active as usize == idx;
         let fr = c.take_top(field_h);
-        let unit_name = &cat.units[unit].name;
+        let unit_name = tr(&cat.units[unit].name);
         let label = if active {
-            format!("Input value {text} {unit_name}")
+            tf("Input value {} {}", &[&text, unit_name])
         } else {
-            format!("Converts into {text} {unit_name}")
+            tf("Converts into {} {}", &[&text, unit_name])
         };
         ui.button(
             Button::new(Action::ConvField(idx as u8), fr, &label, Content::None, Style::Subtle)
@@ -1088,9 +1094,9 @@ fn converter(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors) {
         c.take_top(ui.px(8.0));
     }
     if is_currency {
-        let note = format!(
+        let note = tf(
             "{}. Rates may be out of date; place a currency.txt next to the settings file to update them.",
-            app.currency_source
+            &[&app.currency_source.text()],
         );
         ui.set_clip(Some(c));
         ui.paragraph(&note, Rect::new(c.x, c.y, c.w, c.h), 12.0, FontId::Regular, t.text_secondary);
@@ -1115,14 +1121,14 @@ fn converter(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors) {
         digit(3),
         k("+/−", "Positive negative", Key::Negate, Style::Num),
         digit(0),
-        k(".", "Decimal separator", Key::Point, Style::Num),
+        k(i18n::decimal_point(), "Decimal separator", Key::Point, Style::Num),
     ];
     grid(ui, kr, 3, keys);
 }
 
 // ---------------------------------------------------------------- settings
 
-fn settings(app: &App, ui: &mut Ui, r: Rect) {
+fn settings(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors) {
     let t = ui.t;
     let mut r = r;
     header(app, ui, r.take_top(ui.px(44.0)), false);
@@ -1140,10 +1146,13 @@ fn settings(app: &App, ui: &mut Ui, r: Rect) {
         ui.label(hr, s, Role::Label);
         *y += ui.px(40.0);
     };
+    let sub = |ui: &mut Ui, y: &mut f32, s: &str| {
+        let tr = Rect::new(x, *y, w, ui.px(24.0));
+        ui.text(s, tr, 14.0, FontId::Regular, t.text_secondary, Align::Left);
+        *y += ui.px(28.0);
+    };
     heading(ui, &mut y, "Appearance");
-    let tr = Rect::new(x, y, w, ui.px(24.0));
-    ui.text("App theme", tr, 14.0, FontId::Regular, t.text_secondary, Align::Left);
-    y += ui.px(28.0);
+    sub(ui, &mut y, "App theme");
     for (pref, name) in [
         (ThemePref::Light, "Light"),
         (ThemePref::Dark, "Dark"),
@@ -1152,49 +1161,120 @@ fn settings(app: &App, ui: &mut Ui, r: Rect) {
         radio(
             ui,
             Action::Theme(pref),
-            Rect::new(x, y, w.min(ui.px(260.0)), ui.px(36.0)),
+            Rect::new(x, y, w.min(ui.px(280.0)), ui.px(36.0)),
             name,
             app.theme_pref == pref,
         );
         y += ui.px(38.0);
     }
-    y += ui.px(16.0);
+    y += ui.px(8.0);
+    sub(ui, &mut y, "Language");
+    combo(
+        app,
+        ui,
+        a,
+        ComboId::Language,
+        Rect::new(x, y, w.min(ui.px(300.0)), ui.px(36.0)),
+        "Language",
+    );
+    y += ui.px(52.0);
+
+    heading(ui, &mut y, "Calculator key");
+    if crate::platform::CALC_KEY_SUPPORTED {
+        let on = app.calc_key;
+        ui.button(
+            Button::new(
+                Action::CalcKey(!on),
+                Rect::new(x, y, w, ui.px(40.0)),
+                "Open rcalc with the keyboard Calculator key",
+                Content::None,
+                Style::Subtle,
+            )
+            .role(Role::Toggle)
+            .checked(on),
+        );
+        toggle_switch(ui, Rect::new(x + ui.px(4.0), y + ui.px(10.0), ui.px(40.0), ui.px(20.0)), on);
+        let lr = Rect::new(x + ui.px(56.0), y, w - ui.px(56.0), ui.px(40.0));
+        ui.fit_text(
+            "Open rcalc with the keyboard Calculator key",
+            lr,
+            14.0,
+            10.0,
+            FontId::Regular,
+            t.text,
+            Align::Left,
+        );
+        y += ui.px(46.0);
+    }
+    y += ui.paragraph(
+        "When enabled, the Calculator key on your keyboard opens rcalc instead of Windows Calculator. If rcalc is already running in the notification area, the key shows that window instantly.",
+        Rect::new(x, y, w, 0.0),
+        13.0,
+        FontId::Regular,
+        t.text_secondary,
+    ) + ui.px(16.0);
+
+    heading(ui, &mut y, "Background mode");
+    let bg = tf(
+        "Start rcalc with {} to keep it running in the notification area for instant access. Closing the window then hides it; use the tray icon menu to exit.",
+        &["rcalc.exe --tray"],
+    );
+    y += ui.paragraph(&bg, Rect::new(x, y, w, 0.0), 14.0, FontId::Regular, t.text) + ui.px(16.0);
+
     heading(ui, &mut y, "Saved data");
     let loc = &app.location;
     let mut storage = match &loc.dir {
-        Some(d) => format!(
-            "{} History, memory and settings are stored in {}.",
-            if loc.portable { "Portable mode." } else { "" },
-            d.join(crate::storage::FILE_NAME).display()
-        ),
-        None => "Settings and history are not saved on this system.".into(),
+        Some(d) => {
+            let path = d.join(crate::storage::FILE_NAME).display().to_string();
+            let text = tf("History, memory and settings are stored in {}.", &[&path]);
+            if loc.portable {
+                format!("{} {text}", tr("Portable mode."))
+            } else {
+                text
+            }
+        }
+        None => tr("Settings and history are not saved on this system.").to_string(),
     };
     if let Some(err) = &loc.error {
-        storage.push_str(&format!(" Warning: {err}"));
+        storage.push(' ');
+        storage.push_str(&tf("Warning: {}", &[err]));
     }
-    storage.push_str(&format!(
-        " To run fully portable, create an empty file named {} next to rcalc.exe.",
-        crate::storage::PORTABLE_MARKER
+    storage.push(' ');
+    storage.push_str(&tf(
+        "To run fully portable, create an empty file named {} next to rcalc.exe.",
+        &[crate::storage::PORTABLE_MARKER],
     ));
-    y += ui.paragraph(storage.trim(), Rect::new(x, y, w, 0.0), 14.0, FontId::Regular, t.text) + ui.px(16.0);
+    y += ui.paragraph(&storage, Rect::new(x, y, w, 0.0), 14.0, FontId::Regular, t.text) + ui.px(16.0);
     heading(ui, &mut y, "Currency rates");
-    let cur = format!(
+    let cur = tf(
         "{}. Currency conversion works offline from bundled reference rates that are not live market data. To use your own rates, create {} in the data folder with lines like \"EUR = 0.92\" (units per US dollar), optionally starting with \"# date: 2026-10-01\".",
-        app.currency_source,
-        crate::storage::CURRENCY_FILE
+        &[&app.currency_source.text(), crate::storage::CURRENCY_FILE],
     );
     y += ui.paragraph(&cur, Rect::new(x, y, w, 0.0), 14.0, FontId::Regular, t.text) + ui.px(16.0);
     heading(ui, &mut y, "Keyboard");
     let keys = "Digits, + - * / and Enter work as expected. Esc clears, Delete clears the entry, Backspace deletes a digit, F9 negates. Ctrl+C/Ctrl+V copy and paste, Ctrl+M/P/Q/R/L are MS, M+, M-, MR and MC, Ctrl+H opens history. Alt+1, Alt+2, Alt+4 and Alt+5 switch to Standard, Scientific, Programmer and Date calculation. Tab moves between controls and Space activates the focused control. See README for the full list.";
     y += ui.paragraph(keys, Rect::new(x, y, w, 0.0), 14.0, FontId::Regular, t.text) + ui.px(16.0);
     heading(ui, &mut y, "About");
-    let about = format!(
+    let about = tf(
         "rcalc {} — a portable calculator written in Rust. Its design is inspired by Windows Calculator; it is an independent project and is not affiliated with or endorsed by Microsoft.",
-        env!("CARGO_PKG_VERSION")
+        &[env!("CARGO_PKG_VERSION")],
     );
     y += ui.paragraph(&about, Rect::new(x, y, w, 0.0), 14.0, FontId::Regular, t.text) + ui.px(24.0);
     ui.set_clip(None);
     ui.scroll_area(ScrollId::Settings, view, y - start_y, offset);
+}
+
+/// Fluent-style on/off switch.
+fn toggle_switch(ui: &mut Ui, r: Rect, on: bool) {
+    let t = ui.t;
+    let rad = r.h / 2.0;
+    if on {
+        ui.g.fill_rrect(r, rad, t.accent);
+        ui.g.fill_circle(r.right() - rad, r.center_y(), rad * 0.55, t.accent_text);
+    } else {
+        ui.g.stroke_rrect(r, rad, ui.px(1.0).max(1.0), t.text_secondary);
+        ui.g.fill_circle(r.x + rad, r.center_y(), rad * 0.5, t.text_secondary);
+    }
 }
 
 // ---------------------------------------------------------------- overlays
@@ -1514,7 +1594,7 @@ fn calendar(app: &App, ui: &mut Ui, anchor: Rect, target: u8, full: Rect) {
     let mut r = fr.inset(ui.px(8.0));
     let (vy, vm) = app.cal_view;
     let head = r.take_top(ui.px(40.0));
-    let title = format!("{} {}", MONTHS[vm as usize - 1], vy);
+    let title = dates::month_year(vy, vm);
     ui.text(
         &title,
         Rect::new(head.x + ui.px(8.0), head.y, head.w, head.h),
@@ -1541,12 +1621,13 @@ fn calendar(app: &App, ui: &mut Ui, anchor: Rect, target: u8, full: Rect) {
         Style::Subtle,
     ));
     let wd = r.take_top(ui.px(28.0));
-    for (i, n) in ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].iter().enumerate() {
+    for (i, n) in dates::weekday_headers().iter().enumerate() {
         let c = wd.cell(7, 1, i, 0, 0.0);
         ui.text(n, c, 12.0, FontId::Semibold, t.text_secondary, Align::Center);
     }
     let Some(first) = Date::new(vy, vm, 1) else { return };
-    let start = first.to_days() - first.weekday() as i64;
+    let lead = (first.weekday() + 7 - dates::first_weekday()) % 7;
+    let start = first.to_days() - lead as i64;
     let selected = if target == 0 { app.date.from } else { app.date.to };
     let today = crate::platform::today();
     for i in 0..42 {
@@ -1555,7 +1636,7 @@ fn calendar(app: &App, ui: &mut Ui, anchor: Rect, target: u8, full: Rect) {
         let in_month = d.m == vm;
         let is_sel = d == selected;
         ui.button(
-            Button::new(Action::CalPick(target, d), c, &d.long_text(), Content::None, Style::Subtle)
+            Button::new(Action::CalPick(target, d), c, &dates::long_date(d), Content::None, Style::Subtle)
                 .role(Role::ListItem)
                 .checked(is_sel),
         );
