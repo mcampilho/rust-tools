@@ -1,5 +1,6 @@
 //! An open document: buffer plus file metadata, view state and caches.
 
+use crate::i18n::tf;
 use crate::doc::Buffer;
 use crate::io::encoding::{Enc, Eol};
 use crate::io::file::{self, Loaded, Stamp, LARGE_FILE_SIZE};
@@ -14,8 +15,33 @@ pub enum Notice {
     ChangedOnDisk,
     /// The file was deleted or renamed on disk.
     Deleted,
-    Info(String),
-    Warning(String),
+    Info(Msg),
+    /// Mixed line endings were found (cleared when the user picks one).
+    MixedEol(Msg),
+    Warning(Msg),
+}
+
+/// A message kept as its English template and arguments, so it is shown
+/// in the current interface language even after the language changes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Msg {
+    pub key: &'static str,
+    pub args: Vec<String>,
+}
+
+impl Msg {
+    pub fn new(key: &'static str) -> Msg {
+        Msg { key, args: Vec::new() }
+    }
+
+    pub fn with(key: &'static str, args: &[&str]) -> Msg {
+        Msg { key, args: args.iter().map(|a| a.to_string()).collect() }
+    }
+
+    pub fn text(&self) -> String {
+        let args: Vec<&str> = self.args.iter().map(String::as_str).collect();
+        tf(self.key, &args)
+    }
 }
 
 pub struct Doc {
@@ -114,21 +140,21 @@ impl Doc {
             doc.hl.enabled = false;
         }
         doc.notice = if d.binary {
-            Some(Notice::Warning("This file contains binary data (NUL characters). It is open read-only to avoid damaging it.".into()))
+            Some(Notice::Warning(Msg::new("This file contains binary data (NUL characters). It is open read-only to avoid damaging it.")))
         } else if d.lossy {
-            Some(Notice::Warning(format!(
+            Some(Notice::Warning(Msg::with(
                 "Some bytes are not valid {}. They are shown as \u{FFFD} and would be saved as \u{FFFD}. Use Format \u{203A} Reopen with Encoding to choose the correct encoding.",
-                d.enc.name()
+                &[&d.enc.name()],
             )))
         } else if mixed {
-            Some(Notice::Info(format!(
+            Some(Notice::MixedEol(Msg::with(
                 "Mixed line endings (LF: {}, CRLF: {}, CR: {}). They will be saved as {}. Use Format \u{203A} Line Endings to choose.",
-                counts[0], counts[1], counts[2], d.eol.name()
+                &[&counts[0].to_string(), &counts[1].to_string(), &counts[2].to_string(), d.eol.name()],
             )))
         } else if large {
-            Some(Notice::Info("Large file: syntax highlighting, folding and word wrap are turned off for speed.".into()))
+            Some(Notice::Info(Msg::new("Large file: syntax highlighting, folding and word wrap are turned off for speed.")))
         } else if l.read_only {
-            Some(Notice::Info("This file is read-only on disk. Use Save As to save a copy.".into()))
+            Some(Notice::Info(Msg::new("This file is read-only on disk. Use Save As to save a copy.")))
         } else {
             None
         };
@@ -138,6 +164,12 @@ impl Doc {
     pub fn display_name(&self) -> String {
         match &self.path {
             Some(p) if self.title.is_empty() => p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| p.display().to_string()),
+            // Untitled tabs keep an internal English title (stable in the
+            // session file) and are shown in the current language.
+            None => match self.title.strip_prefix("Untitled ").filter(|n| n.parse::<usize>().is_ok()) {
+                Some(n) => tf("Untitled {}", &[n]),
+                None => self.title.clone(),
+            },
             _ => self.title.clone(),
         }
     }
@@ -310,7 +342,7 @@ mod tests {
         std::fs::write(&p, b"fn a() {}\r\nfn b() {}\n").unwrap();
         let d = Doc::from_loaded(&p, file::load(&p, None).unwrap());
         assert_eq!(d.lang, Lang::Rust);
-        assert!(matches!(d.notice, Some(Notice::Info(ref m)) if m.contains("Mixed")));
+        assert!(matches!(d.notice, Some(Notice::MixedEol(ref m)) if m.key.contains("Mixed")));
         let p2 = dir.join("bin.dat");
         std::fs::write(&p2, b"ab\0cd").unwrap();
         let d = Doc::from_loaded(&p2, file::load(&p2, None).unwrap());

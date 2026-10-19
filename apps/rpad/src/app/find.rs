@@ -1,5 +1,6 @@
 //! Find and replace in the active document.
 
+use crate::i18n::{tf, tr};
 use super::{App, Focus, Host};
 use crate::doc::{After, Edit, Kind, Sel};
 use crate::search::{self, Query};
@@ -113,7 +114,7 @@ impl App {
         };
         if self.find.in_selection && self.find.scope.is_none() {
             self.find.in_selection = false;
-            self.notify("Select the text to search in first");
+            self.notify(tr("Select the text to search in first"));
         }
         self.find.invalidate();
     }
@@ -196,7 +197,7 @@ impl App {
             Ok(r) => r,
             Err(e) => {
                 self.find.error = Some(e.clone());
-                host.error("Find", &e);
+                host.error(&tr("Find"), &e);
                 return;
             }
         };
@@ -226,17 +227,17 @@ impl App {
                 d.buf.set_sels(vec![Sel::new(ca, cb)], 0);
                 self.reveal_caret = true;
                 if wrapped {
-                    self.notify(if forward { "Search wrapped to the beginning" } else { "Search wrapped to the end" });
+                    self.notify(tr(if forward { "Search wrapped to the beginning" } else { "Search wrapped to the end" }));
                 }
             }
-            None => self.notify(format!("\"{}\" was not found", q.text)),
+            None => self.notify(tf("\"{}\" was not found", &[&q.text])),
         }
     }
 
     /// Replaces the current match (if selected) and moves to the next.
     pub fn replace_one(&mut self, host: &dyn Host) {
         if !self.doc().editable() {
-            self.notify("This document is read-only");
+            self.notify(tr("This document is read-only"));
             return;
         }
         let q = self.find.query();
@@ -263,14 +264,14 @@ impl App {
     /// a preview and asking for confirmation.
     pub fn replace_all(&mut self, host: &dyn Host) {
         if !self.doc().editable() {
-            self.notify("This document is read-only");
+            self.notify(tr("This document is read-only"));
             return;
         }
         let q = self.find.query();
         let re = match q.build() {
             Ok(r) => r,
             Err(e) => {
-                host.error("Replace", &e);
+                host.error(&tr("Replace"), &e);
                 return;
             }
         };
@@ -281,7 +282,7 @@ impl App {
         let range = scope.unwrap_or((0, text.len()));
         let plan = search::plan_replace_all(&text, &re, &self.find.replace.text, q.regex, range);
         if plan.is_empty() {
-            self.notify(format!("\"{}\" was not found", q.text));
+            self.notify(tf("\"{}\" was not found", &[&q.text]));
             return;
         }
         let lines: std::collections::BTreeSet<usize> = plan.iter().map(|p| rope.byte_to_line(p.start)).collect();
@@ -290,16 +291,20 @@ impl App {
             let line = rope.byte_to_line(p.start);
             let old: String = text[p.start..p.end].chars().take(40).collect();
             let new: String = p.text.chars().take(40).collect();
-            preview.push_str(&format!("  line {}: \"{}\" \u{2192} \"{}\"\n", line + 1, old.replace('\n', "\u{21B5}"), new.replace('\n', "\u{21B5}")));
+            preview.push_str(&format!("  {}\n", tf("line {}: \"{}\" \u{2192} \"{}\"", &[&(line + 1).to_string(), &old.replace('\n', "\u{21B5}"), &new.replace('\n', "\u{21B5}")])));
         }
         if plan.len() > 6 {
-            preview.push_str(&format!("  … and {} more\n", plan.len() - 6));
+            preview.push_str(&format!("  {}\n", tf("… and {} more", &[&(plan.len() - 6).to_string()])));
         }
-        let scope_text = if scope.is_some() { "in the selection" } else { "in this document" };
+        let template = if scope.is_some() {
+            "Replace {} occurrence(s) on {} line(s) in the selection?\n\n{}\nYou can undo this with Ctrl+Z."
+        } else {
+            "Replace {} occurrence(s) on {} line(s) in this document?\n\n{}\nYou can undo this with Ctrl+Z."
+        };
         let ok = plan.len() == 1
             || host.confirm(
-                "Replace all",
-                &format!("Replace {} occurrence(s) on {} line(s) {scope_text}?\n\n{preview}\nYou can undo this with Ctrl+Z.", plan.len(), lines.len()),
+                &tr("Replace all"),
+                &tf(template, &[&plan.len().to_string(), &lines.len().to_string(), &preview]),
             );
         if !ok {
             return;
@@ -312,6 +317,6 @@ impl App {
             self.find.scope = None;
             self.find.in_selection = false;
         }
-        self.notify(format!("Replaced {n} occurrence(s)"));
+        self.notify(tf("Replaced {} occurrence(s)", &[&n.to_string()]));
     }
 }

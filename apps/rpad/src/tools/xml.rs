@@ -5,6 +5,8 @@
 //! elements with text, CDATA or `xml:space="preserve"` are copied verbatim,
 //! so the document's text content never changes.
 
+use crate::i18n::{tf, tr};
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct XmlError {
     pub line: usize,
@@ -14,7 +16,7 @@ pub struct XmlError {
 
 impl std::fmt::Display for XmlError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Line {}, column {}: {}", self.line, self.col, self.message)
+        write!(f, "{}", tf("Line {}, column {}: {}", &[&self.line.to_string(), &self.col.to_string(), &self.message]))
     }
 }
 
@@ -69,7 +71,7 @@ impl<'a> Parser<'a> {
         let mut chars = self.rest().char_indices();
         match chars.next() {
             Some((_, c)) if is_name_start(c) => {}
-            _ => return Err(self.err(start, "Expected a name")),
+            _ => return Err(self.err(start, tr("Expected a name"))),
         }
         let end = self.rest().char_indices().find(|(_, c)| !is_name_char(*c)).map_or(self.rest().len(), |(p, _)| p);
         self.i += end;
@@ -88,7 +90,7 @@ impl<'a> Parser<'a> {
         while let Some(p) = rest.find('&') {
             let after = &rest[p + 1..];
             let Some(semi) = after.find(';') else {
-                return Err(self.err(at + off + p, "'&' must start an entity reference such as &amp;"));
+                return Err(self.err(at + off + p, tr("'&' must start an entity reference such as &amp;")));
             };
             let name = &after[..semi];
             let ok = match name {
@@ -98,7 +100,7 @@ impl<'a> Parser<'a> {
                 n => self.has_doctype && !n.is_empty() && n.chars().next().is_some_and(is_name_start) && n.chars().all(is_name_char),
             };
             if !ok {
-                return Err(self.err(at + off + p, format!("Unknown or invalid entity reference '&{name};'")));
+                return Err(self.err(at + off + p, tf("Unknown or invalid entity reference '&{};'", &[name])));
             }
             off += p + 1 + semi + 1;
             rest = &after[semi + 1..];
@@ -110,19 +112,19 @@ impl<'a> Parser<'a> {
         let start = self.i;
         let r = self.rest();
         if let Some(after) = r.strip_prefix("<!--") {
-            let end = after.find("-->").ok_or_else(|| self.err(start, "Comment is not closed (missing -->)"))?;
+            let end = after.find("-->").ok_or_else(|| self.err(start, tr("Comment is not closed (missing -->)")))?;
             let body = &r[4..4 + end];
             if let Some(p) = body.find("--") {
-                return Err(self.err(start + 4 + p, "'--' is not allowed inside a comment"));
+                return Err(self.err(start + 4 + p, tr("'--' is not allowed inside a comment")));
             }
             self.i += 4 + end + 3;
             return Ok(Some(Node::Misc(self.s[start..self.i].to_string())));
         }
         if let Some(after) = r.strip_prefix("<?") {
-            let end = r.find("?>").ok_or_else(|| self.err(start, "Processing instruction is not closed (missing ?>)"))?;
+            let end = r.find("?>").ok_or_else(|| self.err(start, tr("Processing instruction is not closed (missing ?>)")))?;
             let target: String = after.chars().take_while(|c| is_name_char(*c)).collect();
             if target.eq_ignore_ascii_case("xml") && !at_start {
-                return Err(self.err(start, "The XML declaration is only allowed at the very beginning of the document"));
+                return Err(self.err(start, tr("The XML declaration is only allowed at the very beginning of the document")));
             }
             self.i += end + 2;
             return Ok(Some(Node::Misc(self.s[start..self.i].to_string())));
@@ -145,7 +147,7 @@ impl<'a> Parser<'a> {
                     _ => {}
                 }
             }
-            return Err(self.err(start, "DOCTYPE is not closed"));
+            return Err(self.err(start, tr("DOCTYPE is not closed")));
         }
         Ok(None)
     }
@@ -169,31 +171,31 @@ impl<'a> Parser<'a> {
                 break;
             }
             if r.is_empty() {
-                return Err(self.err(start, format!("Start tag <{name}> is not closed")));
+                return Err(self.err(start, tf("Start tag <{}> is not closed", &[&name])));
             }
             if self.i == before_ws {
-                return Err(self.err(self.i, "Expected whitespace, '>' or '/>'"));
+                return Err(self.err(self.i, tr("Expected whitespace, '>' or '/>'")));
             }
             let astart = self.i;
             let aname = self.name()?.to_string();
             if attrs.contains(&aname) {
-                return Err(self.err(astart, format!("Duplicate attribute '{aname}'")));
+                return Err(self.err(astart, tf("Duplicate attribute '{}'", &[&aname])));
             }
             self.skip_ws();
             if !self.rest().starts_with('=') {
-                return Err(self.err(self.i, format!("Attribute '{aname}' needs a value (=\"...\")")));
+                return Err(self.err(self.i, tf("Attribute '{}' needs a value (=\"...\")", &[&aname])));
             }
             self.i += 1;
             self.skip_ws();
             let q = self.rest().chars().next();
             let Some(q @ ('"' | '\'')) = q else {
-                return Err(self.err(self.i, "Attribute values must be quoted"));
+                return Err(self.err(self.i, tr("Attribute values must be quoted")));
             };
             let vstart = self.i + 1;
-            let end = self.s[vstart..].find(q).ok_or_else(|| self.err(self.i, "Attribute value is not closed"))?;
+            let end = self.s[vstart..].find(q).ok_or_else(|| self.err(self.i, tr("Attribute value is not closed")))?;
             let value = &self.s[vstart..vstart + end];
             if let Some(p) = value.find('<') {
-                return Err(self.err(vstart + p, "'<' is not allowed in attribute values"));
+                return Err(self.err(vstart + p, tr("'<' is not allowed in attribute values")));
             }
             self.check_refs(value, vstart)?;
             if aname == "xml:space" && value == "preserve" {
@@ -207,31 +209,31 @@ impl<'a> Parser<'a> {
         loop {
             let r = self.rest();
             if r.is_empty() {
-                return Err(self.err(start, format!("Element <{name}> is not closed")));
+                return Err(self.err(start, tf("Element <{}> is not closed", &[&name])));
             }
             if r.starts_with("</") {
                 let estart = self.i;
                 self.i += 2;
                 let ename = self.name()?;
                 if ename != name {
-                    return Err(self.err(estart, format!("Expected </{name}> but found </{ename}>")));
+                    return Err(self.err(estart, tf("Expected </{}> but found </{}>", &[&name, ename])));
                 }
                 self.skip_ws();
                 if !self.rest().starts_with('>') {
-                    return Err(self.err(self.i, "Expected '>'"));
+                    return Err(self.err(self.i, tr("Expected '>'")));
                 }
                 self.i += 1;
                 let end_tag = self.s[estart..self.i].to_string();
                 return Ok(Element { start_tag, end_tag: Some(end_tag), children, span: (start, self.i), preserve });
             }
             if r.starts_with("<![CDATA[") {
-                let end = r.find("]]>").ok_or_else(|| self.err(self.i, "CDATA section is not closed"))?;
+                let end = r.find("]]>").ok_or_else(|| self.err(self.i, tr("CDATA section is not closed")))?;
                 children.push(Node::CData(r[..end + 3].to_string()));
                 self.i += end + 3;
                 continue;
             }
             if r.starts_with("<!DOCTYPE") {
-                return Err(self.err(self.i, "DOCTYPE is not allowed inside an element"));
+                return Err(self.err(self.i, tr("DOCTYPE is not allowed inside an element")));
             }
             if let Some(n) = self.misc(false)? {
                 children.push(n);
@@ -245,7 +247,7 @@ impl<'a> Parser<'a> {
             let end = r.find('<').unwrap_or(r.len());
             let text = &r[..end];
             if let Some(p) = text.find("]]>") {
-                return Err(self.err(tstart + p, "']]>' is not allowed in text"));
+                return Err(self.err(tstart + p, tr("']]>' is not allowed in text")));
             }
             self.check_refs(text, tstart)?;
             children.push(Node::Text(text.to_string()));
@@ -271,7 +273,7 @@ impl<'a> Parser<'a> {
             }
             if let Some(n) = self.misc(first)? {
                 if matches!(&n, Node::Misc(m) if m.starts_with("<!DOCTYPE")) && root_seen {
-                    return Err(self.err(self.i, "DOCTYPE must come before the root element"));
+                    return Err(self.err(self.i, tr("DOCTYPE must come before the root element")));
                 }
                 out.push(n);
                 first = false;
@@ -279,20 +281,20 @@ impl<'a> Parser<'a> {
             }
             first = false;
             if self.rest().starts_with("</") {
-                return Err(self.err(self.i, "Closing tag without a matching start tag"));
+                return Err(self.err(self.i, tr("Closing tag without a matching start tag")));
             }
             if self.rest().starts_with('<') {
                 if root_seen {
-                    return Err(self.err(self.i, "Only one root element is allowed"));
+                    return Err(self.err(self.i, tr("Only one root element is allowed")));
                 }
                 out.push(Node::Element(self.element()?));
                 root_seen = true;
                 continue;
             }
-            return Err(self.err(self.i, "Text is not allowed outside the root element"));
+            return Err(self.err(self.i, tr("Text is not allowed outside the root element")));
         }
         if !root_seen {
-            return Err(self.err(self.s.len(), "The document has no root element"));
+            return Err(self.err(self.s.len(), tr("The document has no root element")));
         }
         Ok(out)
     }

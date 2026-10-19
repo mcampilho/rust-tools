@@ -10,6 +10,7 @@ pub mod session;
 pub mod settings;
 
 use crate::doc::{After, Buffer, Edit, IndentCfg, Kind, Sel};
+use crate::i18n::{tf, tr};
 use crate::io::encoding::{Enc, Eol};
 use crate::io::file::{self, LoadError};
 use crate::search::files::Hit;
@@ -19,7 +20,7 @@ use crate::tools::{text as tt, xml};
 use crate::ui::gfx::Rect;
 use crate::ui::lineedit::LineEdit;
 use commands::{Command, EOLS};
-use doc::{Doc, Notice};
+use doc::{Doc, Msg, Notice};
 use settings::{LastTabClose, Settings, ThemePref};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -171,6 +172,10 @@ pub struct App {
     pub layout: EditorLayout,
     pub quit: bool,
     pub menu_dirty: bool,
+    /// Menu labels changed (language): rebuild the menu bar.
+    pub menu_rebuild: bool,
+    /// Closing the last tab asked to close the window.
+    pub close_window: bool,
     pub fullscreen_request: bool,
     pub font_dirty: bool,
     /// Scroll the active editor so the primary caret is visible.
@@ -214,6 +219,8 @@ impl App {
             layout: EditorLayout::default(),
             quit: false,
             menu_dirty: true,
+            menu_rebuild: false,
+            close_window: false,
             fullscreen_request: false,
             font_dirty: true,
             reveal_caret: true,
@@ -242,6 +249,14 @@ impl App {
 
     pub fn indent_cfg(&self) -> IndentCfg {
         IndentCfg { use_tabs: self.settings.use_tabs, width: self.settings.tab_width, auto: self.settings.auto_indent }
+    }
+
+    /// Applies the interface language from the settings (or Windows).
+    pub fn apply_language(&mut self) {
+        let l = self.settings.language.unwrap_or_else(crate::i18n::system_lang);
+        crate::i18n::set_lang(l);
+        self.menu_rebuild = true;
+        self.menu_dirty = true;
     }
 
     pub fn notify(&mut self, msg: impl Into<String>) {
@@ -294,7 +309,7 @@ impl App {
                 true
             }
             Err(e) => {
-                host.error("Open", &format!("Cannot open {}:\n\n{e}", path.display()));
+                host.error(&tr("Open"), &tf("Cannot open {}:\n\n{}", &[&path.display().to_string(), &e.to_string()]));
                 if matches!(e, LoadError::NotFound) {
                     self.settings.recent.retain(|r| r != &path);
                     self.menu_dirty = true;
@@ -319,7 +334,7 @@ impl App {
         let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
         let lang = syntax::detect(Some(&path), "");
         let mut d = Doc::with_buffer(Buffer::new(""), Some(path), name, self.settings.new_enc, self.settings.new_eol, lang);
-        d.notice = Some(Notice::Info("This file does not exist yet. It will be created when you save.".into()));
+        d.notice = Some(Notice::Info(Msg::new("This file does not exist yet. It will be created when you save.")));
         self.insert_doc(d);
         true
     }
@@ -364,7 +379,7 @@ impl App {
                 LastTabClose::KeepEmpty => self.new_doc(),
                 LastTabClose::CloseWindow => {
                     self.new_doc();
-                    self.quit = true;
+                    self.close_window = true;
                 }
             }
         }
@@ -385,13 +400,13 @@ impl App {
     pub fn save_doc(&mut self, i: usize, force_dialog: bool, host: &dyn Host) -> bool {
         let d = &self.docs[i];
         if d.view_only && !force_dialog {
-            host.info("Save", "This document is read-only. Use Save As to save a copy.");
+            host.info(&tr("Save"), &tr("This document is read-only. Use Save As to save a copy."));
             return false;
         }
         let path = match (&d.path, force_dialog || d.read_only) {
             (Some(p), false) => p.clone(),
             (p, _) => {
-                let name = p.as_ref().and_then(|p| p.file_name()).map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| format!("{}.txt", d.title));
+                let name = p.as_ref().and_then(|p| p.file_name()).map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| format!("{}.txt", d.display_name()));
                 let dir = p.as_ref().and_then(|p| p.parent()).map(Path::to_path_buf);
                 match host.save_dialog(&name, dir.as_deref()) {
                     Some(p) => p,
@@ -403,8 +418,8 @@ impl App {
         if same_file {
             if d.changed_on_disk() == Some(true) && path.exists() {
                 let ok = host.confirm(
-                    "File changed on disk",
-                    &format!("{} was changed by another program since it was opened.\n\nOverwrite it with your version?", path.display()),
+                    &tr("File changed on disk"),
+                    &tf("{} was changed by another program since it was opened.\n\nOverwrite it with your version?", &[&path.display().to_string()]),
                 );
                 if !ok {
                     return false;
@@ -412,8 +427,8 @@ impl App {
             }
             if d.lossy {
                 let ok = host.confirm(
-                    "Replacement characters",
-                    "This document contains bytes that could not be decoded and are shown as \u{FFFD}.\n\nSaving will write \u{FFFD} in their place. Continue?",
+                    &tr("Replacement characters"),
+                    &tr("This document contains bytes that could not be decoded and are shown as \u{FFFD}.\n\nSaving will write \u{FFFD} in their place. Continue?"),
                 );
                 if !ok {
                     return false;
@@ -432,11 +447,11 @@ impl App {
                 self.menu_dirty = true;
                 let dd = self.docs.iter().find(|x| x.id == doc_snapshot).expect("doc");
                 self.delete_recovery(dd);
-                self.notify(format!("Saved {}", path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()));
+                self.notify(tf("Saved {}", &[&path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()]));
                 true
             }
             Err(e) => {
-                host.error("Save", &format!("Could not save {}:\n\n{e}", path.display()));
+                host.error(&tr("Save"), &tf("Could not save {}:\n\n{}", &[&path.display().to_string(), &e.to_string()]));
                 false
             }
         }
@@ -444,7 +459,7 @@ impl App {
 
     pub fn reload(&mut self, i: usize, forced: Option<Enc>, host: &dyn Host) {
         let Some(path) = self.docs[i].path.clone() else { return };
-        if self.docs[i].is_modified() && !host.confirm("Reload", &format!("Discard your changes to {} and reload it from disk?\n\n(You can undo the reload.)", self.docs[i].display_name())) {
+        if self.docs[i].is_modified() && !host.confirm(&tr("Reload"), &tf("Discard your changes to {} and reload it from disk?\n\n(You can undo the reload.)", &[&self.docs[i].display_name()])) {
             return;
         }
         match file::load(&path, forced) {
@@ -466,7 +481,7 @@ impl App {
                 d.folds_version = u64::MAX;
                 self.find.invalidate();
             }
-            Err(e) => host.error("Reload", &format!("Cannot reload {}:\n\n{e}", path.display())),
+            Err(e) => host.error(&tr("Reload"), &tf("Cannot reload {}:\n\n{}", &[&path.display().to_string(), &e.to_string()])),
         }
     }
 
@@ -511,7 +526,7 @@ impl App {
     /// Runs an edit on the active buffer if it is editable, then updates caches.
     pub fn edit(&mut self, f: impl FnOnce(&mut Buffer)) {
         if !self.doc().editable() {
-            self.notify("This document is read-only");
+            self.notify(tr("This document is read-only"));
             return;
         }
         let lines_before = self.doc().buf.line_count();
@@ -543,39 +558,45 @@ impl App {
 
     /// Runs a line transformation, confirming first when it changes many lines.
     fn line_tool(&mut self, name: &str, f: &dyn Fn(Vec<String>) -> Vec<String>, host: &dyn Host) {
+        let name = &tr(name);
         if !self.doc().editable() {
-            self.notify("This document is read-only");
+            self.notify(tr("This document is read-only"));
             return;
         }
         let (total, changed) = self.doc().buf.preview_lines(f);
         if changed == 0 {
-            self.notify(format!("{name}: nothing to change"));
+            self.notify(tf("{}: nothing to change", &[name]));
             return;
         }
         let whole = !self.doc().buf.has_selection();
         if (whole && changed > 50) || changed > 1000 {
-            let scope = if whole { "the whole document" } else { "the selected lines" };
-            let ok = host.confirm(name, &format!("{name} will change {changed} of {total} lines in {scope}.\n\nYou can undo this with Ctrl+Z. Continue?"));
+            let msg = if whole {
+                "{} will change {} of {} lines in the whole document.\n\nYou can undo this with Ctrl+Z. Continue?"
+            } else {
+                "{} will change {} of {} lines in the selected lines.\n\nYou can undo this with Ctrl+Z. Continue?"
+            };
+            let ok = host.confirm(name, &tf(msg, &[name, &changed.to_string(), &total.to_string()]));
             if !ok {
                 return;
             }
         }
         let mut n = 0;
         self.edit(|b| n = b.transform_lines(f));
-        self.notify(format!("{name}: {n} line(s) changed"));
+        self.notify(tf("{}: {} line(s) changed", &[name, &n.to_string()]));
     }
 
     /// Applies a string transformation to the selections (or whole document
     /// when nothing is selected, after confirmation).
     fn text_tool(&mut self, name: &str, f: &dyn Fn(&str) -> Result<String, String>, host: &dyn Host) {
+        let name = &tr(name);
         if !self.doc().editable() {
-            self.notify("This document is read-only");
+            self.notify(tr("This document is read-only"));
             return;
         }
         let has_sel = self.doc().buf.has_selection();
         if !has_sel {
             let n = self.doc().buf.line_count();
-            if n > 1 && !host.confirm(name, &format!("No text is selected. Apply \"{name}\" to the whole document ({n} lines)?\n\nYou can undo this with Ctrl+Z.")) {
+            if n > 1 && !host.confirm(name, &tf("No text is selected. Apply \"{}\" to the whole document ({} lines)?\n\nYou can undo this with Ctrl+Z.", &[name, &n.to_string()])) {
                 return;
             }
             self.edit(|b| b.select_all());
@@ -590,7 +611,7 @@ impl App {
         let mut changed = 0;
         self.edit(|b| changed = b.transform_selections(&|s: &str| f(s).unwrap_or_else(|_| s.to_string())));
         if changed == 0 {
-            self.notify(format!("{name}: nothing to change"));
+            self.notify(tf("{}: nothing to change", &[name]));
         }
     }
 
@@ -661,7 +682,7 @@ impl App {
                         self.reveal_caret = true;
                     }
                 } else {
-                    self.notify("No closed tabs to reopen");
+                    self.notify(tr("No closed tabs to reopen"));
                 }
             }
             Save => {
@@ -681,7 +702,7 @@ impl App {
             ReopenWithEncoding(i) => {
                 if let Some(e) = Enc::all().get(i as usize).copied() {
                     if self.doc().path.is_none() {
-                        self.notify("Save the document first; reopening needs a file on disk");
+                        self.notify(tr("Save the document first; reopening needs a file on disk"));
                     } else {
                         self.reload(self.active, Some(e), host);
                     }
@@ -718,9 +739,9 @@ impl App {
             CopyPath => match &self.doc().path {
                 Some(p) => {
                     host.clipboard_set(&p.display().to_string());
-                    self.notify("Path copied");
+                    self.notify(tr("Path copied"));
                 }
-                None => self.notify("This document has not been saved yet"),
+                None => self.notify(tr("This document has not been saved yet")),
             },
             RevealInExplorer => {
                 if let Some(p) = self.doc().path.clone() {
@@ -751,7 +772,7 @@ impl App {
                     let t = t.trim_end().to_string();
                     self.edit(|b| b.toggle_comment(&t));
                 }
-                None => self.notify("This language has no line comments"),
+                None => self.notify(tr("This language has no line comments")),
             },
             CaretAbove => {
                 let tab = self.settings.tab_width;
@@ -792,9 +813,9 @@ impl App {
             InsertSnippet => self.open_snippets_list(host),
             SaveSnippet => {
                 if self.doc().buf.has_selection() {
-                    self.open_prompt(PromptKind::SnippetName, "Snippet name", "");
+                    self.open_prompt(PromptKind::SnippetName, &tr("Snippet name"), "");
                 } else {
-                    self.notify("Select the text to save as a snippet first");
+                    self.notify(tr("Select the text to save as a snippet first"));
                 }
             }
             EditSnippets => self.edit_snippets_file(host),
@@ -807,7 +828,7 @@ impl App {
             FindInFiles => self.open_fif(),
             GotoLine => {
                 let n = self.doc().buf.line_count();
-                self.open_palette(PaletteMode::GotoLine, &format!("Go to line (1 - {n}); use line:column for a column"), Vec::new());
+                self.open_palette(PaletteMode::GotoLine, &tf("Go to line (1 - {}); use line:column for a column", &[&n.to_string()]), Vec::new());
             }
             GotoBracket => self.goto_bracket(),
             GotoSymbol => self.open_symbols(),
@@ -859,7 +880,7 @@ impl App {
                     self.results = None;
                     self.focus = Focus::Editor;
                 } else {
-                    self.results = Some(Results { title: "Search results".into(), items: Vec::new(), sel: 0, scroll: 0, status: "No search yet".into(), fif: false });
+                    self.results = Some(Results { title: tr("Search results"), items: Vec::new(), sel: 0, scroll: 0, status: tr("No search yet"), fif: false });
                 }
             }
             Theme(i) => {
@@ -868,6 +889,10 @@ impl App {
                     2 => ThemePref::Dark,
                     _ => ThemePref::System,
                 }
+            }
+            UiLanguage(i) => {
+                self.settings.language = (i as usize).checked_sub(1).and_then(|k| crate::i18n::Lang::ALL.get(k)).copied();
+                self.apply_language();
             }
             FullScreen => self.fullscreen_request = true,
             CommandPalette => self.open_commands(),
@@ -903,10 +928,10 @@ impl App {
                     if d.eol != *e {
                         d.eol = *e;
                         d.buf.mark_unsaved();
-                        if matches!(&d.notice, Some(Notice::Info(m)) if m.starts_with("Mixed")) {
+                        if matches!(&d.notice, Some(Notice::MixedEol(_))) {
                             d.notice = None;
                         }
-                        self.notify(format!("Line endings will be saved as {}", e.name()));
+                        self.notify(tf("Line endings will be saved as {}", &[e.name()]));
                     }
                 }
             }
@@ -954,7 +979,7 @@ impl App {
             RemoveBlank => self.line_tool("Remove blank lines", &tt::remove_blank, host),
             TrimTrailing => self.line_tool("Trim trailing whitespace", &tt::trim_trailing, host),
             TrimLeading => self.line_tool("Trim leading whitespace", &tt::trim_leading, host),
-            PrefixSuffix => self.open_prompt(PromptKind::PrefixSuffix, "Prefix|suffix for each line (text before | is added at the start, after | at the end)", ""),
+            PrefixSuffix => self.open_prompt(PromptKind::PrefixSuffix, &tr("Prefix|suffix for each line (text before | is added at the start, after | at the end)"), ""),
             TabsToSpaces => {
                 let w = self.settings.tab_width;
                 self.line_tool("Convert tabs to spaces", &move |v| tt::tabs_to_spaces(v, w), host);
@@ -981,7 +1006,7 @@ impl App {
                     for d in self.docs.iter_mut() {
                         d.recovery_version = None;
                     }
-                    self.notify("Recovery is off: unsaved changes are no longer kept, and you will be asked to save on exit");
+                    self.notify(tr("Recovery is off: unsaved changes are no longer kept, and you will be asked to save on exit"));
                 } else {
                     self.recovery_due = Some(Instant::now());
                 }
@@ -996,16 +1021,18 @@ impl App {
                     let _ = std::fs::create_dir_all(&d);
                     host.reveal(&d.join(crate::storage::FILE_NAME));
                 }
-                None => host.info("Settings folder", "No settings folder is available on this system."),
+                None => host.info(&tr("Settings folder"), &tr("No settings folder is available on this system.")),
             },
             Shortcuts => self.open_shortcuts_doc(),
             About => host.info(
-                "About rpad",
-                &format!(
-                    "rpad {}\n\nA portable text and code editor written in Rust.\nNo telemetry, no network access.\n\nSettings and recovery data{}: {}\n\nMIT License.",
-                    env!("CARGO_PKG_VERSION"),
-                    if self.location.portable { " (portable mode)" } else { "" },
-                    self.location.dir.as_ref().map_or("(not available)".to_string(), |d| d.display().to_string())
+                &tr("About rpad"),
+                &tf(
+                    if self.location.portable {
+                        "rpad {}\n\nA portable text and code editor written in Rust.\nNo telemetry, no network access.\n\nSettings and recovery data (portable mode): {}\n\nMIT License."
+                    } else {
+                        "rpad {}\n\nA portable text and code editor written in Rust.\nNo telemetry, no network access.\n\nSettings and recovery data: {}\n\nMIT License."
+                    },
+                    &[env!("CARGO_PKG_VERSION"), &self.location.dir.as_ref().map_or_else(|| tr("(not available)"), |d| d.display().to_string())],
                 ),
             ),
         }
@@ -1030,6 +1057,8 @@ impl App {
             MarkdownPreview => s.markdown_preview,
             ResultsPanel => self.results.is_some(),
             Theme(i) => matches!((i, s.theme), (0, ThemePref::System) | (1, ThemePref::Light) | (2, ThemePref::Dark)),
+            UiLanguage(0) => s.language.is_none(),
+            UiLanguage(i) => s.language == crate::i18n::Lang::ALL.get(i as usize - 1).copied(),
             LangAuto => !d.lang_override,
             SetLang(i) => syntax::lang::DEFS.get(i as usize).is_some_and(|x| x.lang == d.lang),
             SetEncoding(i) => Enc::all().get(i as usize) == Some(&d.enc),
@@ -1079,13 +1108,13 @@ impl App {
         }
         // Make sure the text can be represented before switching.
         if let Err(err) = file::encode_rope(&d.buf.text, e, d.eol) {
-            host.error("Encoding", &format!("The document cannot be saved as {}: {err}.\n\nThe encoding was not changed.", e.name()));
+            host.error(&tr("Encoding"), &tf("The document cannot be saved as {}: {}.\n\nThe encoding was not changed.", &[&e.name(), &err.to_string()]));
             return;
         }
         let d = self.doc_mut();
         d.enc = e;
         d.buf.mark_unsaved();
-        self.notify(format!("The document will be saved as {}", e.name()));
+        self.notify(tf("The document will be saved as {}", &[&e.name()]));
     }
 
     // ------------------------------------------------------------ folding / outline caches
@@ -1184,7 +1213,7 @@ impl App {
                 d.reveal(l);
                 self.reveal_caret = true;
             }
-            None => self.notify("No matching bracket"),
+            None => self.notify(tr("No matching bracket")),
         }
     }
 
@@ -1207,12 +1236,12 @@ impl App {
         let items = Command::palette()
             .into_iter()
             .map(|(c, cat)| PItem {
-                label: format!("{cat}: {}", c.plain_label()),
+                label: format!("{}: {}", tr(cat), c.plain_label()),
                 detail: commands::shortcut(c).unwrap_or("").to_string(),
                 act: PAct::Cmd(c),
             })
             .collect();
-        self.open_palette(PaletteMode::Commands, "Type a command", items);
+        self.open_palette(PaletteMode::Commands, &tr("Type a command"), items);
     }
 
     fn open_symbols(&mut self) {
@@ -1221,13 +1250,13 @@ impl App {
             .doc()
             .outline
             .iter()
-            .map(|s| PItem { label: format!("{}{}", "  ".repeat(s.depth.min(6)), s.name), detail: format!("{} · line {}", s.kind, s.line + 1), act: PAct::Line(s.line) })
+            .map(|s| PItem { label: format!("{}{}", "  ".repeat(s.depth.min(6)), s.name), detail: tf("{} · line {}", &[&tr(s.kind), &(s.line + 1).to_string()]), act: PAct::Line(s.line) })
             .collect();
         if items.is_empty() {
-            self.notify(format!("No symbols found for {}", self.doc().lang.name()));
+            self.notify(tf("No symbols found for {}", &[&tr(self.doc().lang.name())]));
             return;
         }
-        self.open_palette(PaletteMode::Symbols, "Go to symbol", items);
+        self.open_palette(PaletteMode::Symbols, &tr("Go to symbol"), items);
     }
 
     fn snippets(&self) -> Vec<(String, String)> {
@@ -1237,7 +1266,7 @@ impl App {
     fn open_snippets_list(&mut self, host: &dyn Host) {
         let snips = self.snippets();
         if snips.is_empty() {
-            if host.confirm("Snippets", "You have no snippets yet. Open the snippets file to add some?") {
+            if host.confirm(&tr("Snippets"), &tr("You have no snippets yet. Open the snippets file to add some?")) {
                 self.edit_snippets_file(host);
             }
             return;
@@ -1246,17 +1275,17 @@ impl App {
             .into_iter()
             .map(|(n, body)| PItem { detail: body.lines().next().unwrap_or("").chars().take(60).collect(), label: n, act: PAct::Text(body) })
             .collect();
-        self.open_palette(PaletteMode::Snippets, "Insert snippet", items);
+        self.open_palette(PaletteMode::Snippets, &tr("Insert snippet"), items);
     }
 
     fn edit_snippets_file(&mut self, host: &dyn Host) {
         let Some(path) = self.location.file(session::SNIPPETS_FILE) else {
-            host.info("Snippets", "No settings folder is available, so snippets cannot be stored.");
+            host.info(&tr("Snippets"), &tr("No settings folder is available, so snippets cannot be stored."));
             return;
         };
         if !path.exists() {
             if let Err(e) = self.location.write_text(session::SNIPPETS_FILE, session::SNIPPETS_TEMPLATE) {
-                host.error("Snippets", &format!("Cannot create {}: {e}", path.display()));
+                host.error(&tr("Snippets"), &tf("Cannot create {}: {}", &[&path.display().to_string(), &e.to_string()]));
                 return;
             }
         }
@@ -1267,18 +1296,21 @@ impl App {
         let Some(p) = self.doc().path.clone() else { return };
         let snaps = session::list_snapshots(&self.location, &p);
         if snaps.is_empty() {
-            let hint = if self.settings.local_history { "" } else { " Turn on Tools › Preferences › Keep Local History Snapshots on Save." };
-            self.notify(format!("No local history for this file.{hint}"));
+            self.notify(if self.settings.local_history {
+                tr("No local history for this file.")
+            } else {
+                tr("No local history for this file. Turn on Tools › Preferences › Keep Local History Snapshots on Save.")
+            });
             return;
         }
         let items = snaps
             .into_iter()
             .map(|(path, stamp)| {
                 let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
-                PItem { label: stamp.replacen('_', "  ", 1).replace('-', ":").replacen(':', "-", 2), detail: format!("{size} bytes"), act: PAct::Path(path) }
+                PItem { label: stamp.replacen('_', "  ", 1).replace('-', ":").replacen(':', "-", 2), detail: tf("{} bytes", &[&size.to_string()]), act: PAct::Path(path) }
             })
             .collect();
-        self.open_palette(PaletteMode::History, "Open a snapshot of this file (read-only)", items);
+        self.open_palette(PaletteMode::History, &tr("Open a snapshot of this file (read-only)"), items);
     }
 
     /// Filters palette items by the typed text (subsequence match).
@@ -1314,7 +1346,7 @@ impl App {
                 let col = parts.next().and_then(|x| x.trim().parse::<usize>().ok());
                 match line {
                     Some(l) if l >= 1 => self.goto_line(l - 1, col.map(|c| c.saturating_sub(1))),
-                    _ => self.notify("Type a line number"),
+                    _ => self.notify(tr("Type a line number")),
                 }
             }
             PaletteMode::Prompt(kind) => self.prompt_done(kind.clone(), &p.edit.text, host),
@@ -1349,8 +1381,8 @@ impl App {
                 }
                 existing.push_str(&format!("\n## {name}\n{body}\n"));
                 match self.location.write_text(session::SNIPPETS_FILE, &existing) {
-                    Ok(()) => self.notify(format!("Snippet \"{name}\" saved")),
-                    Err(e) => host.error("Snippets", &format!("Could not save the snippet: {e}")),
+                    Ok(()) => self.notify(tf("Snippet \"{}\" saved", &[&name])),
+                    Err(e) => host.error(&tr("Snippets"), &tf("Could not save the snippet: {}", &[&e.to_string()])),
                 }
             }
         }
@@ -1363,22 +1395,37 @@ impl App {
                 let stamp = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
                 let mut d = Doc::from_loaded(path, l);
                 d.path = None;
-                d.title = format!("{base} (snapshot {stamp})");
+                d.title = tf("{} (snapshot {})", &[&base, &stamp]);
                 d.view_only = true;
-                d.notice = Some(Notice::Info("Read-only snapshot from local history. Copy what you need, or use Save As.".into()));
+                d.notice = Some(Notice::Info(Msg::new("Read-only snapshot from local history. Copy what you need, or use Save As.")));
                 self.insert_doc(d);
             }
-            Err(e) => host.error("Local history", &e.to_string()),
+            Err(e) => host.error(&tr("Local history"), &e.to_string()),
         }
     }
 
     fn open_shortcuts_doc(&mut self) {
-        let mut text = String::from("rpad keyboard shortcuts\n=======================\n\n");
+        let title = tr("rpad keyboard shortcuts");
+        let underline = |t: &str| "=".repeat(t.chars().count().max(3));
+        let mut text = format!("{title}\n{}\n\n", underline(&title));
         for (k, c) in commands::BINDINGS {
             text.push_str(&format!("{k:<20} {}\n", c.plain_label()));
         }
-        text.push_str("\nEditor\n------\nCtrl+Click           Add a caret\nAlt+Drag             Column (rectangular) selection\nDouble/triple click  Select word / line\nCtrl+Backspace/Del   Delete word\nCtrl+Left/Right      Move by word\nCtrl+Home/End        Document start/end\nEsc                  Back to a single caret / close panels\nTab / Shift+Tab      Indent / outdent selected lines\n");
-        let mut d = Doc::with_buffer(Buffer::new(&text), None, "Keyboard shortcuts".into(), Enc::Utf8, Eol::platform(), Lang::Plain);
+        let editor = tr("Editor");
+        text.push_str(&format!("\n{editor}\n{}\n", "-".repeat(editor.chars().count().max(3))));
+        for (k, what) in [
+            ("Ctrl+Click", "Add a caret"),
+            ("Alt+Drag", "Column (rectangular) selection"),
+            ("Double/triple click", "Select word / line"),
+            ("Ctrl+Backspace/Del", "Delete word"),
+            ("Ctrl+Left/Right", "Move by word"),
+            ("Ctrl+Home/End", "Document start/end"),
+            ("Esc", "Back to a single caret / close panels"),
+            ("Tab / Shift+Tab", "Indent / outdent selected lines"),
+        ] {
+            text.push_str(&format!("{k:<20} {}\n", tr(what)));
+        }
+        let mut d = Doc::with_buffer(Buffer::new(&text), None, tr("Keyboard shortcuts"), Enc::Utf8, Eol::platform(), Lang::Plain);
         d.view_only = true;
         self.insert_doc(d);
     }
@@ -1388,10 +1435,10 @@ impl App {
     fn xml_check(&mut self, host: &dyn Host) {
         let text = self.doc().buf.text.to_string();
         match xml::check(&text) {
-            Ok(n) => host.info("XML", &format!("The document is well-formed ({n} elements).")),
+            Ok(n) => host.info("XML", &tf("The document is well-formed ({} elements).", &[&n.to_string()])),
             Err(e) => {
                 self.goto_line(e.line - 1, Some(e.col - 1));
-                host.error("XML is not well-formed", &e.to_string());
+                host.error(&tr("XML is not well-formed"), &e.to_string());
             }
         }
     }
@@ -1400,11 +1447,11 @@ impl App {
         let text = self.doc().buf.text.to_string();
         let unit = self.indent_cfg().unit();
         match xml::format(&text, &unit) {
-            Ok(out) if out == text => self.notify("The XML is already formatted"),
+            Ok(out) if out == text => self.notify(tr("The XML is already formatted")),
             Ok(out) => {
                 let ok = host.confirm(
-                    "Format XML",
-                    "Formatting re-indents elements that contain only other elements. Text content, CDATA, comments and elements with xml:space=\"preserve\" are kept exactly as they are.\n\nYou can undo this with Ctrl+Z. Continue?",
+                    &tr("Format XML"),
+                    &tr("Formatting re-indents elements that contain only other elements. Text content, CDATA, comments and elements with xml:space=\"preserve\" are kept exactly as they are.\n\nYou can undo this with Ctrl+Z. Continue?"),
                 );
                 if ok {
                     self.edit(|b| {
@@ -1415,7 +1462,7 @@ impl App {
             }
             Err(e) => {
                 self.goto_line(e.line - 1, Some(e.col - 1));
-                host.error("Format XML", &format!("The document is not well-formed, so it was not changed.\n\n{e}"));
+                host.error(&tr("Format XML"), &tf("The document is not well-formed, so it was not changed.\n\n{}", &[&e.to_string()]));
             }
         }
     }
@@ -1434,7 +1481,7 @@ impl App {
                 self.fif.dir.set(&dir.display().to_string());
             }
         }
-        self.results = Some(Results { title: "Find in files".into(), items: Vec::new(), sel: 0, scroll: 0, status: String::new(), fif: true });
+        self.results = Some(Results { title: tr("Find in files"), items: Vec::new(), sel: 0, scroll: 0, status: String::new(), fif: true });
         self.fif.query.select_all();
         self.focus = Focus::FifQuery;
     }
@@ -1444,13 +1491,13 @@ impl App {
         let re = match q.build() {
             Ok(r) => r,
             Err(e) => {
-                host.error("Find in files", &e);
+                host.error(&tr("Find in files"), &e);
                 return;
             }
         };
         let dir = PathBuf::from(self.fif.dir.text.trim());
         if !dir.is_dir() {
-            host.error("Find in files", &format!("The folder \"{}\" does not exist.", dir.display()));
+            host.error(&tr("Find in files"), &tf("The folder \"{}\" does not exist.", &[&dir.display().to_string()]));
             return;
         }
         self.stop_fif();
@@ -1476,8 +1523,8 @@ impl App {
             r.items.clear();
             r.sel = 0;
             r.scroll = 0;
-            r.status = "Searching…".into();
-            r.title = format!("Find in files: {}", self.fif.query.text);
+            r.status = tr("Searching…");
+            r.title = tf("Find in files: {}", &[&self.fif.query.text]);
         }
     }
 
@@ -1506,8 +1553,14 @@ impl App {
         if let Some(r) = self.results.as_mut() {
             r.items.extend(new_items);
             let n = r.items.len();
-            let capped = if n >= crate::search::files::MAX_HITS { " (limit reached)" } else { "" };
-            r.status = if done { format!("{n} match(es) in {files} file(s) searched{capped}") } else { format!("Searching… {n} match(es) so far, {files} file(s)") };
+            let (ns, fs) = (n.to_string(), files.to_string());
+            r.status = if !done {
+                tf("Searching… {} match(es) so far, {} file(s)", &[&ns, &fs])
+            } else if n >= crate::search::files::MAX_HITS {
+                tf("{} match(es) in {} file(s) searched (limit reached)", &[&ns, &fs])
+            } else {
+                tf("{} match(es) in {} file(s) searched", &[&ns, &fs])
+            };
         }
         if done {
             self.fif.rx = None;
@@ -1523,13 +1576,13 @@ impl App {
         let q = self.find.query();
         if q.is_empty() {
             self.open_find(false);
-            self.notify("Type what to find, then use Search › Find in Open Documents");
+            self.notify(tr("Type what to find, then use Search › Find in Open Documents"));
             return;
         }
         let re = match q.build() {
             Ok(r) => r,
             Err(e) => {
-                host.error("Find", &e);
+                host.error(&tr("Find"), &e);
                 return;
             }
         };
@@ -1546,8 +1599,8 @@ impl App {
         }
         let n = items.len();
         self.results = Some(Results {
-            title: format!("Find in open documents: {}", q.text),
-            status: format!("{n} matching line(s) in {} document(s)", self.docs.len()),
+            title: tf("Find in open documents: {}", &[&q.text]),
+            status: tf("{} matching line(s) in {} document(s)", &[&n.to_string(), &self.docs.len().to_string()]),
             items,
             sel: 0,
             scroll: 0,
@@ -1665,7 +1718,7 @@ impl App {
                     d.buf.mark_unsaved();
                     if let Some(p) = path {
                         d.stamp = file::stamp(p);
-                        d.notice = Some(Notice::Info("Unsaved changes were recovered from the last session.".into()));
+                        d.notice = Some(Notice::Info(Msg::new("Unsaved changes were recovered from the last session.")));
                     }
                     if d.title.is_empty() && path.is_none() {
                         self.untitled += 1;

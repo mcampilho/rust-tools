@@ -23,6 +23,8 @@ pub enum LastTabClose {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Settings {
     pub theme: ThemePref,
+    /// Interface language; None follows Windows.
+    pub language: Option<crate::i18n::Lang>,
     pub font_face: String,
     pub font_size: f32,
     pub zoom: i32,
@@ -64,6 +66,7 @@ impl Default for Settings {
     fn default() -> Self {
         Settings {
             theme: ThemePref::System,
+            language: None,
             font_face: String::new(),
             font_size: 11.0,
             zoom: 100,
@@ -122,6 +125,7 @@ impl Settings {
                 Some("dark") => ThemePref::Dark,
                 _ => ThemePref::System,
             },
+            language: s.get("language").and_then(crate::i18n::Lang::from_tag),
             font_face: s.get("font_face").unwrap_or("").to_string(),
             font_size: n(s.get("font_size"), d.font_size).clamp(6.0, 72.0),
             zoom: n(s.get("zoom"), d.zoom).clamp(30, 400),
@@ -172,6 +176,7 @@ impl Settings {
             ThemePref::Light => "light",
             ThemePref::Dark => "dark",
         });
+        s.set("language", self.language.map_or("", |l| l.tag()));
         s.set("font_face", self.font_face.clone());
         s.set("font_size", format!("{}", self.font_size));
         s.set("zoom", self.zoom.to_string());

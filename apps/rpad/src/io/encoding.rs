@@ -21,7 +21,7 @@ impl Enc {
     pub fn name(self) -> String {
         match self {
             Enc::Utf8 => "UTF-8".into(),
-            Enc::Utf8Bom => "UTF-8 with BOM".into(),
+            Enc::Utf8Bom => crate::i18n::tr("UTF-8 with BOM"),
             Enc::Utf16Le => "UTF-16 LE".into(),
             Enc::Utf16Be => "UTF-16 BE".into(),
             Enc::Legacy(e) => legacy_label(e),
@@ -117,7 +117,7 @@ fn legacy_label(e: &'static Encoding) -> String {
     if desc.is_empty() {
         e.name().to_string()
     } else {
-        format!("{} ({desc})", e.name())
+        format!("{} ({})", e.name(), crate::i18n::tr(desc))
     }
 }
 
@@ -332,7 +332,8 @@ impl std::fmt::Display for EncodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             EncodeError::Unmappable { ch, line, col } => {
-                write!(f, "the character '{ch}' (U+{:04X}) at line {line}, column {col} cannot be represented", *ch as u32)
+                let args = [ch.to_string(), format!("{:04X}", *ch as u32), line.to_string(), col.to_string()];
+                write!(f, "{}", crate::i18n::tf("the character '{}' (U+{}) at line {}, column {} cannot be represented", &[&args[0], &args[1], &args[2], &args[3]]))
             }
         }
     }

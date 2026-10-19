@@ -30,7 +30,7 @@ impl MenuBar {
             let bar = CreateMenu();
             for (title, items) in tree {
                 let sub = build(items, &mut ids);
-                let t = wide(title);
+                let t = wide(&crate::i18n::tr(title));
                 AppendMenuW(bar, MF_POPUP | MF_STRING, sub as usize, t.as_ptr());
             }
             let old = GetMenu(hwnd);
@@ -81,7 +81,7 @@ unsafe fn build(items: Vec<M>, ids: &mut Vec<Command>) -> HMENU {
             }
             M::Sub(title, children) => {
                 let sub = build(children, ids);
-                let t = wide(title);
+                let t = wide(&crate::i18n::tr(title));
                 AppendMenuW(menu, MF_POPUP | MF_STRING, sub as usize, t.as_ptr());
             }
         }

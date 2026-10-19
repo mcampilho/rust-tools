@@ -4,8 +4,10 @@
 //! `unsafe` is confined to this module: every block calls documented Win32
 //! APIs with buffers whose sizes and lifetimes are checked locally.
 
+pub mod darkmode;
 pub mod dialogs;
 pub mod menu;
+pub mod tray;
 
 use std::cell::RefCell;
 use std::path::PathBuf;
@@ -27,8 +29,9 @@ pub fn from_wide(buf: &[u16]) -> String {
 #[derive(Debug, Clone)]
 pub enum WinMsg {
     Command(u32),
-    /// Files sent by a second instance.
+    /// Files sent by a second instance (empty: just show the window).
     OpenFiles(Vec<PathBuf>),
+    Tray(tray::TrayEvent),
 }
 
 type Sink = Box<dyn Fn(WinMsg)>;
@@ -36,10 +39,13 @@ type Sink = Box<dyn Fn(WinMsg)>;
 thread_local! {
     static SINK: RefCell<Option<Sink>> = const { RefCell::new(None) };
     static MNEMONICS: RefCell<String> = const { RefCell::new(String::new()) };
+    static TASKBAR_CREATED: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
 }
 
 const COPYDATA_OPEN: usize = 0x5250_4144; // "RPAD"
 pub const INSTANCE_PROP: &str = "rpad.instance.v1";
+/// Set on a window running in resident (tray) mode.
+pub const RESIDENT_PROP: &str = "rpad.resident.v1";
 
 /// Installs a subclass on the main window to receive menu commands,
 /// files from other instances and to suppress the error beep for Alt+key
@@ -53,7 +59,22 @@ pub fn subclass(hwnd: HWND, mnemonics: &str, sink: Box<dyn Fn(WinMsg)>) {
         SetWindowSubclass(hwnd, Some(subclass_proc), 1, 0);
         let prop = wide(INSTANCE_PROP);
         SetPropW(hwnd, prop.as_ptr(), 1 as _);
+        TASKBAR_CREATED.with(|t| t.set(RegisterWindowMessageW(wide("TaskbarCreated").as_ptr())));
     }
+}
+
+/// Marks the window as the resident (tray) instance for later launches.
+pub fn set_resident(hwnd: HWND) {
+    let prop = wide(RESIDENT_PROP);
+    // SAFETY: sets a property on our own live window.
+    unsafe {
+        SetPropW(hwnd, prop.as_ptr(), 1 as _);
+    }
+}
+
+/// Updates the menu mnemonics (after the menu language changed).
+pub fn set_mnemonics(mnemonics: &str) {
+    MNEMONICS.with(|m| *m.borrow_mut() = mnemonics.to_lowercase());
 }
 
 fn emit(m: WinMsg) {
@@ -65,6 +86,9 @@ fn emit(m: WinMsg) {
 }
 
 unsafe extern "system" fn subclass_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM, _id: usize, _data: usize) -> LRESULT {
+    if let Some(r) = darkmode::handle(hwnd, msg, wp, lp) {
+        return r;
+    }
     match msg {
         WM_COMMAND if (wp >> 16) & 0xFFFF == 0 && lp == 0 => {
             emit(WinMsg::Command((wp & 0xFFFF) as u32));
@@ -72,12 +96,27 @@ unsafe extern "system" fn subclass_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LP
         }
         WM_COPYDATA => {
             let cds = &*(lp as *const COPYDATASTRUCT);
-            if cds.dwData == COPYDATA_OPEN && !cds.lpData.is_null() {
-                let units = std::slice::from_raw_parts(cds.lpData as *const u16, cds.cbData as usize / 2);
-                let paths = String::from_utf16_lossy(units).split('\n').filter(|p| !p.is_empty()).map(PathBuf::from).collect();
+            if cds.dwData == COPYDATA_OPEN {
+                let paths = if cds.lpData.is_null() || cds.cbData == 0 {
+                    Vec::new()
+                } else {
+                    let units = std::slice::from_raw_parts(cds.lpData as *const u16, cds.cbData as usize / 2);
+                    String::from_utf16_lossy(units).split('\n').filter(|p| !p.is_empty()).map(PathBuf::from).collect()
+                };
                 emit(WinMsg::OpenFiles(paths));
                 return 1;
             }
+            DefSubclassProc(hwnd, msg, wp, lp)
+        }
+        tray::WM_TRAY => {
+            if let Some(e) = tray::event(lp) {
+                emit(WinMsg::Tray(e));
+            }
+            0
+        }
+        m if m != 0 && m == TASKBAR_CREATED.with(|t| t.get()) => {
+            // Explorer restarted: put the tray icon back.
+            tray::restore(hwnd);
             DefSubclassProc(hwnd, msg, wp, lp)
         }
         WM_SYSCHAR => {
@@ -97,23 +136,40 @@ unsafe extern "system" fn subclass_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LP
     }
 }
 
-/// Finds another running instance and sends it `paths`. Returns true if
-/// the files were handed over (this process should exit).
-pub fn hand_off_to_existing(paths: &[PathBuf]) -> bool {
-    struct Found(HWND);
+/// Finds the window of another running instance (any, or only a resident one).
+fn find_instance(resident_only: bool) -> HWND {
+    struct Found(HWND, bool);
     unsafe extern "system" fn enum_proc(hwnd: HWND, lp: LPARAM) -> i32 {
-        let prop = wide(INSTANCE_PROP);
+        let f = &mut *(lp as *mut Found);
+        let prop = wide(if f.1 { RESIDENT_PROP } else { INSTANCE_PROP });
         if !GetPropW(hwnd, prop.as_ptr()).is_null() {
-            (*(lp as *mut Found)).0 = hwnd;
+            f.0 = hwnd;
             return 0;
         }
         1
     }
-    let mut found = Found(std::ptr::null_mut());
+    let mut found = Found(std::ptr::null_mut(), resident_only);
     // SAFETY: the callback writes only into `found`, which outlives the call.
     unsafe {
         EnumWindows(Some(enum_proc), &mut found as *mut Found as LPARAM);
     }
+    found.0
+}
+
+/// True if a resident (tray) instance is running.
+pub fn resident_running() -> bool {
+    !find_instance(true).is_null()
+}
+
+/// Finds another running instance (a resident one first) and sends it
+/// `paths`; it shows its window. Returns true if handed over (this
+/// process should exit). `any` allows non-resident instances.
+pub fn hand_off_to_existing(paths: &[PathBuf], any: bool) -> bool {
+    let mut target = find_instance(true);
+    if target.is_null() && any {
+        target = find_instance(false);
+    }
+    let found = (target,);
     if found.0.is_null() {
         return false;
     }
@@ -232,4 +288,22 @@ pub fn accent() -> Option<u32> {
     let v = reg_dword("Software\\Microsoft\\Windows\\DWM", "AccentColor")?;
     let (r, g, b) = (v & 0xFF, (v >> 8) & 0xFF, (v >> 16) & 0xFF);
     Some(r << 16 | g << 8 | b)
+}
+
+/// First preferred Windows display language as a BCP 47 tag ("pt-PT").
+pub fn ui_language() -> Option<String> {
+    use windows_sys::Win32::Globalization::{GetUserPreferredUILanguages, MUI_LANGUAGE_NAME};
+    let mut count = 0u32;
+    let mut len = 0u32;
+    // SAFETY: the first call queries the buffer size, the second fills it.
+    unsafe {
+        if GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &mut count, std::ptr::null_mut(), &mut len) == 0 || len == 0 {
+            return None;
+        }
+        let mut buf = vec![0u16; len as usize];
+        if GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &mut count, buf.as_mut_ptr(), &mut len) == 0 {
+            return None;
+        }
+        Some(from_wide(&buf))
+    }
 }

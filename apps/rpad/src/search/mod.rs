@@ -23,7 +23,7 @@ impl Query {
     /// Compiles the query. Errors are shown to the user.
     pub fn build(&self) -> Result<Regex, String> {
         if self.text.is_empty() {
-            return Err("Empty search".into());
+            return Err(crate::i18n::tr("Empty search"));
         }
         let mut pat = if self.regex { self.text.clone() } else { regex::escape(&self.text) };
         if self.word {
@@ -39,8 +39,8 @@ impl Query {
             .build()
             .map_err(|e| match e {
                 regex::Error::Syntax(s) => s.lines().last().unwrap_or("Invalid regular expression").trim().to_string(),
-                regex::Error::CompiledTooBig(_) => "The regular expression is too large".into(),
-                _ => "Invalid regular expression".into(),
+                regex::Error::CompiledTooBig(_) => crate::i18n::tr("The regular expression is too large"),
+                _ => crate::i18n::tr("Invalid regular expression"),
             })
     }
 }

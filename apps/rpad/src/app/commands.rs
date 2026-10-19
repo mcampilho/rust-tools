@@ -83,6 +83,8 @@ pub enum Command {
     MarkdownPreview,
     ResultsPanel,
     Theme(u8),
+    /// Interface language: 0 follows Windows, 1.. index into `Lang::ALL` + 1.
+    UiLanguage(u8),
     FullScreen,
     CommandPalette,
     NextTab,
@@ -149,8 +151,10 @@ pub const EOLS: [(&str, crate::io::encoding::Eol); 3] = [
 ];
 
 impl Command {
-    pub fn label(self) -> String {
-        let s: &str = match self {
+    /// English menu label (the translation key), or the final text for
+    /// labels built at run time.
+    pub fn label_key(self) -> Result<&'static str, String> {
+        Ok(match self {
             New => "&New",
             Open => "&Open...",
             OpenRecent(_) => "Recent file",
@@ -160,7 +164,7 @@ impl Command {
             SaveAs => "Save &As...",
             SaveAll => "Save A&ll",
             Reload => "&Reload from Disk",
-            ReopenWithEncoding(i) => return Enc::all().get(i as usize).map_or_else(String::new, |e| e.name()),
+            ReopenWithEncoding(i) => return Err(Enc::all().get(i as usize).map_or_else(String::new, |e| e.name())),
             LocalHistory => "Local &History...",
             CloseTab => "&Close",
             CloseOthers => "Close &Others",
@@ -224,17 +228,19 @@ impl Command {
             Theme(0) => "Use &System Setting",
             Theme(1) => "&Light",
             Theme(_) => "&Dark",
+            UiLanguage(0) => "Use &System Setting",
+            UiLanguage(i) => return Err(crate::i18n::Lang::ALL.get(i as usize - 1).map_or("", |l| l.native_name()).to_string()),
             FullScreen => "&Full Screen",
             CommandPalette => "&Command Palette...",
             NextTab => "Next Tab",
             PrevTab => "Previous Tab",
             LangAuto => "&Detect Automatically",
-            SetLang(i) => return syntax::lang::DEFS.get(i as usize).map_or("", |d| d.name).to_string(),
-            SetEncoding(i) => return Enc::all().get(i as usize).map_or_else(String::new, |e| e.name()),
-            SetEol(i) => return EOLS.get(i as usize).map_or("", |e| e.0).to_string(),
+            SetLang(i) => return Err(crate::i18n::tr(syntax::lang::DEFS.get(i as usize).map_or("", |d| d.name))),
+            SetEncoding(i) => return Err(Enc::all().get(i as usize).map_or_else(String::new, |e| e.name())),
+            SetEol(i) => return Err(crate::i18n::tr(EOLS.get(i as usize).map_or("", |e| e.0))),
             UseSpaces => "Indent with &Spaces",
             UseTabs => "Indent with &Tabs",
-            TabWidth(w) => return format!("Tab Width: &{w}"),
+            TabWidth(w) => return Err(crate::i18n::tf("Tab Width: &{}", &[&w.to_string()])),
             IndentToSpaces => "Convert Indentation to Spaces",
             IndentToTabs => "Convert Indentation to Tabs",
             AutoIndent => "&Auto Indent",
@@ -276,13 +282,19 @@ impl Command {
             OpenDataFolder => "Open Settings &Folder",
             Shortcuts => "&Keyboard Shortcuts",
             About => "&About rpad",
-        };
-        s.to_string()
+        })
+    }
+
+    pub fn label(self) -> String {
+        match self.label_key() {
+            Ok(k) => crate::i18n::tr(k),
+            Err(s) => s,
+        }
     }
 
     /// Label without menu mnemonics (palette, tooltips).
     pub fn plain_label(self) -> String {
-        self.label().replace('&', "")
+        crate::i18n::strip_mnemonic(&self.label())
     }
 
     /// Commands listed in the command palette (with a menu category).
@@ -330,6 +342,9 @@ impl Command {
         }
         for i in 0..3 {
             v.push((Theme(i), "Theme"));
+        }
+        for i in 0..=crate::i18n::Lang::ALL.len() {
+            v.push((UiLanguage(i as u8), "Display Language"));
         }
         v
     }
@@ -555,6 +570,11 @@ pub fn menu_tree(recent: &[std::path::PathBuf]) -> Vec<(&'static str, Vec<M>)> {
                 Item(MarkdownPreview),
                 Item(ResultsPanel),
                 Sub("T&heme", vec![Item(Theme(0)), Item(Theme(1)), Item(Theme(2))]),
+                Sub("Display &Language", {
+                    let mut v = vec![Item(UiLanguage(0)), Sep];
+                    v.extend((1..=crate::i18n::Lang::ALL.len()).map(|i| Item(UiLanguage(i as u8))));
+                    v
+                }),
                 Sep,
                 Item(FullScreen),
                 Item(CommandPalette),

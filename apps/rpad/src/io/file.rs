@@ -5,6 +5,7 @@
 //! permissions). If that is not possible, it falls back to writing in place.
 //! A file is never modified except by an explicit save.
 
+use crate::i18n::{tf, tr};
 use super::encoding::{decode, system_legacy, Decoded, EncodeError, Enc, Eol, Writer};
 use ropey::Rope;
 use std::io::Write;
@@ -40,15 +41,17 @@ pub enum LoadError {
 impl std::fmt::Display for LoadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LoadError::NotFound => write!(f, "The file does not exist."),
-            LoadError::PermissionDenied => write!(f, "Access to the file was denied."),
+            LoadError::NotFound => write!(f, "{}", tr("The file does not exist.")),
+            LoadError::PermissionDenied => write!(f, "{}", tr("Access to the file was denied.")),
             LoadError::TooLarge(n) => write!(
                 f,
-                "The file is {:.0} MB. Files larger than {} MB are not supported.",
-                *n as f64 / 1048576.0,
-                MAX_FILE_SIZE / 1048576
+                "{}",
+                tf(
+                    "The file is {} MB. Files larger than {} MB are not supported.",
+                    &[&format!("{:.0}", *n as f64 / 1048576.0), &(MAX_FILE_SIZE / 1048576).to_string()]
+                )
             ),
-            LoadError::IsDirectory => write!(f, "The path is a folder, not a file."),
+            LoadError::IsDirectory => write!(f, "{}", tr("The path is a folder, not a file.")),
             LoadError::Other(e) => write!(f, "{e}"),
         }
     }
@@ -93,9 +96,9 @@ pub enum SaveError {
 impl std::fmt::Display for SaveError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SaveError::Encode(e) => write!(f, "The text cannot be saved in this encoding: {e}. Choose another encoding (for example UTF-8)."),
-            SaveError::ReadOnly => write!(f, "The file is read-only."),
-            SaveError::PermissionDenied => write!(f, "Access was denied. You may need to save it in another folder."),
+            SaveError::Encode(e) => write!(f, "{}", tf("The text cannot be saved in this encoding: {}. Choose another encoding (for example UTF-8).", &[&e.to_string()])),
+            SaveError::ReadOnly => write!(f, "{}", tr("The file is read-only.")),
+            SaveError::PermissionDenied => write!(f, "{}", tr("Access was denied. You may need to save it in another folder.")),
             SaveError::Io(e) => write!(f, "{e}"),
         }
     }

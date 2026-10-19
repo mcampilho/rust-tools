@@ -1,6 +1,8 @@
 //! Pure text transformations used by the Edit and Tools menus. They operate
 //! on strings or line lists; the buffer applies them as undoable edits.
 
+use crate::i18n::{tf, tr};
+
 pub fn upper(s: &str) -> String {
     s.to_uppercase()
 }
@@ -232,17 +234,17 @@ pub fn json_unescape(s: &str) -> Result<String, String> {
             Some('f') => out.push('\u{c}'),
             Some('u') => {
                 let hex: String = it.by_ref().take(4).collect();
-                let mut code = u32::from_str_radix(&hex, 16).map_err(|_| format!("Invalid escape \\u{hex}"))?;
+                let mut code = u32::from_str_radix(&hex, 16).map_err(|_| tf("Invalid escape {}", &[&format!("\\u{hex}")]))?;
                 if (0xD800..0xDC00).contains(&code) {
                     // surrogate pair
                     let rest: String = it.by_ref().take(6).collect();
-                    let low = rest.strip_prefix("\\u").and_then(|h| u32::from_str_radix(h, 16).ok()).ok_or("Unpaired surrogate")?;
+                    let low = rest.strip_prefix("\\u").and_then(|h| u32::from_str_radix(h, 16).ok()).ok_or_else(|| tr("Unpaired surrogate"))?;
                     code = 0x10000 + ((code - 0xD800) << 10) + (low - 0xDC00);
                 }
-                out.push(char::from_u32(code).ok_or("Invalid code point")?);
+                out.push(char::from_u32(code).ok_or_else(|| tr("Invalid code point"))?);
             }
-            Some(o) => return Err(format!("Invalid escape \\{o}")),
-            None => return Err("Trailing backslash".into()),
+            Some(o) => return Err(tf("Invalid escape {}", &[&format!("\\{o}")])),
+            None => return Err(tr("Trailing backslash")),
         }
     }
     Ok(out)
@@ -346,7 +348,7 @@ pub fn url_decode(s: &str) -> Result<String, String> {
             }
         }
     }
-    String::from_utf8(out).map_err(|_| "The decoded bytes are not valid UTF-8".to_string())
+    String::from_utf8(out).map_err(|_| tr("The decoded bytes are not valid UTF-8"))
 }
 
 const B64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -381,7 +383,7 @@ pub fn base64_decode(s: &str) -> Result<String, String> {
             b'0'..=b'9' => c - b'0' + 52,
             b'+' | b'-' => 62,
             b'/' | b'_' => 63,
-            _ => return Err("Invalid Base64 character".into()),
+            _ => return Err(tr("Invalid Base64 character")),
         };
         bits = bits << 6 | v as u32;
         n += 6;
@@ -391,7 +393,7 @@ pub fn base64_decode(s: &str) -> Result<String, String> {
             bits &= (1 << n) - 1;
         }
     }
-    String::from_utf8(out).map_err(|_| "The decoded data is not UTF-8 text".to_string())
+    String::from_utf8(out).map_err(|_| tr("The decoded data is not UTF-8 text"))
 }
 
 #[cfg(test)]

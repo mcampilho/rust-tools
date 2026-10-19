@@ -125,7 +125,7 @@ impl Location {
             None => Location {
                 dir: None,
                 portable: false,
-                error: Some("No user data folder is available.".into()),
+                error: Some(crate::i18n::tr("No user data folder is available.")),
             },
         }
     }
@@ -142,7 +142,7 @@ impl Location {
             Ok(t) => Store::parse(&t),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Store::default(),
             Err(e) => {
-                self.error = Some(format!("Could not read {}: {e}", path.display()));
+                self.error = Some(crate::i18n::tf("Could not read {}: {}", &[&path.display().to_string(), &e.to_string()]));
                 Store::default()
             }
         }
@@ -179,7 +179,7 @@ impl Location {
                 true
             }
             Err(e) => {
-                self.error = Some(format!("Settings can't be saved to {}: {e}", dir.display()));
+                self.error = Some(crate::i18n::tf("Settings can't be saved to {}: {}", &[&dir.display().to_string(), &e.to_string()]));
                 false
             }
         }

@@ -10,6 +10,7 @@
 
 mod app;
 mod doc;
+mod i18n;
 mod io;
 mod search;
 mod storage;
@@ -66,7 +67,7 @@ struct WinHost {
 impl Host for WinHost {
     fn ask_save(&self, name: &str) -> Answer {
         use win::dialogs::{message, Answer as A, Buttons, Icon};
-        match message(self.hwnd, "rpad", &format!("Do you want to save changes to {name}?"), Buttons::YesNoCancel, Icon::Warning) {
+        match message(self.hwnd, "rpad", &i18n::tf("Do you want to save changes to {}?", &[name]), Buttons::YesNoCancel, Icon::Warning) {
             A::Yes => Answer::Yes,
             A::No => Answer::No,
             _ => Answer::Cancel,
@@ -91,7 +92,7 @@ impl Host for WinHost {
         win::dialogs::save_file(self.hwnd, name, dir)
     }
     fn pick_folder(&self) -> Option<PathBuf> {
-        win::dialogs::pick_folder(self.hwnd, "Choose the folder to search")
+        win::dialogs::pick_folder(self.hwnd, &i18n::tr("Choose the folder to search"))
     }
     fn choose_font(&self, face: &str, size: f32) -> Option<(String, f32)> {
         win::dialogs::choose_font(self.hwnd, face, size)
@@ -179,6 +180,11 @@ struct Shell {
     ime_rect: Option<Rect>,
     cursor_icon: CursorIcon,
     args: Vec<PathBuf>,
+    /// Resident mode: closing the window hides it to the notification area.
+    tray: bool,
+    hidden: bool,
+    /// Theme the native menus were last drawn with (dark or not).
+    menu_dark: Option<bool>,
 }
 
 fn theme_for(pref: ThemePref) -> Option<WinTheme> {
@@ -247,6 +253,11 @@ impl Shell {
             self.quit(el);
             return;
         }
+        if self.app.close_window {
+            self.app.close_window = false;
+            self.close(el);
+            return;
+        }
         if self.app.fullscreen_request {
             self.app.fullscreen_request = false;
             if let Some(w) = &self.win {
@@ -264,13 +275,58 @@ impl Shell {
         self.redraw();
     }
 
+    /// The window's close button: hides to the tray in resident mode.
+    fn close(&mut self, el: &ActiveEventLoop) {
+        if self.tray {
+            self.hide();
+        } else {
+            self.quit(el);
+        }
+    }
+
+    /// Hides the window to the notification area, keeping documents open.
+    fn hide(&mut self) {
+        self.app.autosave(&self.host);
+        self.app.write_recovery(false);
+        self.remember_window();
+        self.app.save_settings();
+        if let Some(w) = &self.win {
+            w.window.set_visible(false);
+        }
+        self.hidden = true;
+        self.focused = false;
+        self.input.hot = None;
+        self.input.tooltip = None;
+        // Release the frame buffer while hidden.
+        self.gfx.resize(1, 1);
+        self.gfx.trim_cache();
+    }
+
+    fn show(&mut self) {
+        if let Some(w) = &self.win {
+            w.window.set_visible(true);
+            w.window.set_minimized(false);
+            w.window.focus_window();
+        }
+        self.hidden = false;
+        self.app.check_external_changes();
+        self.app.reveal_caret = true;
+        self.reset_blink();
+        self.redraw();
+    }
+
     /// Closes the window: hot exit when crash recovery is on, otherwise
     /// asks about unsaved documents.
     fn quit(&mut self, el: &ActiveEventLoop) {
+        if !self.app.settings.recovery && self.app.docs.iter().any(|d| d.is_modified()) && self.hidden {
+            self.show();
+        }
         if !self.app.settings.recovery && !self.app.confirm_all(&self.host) {
             self.redraw();
             return;
         }
+        #[cfg(windows)]
+        win::tray::remove(self.host.hwnd);
         self.app.stop_fif();
         self.app.write_recovery(true);
         self.remember_window();
@@ -293,6 +349,9 @@ impl Shell {
     }
 
     fn open_files(&mut self, el: &ActiveEventLoop, paths: &[PathBuf]) {
+        if self.hidden {
+            self.show();
+        }
         for p in paths {
             self.app.open_arg(p, &self.host);
         }
@@ -664,7 +723,7 @@ impl Shell {
             {
                 let file = win::dialogs::font_file(&self.app.settings.font_face);
                 if !self.gfx.set_mono(file.as_deref()) {
-                    self.app.notify(format!("Font \"{}\" could not be loaded; using the default.", self.app.settings.font_face));
+                    self.app.notify(i18n::tf("Font \"{}\" could not be loaded; using the default.", &[&self.app.settings.font_face]));
                 }
             }
         }
@@ -700,6 +759,7 @@ impl Shell {
             }
         }
         self.sync_menu();
+        self.sync_menu_theme(theme.dark);
         if self.update_hot() {
             self.redraw();
         }
@@ -739,10 +799,13 @@ impl Shell {
             return;
         }
         self.app.menu_dirty = false;
-        if win.menu.is_none() || self.menu_recent != self.app.settings.recent {
+        if win.menu.is_none() || self.menu_recent != self.app.settings.recent || self.app.menu_rebuild {
+            self.app.menu_rebuild = false;
             self.menu_recent = self.app.settings.recent.clone();
             let hwnd = self.host.hwnd;
-            win.menu = Some(win::menu::MenuBar::install(hwnd, app::commands::menu_tree(&self.menu_recent)));
+            let tree = app::commands::menu_tree(&self.menu_recent);
+            win::set_mnemonics(&mnemonics_of(&tree));
+            win.menu = Some(win::menu::MenuBar::install(hwnd, tree));
         }
         if let Some(m) = &win.menu {
             let app = &self.app;
@@ -752,6 +815,19 @@ impl Shell {
 
     #[cfg(not(windows))]
     fn sync_menu(&mut self) {}
+
+    /// Dark menu bar and popup menus in the dark theme.
+    fn sync_menu_theme(&mut self, dark: bool) {
+        if self.menu_dark == Some(dark) {
+            return;
+        }
+        self.menu_dark = Some(dark);
+        #[cfg(windows)]
+        {
+            let colors = dark.then_some(win::darkmode::MenuColors { bar: 0x202020, text: 0xE4E4E4, text_disabled: 0x7A7A7A, hot: 0x3D3D3D });
+            win::darkmode::apply(self.host.hwnd, colors);
+        }
+    }
 
     fn tree(&self) -> accesskit::TreeUpdate {
         use accesskit::{Node, NodeId, Rect as ARect, Role as ARole, Toggled, TreeId, TreeInfo, TreeUpdate};
@@ -903,6 +979,12 @@ fn app_icon() -> Option<WinIcon> {
     WinIcon::from_rgba(ui::appicon::render(n), n, n).ok()
 }
 
+/// Access keys of the top-level menus in the current language.
+#[cfg(windows)]
+fn mnemonics_of(tree: &[(&'static str, Vec<M>)]) -> String {
+    tree.iter().filter_map(|(t, _)| i18n::tr(t).split('&').nth(1).and_then(|s| s.chars().next())).collect()
+}
+
 #[cfg(windows)]
 fn hwnd_of(window: &Window) -> windows_sys::Win32::Foundation::HWND {
     use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
@@ -949,8 +1031,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         {
             self.host.hwnd = hwnd_of(&window);
             let proxy = self.proxy.clone();
-            let tree = app::commands::menu_tree(&[]);
-            let mnemonics: String = tree.iter().filter_map(|(t, _)| t.split('&').nth(1).and_then(|s| s.chars().next())).collect();
+            let mnemonics = mnemonics_of(&app::commands::menu_tree(&[]));
             win::subclass(
                 self.host.hwnd,
                 &mnemonics,
@@ -977,6 +1058,17 @@ impl ApplicationHandler<UserEvent> for Shell {
         if let Some(e) = self.app.location.error.clone() {
             self.app.notify(e);
         }
+        #[cfg(windows)]
+        if self.tray {
+            win::set_resident(self.host.hwnd);
+            win::tray::show(self.host.hwnd, "rpad");
+        }
+        // Resident mode starts in the notification area unless files were given.
+        if self.tray && args.is_empty() {
+            self.hidden = true;
+            self.focused = false;
+            return;
+        }
         if let Some(w) = &self.win {
             w.window.set_visible(true);
             w.window.focus_window();
@@ -1001,6 +1093,16 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
             #[cfg(windows)]
             UserEvent::Win(win::WinMsg::OpenFiles(paths)) => self.open_files(el, &paths),
+            #[cfg(windows)]
+            UserEvent::Win(win::WinMsg::Tray(win::tray::TrayEvent::Activate)) => self.show(),
+            #[cfg(windows)]
+            UserEvent::Win(win::WinMsg::Tray(win::tray::TrayEvent::Menu)) => {
+                match win::tray::menu(self.host.hwnd, &i18n::tr("Open rpad"), &i18n::tr("Exit")) {
+                    Some(1) => self.show(),
+                    Some(2) => self.quit(el),
+                    _ => {}
+                }
+            }
             UserEvent::A11y(ev) => match ev.window_event {
                 accesskit_winit::WindowEvent::InitialTreeRequested => {
                     let tree = self.tree();
@@ -1035,7 +1137,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             w.adapter.process_event(&w.window, &event);
         }
         match event {
-            WindowEvent::CloseRequested => self.quit(el),
+            WindowEvent::CloseRequested => self.close(el),
             WindowEvent::Focused(f) => {
                 self.focused = f;
                 self.input.focused_window = f;
@@ -1108,7 +1210,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     self.key(el, &event);
                 }
             }
-            WindowEvent::RedrawRequested => self.render(),
+            WindowEvent::RedrawRequested if !self.hidden => self.render(),
             _ => {}
         }
     }
@@ -1126,6 +1228,10 @@ const USAGE: &str = "rpad [options] [files...]
 
   files          Files to open. A file that does not exist yet opens as an
                  empty tab and is created when you save it.
+  --tray         Stay resident in the notification area: closing the window
+                 hides it (documents stay open) and launching rpad again,
+                 or clicking the tray icon, shows it instantly. Exit from
+                 the tray icon's menu or File > Exit.
   --new-window   Start a separate window instead of opening the files in
                  the running rpad window.
   --help         Show this help.
@@ -1143,14 +1249,23 @@ fn main() {
         return;
     }
     let new_window = raw.iter().any(|a| a == "--new-window");
+    let tray = raw.iter().any(|a| a == "--tray" || a == "/tray");
     let files: Vec<PathBuf> = raw.iter().filter(|a| !a.starts_with("--")).map(PathBuf::from).collect();
 
     let mut location = storage::Location::detect();
     let store = location.load();
     let settings = Settings::load(&store);
+    // A launch while a resident instance runs shows it (and opens the files
+    // there); otherwise files go to a running window if single-window mode is on.
     #[cfg(windows)]
-    if settings.single_instance && !new_window && win::hand_off_to_existing(&files) {
-        return;
+    if !new_window {
+        if tray && win::resident_running() && files.is_empty() {
+            win::hand_off_to_existing(&files, false);
+            return;
+        }
+        if win::hand_off_to_existing(&files, settings.single_instance && !tray) {
+            return;
+        }
     }
     let _ = new_window;
 
@@ -1159,7 +1274,7 @@ fn main() {
         Err(e) => {
             eprintln!("rpad: {e}");
             #[cfg(windows)]
-            win::dialogs::message(std::ptr::null_mut(), "rpad", &format!("rpad cannot start: {e}"), win::dialogs::Buttons::Ok, win::dialogs::Icon::Error);
+            win::dialogs::message(std::ptr::null_mut(), "rpad", &format!("rpad: {e}"), win::dialogs::Buttons::Ok, win::dialogs::Icon::Error);
             std::process::exit(1);
         }
     };
@@ -1172,6 +1287,7 @@ fn main() {
     };
     event_loop.set_control_flow(ControlFlow::Wait);
     let mut app = App::new(location, settings);
+    app.apply_language();
     let proxy = Arc::new(Mutex::new(event_loop.create_proxy()));
     app.waker = Some(Arc::new(move || {
         if let Ok(p) = proxy.lock() {
@@ -1212,6 +1328,9 @@ fn main() {
         ime_rect: None,
         cursor_icon: CursorIcon::Default,
         args: files,
+        tray,
+        hidden: false,
+        menu_dark: None,
     };
     if let Err(e) = event_loop.run_app(&mut shell) {
         eprintln!("rpad: {e}");

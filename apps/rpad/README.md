@@ -33,7 +33,7 @@ per-monitor DPI awareness v2 and long paths.
 ## Run
 
 ```
-rpad [--new-window] [files...]
+rpad [--tray] [--new-window] [files...]
 ```
 
 - Files on the command line are opened in tabs. A file that does not exist
@@ -41,6 +41,32 @@ rpad [--new-window] [files...]
 - By default a second `rpad` call hands its files to the running window
   (Tools › Preferences › Open Files in the Existing Window). `--new-window` starts a separate window.
 - Drag and drop files onto the window to open them.
+
+### Resident mode (`--tray`)
+
+`rpad --tray` starts rpad hidden in the notification area (system tray) for
+instant access:
+
+- Clicking the tray icon, or starting `rpad` again (with or without files),
+  shows the window immediately; files are opened in it.
+- Closing the window (or closing the last tab when it is set to close the
+  window) only hides it. Open documents, including unsaved ones, stay as
+  they are, and recovery data and settings are written when it hides.
+- To quit, use the tray icon's menu (right-click › Exit) or File › Exit.
+  The usual rules apply: with recovery on, unsaved text is kept for the
+  next start; with recovery off, rpad asks about unsaved documents.
+- Hidden, rpad uses about 20-30 MB and no CPU.
+
+To start it with Windows, put a shortcut to `rpad.exe --tray` in the
+Startup folder (`shell:startup`); rpad does not add itself.
+
+### Interface language
+
+The interface is available in German (de-DE), English (en-GB, en-US),
+Spanish (es-ES), French (fr-FR), Italian (it-IT), Japanese (ja-JP),
+Portuguese (pt-BR, pt-PT) and Simplified Chinese (zh-CN). By default it
+follows the Windows display language (other languages use English);
+View › Display Language changes it immediately, including the menus.
 
 ### Portable mode and data
 
@@ -157,7 +183,9 @@ data folder cannot be written, rpad still works and shows a notice.
 - Snippets: insert from a list, save the selection as a snippet, or edit
   `snippets.txt`.
 - Light, dark or system theme (follows Windows), the system accent colour,
-  and per-monitor DPI.
+  and per-monitor DPI. In the dark theme the menu bar, its menus, the
+  context menus and the tray menu are dark too.
+- Ten interface languages (see above), switchable at run time.
 - Native menus with shortcuts and mnemonics, tooltips on toolbar and
   status-bar items, and a status bar showing position, selection, line
   count, insert/overwrite mode, zoom, indentation, encoding, line ending
@@ -218,7 +246,8 @@ data folder cannot be written, rpad still works and shows a notice.
 | `tools` | Text transformations and the XML checker/formatter |
 | `app` | Application state, commands, documents, session, recovery, settings, input handling |
 | `ui` | CPU renderer (tiny-skia + ab_glyph with system fonts), widgets, the editor view, Markdown preview |
-| `win` | Win32 integration: menus, common dialogs, clipboard, single-instance hand-off |
+| `i18n` | Interface languages: the translation table (`strings.txt`), lookup with fallbacks |
+| `win` | Win32 integration: menus (with dark mode), common dialogs, clipboard, tray icon, single-instance hand-off |
 
 The application logic talks to the OS through a small `Host` trait (dialogs
 and clipboard). This lets the workflow tests drive the whole app without a
@@ -226,9 +255,21 @@ window. `unsafe` is limited to Win32 calls: the `win` module, plus single
 calls for `ReplaceFileW` (atomic save), `GetACP` (system code page), local
 time and the cursor position. Each one has a `SAFETY` comment.
 
+Translations live in `src/i18n/strings.txt`: one line per string, keyed by
+its US English text, with tab-separated columns per language. Menu labels
+carry their own `&` access key; Japanese and Chinese use the Windows
+convention `ファイル(&F)`. Empty en-GB or pt-PT cells fall back to en-US or
+pt-BR.
+
+Dark menus use the same undocumented techniques as other Win32 editors:
+uxtheme's preferred-app-mode functions for popup menus, and the
+`WM_UAHDRAWMENU`/`WM_UAHDRAWMENUITEM` messages to paint the menu bar
+(`src/win/darkmode.rs`). The functions are looked up at run time, so on
+Windows versions without them the menus just stay light.
+
 ## Tests
 
-`cargo test` runs 108 tests. They cover the buffer and editing operations,
+`cargo test` runs 115 tests. They cover the buffer and editing operations,
 encodings (round trips, detection, unmappable characters), line endings,
 the lexer, search, text tools, XML, settings, session and recovery files,
 layout, and end-to-end workflows through a mock host:
@@ -245,11 +286,16 @@ layout, and end-to-end workflows through a mock host:
   history;
 - text tools and their undo, line operations, multi-caret typing, the
   clipboard and the command palette;
-- a 16+ MB file opening in large-file mode.
+- a 16+ MB file opening in large-file mode;
+- translations: every row has all languages, matching `{}` placeholders,
+  line breaks and exactly one menu access key; every string the code
+  translates (`tr`, `tf`, notices, tool names, every command, menu and
+  palette label) has a row; and the whole window is rendered in German
+  with all panels open while recording any lookup without a translation.
 
 ## Verified manually (Windows 10, 100 % scaling)
 
-Release build: no warnings, clippy clean, 108/108 tests passing.
+Release build: no warnings, clippy clean, 115/115 tests passing.
 `dumpbin /dependents` shows only system DLLs (no VC runtime).
 
 In the running app:
@@ -262,10 +308,21 @@ In the running app:
 - the single-instance hand-off;
 - a 106 MB / 1,000,001-line log opening in about 0.5 s using about 145 MB
   of RAM, with instant Ctrl+End and Go to line and a background count of
-  1,000,000 matches.
+  1,000,000 matches;
+- switching the language at run time (German) and starting in Japanese:
+  menu bar, menus, find bar, status bar, tabs and notices are translated,
+  and CJK text renders in the window and the menus;
+- dark menu bar and dark File/Edit/Format menus, context menu and tray
+  menu in the dark theme;
+- `--tray`: starts hidden (about 20 MB), a second launch shows the window,
+  Alt+F4 hides it with unsaved edits kept, launching with a file shows it
+  and opens the file, and tray menu › Exit quits (hot exit with recovery).
 
 Not exercised by hand (code paths exist; some are covered by unit tests):
-IME composition with a real Asian input method, screen-reader use, high-DPI
+IME composition with a real Asian input method, screen-reader use, every
+language other than German and Japanese on screen (they share the same
+code and table checks), restarting Explorer while resident (the icon is
+re-added on `TaskbarCreated`), high-DPI
 monitors and DPI changes, drag-and-drop from Explorer, find in files in the
 UI (its search engine is unit-tested), snippets and local history dialogs
 in the UI, and fonts other than the default.
@@ -289,9 +346,13 @@ in the UI, and fonts other than the default.
   look-around or backreferences (a limitation of the linear-time engine).
 - Undo history is not kept across restarts, although unsaved text is.
 - No printing, spell checking, split views, macros or plugins.
-- The interface is in English. User-visible strings are concentrated in
-  the command table (`src/app/commands.rs`) and the view, but there is no
-  translation system yet.
+- Message boxes and the Open/Save/Font dialogs are drawn by Windows; they
+  stay light in the dark theme, and their buttons follow the Windows
+  language, not rpad's.
+- Keyboard shortcut names (Ctrl, Shift…) are shown in English in menus in
+  every language. The command-line help (`--help`) is in English.
+- The translations were written for this project; corrections from native
+  speakers are welcome in `src/i18n/strings.txt`.
 
 ## License
 

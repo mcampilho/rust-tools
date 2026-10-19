@@ -163,7 +163,7 @@ fn mixed_eol_is_reported_and_normalized_to_majority() {
     let mut app = app_in(&dir);
     app.open_path(&p, &h);
     assert_eq!(app.doc().eol, Eol::CrLf);
-    assert!(matches!(app.doc().notice, Some(Notice::Info(_)) | Some(Notice::Warning(_))), "mixed line endings are reported");
+    assert!(matches!(app.doc().notice, Some(Notice::MixedEol(_))), "mixed line endings are reported");
 }
 
 #[test]
@@ -333,10 +333,10 @@ fn last_tab_close_behaviour() {
     app.settings.last_tab_close = LastTabClose::KeepEmpty;
     app.dispatch(Command::CloseTab, &h);
     assert_eq!(app.docs.len(), 1);
-    assert!(!app.quit);
+    assert!(!app.close_window);
     app.settings.last_tab_close = LastTabClose::CloseWindow;
     app.dispatch(Command::CloseTab, &h);
-    assert!(app.quit, "closing the last tab closes the window");
+    assert!(app.close_window, "closing the last tab closes the window");
 }
 
 #[test]

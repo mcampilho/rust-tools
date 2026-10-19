@@ -268,7 +268,7 @@ impl Preview {
                 }
                 Event::Start(Tag::Link { .. }) => b.kind = Kind::Link,
                 Event::End(TagEnd::Link) => b.kind = if b.quote > 0 { Kind::Quote } else { Kind::Text },
-                Event::Start(Tag::Image { .. }) => b.text("[image: "),
+                Event::Start(Tag::Image { .. }) => b.text(&format!("[{}: ", crate::i18n::tr("image"))),
                 Event::End(TagEnd::Image) => b.text("]"),
                 Event::Start(Tag::Table(_)) => {
                     b.flush_block(0.0);
