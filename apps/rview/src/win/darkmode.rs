@@ -224,3 +224,16 @@ pub unsafe fn handle(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) -> Option<LRE
         _ => None,
     }
 }
+
+/// Repaints the title bar after its light/dark mode changed. Windows 10
+/// picks up the new caption colours only on the next activation change
+/// (maximize, restore, focus), so one is simulated in place.
+pub fn refresh_caption(hwnd: HWND) {
+    // SAFETY: plain messages to our own window; the second one restores the
+    // real activation state.
+    unsafe {
+        let active = GetForegroundWindow() == hwnd;
+        SendMessageW(hwnd, WM_NCACTIVATE, usize::from(!active), 0);
+        SendMessageW(hwnd, WM_NCACTIVATE, usize::from(active), 0);
+    }
+}

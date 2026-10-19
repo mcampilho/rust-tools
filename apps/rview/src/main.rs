@@ -243,6 +243,8 @@ impl Shell {
                 self.settings.theme = t;
                 if let Some(w) = &self.win {
                     w.window.set_theme(theme_for(t));
+                    #[cfg(windows)]
+                    win::darkmode::refresh_caption(w.hwnd);
                 }
             }
             Command::UiLanguage(i) => {
