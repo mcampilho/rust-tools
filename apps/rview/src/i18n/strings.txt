@@ -1,0 +1,84 @@
+# rview UI translations. One string per line, columns separated by TAB:
+# en-US (key)	en-GB	de-DE	es-ES	fr-FR	it-IT	ja-JP	pt-BR	pt-PT	zh-CN
+# An empty cell falls back to en-US (en-GB) or pt-BR (pt-PT). "{}" is a placeholder;
+# "\n" is a line break in multi-line messages. Menu labels carry their own "&" access key.
+
+&File		&Datei	&Archivo	&Fichier	&File	ファイル(&F)	&Arquivo	&Ficheiro	文件(&F)
+&View		&Ansicht	&Ver	A&ffichage	&Visualizza	表示(&V)	E&xibir	&Ver	视图(&V)
+&Help		&Hilfe	A&yuda	A&ide	&Guida	ヘルプ(&H)	A&juda		帮助(&H)
+&Open...		Ö&ffnen...	&Abrir...	&Ouvrir...	&Apri...	開く(&O)...	&Abrir...		打开(&O)...
+E&xit		&Beenden	&Salir	&Quitter	&Esci	終了(&X)	&Sair		退出(&X)
+Zoom &In		&Vergrößern	&Acercar	Zoom &avant	&Ingrandisci	拡大(&I)	&Ampliar		放大(&I)
+Zoom &Out		Ver&kleinern	A&lejar	Zoom a&rrière	&Riduci	縮小(&O)	&Reduzir		缩小(&O)
+&Full Screen		&Vollbild	&Pantalla completa	&Plein écran	&Schermo intero	全画面表示(&F)	&Tela inteira	&Ecrã inteiro	全屏(&F)
+T&heme		&Design	&Tema	&Thème	&Tema	テーマ(&H)	&Tema		主题(&H)
+Display &Language		&Anzeigesprache	&Idioma de la interfaz	&Langue de l’interface	&Lingua dell’interfaccia	表示言語(&L)	&Idioma da interface		界面语言(&L)
+Use &System Setting		&Systemeinstellung verwenden	Usar configuración del &sistema	Utiliser le paramètre du &système	Usa impostazione di &sistema	システム設定を使用(&S)	Usar configuração do &sistema	Usar definição do &sistema	使用系统设置(&S)
+&Light		&Hell	&Claro	&Clair	&Chiaro	ライト(&L)	&Claro		浅色(&L)
+&Dark		&Dunkel	&Oscuro	&Sombre	&Scuro	ダーク(&D)	&Escuro		深色(&D)
+&Keyboard Shortcuts		&Tastenkombinationen	&Métodos abreviados de teclado	&Raccourcis clavier	&Tasti di scelta rapida	キーボード ショートカット(&K)	&Atalhos de teclado		键盘快捷方式(&K)
+Keyboard shortcuts		Tastenkombinationen	Métodos abreviados de teclado	Raccourcis clavier	Tasti di scelta rapida	キーボード ショートカット	Atalhos de teclado		键盘快捷方式
+Reload		Neu laden	Recargar	Recharger	Ricarica	再読み込み	Recarregar		重新加载
+{} lines		{} Zeilen	{} líneas	{} lignes	{} righe	{} 行	{} linhas		{} 行
+UTF-8 with BOM		UTF-8 mit BOM	UTF-8 con BOM	UTF-8 avec BOM	UTF-8 con BOM	UTF-8 (BOM 付き)	UTF-8 com BOM		带 BOM 的 UTF-8
+Western		Westeuropäisch	Europeo occidental	Europe occidentale	Europa occidentale	西ヨーロッパ	Europeu ocidental		西欧
+Central European		Mitteleuropäisch	Europeo central	Europe centrale	Europa centrale	中央ヨーロッパ	Europeu central		中欧
+Cyrillic		Kyrillisch	Cirílico	Cyrillique	Cirillico	キリル	Cirílico		西里尔文
+Greek		Griechisch	Griego	Grec	Greco	ギリシャ語	Grego		希腊语
+Turkish		Türkisch	Turco	Turc	Turco	トルコ語	Turco		土耳其语
+Hebrew		Hebräisch	Hebreo	Hébreu	Ebraico	ヘブライ語	Hebraico		希伯来语
+Arabic		Arabisch	Árabe	Arabe	Arabo	アラビア語	Árabe		阿拉伯语
+Baltic		Baltisch	Báltico	Balte	Baltico	バルト語	Báltico		波罗的语
+Vietnamese		Vietnamesisch	Vietnamita	Vietnamien	Vietnamita	ベトナム語	Vietnamita		越南语
+Thai		Thailändisch	Tailandés	Thaï	Thailandese	タイ語	Tailandês		泰语
+Western (Latin-9)		Westeuropäisch (Latin-9)	Europeo occidental (Latin-9)	Europe occidentale (Latin-9)	Europa occidentale (Latin-9)	西ヨーロッパ (Latin-9)	Europeu ocidental (Latin-9)		西欧(Latin-9)
+Japanese		Japanisch	Japonés	Japonais	Giapponese	日本語	Japonês		日语
+Chinese Simplified		Chinesisch (vereinfacht)	Chino simplificado	Chinois simplifié	Cinese semplificato	簡体字中国語	Chinês simplificado		简体中文
+Chinese Traditional		Chinesisch (traditionell)	Chino tradicional	Chinois traditionnel	Cinese tradizionale	繁体字中国語	Chinês tradicional		繁体中文
+Korean		Koreanisch	Coreano	Coréen	Coreano	韓国語	Coreano		韩语
+No user data folder is available.		Es ist kein Benutzerdatenordner verfügbar.	No hay ninguna carpeta de datos de usuario disponible.	Aucun dossier de données utilisateur n’est disponible.	Nessuna cartella dei dati utente disponibile.	ユーザー データ フォルダーを使用できません。	Nenhuma pasta de dados do usuário está disponível.	Não há nenhuma pasta de dados do utilizador disponível.	没有可用的用户数据文件夹。
+Could not read {}: {}		{} konnte nicht gelesen werden: {}	No se pudo leer {}: {}	Impossible de lire {} : {}	Impossibile leggere {}: {}	{} を読み取れませんでした: {}	Não foi possível ler {}: {}		无法读取 {}：{}
+Settings can't be saved to {}: {}		Einstellungen können nicht in {} gespeichert werden: {}	No se puede guardar la configuración en {}: {}	Impossible d’enregistrer les paramètres dans {} : {}	Impossibile salvare le impostazioni in {}: {}	設定を {} に保存できません: {}	Não é possível salvar as configurações em {}: {}	Não é possível guardar as definições em {}: {}	无法将设置保存到 {}：{}
+&Reload		&Neu laden	&Recargar	&Recharger	&Ricarica	再読み込み(&R)	&Recarregar		重新加载(&R)
+Show in &Folder		Im &Ordner anzeigen	Mostrar en la &carpeta	Afficher dans le &dossier	Mostra nella &cartella	フォルダーに表示(&F)	Mostrar na &pasta		在文件夹中显示(&F)
+&Actual Size		&Originalgröße	&Tamaño real	&Taille réelle	&Dimensioni effettive	実際のサイズ(&A)	&Tamanho real		实际大小(&A)
+Fit &Width		An &Breite anpassen	Ajustar al &ancho	Ajuster à la &largeur	Adatta alla &larghezza	幅に合わせる(&W)	Ajustar à &largura		适应宽度(&W)
+Word W&rap		&Zeilenumbruch	&Ajuste de línea	&Retour automatique à la ligne	&A capo automatico	右端で折り返す(&R)	&Quebra automática de linha	&Translineação	自动换行(&R)
+&About rview		&Über rview	&Acerca de rview	&À propos de rview	&Informazioni su rview	rview のバージョン情報(&A)	&Sobre o rview		关于 rview(&A)
+About rview		Über rview	Acerca de rview	À propos de rview	Informazioni su rview	rview のバージョン情報	Sobre o rview		关于 rview
+Semicolon		Semikolon	Punto y coma	Point-virgule	Punto e virgola	セミコロン	Ponto e vírgula		分号
+Tab		Tabulator	Tabulación	Tabulation	Tabulazione	タブ	Tabulação		制表符
+Comma		Komma	Coma	Virgule	Virgola	コンマ	Vírgula		逗号
+Drop a document here, or press Ctrl+O to open one.		Ziehen Sie ein Dokument hierher oder drücken Sie Strg+O, um eines zu öffnen.	Arrastre un documento aquí o pulse Ctrl+O para abrir uno.	Déposez un document ici ou appuyez sur Ctrl+O pour en ouvrir un.	Trascina qui un documento o premi Ctrl+O per aprirne uno.	ここにドキュメントをドロップするか、Ctrl+O を押して開きます。	Arraste um documento para cá ou pressione Ctrl+O para abrir um.	Arraste um documento para aqui ou prima Ctrl+O para abrir um.	将文档拖放到此处，或按 Ctrl+O 打开文档。
+PDF · Markdown · HTML · Text · CSV		PDF · Markdown · HTML · Text · CSV	PDF · Markdown · HTML · Texto · CSV	PDF · Markdown · HTML · Texte · CSV	PDF · Markdown · HTML · Testo · CSV	PDF · Markdown · HTML · テキスト · CSV	PDF · Markdown · HTML · Texto · CSV		PDF · Markdown · HTML · 文本 · CSV
+Opening…		Wird geöffnet…	Abriendo…	Ouverture…	Apertura in corso…	開いています…	Abrindo…	A abrir…	正在打开…
+This PDF cannot be opened: {}		Diese PDF-Datei kann nicht geöffnet werden: {}	No se puede abrir este PDF: {}	Impossible d’ouvrir ce PDF : {}	Impossibile aprire questo PDF: {}	この PDF を開けません: {}	Não é possível abrir este PDF: {}		无法打开此 PDF：{}
+{} rows × {} columns		{} Zeilen × {} Spalten	{} filas × {} columnas	{} lignes × {} colonnes	{} righe × {} colonne	{} 行 × {} 列	{} linhas × {} colunas		{} 行 × {} 列
+Page {} of {}		Seite {} von {}	Página {} de {}	Page {} sur {}	Pagina {} di {}	{} / {} ページ	Página {} de {}		第 {} 页，共 {} 页
+Documents		Dokumente	Documentos	Documents	Documenti	ドキュメント	Documentos		文档
+PDF documents		PDF-Dokumente	Documentos PDF	Documents PDF	Documenti PDF	PDF ドキュメント	Documentos PDF		PDF 文档
+Web pages		Webseiten	Páginas web	Pages web	Pagine web	Web ページ	Páginas da Web	Páginas Web	网页
+Text files		Textdateien	Archivos de texto	Fichiers texte	File di testo	テキスト ファイル	Arquivos de texto	Ficheiros de texto	文本文件
+CSV files		CSV-Dateien	Archivos CSV	Fichiers CSV	File CSV	CSV ファイル	Arquivos CSV	Ficheiros CSV	CSV 文件
+All files		Alle Dateien	Todos los archivos	Tous les fichiers	Tutti i file	すべてのファイル	Todos os arquivos	Todos os ficheiros	所有文件
+Open a document		Dokument öffnen	Abrir un documento	Ouvrir un document	Apri un documento	ドキュメントを開く	Abrir um documento		打开文档
+Close rview		rview schließen	Cerrar rview	Fermer rview	Chiudi rview	rview を閉じる	Fechar o rview		关闭 rview
+Zoom in / out		Vergrößern / verkleinern	Acercar / alejar	Zoom avant / arrière	Ingrandisci / riduci	拡大 / 縮小	Ampliar / reduzir		放大/缩小
+Zoom at the mouse pointer		Am Mauszeiger zoomen	Zoom en el puntero del mouse	Zoom à l’emplacement du pointeur	Zoom sul puntatore del mouse	マウス ポインターの位置で拡大/縮小	Zoom no ponteiro do mouse	Zoom no ponteiro do rato	在鼠标指针处缩放
+Actual size (100 %)		Originalgröße (100 %)	Tamaño real (100 %)	Taille réelle (100 %)	Dimensioni effettive (100%)	実際のサイズ (100%)	Tamanho real (100%)		实际大小 (100%)
+Fit width (PDF)		An Breite anpassen (PDF)	Ajustar al ancho (PDF)	Ajuster à la largeur (PDF)	Adatta alla larghezza (PDF)	幅に合わせる (PDF)	Ajustar à largura (PDF)		适应宽度 (PDF)
+Word wrap (text)		Zeilenumbruch (Text)	Ajuste de línea (texto)	Retour automatique à la ligne (texte)	A capo automatico (testo)	右端で折り返す (テキスト)	Quebra automática de linha (texto)	Translineação (texto)	自动换行 (文本)
+Full screen		Vollbild	Pantalla completa	Plein écran	Schermo intero	全画面表示	Tela inteira	Ecrã inteiro	全屏
+Scroll		Blättern	Desplazarse	Faire défiler	Scorri	スクロール	Rolar	Deslocar	滚动
+Page down / up		Seite nach unten / oben	Avanzar / retroceder página	Page suivante / précédente	Pagina giù / su	1 ページ下 / 上へ	Página abaixo / acima	Página seguinte / anterior	向下/向上翻页
+Start / end of the document		Anfang / Ende des Dokuments	Principio / final del documento	Début / fin du document	Inizio / fine del documento	ドキュメントの先頭 / 末尾	Início / fim do documento		文档开头/结尾
+Previous / next page (PDF)		Vorherige / nächste Seite (PDF)	Página anterior / siguiente (PDF)	Page précédente / suivante (PDF)	Pagina precedente / successiva (PDF)	前 / 次のページ (PDF)	Página anterior / próxima (PDF)	Página anterior / seguinte (PDF)	上一页/下一页 (PDF)
+Pan the document		Dokument verschieben	Desplazar el documento	Déplacer le document	Sposta il documento	ドキュメントを移動	Mover o documento		平移文档
+This link cannot be opened here: {}		Dieser Link kann hier nicht geöffnet werden: {}	Este vínculo no se puede abrir aquí: {}	Ce lien ne peut pas être ouvert ici : {}	Questo collegamento non può essere aperto qui: {}	このリンクはここでは開けません: {}	Este link não pode ser aberto aqui: {}	Esta ligação não pode ser aberta aqui: {}	无法在此处打开此链接：{}
+rview {}\n\nA small, fast, portable viewer for PDF, Markdown, HTML, text and CSV documents, written in Rust.\nNo telemetry, no network access, no scripts.\n\nPDF pages and images are rendered by Windows.\n\nMIT License.		rview {}\n\nEin kleiner, schneller, portabler Betrachter für PDF-, Markdown-, HTML-, Text- und CSV-Dokumente, geschrieben in Rust.\nKeine Telemetrie, kein Netzwerkzugriff, keine Skripte.\n\nPDF-Seiten und Bilder werden von Windows dargestellt.\n\nMIT-Lizenz.	rview {}\n\nUn visor pequeño, rápido y portátil de documentos PDF, Markdown, HTML, texto y CSV, escrito en Rust.\nSin telemetría, sin acceso a la red, sin scripts.\n\nWindows representa las páginas PDF y las imágenes.\n\nLicencia MIT.	rview {}\n\nUn visualiseur petit, rapide et portable pour les documents PDF, Markdown, HTML, texte et CSV, écrit en Rust.\nAucune télémétrie, aucun accès réseau, aucun script.\n\nLes pages PDF et les images sont rendues par Windows.\n\nLicence MIT.	rview {}\n\nUn visualizzatore piccolo, veloce e portatile per documenti PDF, Markdown, HTML, testo e CSV, scritto in Rust.\nNessuna telemetria, nessun accesso alla rete, nessuno script.\n\nLe pagine PDF e le immagini sono visualizzate da Windows.\n\nLicenza MIT.	rview {}\n\nRust で書かれた、小さく高速でポータブルな PDF、Markdown、HTML、テキスト、CSV ドキュメント ビューアーです。\nテレメトリ、ネットワーク アクセス、スクリプトはありません。\n\nPDF ページと画像は Windows によって描画されます。\n\nMIT ライセンス。	rview {}\n\nUm visualizador pequeno, rápido e portátil de documentos PDF, Markdown, HTML, texto e CSV, escrito em Rust.\nSem telemetria, sem acesso à rede, sem scripts.\n\nAs páginas PDF e as imagens são renderizadas pelo Windows.\n\nLicença MIT.	rview {}\n\nUm visualizador pequeno, rápido e portátil de documentos PDF, Markdown, HTML, texto e CSV, escrito em Rust.\nSem telemetria, sem acesso à rede, sem scripts.\n\nAs páginas PDF e as imagens são apresentadas pelo Windows.\n\nLicença MIT.	rview {}\n\n一款用 Rust 编写的小巧、快速、便携的 PDF、Markdown、HTML、文本和 CSV 文档查看器。\n无遥测，无网络访问，不运行脚本。\n\nPDF 页面和图像由 Windows 渲染。\n\nMIT 许可证。
+Text		Text	Texto	Texte	Testo	テキスト	Texto		文本
+{} is a folder.		{} ist ein Ordner.	{} es una carpeta.	{} est un dossier.	{} è una cartella.	{} はフォルダーです。	{} é uma pasta.		{} 是一个文件夹。
+{} is too large ({} MB). The limit is {} MB.		{} ist zu groß ({} MB). Die Grenze liegt bei {} MB.	{} es demasiado grande ({} MB). El límite es {} MB.	{} est trop volumineux ({} Mo). La limite est de {} Mo.	{} è troppo grande ({} MB). Il limite è {} MB.	{} は大きすぎます ({} MB)。上限は {} MB です。	{} é grande demais ({} MB). O limite é {} MB.	{} é demasiado grande ({} MB). O limite é {} MB.	{} 太大({} MB)。上限为 {} MB。
+{} was not found.		{} wurde nicht gefunden.	No se encontró {}.	{} est introuvable.	{} non è stato trovato.	{} が見つかりません。	{} não foi encontrado.		找不到 {}。
+Access to {} was denied.		Der Zugriff auf {} wurde verweigert.	Se denegó el acceso a {}.	L’accès à {} a été refusé.	L’accesso a {} è stato negato.	{} へのアクセスが拒否されました。	O acesso a {} foi negado.		对 {} 的访问被拒绝。
+Cannot read {}: {}		{} kann nicht gelesen werden: {}	No se puede leer {}: {}	Impossible de lire {} : {}	Impossibile leggere {}: {}	{} を読み取れません: {}	Não é possível ler {}: {}		无法读取 {}：{}
