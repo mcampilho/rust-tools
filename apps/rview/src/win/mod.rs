@@ -6,6 +6,7 @@
 //! documented Win32 APIs with buffers whose sizes and lifetimes are checked
 //! locally.
 
+pub mod assoc;
 pub mod darkmode;
 pub mod dialogs;
 pub mod menu;
@@ -214,6 +215,18 @@ pub fn open_url(url: &str) -> bool {
     // SAFETY: valid NUL-terminated strings; no parent window needed.
     let r = unsafe { windows_sys::Win32::UI::Shell::ShellExecuteW(std::ptr::null_mut(), op.as_ptr(), target.as_ptr(), std::ptr::null(), std::ptr::null(), SW_SHOWNORMAL) };
     r as usize > 32
+}
+
+/// Prints `text` to the console rview was started from, or shows it in a
+/// message box when there is none (started from Explorer or a shortcut).
+pub fn report(title: &str, text: &str) {
+    use windows_sys::Win32::System::Console::{AttachConsole, ATTACH_PARENT_PROCESS};
+    // SAFETY: attaching to the parent's console has no other effect.
+    if unsafe { AttachConsole(ATTACH_PARENT_PROCESS) } != 0 {
+        println!("\n{text}");
+    } else {
+        dialogs::message(std::ptr::null_mut(), title, text);
+    }
 }
 
 /// Opens Explorer with `path` selected.

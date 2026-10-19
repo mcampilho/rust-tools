@@ -101,6 +101,8 @@ struct Shell {
     tray: bool,
     hidden: bool,
     dialog: Option<Dialog>,
+    /// "Open with rview" is registered for this rview.exe.
+    integrated: bool,
 }
 
 impl Shell {
@@ -254,6 +256,12 @@ impl Shell {
                     }
                 }
             }
+            #[cfg(windows)]
+            Command::ExplorerMenu => self.integration(if self.integrated { Integration::Unregister } else { Integration::Register }),
+            #[cfg(windows)]
+            Command::DefaultViewer => self.integration(Integration::Associate),
+            #[cfg(not(windows))]
+            Command::ExplorerMenu | Command::DefaultViewer => {}
             Command::Shortcuts => self.info(&tr("Keyboard shortcuts"), &shortcuts_text()),
             Command::About => self.info(
                 &tr("About rview"),
@@ -308,6 +316,17 @@ impl Shell {
         self.redraw();
     }
 
+    /// Runs a Windows Integration action from the menu and shows the result.
+    #[cfg(windows)]
+    fn integration(&mut self, action: Integration) {
+        let text = match integrate(action) {
+            Ok(t) | Err(t) => t,
+        };
+        self.integrated = integrated_here();
+        self.menu_dirty = true;
+        self.info(&tr("Windows Integration"), &text);
+    }
+
     fn info(&mut self, title: &str, text: &str) {
         self.dialog = Some(Dialog { title: title.to_string(), text: text.to_string(), panel: Rect::default(), ok: Rect::default() });
         self.drag = None;
@@ -318,6 +337,7 @@ impl Shell {
         match c {
             Command::WordWrap => self.settings.wrap,
             Command::DarkPages => self.settings.dark_pages,
+            Command::ExplorerMenu => self.integrated,
             Command::FitWidth => self.viewer.fit && self.viewer.kind == doc::Kind::Pdf,
             Command::FullScreen => self.win.as_ref().is_some_and(|w| w.window.fullscreen().is_some()),
             Command::Theme(t) => self.settings.theme == t,
@@ -970,7 +990,62 @@ impl ApplicationHandler<UserEvent> for Shell {
     }
 }
 
+#[cfg(windows)]
+#[derive(Clone, Copy)]
+enum Integration {
+    Register,
+    Associate,
+    Unregister,
+}
+
+#[cfg(windows)]
+fn integrated_here() -> bool {
+    let exe = std::env::current_exe().map(|p| p.display().to_string()).unwrap_or_default();
+    win::assoc::status(&win::assoc::Keys::user(), &exe) == win::assoc::Status::Here
+}
+
+/// Adds or removes rview in Explorer (current user only); returns the
+/// message to show, or an error message.
+#[cfg(windows)]
+fn integrate(action: Integration) -> Result<String, String> {
+    use win::assoc;
+    let keys = assoc::Keys::user();
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?.display().to_string();
+    let failed = |e: assoc::Error| tf("Cannot change the Windows registry (error {}).", &[&e.to_string()]);
+    let verb = tr("Open with rview");
+    match action {
+        Integration::Register => {
+            assoc::register(&keys, &exe, &verb).map_err(failed)?;
+            let all: Vec<&str> = assoc::EXTENSIONS.iter().map(|(e, _)| *e).collect();
+            Ok(tf("rview was added to the Explorer context menu and to the “Open with” list for: {}", &[&assoc::list(&all)]))
+        }
+        Integration::Unregister => {
+            assoc::unregister(&keys).map_err(failed)?;
+            Ok(tr("rview was removed from Explorer and from the file associations."))
+        }
+        Integration::Associate => {
+            let d = assoc::associate(&keys, &exe, &verb).map_err(failed)?;
+            let mut parts = Vec::new();
+            if !d.set.is_empty() {
+                parts.push(tf("rview is now the default viewer for: {}", &[&assoc::list(&d.set)]));
+            }
+            if !d.already.is_empty() {
+                parts.push(tf("rview was already the default viewer for: {}", &[&assoc::list(&d.already)]));
+            }
+            if !d.user_choice.is_empty() {
+                assoc::open_default_apps();
+                parts.push(tf(
+                    "Windows asks you to choose the default app yourself for: {}\nIn the Settings window that opened, use “Choose default apps by file type” and pick rview.",
+                    &[&assoc::list(&d.user_choice)],
+                ));
+            }
+            Ok(parts.join("\n\n"))
+        }
+    }
+}
+
 const USAGE: &str = "rview [--tray] [--new-window] [file]
+       rview --register | --associate | --unregister
 
   Shows a PDF, Markdown, HTML, text or CSV document.
 
@@ -979,6 +1054,16 @@ const USAGE: &str = "rview [--tray] [--new-window] [file]
                 file) or clicking the tray icon shows it instantly. Exit
                 from the tray icon's menu or File > Exit.
   --new-window  Open a separate window even when rview is resident.
+
+  --register    Add \"Open with rview\" to the Explorer context menu of
+                PDF, Markdown, HTML, text and CSV files, and rview to their
+                \"Open with\" list.
+  --associate   Also make rview the default viewer for those types where
+                Windows allows it; for types whose default you chose
+                yourself, Windows Settings > Default apps opens.
+  --unregister  Remove everything --register and --associate added and
+                restore the previous defaults.
+  These change only the current user's settings (no administrator rights).
 
 Settings are stored in %APPDATA%\\rview, or next to rview.exe when a file
 named rview.portable exists there (portable mode).";
@@ -991,6 +1076,31 @@ fn main() {
         #[cfg(not(windows))]
         println!("{USAGE}");
         return;
+    }
+    #[cfg(windows)]
+    {
+        let flag = |f: &str| raw.iter().any(|a| a == f);
+        let action = if flag("--unregister") {
+            Some(Integration::Unregister)
+        } else if flag("--associate") {
+            Some(Integration::Associate)
+        } else if flag("--register") {
+            Some(Integration::Register)
+        } else {
+            None
+        };
+        if let Some(action) = action {
+            let mut location = storage::Location::detect();
+            let settings = Settings::load(&location.load());
+            i18n::set_lang(settings.language.unwrap_or_else(i18n::system_lang));
+            let result = integrate(action);
+            let ok = result.is_ok();
+            let text = match result {
+                Ok(t) | Err(t) => t,
+            };
+            win::report(&tr("Windows Integration"), &text);
+            std::process::exit(if ok { 0 } else { 1 });
+        }
     }
     let args: Vec<PathBuf> = raw.iter().filter(|a| !a.starts_with("--")).map(PathBuf::from).collect();
     let tray = raw.iter().any(|a| a == "--tray" || a == "/tray");
@@ -1049,6 +1159,10 @@ fn main() {
         tray,
         hidden: false,
         dialog: None,
+        #[cfg(windows)]
+        integrated: integrated_here(),
+        #[cfg(not(windows))]
+        integrated: false,
     };
     shell.apply_language();
     if let Err(e) = event_loop.run_app(&mut shell) {

@@ -5,8 +5,9 @@ shows **PDF, Markdown, HTML, text and CSV** files, with zoom, and nothing
 else.
 
 `rview.exe` is a single 2.3 MB executable: no installer, no runtime, no
-DLLs beyond those that ship with Windows, and no registry writes. It makes
-no network connections, has no telemetry and never runs scripts.
+DLLs beyond those that ship with Windows, and no registry writes unless you
+ask for Explorer integration. It makes no network connections, has no
+telemetry and never runs scripts.
 
 ## How it renders
 
@@ -44,6 +45,7 @@ paths) are embedded by `build.rs`.
 
 ```
 rview [--tray] [--new-window] [file]
+rview --register | --associate | --unregister
 ```
 
 Open files with Ctrl+O, by dropping them on the window, or from the command
@@ -58,6 +60,27 @@ start it with Windows, put a shortcut to `rview.exe --tray` in
 `shell:startup`. Settings (theme, language, word wrap, window size, last folder) are
 kept in `%APPDATA%\rview\settings.ini`, or next to `rview.exe` when a file
 named `rview.portable` exists there.
+
+**Explorer integration** (File › Windows Integration, or the command
+line). Everything is written for the current user only (no administrator
+rights) and points to the `rview.exe` you run it from:
+
+- *Explorer Context Menu* / `--register`: adds "Open with rview" to the
+  right-click menu of `.pdf`, `.md`, `.markdown`, `.html`, `.htm`, `.txt`,
+  `.log`, `.csv` and `.tsv` files, and rview to their "Open with" list.
+  Unchecking it (or `--unregister`) removes everything rview added,
+  including defaults, and restores the previous ones.
+- *Set as Default Viewer* / `--associate`: also registers rview in
+  Windows' Default apps and makes it the default for the types where no
+  default was chosen by you. Windows protects the defaults you picked
+  yourself (for example a PDF reader or browser); rview does not override
+  them, but opens Settings › Default apps and lists those types so you can
+  pick rview there.
+
+If you move `rview.exe`, the menu item shows unchecked; check it again to
+point the entries at the new location. From a console, the command-line
+options print the result; otherwise it is shown in a message box. The
+exit code is 0 on success.
 
 | Action | Keys |
 | --- | --- |
@@ -128,14 +151,17 @@ View › Display Language.
 
 ## Tests and verification
 
-`cargo test` runs 60 tests: the text, CSV, Markdown, HTML and CSS parsers,
+`cargo test` runs 61 tests: the text, CSV, Markdown, HTML and CSS parsers,
 the layout engine (wrapping, zoom, long words, links), encodings, links
 and image paths, settings, the translation table (every string in the
 code and menus has all languages; placeholders and access keys match),
 a German render of every document type that fails on any untranslated
 string (also in the dark theme), syntax highlighting (code fences, HTML
 code classes, multi-line comments), dark-page color adaptation (HTML colors
-and PDF pages, which keep dark pages unchanged), and the Windows engines: a PDF generated in the test is opened and
+and PDF pages, which keep dark pages unchanged), Explorer integration
+(register, associate and unregister against a scratch registry key: a
+user's own default is left alone, a previous default is restored, other
+programs' verbs survive), and the Windows engines: a PDF generated in the test is opened and
 page 1 rendered through `Windows.Data.Pdf` (text pixels checked), a broken
 PDF reports an error, and a PNG is decoded through the Windows codecs.
 

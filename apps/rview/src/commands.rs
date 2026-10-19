@@ -24,6 +24,10 @@ pub enum Command {
     UiLanguage(u8),
     Shortcuts,
     About,
+    /// "Open with rview" in Explorer (toggle; off removes all integration).
+    ExplorerMenu,
+    /// Makes rview the default viewer where Windows allows it.
+    DefaultViewer,
 }
 
 use Command::*;
@@ -52,6 +56,8 @@ impl Command {
             UiLanguage(i) => return Err(Lang::ALL.get(i as usize - 1).map_or("", |l| l.native_name()).to_string()),
             Shortcuts => "&Keyboard Shortcuts",
             About => "&About rview",
+            ExplorerMenu => "&Explorer Context Menu",
+            DefaultViewer => "Set as &Default Viewer...",
         })
     }
 
@@ -109,7 +115,19 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
     let mut langs = vec![Item(UiLanguage(0)), Sep];
     langs.extend((1..=Lang::ALL.len()).map(|i| Item(UiLanguage(i as u8))));
     vec![
-        ("&File", vec![Item(Open), Item(Reload), Item(OpenFolder), Sep, Item(Close), Item(Exit)]),
+        (
+            "&File",
+            vec![
+                Item(Open),
+                Item(Reload),
+                Item(OpenFolder),
+                Sep,
+                Sub("Windows &Integration", vec![Item(ExplorerMenu), Item(DefaultViewer)]),
+                Sep,
+                Item(Close),
+                Item(Exit),
+            ],
+        ),
         (
             "&View",
             vec![
