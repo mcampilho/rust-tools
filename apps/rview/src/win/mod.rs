@@ -34,6 +34,8 @@ pub enum WinMsg {
     /// Files sent by another launch (empty: just show the window).
     OpenFiles(Vec<PathBuf>),
     Tray(tray::TrayEvent),
+    /// The Windows light/dark app setting may have changed.
+    SystemTheme,
 }
 
 type Sink = Box<dyn Fn(WinMsg)>;
@@ -124,6 +126,27 @@ pub fn set_mnemonics(mnemonics: &str) {
     MNEMONICS.with(|m| *m.borrow_mut() = mnemonics.to_lowercase());
 }
 
+/// Whether a WM_SETTINGCHANGE carries "ImmersiveColorSet" (the light/dark
+/// app setting or the accent colour changed).
+///
+/// # Safety
+/// `lp` is the message's lParam: null or a NUL-terminated UTF-16 string.
+unsafe fn is_color_set_change(lp: LPARAM) -> bool {
+    if lp == 0 {
+        return false;
+    }
+    let want: Vec<u16> = "ImmersiveColorSet\0".encode_utf16().collect();
+    let p = lp as *const u16;
+    // Compare unit by unit, stopping at the first difference, so nothing
+    // past the string's terminator is read.
+    for (i, w) in want.iter().enumerate() {
+        if *p.add(i) != *w {
+            return false;
+        }
+    }
+    true
+}
+
 unsafe extern "system" fn subclass_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM, _id: usize, _data: usize) -> LRESULT {
     if let Some(r) = darkmode::handle(hwnd, msg, wp, lp) {
         return r;
@@ -156,6 +179,10 @@ unsafe extern "system" fn subclass_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LP
         m if m != 0 && m == TASKBAR_CREATED.with(|t| t.get()) => {
             // Explorer restarted: put the tray icon back.
             tray::restore(hwnd);
+            DefSubclassProc(hwnd, msg, wp, lp)
+        }
+        WM_SETTINGCHANGE if is_color_set_change(lp) => {
+            emit(WinMsg::SystemTheme);
             DefSubclassProc(hwnd, msg, wp, lp)
         }
         WM_SYSCHAR => {

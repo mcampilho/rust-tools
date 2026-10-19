@@ -241,11 +241,7 @@ impl Shell {
             }
             Command::Theme(t) => {
                 self.settings.theme = t;
-                if let Some(w) = &self.win {
-                    w.window.set_theme(theme_for(t));
-                    #[cfg(windows)]
-                    win::darkmode::refresh_caption(w.hwnd);
-                }
+                self.apply_window_theme();
             }
             Command::UiLanguage(i) => {
                 self.settings.language = (i as usize).checked_sub(1).and_then(|k| i18n::Lang::ALL.get(k)).copied();
@@ -517,6 +513,19 @@ impl Shell {
         }
     }
 
+    /// Gives the title bar the resolved light/dark theme. winit is always
+    /// passed an explicit theme: with "follow system" it asks
+    /// `ShouldAppsUseDarkMode`, which reflects the menu mode rview forced
+    /// last, not the Windows setting. System changes arrive as
+    /// `WinMsg::SystemTheme`.
+    fn apply_window_theme(&self) {
+        if let Some(w) = &self.win {
+            w.window.set_theme(win_theme(self.dark()));
+            #[cfg(windows)]
+            win::darkmode::refresh_caption(w.hwnd);
+        }
+    }
+
     fn sync_menu_theme(&mut self, dark: bool) {
         if self.menu_dark == Some(dark) {
             return;
@@ -688,12 +697,8 @@ fn shortcuts_text() -> String {
     rows.iter().map(|(k, v)| format!("{k}\t{v}")).collect::<Vec<_>>().join("\n")
 }
 
-fn theme_for(t: u8) -> Option<WinTheme> {
-    match t {
-        1 => Some(WinTheme::Light),
-        2 => Some(WinTheme::Dark),
-        _ => None,
-    }
+fn win_theme(dark: bool) -> Option<WinTheme> {
+    Some(if dark { WinTheme::Dark } else { WinTheme::Light })
 }
 
 fn app_icon() -> Option<WinIcon> {
@@ -727,7 +732,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             .with_min_inner_size(LogicalSize::new(360.0, 240.0))
             .with_maximized(maximized)
             .with_window_icon(app_icon())
-            .with_theme(theme_for(self.settings.theme))
+            .with_theme(win_theme(self.dark()))
             .with_visible(false);
         let window = match el.create_window(attrs) {
             Ok(w) => Rc::new(w),
@@ -811,6 +816,15 @@ impl ApplicationHandler<UserEvent> for Shell {
                 let cmd = self.win.as_ref().and_then(|w| w.menu.as_ref()).and_then(|m| m.command(id));
                 if let Some(c) = cmd {
                     self.command(el, c);
+                }
+            }
+            #[cfg(windows)]
+            UserEvent::Win(win::WinMsg::SystemTheme) => {
+                let dark = win::system_dark().unwrap_or(false);
+                if dark != self.system_dark {
+                    self.system_dark = dark;
+                    self.apply_window_theme();
+                    self.redraw();
                 }
             }
             #[cfg(windows)]
