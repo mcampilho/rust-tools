@@ -1,5 +1,6 @@
 //! Win32 integration: native menus (with dark mode), common dialogs,
-//! menu-command routing from the main window, and system settings.
+//! message routing from the main window, the tray icon, hand-off to a
+//! resident instance, and system settings.
 //!
 //! `unsafe` is confined to this module and `media.rs`: every block calls
 //! documented Win32 APIs with buffers whose sizes and lifetimes are checked
@@ -8,9 +9,12 @@
 pub mod darkmode;
 pub mod dialogs;
 pub mod menu;
+pub mod tray;
 
 use std::cell::RefCell;
+use std::path::PathBuf;
 use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
+use windows_sys::Win32::System::DataExchange::COPYDATASTRUCT;
 use windows_sys::Win32::UI::Shell::{DefSubclassProc, SetWindowSubclass};
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
@@ -23,11 +27,33 @@ pub fn from_wide(buf: &[u16]) -> String {
     String::from_utf16_lossy(&buf[..end])
 }
 
-type Sink = Box<dyn Fn(u32)>;
+/// Messages from the window procedure to the application.
+#[derive(Debug, Clone)]
+pub enum WinMsg {
+    Command(u32),
+    /// Files sent by another launch (empty: just show the window).
+    OpenFiles(Vec<PathBuf>),
+    Tray(tray::TrayEvent),
+}
+
+type Sink = Box<dyn Fn(WinMsg)>;
 
 thread_local! {
     static SINK: RefCell<Option<Sink>> = const { RefCell::new(None) };
     static MNEMONICS: RefCell<String> = const { RefCell::new(String::new()) };
+    static TASKBAR_CREATED: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+}
+
+const COPYDATA_OPEN: usize = 0x5256_4945; // "RVIE"
+/// Set on a window running in resident (tray) mode.
+const RESIDENT_PROP: &str = "rview.resident.v1";
+
+fn emit(m: WinMsg) {
+    SINK.with(|s| {
+        if let Some(f) = s.borrow().as_ref() {
+            f(m);
+        }
+    });
 }
 
 /// Installs a subclass on the main window that forwards menu commands to
@@ -39,6 +65,57 @@ pub fn subclass(hwnd: HWND, mnemonics: &str, sink: Sink) {
     // thread-local state on this (the UI) thread.
     unsafe {
         SetWindowSubclass(hwnd, Some(subclass_proc), 1, 0);
+        TASKBAR_CREATED.with(|t| t.set(RegisterWindowMessageW(wide("TaskbarCreated").as_ptr())));
+    }
+}
+
+/// Marks the window as the resident (tray) instance for later launches.
+pub fn set_resident(hwnd: HWND) {
+    let prop = wide(RESIDENT_PROP);
+    // SAFETY: sets a property on our own live window.
+    unsafe {
+        SetPropW(hwnd, prop.as_ptr(), 1 as _);
+    }
+}
+
+fn find_resident() -> HWND {
+    struct Found(HWND);
+    unsafe extern "system" fn enum_proc(hwnd: HWND, lp: LPARAM) -> i32 {
+        let prop = wide(RESIDENT_PROP);
+        if !GetPropW(hwnd, prop.as_ptr()).is_null() {
+            (*(lp as *mut Found)).0 = hwnd;
+            return 0;
+        }
+        1
+    }
+    let mut found = Found(std::ptr::null_mut());
+    // SAFETY: the callback writes only into `found`, which outlives the call.
+    unsafe {
+        EnumWindows(Some(enum_proc), &mut found as *mut Found as LPARAM);
+    }
+    found.0
+}
+
+/// Sends `paths` to a running resident instance, which shows its window.
+/// Returns true if handed over (this process should exit).
+pub fn hand_off_to_resident(paths: &[PathBuf]) -> bool {
+    let target = find_resident();
+    if target.is_null() {
+        return false;
+    }
+    let joined: String = paths
+        .iter()
+        .map(|p| std::path::absolute(p).unwrap_or_else(|_| p.clone()).to_string_lossy().into_owned())
+        .collect::<Vec<_>>()
+        .join("\n");
+    let data: Vec<u16> = joined.encode_utf16().collect();
+    let cds = COPYDATASTRUCT { dwData: COPYDATA_OPEN, cbData: (data.len() * 2) as u32, lpData: data.as_ptr() as *mut _ };
+    // SAFETY: WM_COPYDATA marshals `data` synchronously; buffers live until return.
+    unsafe {
+        let mut pid = 0;
+        GetWindowThreadProcessId(target, &mut pid);
+        AllowSetForegroundWindow(pid);
+        SendMessageW(target, WM_COPYDATA, 0, &cds as *const COPYDATASTRUCT as LPARAM) != 0
     }
 }
 
@@ -53,13 +130,33 @@ unsafe extern "system" fn subclass_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LP
     }
     match msg {
         WM_COMMAND if (wp >> 16) & 0xFFFF == 0 && lp == 0 => {
-            let id = (wp & 0xFFFF) as u32;
-            SINK.with(|s| {
-                if let Some(f) = s.borrow().as_ref() {
-                    f(id);
-                }
-            });
+            emit(WinMsg::Command((wp & 0xFFFF) as u32));
             0
+        }
+        WM_COPYDATA => {
+            let cds = &*(lp as *const COPYDATASTRUCT);
+            if cds.dwData != COPYDATA_OPEN {
+                return DefSubclassProc(hwnd, msg, wp, lp);
+            }
+            let paths = if cds.lpData.is_null() || cds.cbData == 0 {
+                Vec::new()
+            } else {
+                let units = std::slice::from_raw_parts(cds.lpData as *const u16, cds.cbData as usize / 2);
+                String::from_utf16_lossy(units).split('\n').filter(|p| !p.is_empty()).map(PathBuf::from).collect()
+            };
+            emit(WinMsg::OpenFiles(paths));
+            1
+        }
+        tray::WM_TRAY => {
+            if let Some(e) = tray::event(lp) {
+                emit(WinMsg::Tray(e));
+            }
+            0
+        }
+        m if m != 0 && m == TASKBAR_CREATED.with(|t| t.get()) => {
+            // Explorer restarted: put the tray icon back.
+            tray::restore(hwnd);
+            DefSubclassProc(hwnd, msg, wp, lp)
         }
         WM_SYSCHAR => {
             // winit needs every WM_SYSCHAR to complete the Alt+key event and

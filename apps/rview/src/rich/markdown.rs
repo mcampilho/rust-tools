@@ -23,6 +23,7 @@ struct Builder {
     links: Vec<String>,
     heading: Option<(usize, Option<String>)>,
     code: Option<String>,
+    code_lang: crate::syntax::Lang,
     image: Option<(String, String)>,
     html: String,
     html_tags: Vec<String>,
@@ -207,7 +208,10 @@ impl Builder {
             }
             Tag::CodeBlock(kind) => {
                 self.flush();
-                let _ = matches!(kind, CodeBlockKind::Fenced(_));
+                self.code_lang = match kind {
+                    CodeBlockKind::Fenced(info) => crate::syntax::from_tag(&info),
+                    CodeBlockKind::Indented => crate::syntax::Lang::Plain,
+                };
                 self.code = Some(String::new());
             }
             Tag::List(start) => {
@@ -290,7 +294,8 @@ impl Builder {
                     code.pop();
                 }
                 let style = Style { mono: true, size: 0.9, ..Style::default() };
-                self.push_block(Block { kind: Kind::Pre(vec![Inline::Text(code, style)]), margin_bottom: 0.8, padding: 0.8, ..Block::default() });
+                let inlines = super::code_inlines(self.code_lang, code, style);
+                self.push_block(Block { kind: Kind::Pre(inlines), margin_bottom: 0.8, padding: 0.8, ..Block::default() });
             }
             TagEnd::List(_) => {
                 self.flush();
@@ -368,6 +373,7 @@ pub fn parse(src: &str) -> RichDoc {
         links: Vec::new(),
         heading: None,
         code: None,
+        code_lang: crate::syntax::Lang::Plain,
         image: None,
         html: String::new(),
         html_tags: Vec::new(),
@@ -477,6 +483,24 @@ mod tests {
         assert_eq!(d.blocks[1].align, Align::Center);
         let Kind::Para(v) = &d.blocks[2].kind else { panic!() };
         assert!(v.contains(&Inline::Break));
+    }
+
+    #[test]
+    fn code_blocks_are_highlighted() {
+        let d = parse("```rust
+fn main() {} // x
+```
+
+```
+plain
+```
+");
+        let Kind::Pre(v) = &d.blocks[0].kind else { panic!() };
+        let toks: Vec<u8> = v.iter().filter_map(|i| if let Inline::Text(_, s) = i { Some(s.tok) } else { None }).collect();
+        assert!(toks.contains(&(crate::syntax::Tok::Keyword as u8 + 1)), "{v:?}");
+        assert!(toks.contains(&(crate::syntax::Tok::Comment as u8 + 1)));
+        let Kind::Pre(v) = &d.blocks[1].kind else { panic!() };
+        assert_eq!(v.len(), 1);
     }
 
     #[test]

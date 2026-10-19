@@ -54,6 +54,8 @@ struct Pdf {
     sizes: Vec<(f32, f32)>,
     pages: HashMap<u32, (u32, Pixmap)>,
     requested: Vec<(u32, u32)>,
+    /// Pages are shown with inverted lightness (dark mode).
+    dark: bool,
     /// Page rectangles (document coordinates) from the last draw.
     rects: Vec<Rect>,
     current: usize,
@@ -83,6 +85,10 @@ pub struct Viewer {
     images: HashMap<String, Img>,
     img_gen: u64,
     pdf: Pdf,
+    /// Show HTML and PDF pages dark in the dark theme.
+    pub dark_pages: bool,
+    /// Syntax highlighting of the text document.
+    hl: Option<crate::syntax::Highlighter>,
 }
 
 fn pixmap(b: crate::media::Bitmap) -> Option<Pixmap> {
@@ -190,6 +196,8 @@ impl Viewer {
             images: HashMap::new(),
             img_gen: 0,
             pdf: Pdf::default(),
+            dark_pages: true,
+            hl: None,
         }
     }
 
@@ -214,6 +222,7 @@ impl Viewer {
         self.csv_cols = None;
         self.images.clear();
         self.pdf = Pdf::default();
+        self.hl = None;
         self.hover_link = None;
         self.gen
     }
@@ -226,6 +235,18 @@ impl Viewer {
             Ok(c) => State::Ready(c),
             Err(e) => State::Error(e),
         };
+        if let State::Ready(Content::Text(d)) = &self.state {
+            let first = if d.line_count() > 0 { d.line(0) } else { "" };
+            let lang = crate::syntax::detect(self.path.as_deref(), first);
+            if lang != crate::syntax::Lang::Plain && d.text.len() <= crate::syntax::MAX_HIGHLIGHT_SIZE {
+                self.hl = Some(crate::syntax::Highlighter::new(lang));
+            }
+        }
+    }
+
+    /// Language of a highlighted text document.
+    pub fn language(&self) -> Option<crate::syntax::Lang> {
+        self.hl.as_ref().map(|h| h.lang)
     }
 
     /// Applies a result from the media worker. Returns true to redraw.
@@ -240,7 +261,10 @@ impl Viewer {
                 self.state = State::Error(tf("This PDF cannot be opened: {}", &[&message]));
                 true
             }
-            Done::Page { gen, page, width, bmp } if gen == self.gen => {
+            Done::Page { gen, page, width, mut bmp } if gen == self.gen => {
+                if self.pdf.dark {
+                    darken(&mut bmp.rgba);
+                }
                 if let Some(p) = pixmap(bmp) {
                     self.pdf.pages.insert(page, (width, p));
                     self.evict_pages();
@@ -451,6 +475,9 @@ impl Viewer {
         let mut v = Vec::new();
         match &self.state {
             State::Ready(Content::Text(d)) => {
+                if let Some(l) = self.language() {
+                    v.push(tr(l.name()));
+                }
                 v.push(tf("{} lines", &[&d.line_count().to_string()]));
                 v.push(d.eol.to_string());
                 v.push(d.encoding.clone());
@@ -589,6 +616,8 @@ impl Viewer {
         let first = ((self.scroll.1 - pad) / lh).floor().max(0.0) as usize;
         let x0 = area.x + gutter - if wrap { 0.0 } else { self.scroll.0 };
         let mut cached: Option<(usize, Vec<usize>)> = None;
+        let mut spans: Vec<crate::syntax::Span> = Vec::new();
+        let mut spans_line: Option<usize> = None;
         let mut row = first;
         loop {
             let y = area.y + pad + row as f32 * lh - self.scroll.1;
@@ -618,7 +647,17 @@ impl Viewer {
                 let nw = g.measure(&n, px * 0.9, FontId::Mono);
                 g.text(&n, area.x + gutter - pad - nw, baseline, px * 0.9, FontId::Mono, th.gutter_text);
             }
-            draw_cells(g, text, a, b, x0, baseline, px, cw, area.x + gutter - cw, area.right(), th.text);
+            if let Some(hl) = &mut self.hl {
+                if spans_line != Some(line) {
+                    hl.spans(&|i| doc.line(i), line, &mut spans);
+                    spans_line = Some(line);
+                }
+            }
+            let dark = th.dark;
+            let color_at = |byte: usize| -> Color {
+                spans.iter().find(|sp| byte >= sp.start && byte < sp.end).and_then(|sp| crate::syntax::color(sp.tok, dark)).unwrap_or(th.text)
+            };
+            draw_cells(g, text, a, b, x0, baseline, px, cw, area.x + gutter - cw, area.right(), &color_at);
             row += 1;
         }
         // Gutter background over horizontally scrolled text.
@@ -733,12 +772,15 @@ impl Viewer {
         let em = ((layout::BASE_PX * s * self.zoom) * 4.0).round() / 4.0;
         let width = area.w - SCROLLBAR;
         let html = self.kind == Kind::Html;
-        let key = (width.round() as i32, (em * 100.0) as i32, self.img_gen, th.dark && !html);
+        // Markdown follows the theme; HTML too unless "Dark Pages" is off.
+        let dark = th.dark && (!html || self.dark_pages);
+        let key = (width.round() as i32, (em * 100.0) as i32, self.img_gen, dark);
         if self.rich.is_none() || self.rich_key != key {
             let State::Ready(Content::Rich(doc)) = &self.state else { return };
-            let mut pal = if html || !th.dark { Palette::paper() } else { Palette::dark() };
+            let mut pal = if dark { Palette::dark() } else { Palette::paper() };
+            pal.adapt = dark;
             if let Some(bg) = doc.page_bg {
-                pal.bg = bg;
+                pal.bg = pal.bgc(bg);
                 // Keep default text readable on a dark page background.
                 let lum = 0.299 * bg.r as f32 + 0.587 * bg.g as f32 + 0.114 * bg.b as f32;
                 if lum < 110.0 && doc.page_color.is_none() {
@@ -748,7 +790,7 @@ impl Viewer {
                     pal.muted = d.muted;
                 }
             }
-            if self.kind == Kind::Markdown && th.dark {
+            if self.kind == Kind::Markdown && dark {
                 pal.bg = th.bg;
             }
             let base = doc.base.clone();
@@ -830,6 +872,13 @@ impl Viewer {
     }
 
     fn draw_pdf(&mut self, g: &mut Gfx, area: Rect, th: &Theme, s: f32, media: &Media) {
+        let dark = th.dark && self.dark_pages;
+        if dark != self.pdf.dark {
+            // Re-render: cached pages were made for the other mode.
+            self.pdf.dark = dark;
+            self.pdf.pages.clear();
+            self.pdf.requested.clear();
+        }
         let sizes = &self.pdf.sizes;
         if sizes.is_empty() {
             g.fill_rect(area, th.canvas);
@@ -876,7 +925,7 @@ impl Viewer {
             }
             let dest = Rect::new(r.x + ox, r.y + oy, r.w, r.h);
             g.fill_rect(Rect::new(dest.x + 2.0, dest.y + 2.0, dest.w, dest.h), Color::rgba(0x000000, 0x30));
-            g.fill_rect(dest, Color::rgb(0xFFFFFF));
+            g.fill_rect(dest, if dark { Color::rgb(0x1E1E1E) } else { Color::rgb(0xFFFFFF) });
             let target = (r.w as u32).clamp(16, MAX_EDGE);
             match self.pdf.pages.get(&(i as u32)) {
                 Some((w, p)) => {
@@ -930,18 +979,19 @@ fn settle(restore: &mut Option<f32>, scroll: &mut (f32, f32), content: (f32, f32
 
 /// Draws chars `a..b` of a monospace line at cell positions starting at `x0`.
 #[allow(clippy::too_many_arguments)]
-fn draw_cells(g: &mut Gfx, line: &str, a: usize, b: usize, x0: f32, baseline: f32, px: f32, cw: f32, min_x: f32, max_x: f32, color: Color) {
+fn draw_cells(g: &mut Gfx, line: &str, a: usize, b: usize, x0: f32, baseline: f32, px: f32, cw: f32, min_x: f32, max_x: f32, color_at: &dyn Fn(usize) -> Color) {
     let mut col = 0usize;
     let mut base_col = None;
     let mut run = String::new();
     let mut run_x = 0.0;
-    let flush = |g: &mut Gfx, run: &mut String, x: f32| {
+    let mut run_color = color_at(0);
+    let flush = |g: &mut Gfx, run: &mut String, x: f32, color: Color| {
         if !run.is_empty() {
             g.text(run, x.round(), baseline, px, FontId::Mono, color);
             run.clear();
         }
     };
-    for (i, ch) in line.chars().enumerate() {
+    for (i, (byte, ch)) in line.char_indices().enumerate() {
         if i >= b {
             break;
         }
@@ -960,14 +1010,19 @@ fn draw_cells(g: &mut Gfx, line: &str, a: usize, b: usize, x0: f32, baseline: f3
         if x > max_x {
             break;
         }
+        let color = color_at(byte);
         if ch.is_ascii_graphic() {
+            if !run.is_empty() && color != run_color {
+                flush(g, &mut run, run_x, run_color);
+            }
             if run.is_empty() {
                 run_x = x;
+                run_color = color;
             }
             run.push(ch);
             continue;
         }
-        flush(g, &mut run, run_x);
+        flush(g, &mut run, run_x, run_color);
         if ch == ' ' || ch == '\t' || cells::cells(ch) == 0 && ch as u32 >= 0x20 {
             continue;
         }
@@ -975,7 +1030,30 @@ fn draw_cells(g: &mut Gfx, line: &str, a: usize, b: usize, x0: f32, baseline: f3
         let w = g.advance(shown, px, FontId::Mono);
         g.text(&shown.to_string(), (x + ((cell_w - w) / 2.0).max(0.0)).round(), baseline, px, FontId::Mono, color);
     }
-    flush(g, &mut run, run_x);
+    flush(g, &mut run, run_x, run_color);
+}
+
+/// Inverts the lightness of a rendered PDF page in place (dark mode),
+/// keeping hues: white paper becomes #1E1E1E and black text white. Pages
+/// that are already mostly dark (full-page photos, dark slides) are left
+/// as they are.
+fn darken(rgba: &mut [u8]) {
+    let px = rgba.as_chunks::<4>().0;
+    let step = (px.len() / 4096).max(1);
+    let (mut sum, mut n) = (0.0f64, 0u32);
+    for p in px.iter().step_by(step) {
+        sum += layout::luminance(Color { r: p[0], g: p[1], b: p[2], a: 255 }) as f64;
+        n += 1;
+    }
+    if n == 0 || sum / (n as f64) < 150.0 {
+        return;
+    }
+    for p in rgba.as_chunks_mut::<4>().0 {
+        let c = layout::invert_lightness(Color { r: p[0], g: p[1], b: p[2], a: p[3] });
+        p[0] = c.r;
+        p[1] = c.g;
+        p[2] = c.b;
+    }
 }
 
 /// Column widths from a sample of rows, at font size `px`.
@@ -1018,6 +1096,20 @@ mod tests {
         assert_eq!(base64("aGVsbG8=").unwrap(), b"hello");
         assert_eq!(percent_decode("a%20b%C3%A9"), "a bé");
         assert_eq!(percent_decode("100%"), "100%");
+    }
+
+    #[test]
+    fn dark_pages_invert_light_pages_only() {
+        // A text page: mostly white paper with some black ink.
+        let mut light = [255u8, 255, 255, 255].repeat(9);
+        light.extend([0, 0, 0, 255]);
+        let mut light = light.repeat(20);
+        darken(&mut light);
+        assert_eq!(&light[..4], &[30, 30, 30, 255]);
+        assert_eq!(&light[36..40], &[255, 255, 255, 255]);
+        let mut dark = [20, 20, 20, 255].repeat(100);
+        darken(&mut dark);
+        assert_eq!(&dark[..4], &[20, 20, 20, 255]);
     }
 
     #[test]

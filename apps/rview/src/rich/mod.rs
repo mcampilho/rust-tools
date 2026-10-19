@@ -27,11 +27,13 @@ pub struct Style {
     pub valign: i8,
     /// Inline code: drawn on a subtle background.
     pub code: bool,
+    /// Syntax token of highlighted code: `Tok` index + 1 (0 = none).
+    pub tok: u8,
 }
 
 impl Default for Style {
     fn default() -> Style {
-        Style { bold: false, italic: false, mono: false, size: 1.0, color: None, bg: None, underline: false, strike: false, link: 0, valign: 0, code: false }
+        Style { bold: false, italic: false, mono: false, size: 1.0, color: None, bg: None, underline: false, strike: false, link: 0, valign: 0, code: false, tok: 0 }
     }
 }
 
@@ -150,6 +152,20 @@ impl Block {
             _ => false,
         }
     }
+}
+
+/// Code as inline runs, syntax highlighted when the language is known.
+pub fn code_inlines(lang: crate::syntax::Lang, code: String, base: Style) -> Vec<Inline> {
+    if lang == crate::syntax::Lang::Plain || code.len() > 1 << 20 {
+        return vec![Inline::Text(code, base)];
+    }
+    crate::syntax::highlight(lang, &code)
+        .into_iter()
+        .map(|(t, tok)| {
+            let tok = if matches!(tok, crate::syntax::Tok::Text) { 0 } else { tok as u8 + 1 };
+            Inline::Text(t, Style { tok, ..base })
+        })
+        .collect()
 }
 
 /// All text of a block tree (tests, accessibility).

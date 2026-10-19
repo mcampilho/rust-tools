@@ -12,6 +12,8 @@ pub struct Settings {
     pub language: Option<Lang>,
     /// Word wrap for text files.
     pub wrap: bool,
+    /// Show HTML and PDF pages dark in the dark theme.
+    pub dark_pages: bool,
     /// Last folder used in the Open dialog.
     pub last_dir: String,
     /// Window size (logical pixels) and maximized state.
@@ -20,7 +22,7 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Settings {
-        Settings { theme: 0, language: None, wrap: true, last_dir: String::new(), window: None }
+        Settings { theme: 0, language: None, wrap: true, dark_pages: true, last_dir: String::new(), window: None }
     }
 }
 
@@ -35,6 +37,7 @@ impl Settings {
             },
             language: s.get("language").and_then(Lang::from_tag),
             wrap: s.get("wrap").map_or(d.wrap, |v| v != "0"),
+            dark_pages: s.get("dark_pages").map_or(d.dark_pages, |v| v != "0"),
             last_dir: s.get("last_dir").unwrap_or("").to_string(),
             window: s.get("window").and_then(|v| {
                 let mut it = v.split(',');
@@ -51,6 +54,7 @@ impl Settings {
         s.set("theme", ["system", "light", "dark"][self.theme.min(2) as usize]);
         s.set("language", self.language.map_or("", |l| l.tag()));
         s.set("wrap", if self.wrap { "1" } else { "0" });
+        s.set("dark_pages", if self.dark_pages { "1" } else { "0" });
         s.set("last_dir", self.last_dir.clone());
         if let Some((w, h, max)) = self.window {
             s.set("window", format!("{w:.0},{h:.0},{}", if max { "max" } else { "normal" }));
@@ -65,7 +69,7 @@ mod tests {
 
     #[test]
     fn round_trip_and_bad_values() {
-        let s = Settings { theme: 2, language: Some(Lang::JaJP), wrap: false, last_dir: "C:\\docs".into(), window: Some((900.0, 700.0, true)) };
+        let s = Settings { theme: 2, language: Some(Lang::JaJP), wrap: false, dark_pages: false, last_dir: "C:\\docs".into(), window: Some((900.0, 700.0, true)) };
         assert_eq!(Settings::load(&Store::parse(&s.to_store().serialize())), s);
         let bad = Settings::load(&Store::parse("theme=??\nwindow=abc\nlanguage=xx-YY\n"));
         assert_eq!(bad, Settings::default());

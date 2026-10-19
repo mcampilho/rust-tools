@@ -203,9 +203,12 @@ fn views_render_fully_translated() {
         ("a.csv", "x;y\n1;2\n"),
         ("a.md", "# T\n\ntext ![x](missing.png)\n"),
         ("a.html", "<p>hi <img src=nothing.png alt=x></p>"),
+        ("a.rs", "fn main() { /* x */ }"),
+        ("b.html", "<body style='background:#fff;color:#333'><pre><code class=language-js>let x = 1;</code></pre></body>"),
     ];
     let media = crate::media::Media::start(std::sync::Arc::new(|| {}));
     let theme = crate::ui::theme::Theme::new(false);
+    let dark_theme = crate::ui::theme::Theme::new(true);
     let area = Rect::new(0.0, 0.0, 800.0, 576.0);
     for (name, body) in files {
         let p = dir.join(name);
@@ -216,7 +219,11 @@ fn views_render_fully_translated() {
         assert!(matches!(v.state, State::Ready(_)), "{name}");
         g.resize(800, 600);
         v.draw(&mut g, area, &theme, 1.0, &media);
+        v.draw(&mut g, area, &dark_theme, 1.0, &media);
         let _ = v.status();
+        if name == "a.rs" {
+            assert_eq!(v.language(), Some(crate::syntax::Lang::Rust));
+        }
     }
     let mut v = Viewer::new(true);
     v.draw(&mut g, area, &theme, 1.0, &media);
@@ -227,6 +234,8 @@ fn views_render_fully_translated() {
     set_lang(Lang::EnUS);
     let _ = std::fs::remove_dir_all(&dir);
     let dir_s = dir.to_string_lossy().to_string();
-    let misses: Vec<String> = take_misses().into_iter().filter(|m| m.chars().any(|c| c.is_alphabetic()) && !m.contains(&dir_s)).collect();
+    // Programming language names are proper nouns.
+    let names: BTreeSet<&str> = crate::syntax::lang::DEFS.iter().map(|d| d.name).collect();
+    let misses: Vec<String> = take_misses().into_iter().filter(|m| m.chars().any(|c| c.is_alphabetic()) && !m.contains(&dir_s) && !names.contains(m.as_str())).collect();
     assert!(misses.is_empty(), "untranslated at run time: {misses:#?}");
 }

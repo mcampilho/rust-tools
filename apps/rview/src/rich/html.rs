@@ -861,6 +861,25 @@ impl Converter<'_> {
                         *t = rest.to_string();
                     }
                 }
+                // Highlight code with a language class on <pre> or its <code>.
+                let class_lang = |n: usize| {
+                    self.dom.nodes[n]
+                        .attr("class")
+                        .and_then(|c| c.split_whitespace().map(crate::syntax::from_tag).find(|l| *l != crate::syntax::Lang::Plain))
+                };
+                let lang = class_lang(n).or_else(|| self.dom.nodes[n].children.iter().find(|&&c| self.dom.nodes[c].tag == "code").and_then(|&c| class_lang(c)));
+                if let Some(lang) = lang {
+                    let base = inl.iter().find_map(|i| if let Inline::Text(_, s) = i { Some(*s) } else { None }).unwrap_or_default();
+                    let text: String = inl
+                        .iter()
+                        .map(|i| match i {
+                            Inline::Text(t, _) => t.as_str(),
+                            Inline::Break => "\n",
+                            _ => "",
+                        })
+                        .collect();
+                    inl = super::code_inlines(lang, text, base);
+                }
                 b.kind = Kind::Pre(inl);
                 b.margin_top = 1.0;
                 b.margin_bottom = 1.0;
@@ -1096,6 +1115,16 @@ mod tests {
         let Kind::Pre(v) = &doc.blocks[4].kind else { panic!() };
         assert_eq!(v, &vec![Inline::Text("  x  y\n".into(), Style { mono: true, ..Style::default() })]);
         assert_eq!(doc.blocks[5].align, Align::Center);
+    }
+
+    #[test]
+    fn code_classes_are_highlighted() {
+        let doc = parse("<pre><code class=\"language-python\">def f():
+    return 1</code></pre>", None);
+        let Kind::Pre(v) = &doc.blocks[0].kind else { panic!() };
+        assert!(v.iter().any(|i| matches!(i, Inline::Text(t, s) if t == "def" && s.tok == crate::syntax::Tok::Keyword as u8 + 1)), "{v:?}");
+        assert_eq!(plain_text(&doc.blocks).trim_end(), "def f():
+    return 1");
     }
 
     #[test]

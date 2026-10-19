@@ -15,6 +15,7 @@ mod io;
 mod media;
 mod rich;
 mod settings;
+mod syntax;
 mod storage;
 mod ui;
 mod view;
@@ -42,7 +43,8 @@ enum UserEvent {
     /// The media worker has results.
     Wake,
     Loaded(u64, Box<Result<doc::Content, String>>),
-    Menu(u32),
+    #[cfg(windows)]
+    Win(win::WinMsg),
 }
 
 impl From<accesskit_winit::Event> for UserEvent {
@@ -85,6 +87,9 @@ struct Shell {
     cursor_icon: CursorIcon,
     args: Vec<PathBuf>,
     status_note: Option<String>,
+    /// Resident mode: closing the window hides it to the notification area.
+    tray: bool,
+    hidden: bool,
 }
 
 impl Shell {
@@ -206,10 +211,9 @@ impl Shell {
                     win::reveal_in_explorer(p);
                 }
             }
-            Command::Exit => {
-                self.save_settings();
-                el.exit();
-            }
+            Command::Close => self.close(el),
+            Command::Exit => self.quit(el),
+            Command::DarkPages => self.settings.dark_pages = !self.settings.dark_pages,
             Command::ZoomIn => self.viewer.zoom_step(1, None),
             Command::ZoomOut => self.viewer.zoom_step(-1, None),
             Command::ZoomReset => self.viewer.zoom_reset(),
@@ -254,6 +258,47 @@ impl Shell {
         self.redraw();
     }
 
+    /// The close button: hides to the tray in resident mode.
+    fn close(&mut self, el: &ActiveEventLoop) {
+        if self.tray {
+            self.hide();
+        } else {
+            self.quit(el);
+        }
+    }
+
+    fn quit(&mut self, el: &ActiveEventLoop) {
+        self.save_settings();
+        #[cfg(windows)]
+        if let Some(w) = &self.win {
+            win::tray::remove(w.hwnd);
+        }
+        el.exit();
+    }
+
+    /// Hides the window to the notification area, keeping the document.
+    fn hide(&mut self) {
+        self.save_settings();
+        if let Some(w) = &self.win {
+            w.window.set_visible(false);
+        }
+        self.hidden = true;
+        self.drag = None;
+        // Release the frame buffer while hidden.
+        self.gfx.resize(1, 1);
+        self.gfx.trim_cache();
+    }
+
+    fn show(&mut self) {
+        if let Some(w) = &self.win {
+            w.window.set_visible(true);
+            w.window.set_minimized(false);
+            w.window.focus_window();
+        }
+        self.hidden = false;
+        self.redraw();
+    }
+
     fn info(&self, title: &str, text: &str) {
         #[cfg(windows)]
         if let Some(w) = &self.win {
@@ -266,6 +311,7 @@ impl Shell {
     fn checked(&self, c: Command) -> bool {
         match c {
             Command::WordWrap => self.settings.wrap,
+            Command::DarkPages => self.settings.dark_pages,
             Command::FitWidth => self.viewer.fit && self.viewer.kind == doc::Kind::Pdf,
             Command::FullScreen => self.win.as_ref().is_some_and(|w| w.window.fullscreen().is_some()),
             Command::Theme(t) => self.settings.theme == t,
@@ -282,6 +328,7 @@ impl Shell {
             Command::ZoomIn | Command::ZoomOut | Command::ZoomReset => ready,
             Command::FitWidth => ready && self.viewer.kind == doc::Kind::Pdf,
             Command::WordWrap => self.viewer.kind == doc::Kind::Text || self.viewer.path.is_none(),
+            Command::DarkPages => self.dark(),
             _ => true,
         }
     }
@@ -418,6 +465,7 @@ impl Shell {
         let full = Rect::new(0.0, 0.0, w.get() as f32, h.get() as f32);
         let mut area = full;
         let status = area.take_bottom((24.0 * s).round());
+        self.viewer.dark_pages = self.settings.dark_pages;
         self.viewer.draw(&mut self.gfx, area, &theme, s, &self.media);
         // Status bar.
         let g = &mut self.gfx;
@@ -576,9 +624,17 @@ impl ApplicationHandler<UserEvent> for Shell {
         #[cfg(windows)]
         {
             let proxy = self.proxy.clone();
-            win::subclass(hwnd, &mnemonics_of(&commands::menu_tree()), Box::new(move |id| {
-                let _ = proxy.send_event(UserEvent::Menu(id));
-            }));
+            win::subclass(
+                hwnd,
+                &mnemonics_of(&commands::menu_tree()),
+                Box::new(move |m| {
+                    let _ = proxy.send_event(UserEvent::Win(m));
+                }),
+            );
+            if self.tray {
+                win::set_resident(hwnd);
+                win::tray::show(hwnd, "rview");
+            }
         }
         self.win = Some(Win {
             window,
@@ -592,6 +648,11 @@ impl ApplicationHandler<UserEvent> for Shell {
         self.sync_menu();
         if let Some(p) = self.args.first().cloned() {
             self.open(&p, false, None);
+        }
+        // Resident mode starts in the notification area unless a file was given.
+        if self.tray && self.args.is_empty() {
+            self.hidden = true;
+            return;
         }
         if let Some(w) = &self.win {
             w.window.set_visible(true);
@@ -618,15 +679,32 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.update_title();
                 self.redraw();
             }
-            UserEvent::Menu(id) => {
-                #[cfg(windows)]
-                {
-                    let cmd = self.win.as_ref().and_then(|w| w.menu.as_ref()).and_then(|m| m.command(id));
-                    if let Some(c) = cmd {
-                        self.command(el, c);
+            #[cfg(windows)]
+            UserEvent::Win(win::WinMsg::Command(id)) => {
+                let cmd = self.win.as_ref().and_then(|w| w.menu.as_ref()).and_then(|m| m.command(id));
+                if let Some(c) = cmd {
+                    self.command(el, c);
+                }
+            }
+            #[cfg(windows)]
+            UserEvent::Win(win::WinMsg::OpenFiles(paths)) => {
+                self.show();
+                if let Some(p) = paths.first() {
+                    self.open(p, false, None);
+                }
+            }
+            #[cfg(windows)]
+            UserEvent::Win(win::WinMsg::Tray(win::tray::TrayEvent::Activate)) => self.show(),
+            #[cfg(windows)]
+            UserEvent::Win(win::WinMsg::Tray(win::tray::TrayEvent::Menu)) => {
+                let hwnd = self.win.as_ref().map(|w| w.hwnd);
+                if let Some(hwnd) = hwnd {
+                    match win::tray::menu(hwnd, &tr("Open rview"), &tr("Exit")) {
+                        Some(1) => self.show(),
+                        Some(2) => self.quit(el),
+                        _ => {}
                     }
                 }
-                let _ = (id, el);
             }
             UserEvent::A11y(ev) => {
                 if let accesskit_winit::WindowEvent::InitialTreeRequested = ev.window_event {
@@ -644,10 +722,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             w.adapter.process_event(&w.window, &event);
         }
         match event {
-            WindowEvent::CloseRequested => {
-                self.save_settings();
-                el.exit();
-            }
+            WindowEvent::CloseRequested => self.close(el),
             WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => self.redraw(),
             WindowEvent::ThemeChanged(t) => {
                 self.system_dark = t == WinTheme::Dark;
@@ -730,7 +805,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.redraw();
                 self.update_hover();
             }
-            WindowEvent::RedrawRequested => self.render(),
+            WindowEvent::RedrawRequested if !self.hidden => self.render(),
             _ => {}
         }
     }
@@ -740,9 +815,15 @@ impl ApplicationHandler<UserEvent> for Shell {
     }
 }
 
-const USAGE: &str = "rview [file]
+const USAGE: &str = "rview [--tray] [--new-window] [file]
 
   Shows a PDF, Markdown, HTML, text or CSV document.
+
+  --tray        Stay resident in the notification area: closing the window
+                hides it, and launching rview again (with or without a
+                file) or clicking the tray icon shows it instantly. Exit
+                from the tray icon's menu or File > Exit.
+  --new-window  Open a separate window even when rview is resident.
 
 Settings are stored in %APPDATA%\\rview, or next to rview.exe when a file
 named rview.portable exists there (portable mode).";
@@ -757,6 +838,14 @@ fn main() {
         return;
     }
     let args: Vec<PathBuf> = raw.iter().filter(|a| !a.starts_with("--")).map(PathBuf::from).collect();
+    let tray = raw.iter().any(|a| a == "--tray" || a == "/tray");
+    let new_window = raw.iter().any(|a| a == "--new-window");
+    // A resident instance shows itself (and the file) instantly.
+    #[cfg(windows)]
+    if !new_window && win::hand_off_to_resident(&args) {
+        return;
+    }
+    let _ = new_window;
     let mut location = storage::Location::detect();
     let store = location.load();
     let settings = Settings::load(&store);
@@ -802,6 +891,8 @@ fn main() {
         cursor_icon: CursorIcon::Default,
         args,
         status_note: None,
+        tray,
+        hidden: false,
     };
     shell.apply_language();
     if let Err(e) = event_loop.run_app(&mut shell) {

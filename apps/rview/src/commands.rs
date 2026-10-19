@@ -7,6 +7,8 @@ pub enum Command {
     Open,
     Reload,
     OpenFolder,
+    /// Closes the window (hides it in resident mode).
+    Close,
     Exit,
     ZoomIn,
     ZoomOut,
@@ -14,6 +16,8 @@ pub enum Command {
     FitWidth,
     WordWrap,
     FullScreen,
+    /// Dark HTML and PDF pages in the dark theme.
+    DarkPages,
     /// 0 system, 1 light, 2 dark.
     Theme(u8),
     /// 0 follows Windows, 1.. index into `Lang::ALL` + 1.
@@ -32,6 +36,7 @@ impl Command {
             Open => "&Open...",
             Reload => "&Reload",
             OpenFolder => "Show in &Folder",
+            Close => "&Close",
             Exit => "E&xit",
             ZoomIn => "Zoom &In",
             ZoomOut => "Zoom &Out",
@@ -39,6 +44,7 @@ impl Command {
             FitWidth => "Fit &Width",
             WordWrap => "Word W&rap",
             FullScreen => "&Full Screen",
+            DarkPages => "Dark &Pages in Dark Theme",
             Theme(0) => "Use &System Setting",
             Theme(1) => "&Light",
             Theme(_) => "&Dark",
@@ -61,7 +67,7 @@ impl Command {
 pub const BINDINGS: &[(&str, Command)] = &[
     ("Ctrl+O", Open),
     ("F5", Reload),
-    ("Ctrl+W", Exit),
+    ("Ctrl+W", Close),
     ("Ctrl+=", ZoomIn),
     ("Ctrl++", ZoomIn),
     ("Ctrl+-", ZoomOut),
@@ -103,7 +109,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
     let mut langs = vec![Item(UiLanguage(0)), Sep];
     langs.extend((1..=Lang::ALL.len()).map(|i| Item(UiLanguage(i as u8))));
     vec![
-        ("&File", vec![Item(Open), Item(Reload), Item(OpenFolder), Sep, Item(Exit)]),
+        ("&File", vec![Item(Open), Item(Reload), Item(OpenFolder), Sep, Item(Close), Item(Exit)]),
         (
             "&View",
             vec![
@@ -116,6 +122,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
                 Item(FullScreen),
                 Sep,
                 Sub("T&heme", vec![Item(Theme(0)), Item(Theme(1)), Item(Theme(2))]),
+                Item(DarkPages),
                 Sub("Display &Language", langs),
             ],
         ),

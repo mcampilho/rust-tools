@@ -4,7 +4,7 @@ A small, fast, portable document viewer for Windows, written in Rust. It
 shows **PDF, Markdown, HTML, text and CSV** files, with zoom, and nothing
 else.
 
-`rview.exe` is a single 2.2 MB executable: no installer, no runtime, no
+`rview.exe` is a single 2.3 MB executable: no installer, no runtime, no
 DLLs beyond those that ship with Windows, and no registry writes. It makes
 no network connections, has no telemetry and never runs scripts.
 
@@ -43,11 +43,19 @@ paths) are embedded by `build.rs`.
 ## Use
 
 ```
-rview [file]
+rview [--tray] [--new-window] [file]
 ```
 
 Open files with Ctrl+O, by dropping them on the window, or from the command
-line. Settings (theme, language, word wrap, window size, last folder) are
+line.
+
+**Resident mode:** `rview --tray` starts hidden in the notification area.
+Launching rview again (with or without a file) or clicking the tray icon
+shows the window instantly and opens the file there; closing the window
+(or Ctrl+W) only hides it. Quit from the tray icon's menu or File › Exit.
+`--new-window` opens a separate window even when rview is resident. To
+start it with Windows, put a shortcut to `rview.exe --tray` in
+`shell:startup`. Settings (theme, language, word wrap, window size, last folder) are
 kept in `%APPDATA%\rview\settings.ini`, or next to `rview.exe` when a file
 named `rview.portable` exists there.
 
@@ -55,7 +63,7 @@ named `rview.portable` exists there.
 | --- | --- |
 | Open | Ctrl+O |
 | Reload | F5 |
-| Close | Ctrl+W |
+| Close (hide in resident mode) | Ctrl+W |
 | Zoom in / out | Ctrl+= / Ctrl+-, Ctrl+mouse wheel (zooms at the pointer) |
 | Actual size (100 %) | Ctrl+0 |
 | Fit width (PDF) | Ctrl+9 |
@@ -68,6 +76,12 @@ named `rview.portable` exists there.
 
 ## Details per format
 
+- **Syntax highlighting:** source files opened as text (Rust, C, C++,
+  C#, Java, JavaScript, TypeScript, Go, Python, HTML, CSS, JSON, XML, SQL,
+  shell, PowerShell, batch, INI, TOML, YAML, properties, diff; detected
+  from the file name or a `#!` line) and code blocks in Markdown
+  (` ```rust `) and HTML (`<pre><code class="language-…">`). Files over
+  16 MB are shown without highlighting.
 - **Text:** encoding detection (UTF-8, UTF-8 BOM, UTF-16 LE/BE with or
   without BOM, the system code page), CRLF/LF/CR, line numbers, word wrap
   for files up to 16 MB (larger files scroll horizontally), wide CJK
@@ -96,6 +110,14 @@ named `rview.portable` exists there.
   default browser or mail program on click. Links can never start a
   program. The target is shown in the status bar on hover.
 
+**Dark mode:** in the dark theme, Markdown, text and CSV use dark colors,
+and HTML and PDF pages are shown dark too: HTML author colors are adapted
+(light backgrounds become dark, dark text becomes light, hues are kept)
+and PDF pages have their lightness inverted. PDF pages that are already
+dark (full-page photos, dark slides) keep their colors; photos inside
+light pages are inverted with the page. View › Dark Pages in Dark Theme
+turns this off to see pages as printed.
+
 Also: light/dark/system theme (dark menus included), and the interface in
 German, English (UK/US), Spanish, French, Italian, Japanese, Portuguese
 (Brazil/Portugal) and Simplified Chinese, following Windows or chosen in
@@ -103,12 +125,14 @@ View › Display Language.
 
 ## Tests and verification
 
-`cargo test` runs 45 tests: the text, CSV, Markdown, HTML and CSS parsers,
+`cargo test` runs 60 tests: the text, CSV, Markdown, HTML and CSS parsers,
 the layout engine (wrapping, zoom, long words, links), encodings, links
 and image paths, settings, the translation table (every string in the
 code and menus has all languages; placeholders and access keys match),
 a German render of every document type that fails on any untranslated
-string, and the Windows engines: a PDF generated in the test is opened and
+string (also in the dark theme), syntax highlighting (code fences, HTML
+code classes, multi-line comments), dark-page color adaptation (HTML colors
+and PDF pages, which keep dark pages unchanged), and the Windows engines: a PDF generated in the test is opened and
 page 1 rendered through `Windows.Data.Pdf` (text pixels checked), a broken
 PDF reports an error, and a PNG is decoded through the Windows codecs.
 
@@ -122,6 +146,12 @@ Measured on Windows 10 (release build):
 - Markdown (this kind of README) and an HTML report with CSS, tables, lists,
   entities, a local photo, hidden elements and a script that must not run:
   rendered correctly.
+- Dark theme: an HTML report with author colors and a text PDF render dark
+  and readable; a PDF whose cover is a dark photo keeps it as is.
+- Highlighting: a Rust source file and Markdown code blocks (Rust, JSON).
+- `--tray`: starts hidden (about 21 MB); a launch with a file hands it to
+  the resident window, which shows it; the close button hides it with the
+  document kept; a launch without a file shows it; File › Exit quits.
 - Release build: no warnings, clippy clean; `dumpbin /dependents` lists only
   Windows system DLLs.
 

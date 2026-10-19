@@ -18,6 +18,43 @@ pub struct Palette {
     pub border: Color,
     pub header_bg: Color,
     pub muted: Color,
+    /// Dark background: syntax colors for dark themes.
+    pub dark: bool,
+    /// Adapt author colors to a dark page (light backgrounds become dark,
+    /// dark text becomes light; hues are kept).
+    pub adapt: bool,
+}
+
+/// Inverts a color's lightness, keeping its hue, into a soft dark range
+/// (white becomes #1E1E1E, black becomes white).
+pub fn invert_lightness(c: Color) -> Color {
+    let (mx, mn) = (c.r.max(c.g).max(c.b) as i32, c.r.min(c.g).min(c.b) as i32);
+    let f = |v: u8| (30 + (v as i32 + 255 - mx - mn).clamp(0, 255) * 225 / 255) as u8;
+    Color { r: f(c.r), g: f(c.g), b: f(c.b), a: c.a }
+}
+
+pub fn luminance(c: Color) -> f32 {
+    0.299 * c.r as f32 + 0.587 * c.g as f32 + 0.114 * c.b as f32
+}
+
+impl Palette {
+    /// A foreground color as shown on this palette's page.
+    pub fn fg(&self, c: Color) -> Color {
+        if self.adapt && luminance(c) < 140.0 {
+            invert_lightness(c)
+        } else {
+            c
+        }
+    }
+
+    /// A background color as shown on this palette's page.
+    pub fn bgc(&self, c: Color) -> Color {
+        if self.adapt && luminance(c) > 100.0 {
+            invert_lightness(c)
+        } else {
+            c
+        }
+    }
 }
 
 impl Palette {
@@ -30,6 +67,8 @@ impl Palette {
             border: Color::rgb(0xD0D7DE),
             header_bg: Color::rgb(0xF6F8FA),
             muted: Color::rgb(0x59636E),
+            dark: false,
+            adapt: false,
         }
     }
 
@@ -42,6 +81,8 @@ impl Palette {
             border: Color::rgb(0x44474C),
             header_bg: Color::rgb(0x262629),
             muted: Color::rgb(0x9DA3AB),
+            dark: true,
+            adapt: false,
         }
     }
 }
@@ -242,8 +283,9 @@ impl Ctx<'_> {
 
     fn color(&self, s: &Style) -> Color {
         match s.color {
-            Some(c) => c,
+            Some(c) => self.pal.fg(c),
             None if s.link != 0 => self.pal.link,
+            None if s.tok != 0 => crate::syntax::tok_from(s.tok - 1).and_then(|t| crate::syntax::color(t, self.pal.dark)).unwrap_or(self.text),
             None => self.text,
         }
     }
@@ -427,7 +469,7 @@ impl Ctx<'_> {
                     let shift = s.valign as f32 * px * 0.35;
                     let base = baseline - shift;
                     if s.bg.is_some() || s.code {
-                        let bg = s.bg.unwrap_or(self.pal.code_bg);
+                        let bg = s.bg.map_or(self.pal.code_bg, |c| self.pal.bgc(c));
                         let pad = (px * 0.18).round();
                         self.out.push(Item::Fill { r: Rect::new(rx - pad, base - px * 0.95, rw + 2.0 * pad, px * 1.25), color: bg });
                     }
@@ -480,7 +522,7 @@ impl Ctx<'_> {
         let indent = b.indent * em;
         let (x, w) = (x + indent, (w - indent).max(1.0));
         let pre = matches!(b.kind, Kind::Pre(_));
-        let bg = b.bg.or(if pre && b.padding > 0.0 { Some(self.pal.code_bg) } else { None });
+        let bg = b.bg.map(|c| self.pal.bgc(c)).or(if pre && b.padding > 0.0 { Some(self.pal.code_bg) } else { None });
         let pad = if bg.is_some() { b.padding.max(if pre { 0.8 } else { 0.5 }) * em } else { 0.0 };
         let bg_item = bg.map(|c| self.out.push(Item::Fill { r: Rect::default(), color: c }));
         let bar = if b.bar { (em * 0.25).max(3.0).round() } else { 0.0 };
@@ -677,7 +719,7 @@ impl Ctx<'_> {
                 let span = c.colspan.max(1).min(ncols - col);
                 let cw: f32 = widths[col..col + span].iter().sum();
                 let zebra = ri % 2 == 0 && ri > 0 && !c.header;
-                let bg = c.bg.or(if c.header { Some(self.pal.header_bg) } else if zebra { Some(self.pal.header_bg.mix(self.pal.bg, 0.5)) } else { None });
+                let bg = c.bg.map(|x| self.pal.bgc(x)).or(if c.header { Some(self.pal.header_bg) } else if zebra { Some(self.pal.header_bg.mix(self.pal.bg, 0.5)) } else { None });
                 let bg_item = bg.map(|color| self.out.push(Item::Fill { r: Rect::default(), color }));
                 self.cell_align = Some(c.align);
                 let b = self.blocks(&c.blocks, cx + padx, cw - pad2, top + pady);
@@ -712,7 +754,7 @@ pub fn layout(doc: &RichDoc, g: &mut Gfx, width: f32, em: f32, pal: Palette, img
     let pad = (em * 2.0).round();
     let col = doc.max_width.map_or(width - 2.0 * pad, |m| (m * em).min(width - 2.0 * pad)).max(em * 8.0);
     let x = ((width - col) / 2.0).max(pad).round();
-    let text = doc.page_color.unwrap_or(pal.text);
+    let text = doc.page_color.map_or(pal.text, |c| pal.fg(c));
     let mut ctx = Ctx { g, em, pal, text, img, out: Layout::default(), marker: None, list_depth: 0, cell_align: None };
     let bottom = ctx.blocks(&doc.blocks, x, col, pad);
     let mut out = ctx.out;
@@ -745,6 +787,23 @@ mod tests {
         // Zoom scales the layout.
         let big = layout(&doc, &mut g, 2000.0, 30.0, Palette::paper(), &no_img);
         assert!(big.height > wide.height * 1.6);
+    }
+
+    #[test]
+    fn dark_adaptation() {
+        assert_eq!(invert_lightness(Color::rgb(0xFFFFFF)), Color::rgb(0x1E1E1E));
+        assert_eq!(invert_lightness(Color::rgb(0x000000)), Color::rgb(0xFFFFFF));
+        let mut p = Palette::dark();
+        p.adapt = true;
+        // Dark text becomes light, light backgrounds become dark; hue kept.
+        assert!(luminance(p.fg(Color::rgb(0x222222))) > 180.0);
+        assert!(luminance(p.bgc(Color::rgb(0xFFF8D6))) < 80.0);
+        let red = p.fg(Color::rgb(0x800000));
+        assert!(red.r > red.g && red.r > red.b, "{red:?}");
+        // Already suitable colors stay.
+        assert_eq!(p.fg(Color::rgb(0xEEEEEE)), Color::rgb(0xEEEEEE));
+        assert_eq!(p.bgc(Color::rgb(0x202020)), Color::rgb(0x202020));
+        assert_eq!(Palette::paper().fg(Color::rgb(0x222222)), Color::rgb(0x222222));
     }
 
     #[test]
