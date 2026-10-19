@@ -16,7 +16,7 @@ pub enum Command {
     FitWidth,
     WordWrap,
     FullScreen,
-    /// Dark HTML and PDF pages in the dark theme.
+    /// Dark document pages in the dark theme (off: pages stay light).
     DarkPages,
     /// 0 system, 1 light, 2 dark.
     Theme(u8),

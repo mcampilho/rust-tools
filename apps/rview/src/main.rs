@@ -63,6 +63,16 @@ struct Win {
     menu: Option<win::menu::MenuBar>,
 }
 
+/// An in-app message (About, Keyboard shortcuts), drawn in the current
+/// theme. Lines containing a tab are shown as two aligned columns.
+struct Dialog {
+    title: String,
+    text: String,
+    /// Panel and OK button from the last frame (for clicks).
+    panel: Rect,
+    ok: Rect,
+}
+
 enum Drag {
     Pan { x: f32, y: f32, sx: f32, sy: f32 },
     Bar(Axis),
@@ -90,6 +100,7 @@ struct Shell {
     /// Resident mode: closing the window hides it to the notification area.
     tray: bool,
     hidden: bool,
+    dialog: Option<Dialog>,
 }
 
 impl Shell {
@@ -299,13 +310,10 @@ impl Shell {
         self.redraw();
     }
 
-    fn info(&self, title: &str, text: &str) {
-        #[cfg(windows)]
-        if let Some(w) = &self.win {
-            win::dialogs::message(w.hwnd, title, text);
-        }
-        #[cfg(not(windows))]
-        println!("{title}\n{text}");
+    fn info(&mut self, title: &str, text: &str) {
+        self.dialog = Some(Dialog { title: title.to_string(), text: text.to_string(), panel: Rect::default(), ok: Rect::default() });
+        self.drag = None;
+        self.redraw();
     }
 
     fn checked(&self, c: Command) -> bool {
@@ -358,6 +366,13 @@ impl Shell {
     // ------------------------------------------------------------ input
 
     fn key(&mut self, el: &ActiveEventLoop, event: &winit::event::KeyEvent) {
+        if self.dialog.is_some() {
+            if matches!(event.logical_key, WKey::Named(NamedKey::Escape | NamedKey::Enter | NamedKey::Space)) {
+                self.dialog = None;
+                self.redraw();
+            }
+            return;
+        }
         let ctrl = self.mods.control_key();
         let shift = self.mods.shift_key();
         let alt = self.mods.alt_key();
@@ -416,7 +431,7 @@ impl Shell {
     }
 
     fn update_hover(&mut self) {
-        let (link, icon) = match (self.cursor, &self.drag) {
+        let (link, icon) = match (self.cursor.filter(|_| self.dialog.is_none()), &self.drag) {
             (_, Some(Drag::Pan { .. })) => (None, CursorIcon::Grabbing),
             (Some((x, y)), _) => match self.viewer.link_at(x, y) {
                 Some(l) => (Some(l), CursorIcon::Pointer),
@@ -480,6 +495,11 @@ impl Shell {
         let lw = (status.w - rw - 3.0 * pad).max(0.0);
         let left = fit(g, &left, lw, px);
         g.text_in(&left, Rect::new(status.x + pad, status.y, lw, status.h), px, FontId::Regular, theme.text, Align::Left);
+        if let Some(d) = &mut self.dialog {
+            let (panel, ok) = draw_dialog(&mut self.gfx, full, &theme, s, &d.title, &d.text);
+            d.panel = panel;
+            d.ok = ok;
+        }
         let Some(win) = &mut self.win else { return };
         if let Ok(mut buf) = win.surface.buffer_mut() {
             self.gfx.copy_to(&mut buf);
@@ -520,9 +540,114 @@ impl Shell {
         st.set_value(self.viewer.status().join(", "));
         let mut r = Node::new(Role::Window);
         r.set_label("rview");
-        r.set_children(vec![docid, statusid]);
-        TreeUpdate { nodes: vec![(root, r), (docid, d), (statusid, st)], tree: Some(TreeInfo::new(root)), tree_id: TreeId::ROOT, focus: docid }
+        let mut nodes = vec![(docid, d), (statusid, st)];
+        let mut children = vec![docid, statusid];
+        let mut focus = docid;
+        if let Some(dl) = &self.dialog {
+            let dlgid = NodeId(3);
+            let textid = NodeId(4);
+            let okid = NodeId(5);
+            let mut dn = Node::new(Role::Dialog);
+            dn.set_label(dl.title.clone());
+            dn.set_children(vec![textid, okid]);
+            let mut tn = Node::new(Role::Label);
+            tn.set_value(dl.text.replace('\t', "  "));
+            let mut ok = Node::new(Role::Button);
+            ok.set_label("OK");
+            ok.add_action(accesskit::Action::Click);
+            nodes.extend([(dlgid, dn), (textid, tn), (okid, ok)]);
+            children.push(dlgid);
+            focus = okid;
+        }
+        r.set_children(children);
+        nodes.push((root, r));
+        TreeUpdate { nodes, tree: Some(TreeInfo::new(root)), tree_id: TreeId::ROOT, focus }
     }
+}
+
+/// Word-wraps `text` to `width` pixels.
+fn wrap_words(g: &mut Gfx, text: &str, width: f32, px: f32, font: FontId) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut line = String::new();
+    for word in text.split(' ') {
+        let candidate = if line.is_empty() { word.to_string() } else { format!("{line} {word}") };
+        if !line.is_empty() && g.measure(&candidate, px, font) > width {
+            out.push(std::mem::take(&mut line));
+            line = word.to_string();
+        } else {
+            line = candidate;
+        }
+    }
+    out.push(line);
+    out
+}
+
+/// Draws a themed message panel over the window; returns (panel, OK button).
+fn draw_dialog(g: &mut Gfx, full: Rect, th: &ui::theme::Theme, s: f32, title: &str, text: &str) -> (Rect, Rect) {
+    use ui::gfx::Color;
+    g.fill_rect(full, Color::rgba(0x000000, if th.dark { 0x90 } else { 0x60 }));
+    let pad = (24.0 * s).round();
+    let px = 13.5 * s;
+    let lh = (px * 1.55).round();
+    let title_px = 17.0 * s;
+    let w = (600.0 * s).min(full.w - 32.0 * s).max(200.0 * s);
+    let inner = w - 2.0 * pad;
+    // Two-column rows: the key column fits the widest key.
+    let key_w = text
+        .lines()
+        .filter_map(|l| l.split_once('\t'))
+        .map(|(k, _)| g.measure(k, px, FontId::Bold))
+        .fold(0.0f32, f32::max);
+    let col = if key_w > 0.0 { (key_w + 20.0 * s).min(inner * 0.55) } else { 0.0 };
+    let mut rows: Vec<(String, String)> = Vec::new();
+    for line in text.lines() {
+        match line.split_once('\t') {
+            Some((k, v)) => {
+                for (i, part) in wrap_words(g, v, inner - col, px, FontId::Regular).into_iter().enumerate() {
+                    rows.push((if i == 0 { k.to_string() } else { String::new() }, part));
+                }
+            }
+            None => {
+                for part in wrap_words(g, line, inner, px, FontId::Regular) {
+                    rows.push((String::new(), part));
+                }
+            }
+        }
+    }
+    let btn_h = (32.0 * s).round();
+    let h = (pad + title_px * 1.6 + 8.0 * s + rows.len() as f32 * lh + 18.0 * s + btn_h + pad).min(full.h - 16.0 * s);
+    let panel = Rect::new(((full.w - w) / 2.0).round(), ((full.h - h) / 2.0).round().max(8.0 * s), w.round(), h.round());
+    let bg = if th.dark { Color::rgb(0x2B2B2B) } else { Color::rgb(0xFFFFFF) };
+    let r = (8.0 * s).round();
+    for i in 1..=4 {
+        let d = i as f32 * s;
+        g.fill_rrect(Rect::new(panel.x - d, panel.y - d + 2.0 * s, panel.w + 2.0 * d, panel.h + 2.0 * d), r + d, Color::rgba(0x000000, 0x18));
+    }
+    g.fill_rrect(panel, r, bg);
+    g.stroke_rrect(panel, r, 1.0, th.border);
+    let mut y = panel.y + pad;
+    let (asc, _) = g.metrics(title_px, FontId::Bold);
+    g.text(title, panel.x + pad, y + asc, title_px, FontId::Bold, th.text);
+    y += title_px * 1.6 + 8.0 * s;
+    let (asc, _) = g.metrics(px, FontId::Regular);
+    let bottom = panel.bottom() - pad - btn_h - 18.0 * s;
+    for (k, v) in rows {
+        if y + lh > bottom + 1.0 {
+            break;
+        }
+        let base = (y + (lh + asc) / 2.0 - px * 0.15).round();
+        if !k.is_empty() {
+            g.text(&k, panel.x + pad, base, px, FontId::Bold, th.text);
+        }
+        g.text(&v, panel.x + pad + col, base, px, FontId::Regular, if col > 0.0 { th.dim } else { th.text });
+        y += lh;
+    }
+    let bw = (88.0 * s).round();
+    let ok = Rect::new(panel.right() - pad - bw, panel.bottom() - pad - btn_h, bw, btn_h);
+    let accent = if th.dark { Color::rgb(0x4CC2FF) } else { Color::rgb(0x0067C0) };
+    g.fill_rrect(ok, (4.0 * s).round(), accent);
+    g.text_in("OK", ok, 13.0 * s, FontId::Bold, if th.dark { Color::rgb(0x000000) } else { Color::rgb(0xFFFFFF) }, Align::Center);
+    (panel, ok)
 }
 
 fn fit(g: &mut Gfx, s: &str, max: f32, px: f32) -> String {
@@ -707,6 +832,12 @@ impl ApplicationHandler<UserEvent> for Shell {
                 }
             }
             UserEvent::A11y(ev) => {
+                if let accesskit_winit::WindowEvent::ActionRequested(req) = &ev.window_event {
+                    if req.target_node == accesskit::NodeId(5) && req.action == accesskit::Action::Click {
+                        self.dialog = None;
+                        self.redraw();
+                    }
+                }
                 if let accesskit_winit::WindowEvent::InitialTreeRequested = ev.window_event {
                     let tree = self.tree();
                     if let Some(w) = &mut self.win {
@@ -768,6 +899,13 @@ impl ApplicationHandler<UserEvent> for Shell {
             WindowEvent::MouseInput { state, button: MouseButton::Left, .. } => match state {
                 ElementState::Pressed => {
                     let Some((x, y)) = self.cursor else { return };
+                    if let Some(d) = &self.dialog {
+                        if d.ok.contains(x, y) || !d.panel.contains(x, y) {
+                            self.dialog = None;
+                            self.redraw();
+                        }
+                        return;
+                    }
                     if let Some(axis) = self.viewer.scrollbar_at(x, y) {
                         self.viewer.drag_scrollbar(axis, x, y);
                         self.drag = Some(Drag::Bar(axis));
@@ -787,6 +925,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     self.update_hover();
                 }
             },
+            WindowEvent::MouseWheel { .. } if self.dialog.is_some() => {}
             WindowEvent::MouseWheel { delta, .. } => {
                 let s = self.scale();
                 let (dx, dy) = match delta {
@@ -893,6 +1032,7 @@ fn main() {
         status_note: None,
         tray,
         hidden: false,
+        dialog: None,
     };
     shell.apply_language();
     if let Err(e) = event_loop.run_app(&mut shell) {

@@ -116,7 +116,10 @@ and HTML and PDF pages are shown dark too: HTML author colors are adapted
 and PDF pages have their lightness inverted. PDF pages that are already
 dark (full-page photos, dark slides) keep their colors; photos inside
 light pages are inverted with the page. View › Dark Pages in Dark Theme
-turns this off to see pages as printed.
+turns this off: every document (Markdown, text, CSV, HTML, PDF) is then
+shown on a light page, as printed, while the window, menus and status bar
+stay dark. The About and Keyboard shortcuts panels are drawn by rview in
+the current theme.
 
 Also: light/dark/system theme (dark menus included), and the interface in
 German, English (UK/US), Spanish, French, Italian, Japanese, Portuguese
@@ -147,7 +150,9 @@ Measured on Windows 10 (release build):
   entities, a local photo, hidden elements and a script that must not run:
   rendered correctly.
 - Dark theme: an HTML report with author colors and a text PDF render dark
-  and readable; a PDF whose cover is a dark photo keeps it as is.
+  and readable; a PDF whose cover is a dark photo keeps it as is. With
+  Dark Pages off, Markdown, CSV and PDF are shown light in the dark window;
+  the Shortcuts and About panels are dark and close with Esc / Enter.
 - Highlighting: a Rust source file and Markdown code blocks (Rust, JSON).
 - `--tray`: starts hidden (about 21 MB); a launch with a file hands it to
   the resident window, which shows it; the close button hides it with the

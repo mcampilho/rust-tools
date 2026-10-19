@@ -564,15 +564,19 @@ impl Viewer {
                 self.content = (0.0, 0.0);
             }
             State::Ready(_) => {
+                // With "Dark Pages" off, documents are shown light even in
+                // the dark theme (the window chrome stays dark).
+                let page_theme = if th.dark && !self.dark_pages { Theme::new(false) } else { *th };
                 g.set_clip(Some(area));
                 match self.kind {
-                    Kind::Text => self.draw_text(g, area, th, s),
-                    Kind::Csv => self.draw_csv(g, area, th, s),
-                    Kind::Markdown | Kind::Html => self.draw_rich(g, area, th, s, media),
+                    Kind::Text => self.draw_text(g, area, &page_theme, s),
+                    Kind::Csv => self.draw_csv(g, area, &page_theme, s),
+                    Kind::Markdown | Kind::Html => self.draw_rich(g, area, &page_theme, s, media),
+                    // PDF pages decide for themselves; the canvas stays themed.
                     Kind::Pdf => self.draw_pdf(g, area, th, s, media),
                 }
                 g.set_clip(None);
-                self.draw_bars(g, th);
+                self.draw_bars(g, &page_theme);
             }
         }
     }
@@ -771,9 +775,8 @@ impl Viewer {
     fn draw_rich(&mut self, g: &mut Gfx, area: Rect, th: &Theme, s: f32, media: &Media) {
         let em = ((layout::BASE_PX * s * self.zoom) * 4.0).round() / 4.0;
         let width = area.w - SCROLLBAR;
-        let html = self.kind == Kind::Html;
-        // Markdown follows the theme; HTML too unless "Dark Pages" is off.
-        let dark = th.dark && (!html || self.dark_pages);
+        // `th` is already light when "Dark Pages" is off.
+        let dark = th.dark;
         let key = (width.round() as i32, (em * 100.0) as i32, self.img_gen, dark);
         if self.rich.is_none() || self.rich_key != key {
             let State::Ready(Content::Rich(doc)) = &self.state else { return };
