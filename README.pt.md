@@ -45,10 +45,33 @@ mais pequenos. O rview precisa do `release`: apanha os pânicos da biblioteca de
 PDF, para que um PDF malformado não feche o programa. O `./dev.ps1 dist` escolhe
 o perfil certo para cada ferramenta.
 
+## Transferir
+
+Cada ferramenta tem as suas [releases](https://github.com/mcampilho/rust-tools/releases),
+num zip com o `.exe`, para Windows 10/11 de 64 bits. Basta descomprimir e executar:
+não há nada para instalar.
+
+Para publicar uma versão, define-a em `apps/<ferramenta>/Cargo.toml` e envia uma tag
+como `rview-v1.1.0`. O [workflow de release](.github/workflows/release.yml) testa e
+compila essa ferramenta e publica-a com a soma SHA-256 e a proveniência da compilação.
+
+## Linux
+
+As três ferramentas compilam em Linux e os testes passam, e o workflow garante que
+isso se mantém, mas ainda não há pacotes para Linux porque falta a maior parte da
+integração com o sistema:
+
+| Ferramenta | Em Linux, por agora |
+| --- | --- |
+| rcalc | Funciona, sem Clipboard nem ícone na área de notificação |
+| rpad | Sem menus, sem diálogos Abrir e Guardar, sem copiar e colar |
+| rview | Abre Markdown, HTML, texto e CSV; sem PDF, imagens, menus nem Clipboard |
+
 ## Organização
 
 ```text
 rust-tools/
+├─ .github/        workflow de release
 ├─ Cargo.toml      membros do workspace e perfis de compilação
 ├─ dev.ps1         cargo com o ambiente das Build Tools; dist
 └─ apps/

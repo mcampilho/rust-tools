@@ -244,9 +244,9 @@ resident instance exits within about 0.2 s, process start included.
 - **Other platforms.** The calculation, parser, conversion and storage code is
   platform-independent and its tests are plain Rust. The UI layer uses
   winit/softbuffer, which support Linux and macOS, and the Windows-only parts
-  are behind `cfg(windows)` (`src/platform.rs`). Non-Windows builds have not
-  been compiled or tested; there, clipboard support is stubbed and the date is
-  read in UTC.
+  are behind `cfg(windows)` (`src/platform.rs`). It compiles on Linux and its
+  tests pass there, but there are no Linux packages yet: the clipboard and the
+  notification-area icon are missing, and the date is read in UTC.
 
 ## Saved data
 

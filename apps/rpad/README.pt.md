@@ -345,8 +345,8 @@ predefinido.
 
 ## Limitações
 
-- Só Windows. O código é maioritariamente portátil, mas não há compilação testada para
-  outros sistemas.
+- Só Windows, por agora. Compila em Linux e os testes passam, mas faltam os menus, os
+  diálogos Abrir e Guardar e o Clipboard.
 - Os ficheiros acima de 256 MB são recusados. Os ficheiros acima de 16 MB abrem em modo de
   ficheiro grande: sem realce de sintaxe, dobragem, estrutura nem translineação.
 - O texto é desenhado numa grelha de células monoespaçadas, sem modelação de texto

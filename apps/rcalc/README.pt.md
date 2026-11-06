@@ -256,9 +256,9 @@ arranque do processo.
 - **Outras plataformas.** O código de cálculo, parser, conversão e armazenamento
   não depende da plataforma, e os seus testes são Rust simples. A camada de
   interface usa winit/softbuffer, que suportam Linux e macOS, e as partes só para
-  Windows estão atrás de `cfg(windows)` (`src/platform.rs`). As versões para outros
-  sistemas não foram compiladas nem testadas; nelas, o Clipboard está desativado e
-  a data é lida em UTC.
+  Windows estão atrás de `cfg(windows)` (`src/platform.rs`). Compila em Linux e os
+  testes passam, mas ainda não há pacotes para Linux: faltam o Clipboard e o ícone na
+  área de notificação, e a data é lida em UTC.
 
 ## Dados guardados
 

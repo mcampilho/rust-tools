@@ -336,8 +336,8 @@ in the UI, and fonts other than the default.
 
 ## Limitations
 
-- Windows only. The code is mostly portable, but there is no tested build
-  for other systems.
+- Windows only for now. It compiles on Linux and its tests pass there, but
+  menus, the Open and Save dialogs and the clipboard are missing.
 - Files over 256 MB are refused. Files over 16 MB open in large-file mode:
   syntax highlighting, folding, the outline and word wrap are off.
 - Text is drawn on a monospace cell grid without complex text shaping:

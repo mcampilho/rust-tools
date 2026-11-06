@@ -158,7 +158,9 @@ pub fn image_key(base: &Path, src: &str) -> String {
     if src.starts_with("data:") || src.contains("://") && !src.starts_with("file:") || src.starts_with("//") {
         return src.to_string();
     }
-    let p = src.strip_prefix("file:///").or_else(|| src.strip_prefix("file://")).unwrap_or(src);
+    // file:///C:/x is the path C:/x on Windows; elsewhere file:///x is /x.
+    let drive_form = if cfg!(windows) { src.strip_prefix("file:///") } else { None };
+    let p = drive_form.or_else(|| src.strip_prefix("file://")).unwrap_or(src);
     let p = percent_decode(p.split(['?', '#']).next().unwrap_or(p));
     let path = Path::new(&p);
     let full = if path.is_absolute() { path.to_path_buf() } else { base.join(path) };
@@ -1169,10 +1171,13 @@ mod tests {
     #[test]
     fn image_keys() {
         let base = Path::new("C:\\docs");
-        assert_eq!(image_key(base, "img/a%20b.png"), "C:\\docs\\img/a b.png");
+        assert_eq!(image_key(base, "img/a%20b.png"), base.join("img/a b.png").to_string_lossy());
         assert_eq!(image_key(base, "https://x.org/a.png"), "https://x.org/a.png");
         assert!(image_key(base, "data:image/png;base64,AAAA").starts_with("data:"));
+        #[cfg(windows)]
         assert_eq!(image_key(base, "file:///C:/x/y.png"), "C:/x/y.png");
+        #[cfg(not(windows))]
+        assert_eq!(image_key(base, "file:///x/y.png"), "/x/y.png");
     }
 
     #[test]

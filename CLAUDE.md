@@ -30,6 +30,12 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
 - Sem rede, sem telemetria, sem biblioteca de interface.
 - `rustfmt.toml`: `max_width = 140`.
 
+## Releases
+
+`.github/workflows/release.yml` corre com tags `<app>-v<versão>` (ex.: `rview-v1.1.0`) e publica só
+Windows. A versão da tag tem de ser igual à de `apps/<app>/Cargo.toml`. Linux é compilado e testado,
+mas não publicado: o que falta está no `README.md`. Atualizar esse quadro ao acrescentar suporte.
+
 ## Código repetido
 
 `syntax/lexer.rs` e `win/tray.rs` são iguais no rpad e no rview; `win/darkmode.rs`, `syntax/lang.rs`,

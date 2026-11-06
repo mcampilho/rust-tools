@@ -44,10 +44,33 @@ rview needs `release`: it catches a panic from the PDF library, so that a
 malformed PDF cannot close the program. `./dev.ps1 dist` picks the right profile
 for each tool.
 
+## Download
+
+Each tool has its own [releases](https://github.com/mcampilho/rust-tools/releases),
+as a zip with the `.exe`, for 64-bit Windows 10/11. Unzip and run: there is
+nothing to install.
+
+To publish a version, set it in `apps/<tool>/Cargo.toml` and push a tag such as
+`rview-v1.1.0`. The [release workflow](.github/workflows/release.yml) then tests
+and builds that tool, and publishes it with its SHA-256 sum and build provenance.
+
+## Linux
+
+The three tools compile on Linux and their tests pass there, and the workflow
+keeps it that way, but there are no Linux packages yet because most of the system
+integration is missing:
+
+| Tool | On Linux, for now |
+| --- | --- |
+| rcalc | Works, without clipboard or notification-area icon |
+| rpad | No menus, no Open and Save dialogs, no copy and paste |
+| rview | Opens Markdown, HTML, text and CSV; no PDF, images, menus or clipboard |
+
 ## Layout
 
 ```text
 rust-tools/
+├─ .github/        release workflow
 ├─ Cargo.toml      workspace members and build profiles
 ├─ dev.ps1         cargo with the Build Tools environment; dist
 └─ apps/
