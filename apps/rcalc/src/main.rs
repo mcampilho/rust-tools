@@ -23,8 +23,8 @@ use winit::window::{Icon as WinIcon, Theme as WinTheme, Window, WindowId, Window
 
 enum UserEvent {
     A11y(accesskit_winit::Event),
-    #[cfg(windows)]
-    Shell(rcalc::winshell::ShellEvent),
+    #[cfg(any(windows, target_os = "linux"))]
+    Shell(rcalc::shell::ShellEvent),
 }
 
 impl From<accesskit_winit::Event> for UserEvent {
@@ -61,8 +61,8 @@ struct Shell {
     tray: bool,
     hidden: bool,
     lang: rcalc::i18n::Lang,
-    #[cfg(windows)]
-    shell: Option<rcalc::winshell::Shell>,
+    #[cfg(any(windows, target_os = "linux"))]
+    shell: Option<rcalc::shell::Shell>,
 }
 
 const DEFAULT_SIZE: (f64, f64) = (340.0, 560.0);
@@ -135,7 +135,7 @@ impl Shell {
             if let Some(w) = &self.win {
                 w.window.set_title(rcalc::i18n::tr("Calculator"));
             }
-            #[cfg(windows)]
+            #[cfg(any(windows, target_os = "linux"))]
             if let Some(sh) = &self.shell {
                 let (tip, open, exit) = tray_labels();
                 sh.set_labels(tip, open, exit);
@@ -144,7 +144,13 @@ impl Shell {
         self.request_redraw();
     }
 
-    fn show_window(&mut self) {
+    fn show_window(&mut self, el: &ActiveEventLoop) {
+        if self.win.is_none() {
+            // Linux closes the window when hiding: see hide_window.
+            self.open_window(el, true);
+            self.sync_window();
+            return;
+        }
         if let Some(w) = &self.win {
             w.window.set_visible(true);
             w.window.set_minimized(false);
@@ -158,7 +164,11 @@ impl Shell {
     /// Hides to the notification area and releases render memory.
     fn hide_window(&mut self) {
         self.save();
-        if let Some(w) = &self.win {
+        if cfg!(target_os = "linux") {
+            // Wayland cannot hide a window, so it is closed and made again.
+            self.win = None;
+            self.on_top = false;
+        } else if let Some(w) = &self.win {
             w.window.set_visible(false);
         }
         self.hidden = true;
@@ -478,11 +488,30 @@ fn tray_labels() -> (&'static str, &'static str, &'static str) {
     (tr("Calculator"), tr("Open Calculator"), tr("Exit"))
 }
 
-impl ApplicationHandler<UserEvent> for Shell {
-    fn resumed(&mut self, el: &ActiveEventLoop) {
-        if self.win.is_some() {
+impl Shell {
+    #[cfg(any(windows, target_os = "linux"))]
+    fn start_shell(&mut self) {
+        if self.shell.is_some() {
             return;
         }
+        let proxy = self.proxy.clone();
+        let (tip, open, exit) = tray_labels();
+        self.shell = rcalc::shell::Shell::new(
+            self.tray,
+            tip,
+            (open, exit),
+            Box::new(move |e| {
+                let _ = proxy.send_event(UserEvent::Shell(e));
+            }),
+        );
+        // Without an icon, a hidden window could not be reached or closed.
+        #[cfg(target_os = "linux")]
+        if !self.shell.as_ref().is_some_and(|s| s.has_icon()) {
+            self.tray = false;
+        }
+    }
+
+    fn open_window(&mut self, el: &ActiveEventLoop, visible: bool) {
         let (w, h) = self.app.window_size.unwrap_or(DEFAULT_SIZE);
         let attrs = Window::default_attributes()
             .with_title(rcalc::i18n::tr("Calculator"))
@@ -516,35 +545,41 @@ impl ApplicationHandler<UserEvent> for Shell {
                 return;
             }
         };
-        if !self.tray {
+        if visible {
             window.set_visible(true);
         }
-        self.hidden = self.tray;
+        self.hidden = !visible;
         self.win = Some(Win { window, surface, adapter });
-        #[cfg(windows)]
-        {
-            let proxy = self.proxy.clone();
-            let (tip, open, exit) = tray_labels();
-            self.shell = rcalc::winshell::Shell::new(
-                self.tray,
-                tip,
-                (open, exit),
-                Box::new(move |e| {
-                    let _ = proxy.send_event(UserEvent::Shell(e));
-                }),
-            );
-        }
         self.theme_pref = self.app.theme_pref;
         self.request_redraw();
+    }
+}
+
+impl ApplicationHandler<UserEvent> for Shell {
+    fn resumed(&mut self, el: &ActiveEventLoop) {
+        if self.win.is_some() {
+            return;
+        }
+        #[cfg(target_os = "linux")]
+        {
+            self.start_shell();
+            if self.tray {
+                self.hidden = true;
+                return;
+            }
+        }
+        self.open_window(el, !self.tray);
+        #[cfg(windows)]
+        self.start_shell();
     }
 
     fn user_event(&mut self, _el: &ActiveEventLoop, event: UserEvent) {
         let ev = match event {
             UserEvent::A11y(ev) => ev,
-            #[cfg(windows)]
-            UserEvent::Shell(rcalc::winshell::ShellEvent::Activate) => return self.show_window(),
-            #[cfg(windows)]
-            UserEvent::Shell(rcalc::winshell::ShellEvent::Exit) => {
+            #[cfg(any(windows, target_os = "linux"))]
+            UserEvent::Shell(rcalc::shell::ShellEvent::Activate) => return self.show_window(_el),
+            #[cfg(any(windows, target_os = "linux"))]
+            UserEvent::Shell(rcalc::shell::ShellEvent::Exit) => {
                 self.save();
                 self.shell = None;
                 _el.exit();
@@ -584,7 +619,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             WindowEvent::CloseRequested if self.tray => self.hide_window(),
             WindowEvent::CloseRequested => {
                 self.save();
-                #[cfg(windows)]
+                #[cfg(any(windows, target_os = "linux"))]
                 {
                     self.shell = None;
                 }
@@ -690,8 +725,8 @@ fn main() {
     let new_window = args.iter().any(|a| a == "--new-window");
     // A second launch (including the Calculator key) shows the running
     // instance and exits immediately.
-    #[cfg(windows)]
-    if !new_window && rcalc::winshell::activate_existing() {
+    #[cfg(any(windows, target_os = "linux"))]
+    if !new_window && rcalc::shell::activate_existing() {
         return;
     }
     let _ = new_window;
@@ -738,7 +773,7 @@ fn main() {
         tray,
         hidden: false,
         lang: rcalc::i18n::lang(),
-        #[cfg(windows)]
+        #[cfg(any(windows, target_os = "linux"))]
         shell: None,
     };
     if let Err(e) = event_loop.run_app(&mut shell) {

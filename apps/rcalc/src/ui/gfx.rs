@@ -142,6 +142,19 @@ struct Fonts {
     cjk: Option<(bool, Option<FontVec>)>,
 }
 
+/// Adds `dir` and its subfolders, as Linux distributions nest fonts differently.
+#[cfg(target_os = "linux")]
+fn add_font_tree(dir: std::path::PathBuf, depth: u32, dirs: &mut Vec<std::path::PathBuf>) {
+    if depth > 0 {
+        for entry in std::fs::read_dir(&dir).into_iter().flatten().flatten() {
+            if entry.file_type().is_ok_and(|t| t.is_dir()) {
+                add_font_tree(entry.path(), depth - 1, dirs);
+            }
+        }
+    }
+    dirs.push(dir);
+}
+
 fn font_dirs() -> Vec<std::path::PathBuf> {
     let mut dirs = Vec::new();
     if let Some(w) = std::env::var_os("WINDIR") {
@@ -156,6 +169,15 @@ fn font_dirs() -> Vec<std::path::PathBuf> {
         "/Library/Fonts",
     ] {
         dirs.push(d.into());
+    }
+    #[cfg(target_os = "linux")]
+    {
+        add_font_tree("/usr/share/fonts".into(), 4, &mut dirs);
+        add_font_tree("/usr/local/share/fonts".into(), 4, &mut dirs);
+        if let Some(home) = std::env::var_os("HOME").map(std::path::PathBuf::from) {
+            add_font_tree(home.join(".local/share/fonts"), 4, &mut dirs);
+            add_font_tree(home.join(".fonts"), 4, &mut dirs);
+        }
     }
     dirs
 }
@@ -175,11 +197,11 @@ fn load_font(names: &[&str]) -> Option<FontVec> {
 
 impl Fonts {
     fn load() -> Result<Fonts, String> {
-        let regular = load_font(&["segoeui.ttf", "DejaVuSans.ttf", "Arial.ttf", "arial.ttf"])
-            .ok_or("No usable system font found (expected Segoe UI in the Windows Fonts folder).")?;
+        let regular = load_font(&["segoeui.ttf", "DejaVuSans.ttf", "NotoSans-Regular.ttf", "LiberationSans-Regular.ttf", "Arial.ttf", "arial.ttf"])
+            .ok_or("No usable system font found (expected Segoe UI on Windows, DejaVu Sans or Noto Sans on Linux).")?;
         Ok(Fonts {
             regular,
-            semibold: load_font(&["seguisb.ttf", "DejaVuSans-Bold.ttf"]),
+            semibold: load_font(&["seguisb.ttf", "DejaVuSans-Bold.ttf", "NotoSans-Bold.ttf", "LiberationSans-Bold.ttf"]),
             symbol: None,
             cjk: None,
         })
@@ -219,9 +241,9 @@ impl Fonts {
         let zh = crate::i18n::lang() == crate::i18n::Lang::ZhCN;
         if self.cjk.as_ref().is_none_or(|(z, _)| *z != zh) {
             let names: &[&str] = if zh {
-                &["msyh.ttc", "simsun.ttc", "YuGothM.ttc", "NotoSansCJK-Regular.ttc"]
+                &["msyh.ttc", "simsun.ttc", "YuGothM.ttc", "NotoSansCJK-Regular.ttc", "NotoSansCJKsc-Regular.otf", "wqy-zenhei.ttc", "DroidSansFallbackFull.ttf"]
             } else {
-                &["YuGothM.ttc", "meiryo.ttc", "msgothic.ttc", "msyh.ttc", "NotoSansCJK-Regular.ttc"]
+                &["YuGothM.ttc", "meiryo.ttc", "msgothic.ttc", "msyh.ttc", "NotoSansCJK-Regular.ttc", "NotoSansCJKjp-Regular.otf", "DroidSansFallbackFull.ttf"]
             };
             self.cjk = Some((zh, load_font(names)));
         }

@@ -27,6 +27,8 @@ embebe ícone + versão com `rc.exe` (sem `rc.exe` compila na mesma, sem ícone)
 - `src/ui/` — camada immediate-mode própria: `gfx` (tiny-skia + ab_glyph), `view` (layouts),
   `icons.rs` (ícones em caminhos vetoriais), `appicon.rs` (ícone da app).
 - `src/platform.rs`, `src/winshell.rs` — Win32 (clipboard, tema, tray, instância única, tecla Calculadora).
+- `src/linuxshell.rs` — Linux: instância única por socket Unix e ícone por StatusNotifierItem (ksni).
+  `platform.rs` usa arboard para o Clipboard e gsettings para o tema. `crate::shell` é o módulo da plataforma.
 - `src/i18n/strings.txt` — tabela de traduções (10 idiomas), uma linha por string.
 - Stack: winit + softbuffer (sem GPU) + tiny-skia + ab_glyph + accesskit. Não introduzir toolkits de UI (egui/iced/Slint).
 
@@ -37,6 +39,7 @@ embebe ícone + versão com `rc.exe` (sem `rc.exe` compila na mesma, sem ícone)
 - Nada de rede: a app nunca abre ligações (taxas de câmbio vêm embutidas ou de `currency.txt`).
 - Não copiar código, ícones ou traduções da Calculadora da Microsoft — só comportamento/aspeto.
 - Partes só-Windows atrás de `cfg(windows)`.
+- Em Linux, esconder a janela destrói-a e mostrar cria-a de novo, porque o Wayland não esconde janelas.
 - `README.md` e `README.pt.md` são atualizados em conjunto.
 
 ## Git

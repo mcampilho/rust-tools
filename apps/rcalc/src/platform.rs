@@ -1,5 +1,6 @@
 //! Small OS integrations: clipboard, local date, theme and accent color.
-//! Windows uses Win32 directly; other platforms get conservative fallbacks.
+//! Windows uses Win32 directly, Linux libc and arboard; other platforms get
+//! conservative fallbacks.
 
 use crate::date::Date;
 
@@ -135,7 +136,72 @@ mod imp {
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(target_os = "linux")]
+mod imp {
+    use super::Date;
+    use std::process::Command;
+    use std::sync::Mutex;
+
+    /// Kept alive: on X11 the copied text lives in the process that copied it.
+    static CLIPBOARD: Mutex<Option<arboard::Clipboard>> = Mutex::new(None);
+
+    fn with_clipboard<T>(f: impl FnOnce(&mut arboard::Clipboard) -> Option<T>) -> Option<T> {
+        let mut slot = CLIPBOARD.lock().ok()?;
+        if slot.is_none() {
+            *slot = arboard::Clipboard::new().ok();
+        }
+        f(slot.as_mut()?)
+    }
+
+    pub fn get_clipboard() -> Option<String> {
+        with_clipboard(|c| c.get_text().ok())
+    }
+
+    pub fn set_clipboard(text: &str) -> bool {
+        with_clipboard(|c| c.set_text(text).ok()).is_some()
+    }
+
+    pub fn today() -> Option<Date> {
+        // SAFETY: time accepts a null pointer; localtime_r only writes `tm`.
+        let tm = unsafe {
+            let now = libc::time(std::ptr::null_mut());
+            let mut tm: libc::tm = std::mem::zeroed();
+            if libc::localtime_r(&now, &mut tm).is_null() {
+                return None;
+            }
+            tm
+        };
+        Date::new(tm.tm_year + 1900, tm.tm_mon as u32 + 1, tm.tm_mday as u32)
+    }
+
+    fn gsetting(key: &str) -> Option<String> {
+        let out = Command::new("gsettings").args(["get", "org.gnome.desktop.interface", key]).output().ok()?;
+        out.status.success().then(|| String::from_utf8_lossy(&out.stdout).trim().to_lowercase())
+    }
+
+    /// GNOME and the desktops that share its settings.
+    pub fn system_dark() -> Option<bool> {
+        if std::env::var("GTK_THEME").is_ok_and(|t| t.to_lowercase().contains("dark")) {
+            return Some(true);
+        }
+        let scheme = gsetting("color-scheme");
+        let theme = gsetting("gtk-theme");
+        (scheme.is_some() || theme.is_some()).then(|| [scheme, theme].iter().flatten().any(|v| v.contains("dark")))
+    }
+
+    pub fn ui_language() -> Option<String> {
+        ["LC_ALL", "LC_MESSAGES", "LANG"]
+            .iter()
+            .find_map(|v| std::env::var(v).ok().filter(|l| !l.is_empty()))
+            .map(|l| l.split(['.', '@']).next().unwrap_or("").replace('_', "-"))
+    }
+
+    pub fn accent() -> Option<u32> {
+        None
+    }
+}
+
+#[cfg(not(any(windows, target_os = "linux")))]
 mod imp {
     use super::Date;
 
@@ -196,4 +262,14 @@ pub use imp::{accent, get_clipboard, set_clipboard, system_dark, ui_language};
 
 pub fn today() -> Date {
     imp::today().unwrap_or(Date { y: 2026, m: 1, d: 1 })
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    #[test]
+    fn today_is_the_local_date() {
+        let out = std::process::Command::new("date").arg("+%Y-%-m-%-d").output().unwrap();
+        let today = super::today();
+        assert_eq!(String::from_utf8_lossy(&out.stdout).trim(), format!("{}-{}-{}", today.y, today.m, today.d));
+    }
 }

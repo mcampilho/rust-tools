@@ -7,7 +7,7 @@ shortcuts. The release build is a single ~1.9 MB `.exe` with an embedded
 icon. It needs no installation, no administrator rights, no network, and no
 runtime beyond what ships with Windows. The UI is available in 10 languages,
 and rcalc can stay resident in the notification area and open with the
-keyboard's Calculator key.
+keyboard's Calculator key. There is also a [Linux](#linux) version.
 
 [Versão portuguesa](README.pt.md)
 
@@ -244,9 +244,37 @@ resident instance exits within about 0.2 s, process start included.
 - **Other platforms.** The calculation, parser, conversion and storage code is
   platform-independent and its tests are plain Rust. The UI layer uses
   winit/softbuffer, which support Linux and macOS, and the Windows-only parts
-  are behind `cfg(windows)` (`src/platform.rs`). It compiles on Linux and its
-  tests pass there, but there are no Linux packages yet: the clipboard and the
-  notification-area icon are missing, and the date is read in UTC.
+  are behind `cfg(windows)` (`src/platform.rs`). See [Linux](#linux). macOS has
+  not been compiled or tested.
+
+## Linux
+
+The Linux package is a `tar.gz` with the `rcalc` binary. It runs on X11 and
+Wayland, and needs glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 36).
+
+- **Libraries.** It loads the display libraries when it starts, and they are on
+  any desktop: `libwayland-client` and `libxkbcommon` on Wayland, `libX11`,
+  `libxcursor`, `libxkbcommon` and `libxkbcommon-x11` on X11. If X11 stops with
+  an error naming `libxkbcommon-x11.so`, install `libxkbcommon-x11-0`.
+- **Fonts.** It uses DejaVu Sans, Noto Sans or Liberation Sans, found under
+  `/usr/share/fonts`, `/usr/local/share/fonts`, `~/.local/share/fonts` or
+  `~/.fonts`. Japanese and Chinese need Noto Sans CJK, WenQuanYi Zen Hei or Droid
+  Sans Fallback.
+- **Clipboard.** Copied text lives in rcalc until a clipboard manager takes it, so
+  it may be lost when rcalc closes on a desktop without one.
+- **Notification area.** `--tray` uses StatusNotifierItem, as on KDE, Xfce, Cinnamon
+  and others. GNOME needs the AppIndicator extension. With no host for the icon,
+  `--tray` is ignored and rcalc opens as a normal window. On Wayland it cannot be
+  hidden, so while resident the window is closed and made again.
+- **Theme.** "Use system setting" reads the GNOME settings when rcalc starts, and
+  does not follow later changes. Elsewhere, choose Light or Dark in Settings. The
+  accent colour is the default one.
+- **Other differences.** There is no Calculator key option. The language comes from
+  `LC_ALL`, `LC_MESSAGES` or `LANG`.
+
+Checked under WSL2 on X11, except where noted: drawing, keyboard input, copy (also
+on Wayland), the local date, a second launch, a socket left by a crash, and the
+tray icon and resident mode against a simulated host, not a real desktop.
 
 ## Saved data
 

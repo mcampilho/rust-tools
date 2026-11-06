@@ -12,5 +12,12 @@ pub mod num;
 pub mod platform;
 pub mod storage;
 pub mod ui;
+#[cfg(target_os = "linux")]
+pub mod linuxshell;
 #[cfg(windows)]
 pub mod winshell;
+
+#[cfg(target_os = "linux")]
+pub use linuxshell as shell;
+#[cfg(windows)]
+pub use winshell as shell;

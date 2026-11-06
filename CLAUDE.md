@@ -32,9 +32,15 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
 
 ## Releases
 
-`.github/workflows/release.yml` corre com tags `<app>-v<versão>` (ex.: `rview-v1.1.0`) e publica só
-Windows. A versão da tag tem de ser igual à de `apps/<app>/Cargo.toml`. Linux é compilado e testado,
-mas não publicado: o que falta está no `README.md`. Atualizar esse quadro ao acrescentar suporte.
+`.github/workflows/release.yml` corre com tags `<app>-v<versão>` (ex.: `rview-v1.1.0`). A versão da
+tag tem de ser igual à de `apps/<app>/Cargo.toml`. O rcalc é publicado para Windows e Linux; o rpad e o
+rview só para Windows, embora sejam compilados e testados em Linux. O que falta está no `README.md`:
+atualizar esse quadro e o workflow ao acrescentar suporte.
+
+## Testar em Linux
+
+O WSL corre X11 e Wayland, mas não simula tudo: o winit em X11 precisa da `libxkbcommon-x11`, e o ícone
+de notificação precisa de um anfitrião StatusNotifierItem, que o WSL não tem.
 
 ## Código repetido
 

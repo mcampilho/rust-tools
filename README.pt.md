@@ -49,7 +49,7 @@ o perfil certo para cada ferramenta.
 
 Cada ferramenta tem as suas [releases](https://github.com/mcampilho/rust-tools/releases),
 num zip com o `.exe`, para Windows 10/11 de 64 bits. Basta descomprimir e executar:
-não há nada para instalar.
+não há nada para instalar. O rcalc tem também um pacote para Linux.
 
 Para publicar uma versão, define-a em `apps/<ferramenta>/Cargo.toml` e envia uma tag
 como `rview-v1.1.0`. O [workflow de release](.github/workflows/release.yml) testa e
@@ -58,14 +58,13 @@ compila essa ferramenta e publica-a com a soma SHA-256 e a proveniência da comp
 ## Linux
 
 As três ferramentas compilam em Linux e os testes passam, e o workflow garante que
-isso se mantém, mas ainda não há pacotes para Linux porque falta a maior parte da
-integração com o sistema:
+isso se mantém. Por agora, só o rcalc está suficientemente completo para ter pacote:
 
 | Ferramenta | Em Linux, por agora |
 | --- | --- |
-| rcalc | Funciona, sem Clipboard nem ícone na área de notificação |
-| rpad | Sem menus, sem diálogos Abrir e Guardar, sem copiar e colar |
-| rview | Abre Markdown, HTML, texto e CSV; sem PDF, imagens, menus nem Clipboard |
+| rcalc | Funciona: ver o [README](apps/rcalc/README.pt.md#linux) |
+| rpad | Sem pacote: sem menus, sem diálogos Abrir e Guardar, sem copiar e colar |
+| rview | Sem pacote: abre Markdown, HTML, texto e CSV; sem PDF, imagens, menus nem Clipboard |
 
 ## Organização
 

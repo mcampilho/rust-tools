@@ -1,7 +1,8 @@
 # Builds one tool when its version tag is pushed (rcalc-v1.1.0, rpad-v1.0.0,
-# rview-v1.1.0) and publishes it as a GitHub release, with a SHA-256 sum and
-# build provenance. Linux is built and tested, but not published yet: most of
-# the system integration there is still missing (see the root README).
+# rview-v1.1.0) and publishes it as a GitHub release, with SHA-256 sums and
+# build provenance. rcalc is published for Windows and Linux. rpad and rview
+# are published for Windows only, as their Linux versions are still incomplete
+# (see the root README), but they are built and tested there too.
 name: release
 
 on:
@@ -104,27 +105,65 @@ jobs:
           name: windows-x86_64
           path: ${{ env.ASSET }}
 
-  # Keeps the Linux code compiling and its tests passing. It does not block the
-  # release, and it publishes nothing.
+  # rcalc is published for Linux. The other tools are only kept compiling and
+  # passing their tests, so a failure there does not block their release.
+  # The oldest runner gives the widest glibc compatibility.
   linux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ env.TAG }}
+
+      - name: Tool and profile from the tag
+        run: |
+          app="${TAG%%-v*}"
+          case "$app" in
+            rview) profile=release ;;
+            *) profile=release-small ;;
+          esac
+          {
+            echo "APP=$app"
+            echo "VERSION=${TAG#*-v}"
+            echo "PROFILE=$profile"
+          } >> "$GITHUB_ENV"
 
       - uses: dtolnay/rust-toolchain@stable
 
       - uses: Swatinem/rust-cache@v2
 
       - name: Test
-        run: cargo test -p "${TAG%%-v*}" --locked
+        continue-on-error: ${{ !startsWith(env.TAG, 'rcalc-') }}
+        run: cargo test -p "$APP" --locked
 
       - name: Build
-        run: cargo build -p "${TAG%%-v*}" --release --locked
+        continue-on-error: ${{ !startsWith(env.TAG, 'rcalc-') }}
+        run: cargo build -p "$APP" --profile "$PROFILE" --locked
+
+      - name: Package
+        if: startsWith(env.TAG, 'rcalc-')
+        run: |
+          dir="$APP-$VERSION-linux-x86_64"
+          mkdir "$dir"
+          cp "target/$PROFILE/$APP" "$dir"/
+          cp "apps/$APP/README.md" "apps/$APP/README.pt.md" LICENSE "$dir"/
+          tar -czf "$dir.tar.gz" "$dir"
+          echo "ASSET=$dir.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Provenance
+        if: startsWith(env.TAG, 'rcalc-')
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: ${{ env.ASSET }}
+
+      - uses: actions/upload-artifact@v7
+        if: startsWith(env.TAG, 'rcalc-')
+        with:
+          name: linux-x86_64
+          path: ${{ env.ASSET }}
 
   release:
-    needs: windows
+    needs: [windows, linux]
     if: github.event_name == 'push' || inputs.publish
     runs-on: ubuntu-latest
     steps:
@@ -145,6 +184,7 @@ jobs:
           version="${TAG#*-v}"
           cat > notes.md <<EOF
           Windows 10/11, 64-bit. Unzip and run \`$app.exe\`: there is nothing to install.
+          $(ls dist/*.tar.gz > /dev/null 2>&1 && printf '\n%s\n' "Linux, x86-64. Extract and run \`./$app\`: see the README for what it needs.")
 
           See the [README](https://github.com/$GITHUB_REPOSITORY/blob/$TAG/apps/$app/README.md) ([em português](https://github.com/$GITHUB_REPOSITORY/blob/$TAG/apps/$app/README.pt.md)).
           EOF
