@@ -6,6 +6,9 @@ select and copy what you see.
 
 [Versão portuguesa](README.pt.md)
 
+rview is part of [rust-tools](../../README.md). Commands below run from the
+repository root.
+
 `rview.exe` is a single 4.4 MB executable: no installer, no runtime, no
 DLLs beyond those that ship with Windows, and no registry writes unless you
 ask for Explorer integration. It makes no network connections, has no
@@ -33,15 +36,17 @@ background thread, with the lopdf library.
 Requirements: Rust 1.88+ with the MSVC target and the MSVC Build Tools.
 
 ```powershell
-cargo build --release
-# or, with portable Build Tools (loads $env:RVIEW_MSVC_ENV, default
-# D:\Portable\Tools\dev\msvc\devcmd.ps1):
-./dev.ps1 build --release
-./dev.ps1 test
-./dev.ps1 clippy --all-targets
+cargo build --release -p rview
+# or, with portable Build Tools (loads $env:RUST_TOOLS_MSVC_ENV, or looks in
+# \Portable\Tools\dev\msvc on E: and D:):
+./dev.ps1 build --release -p rview
+./dev.ps1 test -p rview
+./dev.ps1 clippy -p rview --all-targets
 ```
 
-The output is `target\release\rview.exe`. The C runtime is linked
+The output is `target\release\rview.exe`. Use the `release` profile: unlike
+`release-small`, it keeps panic unwinding, so a malformed PDF cannot close the
+program. The C runtime is linked
 statically; the icon, version info and manifest (per-monitor DPI v2, long
 paths) are embedded by `build.rs`.
 
@@ -192,7 +197,7 @@ View › Display Language.
 
 ## Tests and verification
 
-`cargo test` runs 95 tests: the text, CSV, Markdown, HTML and CSS parsers,
+`cargo test -p rview` runs 95 tests: the text, CSV, Markdown, HTML and CSS parsers,
 the layout engine (wrapping, zoom, long words, links), encodings, links
 and image paths, settings, the translation table (every string in the
 code and menus has all languages; placeholders and access keys match),
@@ -267,4 +272,4 @@ large or password-protected PDFs, right-to-left documents.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](../../LICENSE).

@@ -9,6 +9,11 @@ rpad takes ideas from the classic Windows text editors (tabs, encodings and
 line endings, search and replace, text tools, XML helpers), but its code,
 icon and artwork are its own.
 
+[Versão portuguesa](README.pt.md)
+
+rpad is part of [rust-tools](../../README.md). Commands below run from the
+repository root.
+
 ## Build
 
 Requirements: Rust 1.88+ with the MSVC target (`x86_64-pc-windows-msvc`) and
@@ -16,16 +21,18 @@ the MSVC Build Tools (linker and `rc.exe`).
 
 ```powershell
 # With the Build Tools on PATH (a "Developer PowerShell"):
-cargo build --release
+cargo build --profile release-small -p rpad
 
-# Or with portable Build Tools: dev.ps1 loads the environment from
-# $env:RPAD_MSVC_ENV (default D:\Portable\Tools\dev\msvc\devcmd.ps1) first.
-./dev.ps1 build --release
-./dev.ps1 test
-./dev.ps1 clippy --all-targets
+# Or with portable Build Tools: dev.ps1 first loads the environment from
+# $env:RUST_TOOLS_MSVC_ENV, or from \Portable\Tools\dev\msvc on E: or D:.
+./dev.ps1 build --profile release-small -p rpad
+./dev.ps1 test -p rpad
+./dev.ps1 clippy -p rpad --all-targets
 ```
 
-The output is `target\release\rpad.exe`. The C runtime is statically linked
+The output is `target\release-small\rpad.exe`. The `release-small` profile (see
+the root `Cargo.toml`) aborts on panic, which makes the exe about 20% smaller;
+crash recovery does not depend on it. The C runtime is statically linked
 (`.cargo/config.toml`), and the icon, version info and the application
 manifest are embedded by `build.rs`. The manifest enables Common Controls 6,
 per-monitor DPI awareness v2 and long paths.
@@ -269,7 +276,7 @@ Windows versions without them the menus just stay light.
 
 ## Tests
 
-`cargo test` runs 115 tests. They cover the buffer and editing operations,
+`cargo test -p rpad` runs 115 tests. They cover the buffer and editing operations,
 encodings (round trips, detection, unmappable characters), line endings,
 the lexer, search, text tools, XML, settings, session and recovery files,
 layout, and end-to-end workflows through a mock host:
@@ -356,4 +363,4 @@ in the UI, and fonts other than the default.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](../../LICENSE).

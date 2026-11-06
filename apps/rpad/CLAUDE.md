@@ -9,14 +9,13 @@ atalhos e limitações estão no `README.md`.
 ## Comandos
 
 ```powershell
-./dev.ps1 build --release     # carrega o MSVC portátil (RPAD_MSVC_ENV, por omissão D:\Portable\Tools\dev\msvc\devcmd.ps1)
-./dev.ps1 test                # 115 testes
-./dev.ps1 clippy --all-targets
+./dev.ps1 build --profile release-small -p rpad
+./dev.ps1 test -p rpad        # 115 testes
+./dev.ps1 clippy -p rpad --all-targets
 ```
 
-Saída: `target\release\rpad.exe`. Rust 1.88+, alvo `x86_64-pc-windows-msvc`.
+Correm na raiz do repositório. Saída: `target\release-small\rpad.exe`. Rust 1.88+, alvo `x86_64-pc-windows-msvc`.
 `build.rs` embebe ícone, versão e manifesto (Common Controls 6, DPI per-monitor v2, long paths).
-O critério de "pronto" é: build release sem avisos, clippy limpo, todos os testes a passar.
 
 ## Arquitetura (`src/`)
 
@@ -39,8 +38,8 @@ O critério de "pronto" é: build release sem avisos, clippy limpo, todos os tes
 - Qualquer string visível nova precisa de linha completa em `strings.txt` (os testes verificam
   placeholders `{}`, quebras de linha e exatamente uma tecla de acesso nos menus).
 - Nada de rede; o preview de Markdown nunca abre links nem busca imagens.
-- `rustfmt.toml`: `max_width = 140`.
+- `README.md` e `README.pt.md` são atualizados em conjunto.
 
 ## Git
 
-Repositório local, ramo `master`, sem remote.
+Faz parte do monorepo `rust-tools`: ver o `CLAUDE.md` da raiz.

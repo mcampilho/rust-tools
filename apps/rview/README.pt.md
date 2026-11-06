@@ -6,6 +6,9 @@ zoom, e permite selecionar e copiar o que se vê.
 
 [English version](README.md)
 
+O rview faz parte do [rust-tools](../../README.pt.md). Os comandos abaixo correm
+na raiz do repositório.
+
 O `rview.exe` é um único executável de 4,4 MB: sem instalador, sem runtime,
 sem DLL além das que vêm com o Windows e sem escrever no registo, a não ser
 que peça a integração com o Explorador. Não faz ligações de rede, não tem
@@ -33,15 +36,17 @@ PDF é lido à parte, numa thread em segundo plano, com a biblioteca lopdf.
 Requisitos: Rust 1.88+ com o alvo MSVC e as MSVC Build Tools.
 
 ```powershell
-cargo build --release
-# ou, com Build Tools portáteis (carrega $env:RVIEW_MSVC_ENV, por omissão
-# D:\Portable\Tools\dev\msvc\devcmd.ps1):
-./dev.ps1 build --release
-./dev.ps1 test
-./dev.ps1 clippy --all-targets
+cargo build --release -p rview
+# ou, com Build Tools portáteis (carrega $env:RUST_TOOLS_MSVC_ENV, ou procura em
+# \Portable\Tools\dev\msvc nos discos E: e D:):
+./dev.ps1 build --release -p rview
+./dev.ps1 test -p rview
+./dev.ps1 clippy -p rview --all-targets
 ```
 
-O resultado é `target\release\rview.exe`. A biblioteca C é ligada
+O resultado é `target\release\rview.exe`. Usa o perfil `release`: ao contrário
+do `release-small`, mantém o desenrolar de pânicos, para que um PDF malformado
+não feche o programa. A biblioteca C é ligada
 estaticamente; o ícone, a informação de versão e o manifesto (DPI por monitor
 v2, caminhos longos) são embebidos pelo `build.rs`.
 
@@ -197,7 +202,7 @@ escolhida em Ver › Idioma da interface.
 
 ## Testes e verificação
 
-`cargo test` corre 95 testes: os parsers de texto, CSV, Markdown, HTML e CSS, o
+`cargo test -p rview` corre 95 testes: os parsers de texto, CSV, Markdown, HTML e CSS, o
 motor de layout (quebra de linhas, zoom, palavras longas, ligações),
 codificações, ligações e caminhos de imagens, definições, a tabela de traduções
 (todas as frases do código e dos menus têm todos os idiomas; os marcadores e as
@@ -278,4 +283,4 @@ direita para a esquerda.
 
 ## Licença
 
-MIT. Ver [LICENSE](LICENSE).
+MIT. Ver [LICENSE](../../LICENSE).

@@ -1,0 +1,49 @@
+[workspace]
+members = ["apps/*"]
+resolver = "2"
+
+# Profiles apply to the whole workspace: Cargo ignores them in member crates.
+# `panic` cannot be set per package, hence two release profiles:
+# - release: unwinds. rview must use it, as catch_unwind contains a lopdf panic
+#   on a malformed PDF. It is the default so that a plain build is always safe.
+# - release-small: aborts, for rcalc and rpad, which come out about 20% smaller.
+# `./dev.ps1 dist` builds each app with the right one.
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+
+[profile.release-small]
+inherits = "release"
+panic = "abort"
+
+# PDF text reading in rview is rarely on a hot path: these crates are built
+# for size, the drawing code keeps opt-level 3.
+[profile.release.package.lopdf]
+opt-level = "s"
+[profile.release.package.nom]
+opt-level = "s"
+[profile.release.package.brotli-decompressor]
+opt-level = "s"
+[profile.release.package.aes]
+opt-level = "s"
+[profile.release.package.sha2]
+opt-level = "s"
+[profile.release.package.md-5]
+opt-level = "s"
+[profile.release.package.stringprep]
+opt-level = "s"
+[profile.release.package.unicode-normalization]
+opt-level = "s"
+[profile.release.package.rand]
+opt-level = "s"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.dev.build-override]
+debug-assertions = false

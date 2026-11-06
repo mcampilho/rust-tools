@@ -3,18 +3,18 @@
 Calculadora de secretária para Windows inspirada na Calculadora do Windows
 (Standard, Scientific, Programmer, Date, Converters). Um único `rcalc.exe`
 (~1,9 MB), sem instalação, sem rede. Detalhes de funcionalidades, precisão
-numérica e atalhos estão no `README.md` — consulta-o antes de mudar comportamento.
+numérica e atalhos estão no `README.md` (e `README.pt.md`) — consulta-o antes de mudar comportamento.
 
 ## Comandos
 
 ```powershell
-./dev.ps1 build --release     # carrega o MSVC portátil (RCALC_MSVC_ENV, por omissão D:\Portable\Tools\dev\msvc\devcmd.ps1)
-./dev.ps1 test
-./dev.ps1 clippy --all-targets
-cargo test --lib screenshots -- --ignored   # renderiza todas as vistas para target/screens/*.png
+./dev.ps1 build --profile release-small -p rcalc
+./dev.ps1 test -p rcalc       # 72 testes
+./dev.ps1 clippy -p rcalc --all-targets
+./dev.ps1 test -p rcalc --lib screenshots '--' --ignored   # renderiza todas as vistas para apps/rcalc/target/screens/*.png
 ```
 
-Saída: `target\release\rcalc.exe`. Rust 1.88+, alvo `x86_64-pc-windows-msvc`.
+Correm na raiz do repositório. Saída: `target\release-small\rcalc.exe`. Rust 1.88+, alvo `x86_64-pc-windows-msvc`.
 `.cargo/config.toml` liga o CRT estaticamente; `build.rs` desenha o ícone e
 embebe ícone + versão com `rc.exe` (sem `rc.exe` compila na mesma, sem ícone).
 
@@ -36,9 +36,9 @@ embebe ícone + versão com `rc.exe` (sem `rc.exe` compila na mesma, sem ícone)
   os testes de i18n falham se faltar (incluindo um render em alemão que deteta inglês no ecrã).
 - Nada de rede: a app nunca abre ligações (taxas de câmbio vêm embutidas ou de `currency.txt`).
 - Não copiar código, ícones ou traduções da Calculadora da Microsoft — só comportamento/aspeto.
-- `rustfmt.toml`: `max_width = 140`.
 - Partes só-Windows atrás de `cfg(windows)`.
+- `README.md` e `README.pt.md` são atualizados em conjunto.
 
 ## Git
 
-Repositório local, ramo `master`, sem remote.
+Faz parte do monorepo `rust-tools`: ver o `CLAUDE.md` da raiz.

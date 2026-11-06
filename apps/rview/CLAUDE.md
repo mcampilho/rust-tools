@@ -9,13 +9,13 @@ Detalhes por formato, atalhos e limitações estão no `README.md`.
 ## Comandos
 
 ```powershell
-./dev.ps1 build --release     # carrega o MSVC portátil (RVIEW_MSVC_ENV, por omissão D:\Portable\Tools\dev\msvc\devcmd.ps1)
-./dev.ps1 test                # 95 testes
-./dev.ps1 clippy --all-targets
+./dev.ps1 build --release -p rview
+./dev.ps1 test -p rview       # 95 testes
+./dev.ps1 clippy -p rview --all-targets
 ```
 
-Saída: `target\release\rview.exe`. Rust 1.88+, alvo `x86_64-pc-windows-msvc`.
-`build.rs` embebe ícone, versão e manifesto. "Pronto" = sem avisos, clippy limpo, testes a passar.
+Correm na raiz do repositório. Saída: `target\release\rview.exe`. Rust 1.88+, alvo `x86_64-pc-windows-msvc`.
+`build.rs` embebe ícone, versão e manifesto.
 
 ## Arquitetura (`src/`)
 
@@ -39,13 +39,12 @@ Saída: `target\release\rview.exe`. Rust 1.88+, alvo `x86_64-pc-windows-msvc`.
 - Qualquer string visível nova precisa de linha completa em `strings.txt`.
 - Copiar usa sempre as cores originais do documento, nunca as adaptadas ao tema escuro.
 - A leitura de texto dos PDF corre numa thread própria com `catch_unwind`: um ficheiro que faça
-  a lopdf entrar em pânico só fica sem texto selecionável. Por isso o perfil release não usa
-  `panic = "abort"`.
+  a lopdf entrar em pânico só fica sem texto selecionável. Por isso o rview usa sempre o perfil
+  `release`, nunca o `release-small`, que aborta em pânicos.
 - O teclado e o rato reais são precisos para testar arrastos: o winit confirma a posição real do
   cursor e ignora `WM_MOUSEMOVE` simulado.
 - `README.md` e `README.pt.md` são atualizados em conjunto.
-- `rustfmt.toml`: `max_width = 140`.
 
 ## Git
 
-Repositório local, ramo `master`, sem remote.
+Faz parte do monorepo `rust-tools`: ver o `CLAUDE.md` da raiz.

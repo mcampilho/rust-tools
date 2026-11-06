@@ -9,6 +9,11 @@ runtime beyond what ships with Windows. The UI is available in 10 languages,
 and rcalc can stay resident in the notification area and open with the
 keyboard's Calculator key.
 
+[Versão portuguesa](README.pt.md)
+
+rcalc is part of [rust-tools](../../README.md). Commands below run from the
+repository root.
+
 | Standard | Scientific | Programmer | Date | Converter |
 |---|---|---|---|---|
 | ![Standard](docs/screenshots/standard_dark.png) | ![Scientific](docs/screenshots/scientific.png) | ![Programmer](docs/screenshots/programmer.png) | ![Date](docs/screenshots/date_add.png) | ![Length](docs/screenshots/converter_length.png) |
@@ -130,42 +135,43 @@ Requires Rust 1.88 or newer.
 ### Windows with Visual Studio / Build Tools (MSVC) — recommended
 
 ```bash
-cargo build --release
+cargo build --profile release-small -p rcalc
 ```
 
-`.cargo/config.toml` links the C runtime statically (`+crt-static`), so the
+The `release-small` profile (see the root `Cargo.toml`) aborts on panic, which
+makes the exe about 20% smaller. `.cargo/config.toml` links the C runtime statically (`+crt-static`), so the
 exe does not need the VC++ redistributable.
 
 ### Windows with portable MSVC Build Tools (no Visual Studio install)
 
 `dev.ps1` loads a portable Build Tools environment (`devcmd.ps1`) before running
-cargo. By default it uses `D:\Portable\Tools\dev\msvc\devcmd.ps1`; set
-`RCALC_MSVC_ENV` to use a different path.
+cargo. It looks for `devcmd.ps1` in `\Portable\Tools\dev\msvc` on `E:` and
+`D:`; set `RUST_TOOLS_MSVC_ENV` to use a different path.
 
 ```bash
-powershell -ExecutionPolicy Bypass -File dev.ps1 build --release
+powershell -ExecutionPolicy Bypass -File dev.ps1 build --profile release-small -p rcalc
 ```
 
 ### Windows with MinGW (GNU toolchain)
 
 ```bash
 rustup toolchain install stable-x86_64-pc-windows-gnu
-cargo +stable-x86_64-pc-windows-gnu build --release
+cargo +stable-x86_64-pc-windows-gnu build --profile release-small -p rcalc
 ```
 
-The output then lands in the same `target\release` folder. Only the MSVC
+The output then lands in the same `target\release-small` folder. Only the MSVC
 build has been checked for dependencies; see "Portability" below.
 
 ### Output
 
 ```
-target\release\rcalc.exe
+target\release-small\rcalc.exe
 ```
 
 ### Tests
 
 ```bash
-cargo test
+cargo test -p rcalc
 ```
 
 The suite has 65 unit tests and 7 integration tests. They cover the decimal
@@ -180,11 +186,11 @@ keyboard and state handling. Three tests check the localization:
 
 A registry test exercises the Calculator-key code on a temporary key under
 `HKCU\Software\rcalc-test-<pid>` and deletes it afterwards. To render every
-view to `target/screens/*.png` for visual review, in English and in five
-other languages:
+view to `apps/rcalc/target/screens/*.png` for visual review, in English and in
+five other languages:
 
 ```bash
-cargo test --lib screenshots -- --ignored
+cargo test -p rcalc --lib screenshots -- --ignored
 ```
 
 ### Executable icon and version info
@@ -412,4 +418,4 @@ tests/        integration tests
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](../../LICENSE).
