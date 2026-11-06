@@ -1,4 +1,4 @@
-//! rpad: a portable, offline text editor for Windows.
+//! rpad: a portable, offline text editor for Windows and Linux.
 //!
 //! The window is driven by winit and every frame is rendered on the CPU
 //! (tiny-skia + ab_glyph) into a softbuffer surface, so the program needs no
@@ -19,6 +19,8 @@ mod tools;
 mod ui;
 #[cfg(windows)]
 mod win;
+#[cfg(not(windows))]
+mod linux;
 
 use app::commands::{Command, M};
 use app::input::{Key, KeyInput};
@@ -47,6 +49,8 @@ enum UserEvent {
     Wake,
     #[cfg(windows)]
     Win(win::WinMsg),
+    #[cfg(not(windows))]
+    Shell(linux::shell::Msg),
 }
 
 impl From<accesskit_winit::Event> for UserEvent {
@@ -110,35 +114,39 @@ impl Host for WinHost {
 
 #[cfg(not(windows))]
 impl Host for WinHost {
-    fn ask_save(&self, _: &str) -> Answer {
-        Answer::Cancel
+    fn ask_save(&self, name: &str) -> Answer {
+        linux::dialogs::ask_save(&i18n::tf("Do you want to save changes to {}?", &[name]))
     }
-    fn confirm(&self, _: &str, _: &str) -> bool {
-        false
+    fn confirm(&self, title: &str, text: &str) -> bool {
+        linux::dialogs::confirm(title, text)
     }
-    fn info(&self, _: &str, text: &str) {
-        eprintln!("{text}");
+    fn info(&self, title: &str, text: &str) {
+        linux::dialogs::info(title, text);
     }
-    fn error(&self, _: &str, text: &str) {
-        eprintln!("{text}");
+    fn error(&self, title: &str, text: &str) {
+        linux::dialogs::error(title, text);
     }
-    fn open_dialog(&self, _: Option<&Path>) -> Vec<PathBuf> {
-        Vec::new()
+    fn open_dialog(&self, dir: Option<&Path>) -> Vec<PathBuf> {
+        linux::dialogs::open_files(dir)
     }
-    fn save_dialog(&self, _: &str, _: Option<&Path>) -> Option<PathBuf> {
-        None
+    fn save_dialog(&self, name: &str, dir: Option<&Path>) -> Option<PathBuf> {
+        linux::dialogs::save_file(name, dir)
     }
     fn pick_folder(&self) -> Option<PathBuf> {
-        None
+        linux::dialogs::pick_folder(&i18n::tr("Choose the folder to search"))
     }
-    fn choose_font(&self, _: &str, _: f32) -> Option<(String, f32)> {
-        None
+    fn choose_font(&self, face: &str, size: f32) -> Option<(String, f32)> {
+        linux::dialogs::choose_font(face, size)
     }
     fn clipboard_get(&self) -> Option<String> {
-        None
+        linux::get_clipboard()
     }
-    fn clipboard_set(&self, _: &str) {}
-    fn reveal(&self, _: &Path) {}
+    fn clipboard_set(&self, text: &str) {
+        linux::set_clipboard(text);
+    }
+    fn reveal(&self, path: &Path) {
+        linux::reveal(path);
+    }
 }
 
 // ---------------------------------------------------------------- shell
@@ -165,6 +173,7 @@ struct Shell {
     accent: Color,
     theme_pref: Option<ThemePref>,
     /// Recent files the menu was built with.
+    #[cfg(windows)]
     menu_recent: Vec<PathBuf>,
     /// Pressed widget (activates on release over the same widget).
     pressed: Option<WId>,
@@ -185,6 +194,8 @@ struct Shell {
     hidden: bool,
     /// Theme the native menus were last drawn with (dark or not).
     menu_dark: Option<bool>,
+    #[cfg(not(windows))]
+    shell: Option<linux::shell::Shell>,
 }
 
 fn theme_for(pref: ThemePref) -> Option<WinTheme> {
@@ -290,8 +301,14 @@ impl Shell {
         self.app.write_recovery(false);
         self.remember_window();
         self.app.save_settings();
-        if let Some(w) = &self.win {
-            w.window.set_visible(false);
+        if cfg!(windows) {
+            if let Some(w) = &self.win {
+                w.window.set_visible(false);
+            }
+        } else {
+            // Wayland cannot hide a window, so it is closed and made again.
+            self.win = None;
+            self.cursor = None;
         }
         self.hidden = true;
         self.focused = false;
@@ -302,7 +319,10 @@ impl Shell {
         self.gfx.trim_cache();
     }
 
-    fn show(&mut self) {
+    fn show(&mut self, el: &ActiveEventLoop) {
+        if self.win.is_none() && !self.open_window(el) {
+            return;
+        }
         if let Some(w) = &self.win {
             w.window.set_visible(true);
             w.window.set_minimized(false);
@@ -319,7 +339,7 @@ impl Shell {
     /// asks about unsaved documents.
     fn quit(&mut self, el: &ActiveEventLoop) {
         if !self.app.settings.recovery && self.app.docs.iter().any(|d| d.is_modified()) && self.hidden {
-            self.show();
+            self.show(el);
         }
         if !self.app.settings.recovery && !self.app.confirm_all(&self.host) {
             self.redraw();
@@ -327,6 +347,10 @@ impl Shell {
         }
         #[cfg(windows)]
         win::tray::remove(self.host.hwnd);
+        #[cfg(not(windows))]
+        {
+            self.shell = None;
+        }
         self.app.stop_fif();
         self.app.write_recovery(true);
         self.remember_window();
@@ -350,7 +374,7 @@ impl Shell {
 
     fn open_files(&mut self, el: &ActiveEventLoop, paths: &[PathBuf]) {
         if self.hidden {
-            self.show();
+            self.show(el);
         }
         for p in paths {
             self.app.open_arg(p, &self.host);
@@ -435,6 +459,19 @@ impl Shell {
                 app.goto_line(line, None);
                 app.focus = Focus::Editor;
             }
+            #[cfg(not(windows))]
+            UiAction::MenuTitle(i) => {
+                if self.app.menu.top == Some(i) {
+                    self.app.menu.close();
+                    return self.redraw();
+                }
+                return self.open_menu(i, false);
+            }
+            #[cfg(not(windows))]
+            UiAction::MenuRow(l, i) => {
+                let act = self.app.menu.click(l, i);
+                return self.menu_act(el, act);
+            }
             UiAction::Editor | UiAction::Label(_) | UiAction::None => {}
         }
         self.after_action(el);
@@ -459,8 +496,103 @@ impl Shell {
         }
     }
 
+    /// Opens a menu at the mouse position; the choice arrives as input.
     #[cfg(not(windows))]
-    fn popup(&mut self, _el: &ActiveEventLoop, _items: Vec<M>) {}
+    fn popup(&mut self, _el: &ActiveEventLoop, items: Vec<M>) {
+        let app = &self.app;
+        let items = ui::menu::build(items, &|c| app.checked(c), &|c| app.enabled(c));
+        let at = self.cursor.unwrap_or((0.0, 0.0));
+        self.app.menu.open(None, items, at, false);
+        self.input.active = None;
+        self.pressed = None;
+        self.redraw();
+    }
+
+    /// Opens the top-level menu `i` under its title.
+    #[cfg(not(windows))]
+    fn open_menu(&mut self, i: usize, keyboard: bool) {
+        let tree = app::commands::menu_tree(&self.app.settings.recent);
+        let Some((_, items)) = tree.into_iter().nth(i) else { return };
+        let app = &self.app;
+        let items = ui::menu::build(items, &|c| app.checked(c), &|c| app.enabled(c));
+        let Some(rect) = self.app.menu.titles.get(i).map(|t| t.rect) else { return };
+        self.app.menu.open(Some(i), items, (rect.x, rect.bottom() + 2.0), keyboard);
+        self.redraw();
+    }
+
+    #[cfg(not(windows))]
+    fn menu_act(&mut self, el: &ActiveEventLoop, act: ui::menu::Act) {
+        use ui::menu::Act;
+        match act {
+            Act::Run(c) => {
+                self.app.menu.close();
+                self.command(el, c);
+            }
+            Act::Switch(dir) => {
+                let n = self.app.menu.titles.len() as isize;
+                if let Some(top) = self.app.menu.top {
+                    self.open_menu((top as isize + dir).rem_euclid(n) as usize, true);
+                }
+            }
+            Act::None => self.redraw(),
+        }
+    }
+
+    /// Keyboard for the menus. Returns true when it used the key.
+    #[cfg(not(windows))]
+    fn menu_key(&mut self, el: &ActiveEventLoop, key: &Key) -> bool {
+        if !self.app.menu.is_open() {
+            let found = match key {
+                Key::F(10) => Some(0),
+                Key::Char(c) if self.mods.alt_key() && !self.mods.control_key() => {
+                    let k = c.to_lowercase().next();
+                    self.app.menu.titles.iter().position(|t| t.mnemonic == k)
+                }
+                _ => None,
+            };
+            if let Some(i) = found {
+                self.open_menu(i, true);
+            }
+            return found.is_some();
+        }
+        let act = match key {
+            Key::Up => {
+                self.app.menu.up_down(-1);
+                ui::menu::Act::None
+            }
+            Key::Down => {
+                self.app.menu.up_down(1);
+                ui::menu::Act::None
+            }
+            Key::Left => self.app.menu.left(),
+            Key::Right => self.app.menu.right(),
+            Key::Enter | Key::Char(' ') => self.app.menu.enter(),
+            Key::Escape => {
+                self.app.menu.back();
+                ui::menu::Act::None
+            }
+            Key::Char(c) => self.app.menu.mnemonic(*c),
+            _ => ui::menu::Act::None,
+        };
+        self.menu_act(el, act);
+        true
+    }
+
+    /// The pointer follows the open menus.
+    #[cfg(not(windows))]
+    fn menu_pointer(&mut self) {
+        if !self.app.menu.is_open() {
+            return;
+        }
+        match self.input.hot.and_then(|h| self.widget(h)).map(|w| w.action.clone()) {
+            Some(UiAction::MenuRow(l, i)) => {
+                self.app.menu.hover(l, i);
+                self.redraw();
+            }
+            Some(UiAction::MenuTitle(i)) if self.app.menu.top.is_some_and(|t| t != i) => self.open_menu(i, false),
+            _ => {}
+        }
+    }
 
     fn status_menu(&mut self, el: &ActiveEventLoop, k: u8) {
         use M::*;
@@ -568,6 +700,8 @@ impl Shell {
                 NamedKey::F7 => Key::F(7),
                 NamedKey::F8 => Key::F(8),
                 NamedKey::F9 => Key::F(9),
+                #[cfg(not(windows))]
+                NamedKey::F10 => Key::F(10),
                 NamedKey::F11 => Key::F(11),
                 NamedKey::F12 => Key::F(12),
                 _ => return,
@@ -578,6 +712,10 @@ impl Shell {
             },
             _ => return,
         };
+        #[cfg(not(windows))]
+        if self.menu_key(el, &key) {
+            return;
+        }
         let text = event.text.as_ref().map(|t| t.to_string());
         let k = KeyInput { key, ctrl, shift, alt, text };
         self.input.tooltip = None;
@@ -601,6 +739,17 @@ impl Shell {
         self.input.tooltip = None;
         self.update_hot();
         let hit = self.hit(x, y).cloned();
+        #[cfg(not(windows))]
+        if self.app.menu.is_open() {
+            let on_menu = hit.is_some() || self.app.menu.contains(x, y);
+            if button != MouseButton::Left || !on_menu {
+                self.app.menu.close();
+                return self.redraw();
+            }
+            if hit.is_none() {
+                return;
+            }
+        }
         match button {
             MouseButton::Left => {
                 if self.app.palette.is_some() && hit.is_none() {
@@ -684,6 +833,14 @@ impl Shell {
             MouseScrollDelta::PixelDelta(p) => -(p.y as f32) / line_h,
         };
         let over = self.hit(x, y).map(|w| w.action.clone());
+        #[cfg(not(windows))]
+        if self.app.menu.is_open() {
+            if let Some(UiAction::MenuRow(l, _)) = over {
+                self.app.menu.wheel(l, lines.signum() as isize * 2);
+                self.redraw();
+            }
+            return;
+        }
         match over {
             Some(UiAction::Outline(_)) => {
                 self.app.outline_scroll = (self.app.outline_scroll as isize + lines.round() as isize).max(0) as usize;
@@ -720,11 +877,11 @@ impl Shell {
         if self.app.font_dirty {
             self.app.font_dirty = false;
             #[cfg(windows)]
-            {
-                let file = win::dialogs::font_file(&self.app.settings.font_face);
-                if !self.gfx.set_mono(file.as_deref()) {
-                    self.app.notify(i18n::tf("Font \"{}\" could not be loaded; using the default.", &[&self.app.settings.font_face]));
-                }
+            let file = win::dialogs::font_file(&self.app.settings.font_face);
+            #[cfg(not(windows))]
+            let file = linux::font_file(&self.app.settings.font_face);
+            if !self.gfx.set_mono(file.as_deref()) {
+                self.app.notify(i18n::tf("Font \"{}\" could not be loaded; using the default.", &[&self.app.settings.font_face]));
             }
         }
         let Some(win) = &mut self.win else { return };
@@ -813,8 +970,22 @@ impl Shell {
         }
     }
 
+    /// The titles of the drawn menu bar, in the current language.
     #[cfg(not(windows))]
-    fn sync_menu(&mut self) {}
+    fn sync_menu(&mut self) {
+        if !self.app.menu.titles.is_empty() && !self.app.menu_rebuild {
+            return;
+        }
+        self.app.menu_rebuild = false;
+        self.app.menu.titles = app::commands::menu_tree(&[])
+            .iter()
+            .map(|(title, _)| {
+                let (label, mnemonic, mark) = ui::menu::parse_label(&i18n::tr(title));
+                ui::menu::Title { label, mnemonic, mark, rect: Rect::new(0.0, 0.0, 0.0, 0.0) }
+            })
+            .collect();
+        self.redraw();
+    }
 
     /// Dark menu bar and popup menus in the dark theme.
     fn sync_menu_theme(&mut self, dark: bool) {
@@ -994,11 +1165,27 @@ fn hwnd_of(window: &Window) -> windows_sys::Win32::Foundation::HWND {
     }
 }
 
-impl ApplicationHandler<UserEvent> for Shell {
-    fn resumed(&mut self, el: &ActiveEventLoop) {
-        if self.win.is_some() {
-            return;
-        }
+impl Shell {
+    /// Starts the single-instance socket and the tray icon.
+    #[cfg(not(windows))]
+    fn start_shell(&mut self) {
+        let proxy = Mutex::new(self.proxy.clone());
+        let (open, exit) = (i18n::tr("Open rpad"), i18n::tr("Exit"));
+        let shell = linux::shell::Shell::new(
+            self.tray,
+            (&open, &exit),
+            Box::new(move |m| {
+                if let Ok(p) = proxy.lock() {
+                    let _ = p.send_event(UserEvent::Shell(m));
+                }
+            }),
+        );
+        // Without an icon, a hidden window could not be reached or closed.
+        self.tray = shell.has_icon();
+        self.shell = Some(shell);
+    }
+
+    fn open_window(&mut self, el: &ActiveEventLoop) -> bool {
         let (w, h, maximized) = self.app.settings.window.unwrap_or((1000.0, 700.0, false));
         let attrs = Window::default_attributes()
             .with_title("rpad")
@@ -1013,7 +1200,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             Err(e) => {
                 eprintln!("rpad: cannot create window: {e}");
                 el.exit();
-                return;
+                return false;
             }
         };
         let adapter = accesskit_winit::Adapter::with_event_loop_proxy(el, &window, self.proxy.clone());
@@ -1023,7 +1210,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             Err(e) => {
                 eprintln!("rpad: cannot create drawing surface: {e}");
                 el.exit();
-                return;
+                return false;
             }
         };
         window.set_ime_allowed(true);
@@ -1048,6 +1235,22 @@ impl ApplicationHandler<UserEvent> for Shell {
             #[cfg(windows)]
             menu: None,
         });
+        true
+    }
+}
+
+impl ApplicationHandler<UserEvent> for Shell {
+    fn resumed(&mut self, el: &ActiveEventLoop) {
+        if self.win.is_some() {
+            return;
+        }
+        #[cfg(not(windows))]
+        self.start_shell();
+        // Linux has no hidden window: a resident start makes it when first shown.
+        let no_window = cfg!(not(windows)) && self.tray && self.args.is_empty();
+        if !no_window && !self.open_window(el) {
+            return;
+        }
         self.sync_menu();
         // Restore the previous session, then open the command-line files.
         self.app.restore_session(&self.host);
@@ -1057,6 +1260,10 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
         if let Some(e) = self.app.location.error.clone() {
             self.app.notify(e);
+        }
+        #[cfg(not(windows))]
+        if !linux::dialogs::available() {
+            self.app.notify(i18n::tr("Install zenity or kdialog to use the file dialogs."));
         }
         #[cfg(windows)]
         if self.tray {
@@ -1084,6 +1291,10 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.app.pump();
                 self.redraw();
             }
+            #[cfg(not(windows))]
+            UserEvent::Shell(linux::shell::Msg::Open(paths)) => self.open_files(el, &paths),
+            #[cfg(not(windows))]
+            UserEvent::Shell(linux::shell::Msg::Quit) => self.quit(el),
             #[cfg(windows)]
             UserEvent::Win(win::WinMsg::Command(id)) => {
                 let cmd = self.win.as_ref().and_then(|w| w.menu.as_ref()).and_then(|m| m.command(id));
@@ -1094,11 +1305,11 @@ impl ApplicationHandler<UserEvent> for Shell {
             #[cfg(windows)]
             UserEvent::Win(win::WinMsg::OpenFiles(paths)) => self.open_files(el, &paths),
             #[cfg(windows)]
-            UserEvent::Win(win::WinMsg::Tray(win::tray::TrayEvent::Activate)) => self.show(),
+            UserEvent::Win(win::WinMsg::Tray(win::tray::TrayEvent::Activate)) => self.show(el),
             #[cfg(windows)]
             UserEvent::Win(win::WinMsg::Tray(win::tray::TrayEvent::Menu)) => {
                 match win::tray::menu(self.host.hwnd, &i18n::tr("Open rpad"), &i18n::tr("Exit")) {
-                    Some(1) => self.show(),
+                    Some(1) => self.show(el),
                     Some(2) => self.quit(el),
                     _ => {}
                 }
@@ -1173,6 +1384,8 @@ impl ApplicationHandler<UserEvent> for Shell {
                 }
                 if self.update_hot() {
                     self.redraw();
+                    #[cfg(not(windows))]
+                    self.menu_pointer();
                 }
                 self.update_cursor_icon();
             }
@@ -1236,8 +1449,8 @@ const USAGE: &str = "rpad [options] [files...]
                  the running rpad window.
   --help         Show this help.
 
-Settings are stored in %APPDATA%\\rpad, or next to rpad.exe when a file
-named rpad.portable exists there (portable mode).";
+Settings are stored in %APPDATA%\\rpad (~/.config/rpad on Linux), or next
+to the program when a file named rpad.portable exists there (portable mode).";
 
 fn main() {
     let raw: Vec<String> = std::env::args().skip(1).collect();
@@ -1264,6 +1477,16 @@ fn main() {
             return;
         }
         if win::hand_off_to_existing(&files, settings.single_instance && !tray) {
+            return;
+        }
+    }
+    #[cfg(not(windows))]
+    if !new_window {
+        if tray && linux::shell::resident_running() && files.is_empty() {
+            linux::shell::hand_off(&files, false);
+            return;
+        }
+        if linux::shell::hand_off(&files, settings.single_instance && !tray) {
             return;
         }
     }
@@ -1297,7 +1520,7 @@ fn main() {
     #[cfg(windows)]
     let (accent, system_dark, blink) = (win::accent().unwrap_or(DEFAULT_ACCENT), win::system_dark().unwrap_or(false), win::caret_blink_ms());
     #[cfg(not(windows))]
-    let (accent, system_dark, blink) = (DEFAULT_ACCENT, false, Some(530u32));
+    let (accent, system_dark, blink) = (DEFAULT_ACCENT, linux::system_dark().unwrap_or(false), Some(530u32));
     let now = Instant::now();
     let mut shell = Shell {
         seen_edit: app.last_edit,
@@ -1316,6 +1539,7 @@ fn main() {
         system_dark,
         accent: Color::rgb(accent),
         theme_pref: None,
+        #[cfg(windows)]
         menu_recent: Vec::new(),
         pressed: None,
         editor_drag: false,
@@ -1331,6 +1555,8 @@ fn main() {
         tray,
         hidden: false,
         menu_dark: None,
+        #[cfg(not(windows))]
+        shell: None,
     };
     if let Err(e) = event_loop.run_app(&mut shell) {
         eprintln!("rpad: {e}");

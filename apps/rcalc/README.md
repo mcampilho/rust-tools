@@ -250,7 +250,7 @@ resident instance exits within about 0.2 s, process start included.
 ## Linux
 
 The Linux package is a `tar.gz` with the `rcalc` binary. It runs on X11 and
-Wayland, and needs glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 36).
+Wayland, and needs glibc 2.34 or newer (Ubuntu 22.04, Debian 12, Fedora 35).
 
 - **Libraries.** It loads the display libraries when it starts, and they are on
   any desktop: `libwayland-client` and `libxkbcommon` on Wayland, `libX11`,

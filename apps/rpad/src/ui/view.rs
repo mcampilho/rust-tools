@@ -20,6 +20,8 @@ pub fn build(app: &mut App, ui: &mut Ui, mouse: (f32, f32)) -> Option<Rect> {
     ui.g.clear(t.window);
     let full = Rect::new(0.0, 0.0, ui.g.width(), ui.g.height());
     let mut r = full;
+    #[cfg(not(windows))]
+    menu_bar(app, ui, r.take_top(ui.px(28.0)));
     if app.settings.toolbar {
         toolbar(app, ui, r.take_top(ui.px(36.0)));
     }
@@ -62,9 +64,153 @@ pub fn build(app: &mut App, ui: &mut Ui, mouse: (f32, f32)) -> Option<Rect> {
             ui.label(rr, msg);
         }
     }
+    #[cfg(not(windows))]
+    menu_popups(app, ui, full);
     ui.draw_tooltip(mouse);
     ui.layer = 0;
     ime
+}
+
+// ---------------------------------------------------------------- menus
+
+#[cfg(not(windows))]
+fn underline(ui: &mut Ui, text: &str, mark: Option<usize>, x: f32, base: f32, px: f32, c: Color) {
+    let Some(i) = mark else { return };
+    let before: String = text.chars().take(i).collect();
+    let letter: String = text.chars().skip(i).take(1).collect();
+    let x0 = x + ui.g.measure(&before, px, FontId::Regular);
+    let w = ui.g.measure(&letter, px, FontId::Regular);
+    ui.g.fill_rect(Rect::new(x0, base + ui.px(2.0), w, ui.px(1.0).max(1.0)), c);
+}
+
+#[cfg(not(windows))]
+fn register_title(ui: &mut Ui, i: usize, rect: Rect, label: &str) {
+    let action = UiAction::MenuTitle(i);
+    ui.register(Widget { id: super::wid(&action), rect, action, role: Role::Button, label: label.to_string(), tooltip: None, value: None, enabled: true, checked: None, layer: 0 });
+}
+
+#[cfg(not(windows))]
+fn menu_bar(app: &mut App, ui: &mut Ui, r: Rect) {
+    let t = ui.t;
+    ui.g.fill_rect(r, t.tab_bar);
+    let px = ui.fs(13.0);
+    let (asc, desc) = ui.g.metrics(px, FontId::Regular);
+    let base = r.center_y() + (asc + desc) / 2.0;
+    let mut x = r.x + ui.px(4.0);
+    let open = app.menu.top;
+    for (i, title) in app.menu.titles.iter_mut().enumerate() {
+        let w = ui.g.measure(&title.label, px, FontId::Regular) + ui.px(18.0);
+        let rect = Rect::new(x, r.y + ui.px(2.0), w, r.h - ui.px(4.0));
+        title.rect = rect;
+        let id = super::wid(&UiAction::MenuTitle(i));
+        if open == Some(i) {
+            ui.g.fill_rrect(rect, ui.px(4.0), t.pressed);
+        } else if ui.inp.hot == Some(id) {
+            ui.g.fill_rrect(rect, ui.px(4.0), t.hover);
+        }
+        let tx = rect.x + ui.px(9.0);
+        ui.g.text(&title.label, tx, base, px, FontId::Regular, t.text);
+        underline(ui, &title.label, title.mark, tx, base, px, t.text);
+        register_title(ui, i, rect, &title.label);
+        x += w;
+    }
+    ui.g.fill_rect(Rect::new(r.x, r.bottom() - 1.0, r.w, 1.0), t.border);
+}
+
+/// Paints the open popups, each on top of its parent.
+#[cfg(not(windows))]
+fn menu_popups(app: &mut App, ui: &mut Ui, full: Rect) {
+    if !app.menu.is_open() {
+        return;
+    }
+    let t = ui.t;
+    ui.layer = 2;
+    let px = ui.fs(13.0);
+    let (asc, desc) = ui.g.metrics(px, FontId::Regular);
+    let (row_h, sep_h, pad, side) = (ui.px(26.0), ui.px(9.0), ui.px(4.0), ui.px(28.0));
+    let height = |sep: bool| if sep { sep_h } else { row_h };
+    let mut parent: Option<Rect> = None;
+    for l in 0..app.menu.levels.len() {
+        let level = &mut app.menu.levels[l];
+        // Size and position: the popup stays inside the window.
+        let mut width = 0.0f32;
+        for it in &level.items {
+            let keys = it.shortcut.map_or(0.0, |k| ui.g.measure(k, ui.fs(12.0), FontId::Regular) + ui.px(28.0));
+            width = width.max(ui.g.measure(&it.label, px, FontId::Regular) + keys);
+        }
+        let w = (width + 2.0 * side).min(full.w - 2.0 * pad);
+        let total: f32 = level.items.iter().map(|i| height(i.sep)).sum::<f32>() + 2.0 * pad;
+        let h = total.min(full.h - 2.0 * pad);
+        let (mut x, mut y) = level.anchor;
+        if x + w > full.w - pad {
+            x = parent.map_or(full.w - pad - w, |p| p.x - w).max(pad);
+        }
+        if y + h > full.h - pad {
+            y = (full.h - pad - h).max(pad);
+        }
+        let rect = Rect::new(x.round(), y.round(), w, h);
+        level.rect = rect;
+        parent = Some(rect);
+        // Keep the selected row in view.
+        let fits = |level: &super::menu::Level, from: usize, to: usize| {
+            level.items[from..=to].iter().map(|i| height(i.sep)).sum::<f32>() <= h - 2.0 * pad
+        };
+        if let Some(sel) = level.sel {
+            if sel < level.scroll {
+                level.scroll = sel;
+            }
+            while level.scroll < sel && !fits(level, level.scroll, sel) {
+                level.scroll += 1;
+            }
+        }
+        ui.popup(rect);
+        ui.g.set_clip(Some(rect));
+        level.rows.clear();
+        let mut ry = rect.y + pad;
+        for i in level.scroll..level.items.len() {
+            let it = &level.items[i];
+            let rh = height(it.sep);
+            if ry + rh > rect.bottom() - pad + 0.5 {
+                break;
+            }
+            let row = Rect::new(rect.x + pad, ry, rect.w - 2.0 * pad, rh);
+            ry += rh;
+            if it.sep {
+                ui.g.fill_rect(Rect::new(row.x + ui.px(6.0), row.center_y().round(), row.w - ui.px(12.0), 1.0), t.border);
+                continue;
+            }
+            level.rows.push((i, row));
+            let action = UiAction::MenuRow(l, i);
+            let id = super::wid(&action);
+            if it.enabled && (level.sel == Some(i) || ui.inp.hot == Some(id)) {
+                ui.g.fill_rrect(row, ui.px(4.0), t.accent.with_alpha(0x40));
+            }
+            let c = if it.enabled { t.text } else { t.text_dim.with_alpha(0x80) };
+            let base = row.center_y() + (asc + desc) / 2.0;
+            if it.checked {
+                ui.g.text("✓", row.x + ui.px(6.0), base, px, FontId::Regular, c);
+            }
+            let tx = rect.x + side;
+            ui.g.text(&it.label, tx, base, px, FontId::Regular, c);
+            underline(ui, &it.label, it.mark, tx, base, px, c);
+            let right = Rect::new(row.x, row.y, row.w - ui.px(10.0), row.h);
+            if !it.sub.is_empty() || (level.sel == Some(i) && it.cmd.is_none()) {
+                ui.g.text_in("›", right, ui.fs(15.0), FontId::Regular, c, Align::Right);
+            } else if let Some(k) = it.shortcut {
+                ui.g.text_in(k, right, ui.fs(12.0), FontId::Regular, t.text_dim, Align::Right);
+            }
+            let (label, checked, enabled) = (it.label.clone(), it.cmd.is_some_and(|_| it.checked).then_some(true), it.enabled);
+            ui.register(Widget { id, rect: row, action, role: Role::ListItem, label, tooltip: None, value: None, enabled, checked, layer: 0 });
+        }
+        ui.g.set_clip(None);
+    }
+    // The titles stay usable above the popups, to change or close the menu.
+    if app.menu.top.is_some() {
+        for (i, title) in app.menu.titles.iter().enumerate() {
+            register_title(ui, i, title.rect, &title.label);
+        }
+    }
+    ui.layer = 1;
 }
 
 // ---------------------------------------------------------------- chrome

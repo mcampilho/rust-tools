@@ -33,9 +33,9 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
 ## Releases
 
 `.github/workflows/release.yml` corre com tags `<app>-v<versão>` (ex.: `rview-v1.1.0`). A versão da
-tag tem de ser igual à de `apps/<app>/Cargo.toml`. O rcalc é publicado para Windows e Linux; o rpad e o
-rview só para Windows, embora sejam compilados e testados em Linux. O que falta está no `README.md`:
-atualizar esse quadro e o workflow ao acrescentar suporte.
+tag tem de ser igual à de `apps/<app>/Cargo.toml`. O rcalc e o rpad são publicados para Windows e
+Linux; o rview só para Windows, embora seja compilado e testado em Linux. O que falta está no
+`README.md`: atualizar esse quadro e o workflow ao acrescentar suporte.
 
 ## Testar em Linux
 

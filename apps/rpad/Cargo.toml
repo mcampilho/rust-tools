@@ -1,9 +1,9 @@
 [package]
 name = "rpad"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 rust-version = "1.88"
-description = "A portable, fast text and code editor"
+description = "A portable, fast text and code editor for Windows and Linux"
 license = "MIT"
 
 [dependencies]
@@ -44,6 +44,9 @@ windows-sys = { version = "0.59", features = [
 winit = { version = "0.30", default-features = false, features = ["rwh_06", "x11", "wayland", "wayland-dlopen", "wayland-csd-adwaita"] }
 softbuffer = { version = "0.4", default-features = false, features = ["x11", "x11-dlopen", "wayland", "wayland-dlopen"] }
 accesskit_winit = { version = "0.34", default-features = false, features = ["rwh_06", "async-io"] }
+arboard = { version = "3", default-features = false, features = ["wayland-data-control"] }
+ksni = { version = "0.3", default-features = false, features = ["async-io", "blocking"] }
+libc = "0.2"
 
 [build-dependencies]
 tiny-skia = { version = "0.11", default-features = false, features = ["std", "png-format"] }

@@ -128,6 +128,19 @@ struct Fonts {
     cjk: Option<(bool, Option<FontVec>)>,
 }
 
+/// Adds `dir` and its subfolders, as Linux distributions nest fonts differently.
+#[cfg(target_os = "linux")]
+fn add_font_tree(dir: std::path::PathBuf, depth: u32, dirs: &mut Vec<std::path::PathBuf>) {
+    if depth > 0 {
+        for entry in std::fs::read_dir(&dir).into_iter().flatten().flatten() {
+            if entry.file_type().is_ok_and(|t| t.is_dir()) {
+                add_font_tree(entry.path(), depth - 1, dirs);
+            }
+        }
+    }
+    dirs.push(dir);
+}
+
 fn font_dirs() -> Vec<std::path::PathBuf> {
     let mut dirs = Vec::new();
     if let Some(w) = std::env::var_os("WINDIR") {
@@ -143,8 +156,19 @@ fn font_dirs() -> Vec<std::path::PathBuf> {
     ] {
         dirs.push(d.into());
     }
+    #[cfg(target_os = "linux")]
+    {
+        add_font_tree("/usr/share/fonts".into(), 4, &mut dirs);
+        add_font_tree("/usr/local/share/fonts".into(), 4, &mut dirs);
+        if let Some(home) = std::env::var_os("HOME").map(std::path::PathBuf::from) {
+            add_font_tree(home.join(".local/share/fonts"), 4, &mut dirs);
+            add_font_tree(home.join(".fonts"), 4, &mut dirs);
+        }
+    }
     dirs
 }
+
+const MONO_FONTS: &[&str] = &["CascadiaMono.ttf", "consola.ttf", "DejaVuSansMono.ttf", "NotoSansMono-Regular.ttf", "LiberationMono-Regular.ttf", "cour.ttf"];
 
 fn load_font(names: &[&str]) -> Option<FontVec> {
     for dir in font_dirs() {
@@ -161,14 +185,14 @@ fn load_font(names: &[&str]) -> Option<FontVec> {
 
 impl Fonts {
     fn load() -> Result<Fonts, String> {
-        let regular = load_font(&["segoeui.ttf", "DejaVuSans.ttf", "Arial.ttf", "arial.ttf"])
-            .ok_or("No usable system font found (expected Segoe UI in the Windows Fonts folder).")?;
+        let regular = load_font(&["segoeui.ttf", "DejaVuSans.ttf", "NotoSans-Regular.ttf", "LiberationSans-Regular.ttf", "Arial.ttf", "arial.ttf"])
+            .ok_or("No usable system font found (expected Segoe UI on Windows, DejaVu Sans or Noto Sans on Linux).")?;
         Ok(Fonts {
             regular,
-            semibold: load_font(&["seguisb.ttf", "DejaVuSans-Bold.ttf"]),
-            mono: load_font(&["CascadiaMono.ttf", "consola.ttf", "DejaVuSansMono.ttf", "cour.ttf"]),
+            semibold: load_font(&["seguisb.ttf", "DejaVuSans-Bold.ttf", "NotoSans-Bold.ttf", "LiberationSans-Bold.ttf"]),
+            mono: load_font(MONO_FONTS),
             icons: load_font(&["SegoeIcons.ttf", "segmdl2.ttf"]),
-            italic: load_font(&["segoeuii.ttf", "DejaVuSans-Oblique.ttf"]),
+            italic: load_font(&["segoeuii.ttf", "DejaVuSans-Oblique.ttf", "NotoSans-Italic.ttf", "LiberationSans-Italic.ttf"]),
             symbol: None,
             cjk: None,
         })
@@ -211,9 +235,9 @@ impl Fonts {
         let zh = false;
         if self.cjk.as_ref().is_none_or(|(z, _)| *z != zh) {
             let names: &[&str] = if zh {
-                &["msyh.ttc", "simsun.ttc", "YuGothM.ttc", "NotoSansCJK-Regular.ttc"]
+                &["msyh.ttc", "simsun.ttc", "YuGothM.ttc", "NotoSansCJK-Regular.ttc", "NotoSansCJKsc-Regular.otf", "wqy-zenhei.ttc", "DroidSansFallbackFull.ttf"]
             } else {
-                &["YuGothM.ttc", "meiryo.ttc", "msgothic.ttc", "msyh.ttc", "NotoSansCJK-Regular.ttc"]
+                &["YuGothM.ttc", "meiryo.ttc", "msgothic.ttc", "msyh.ttc", "NotoSansCJK-Regular.ttc", "NotoSansCJKjp-Regular.otf", "DroidSansFallbackFull.ttf"]
             };
             self.cjk = Some((zh, load_font(names)));
         }
@@ -296,7 +320,7 @@ impl Gfx {
     pub fn set_mono(&mut self, path: Option<&std::path::Path>) -> bool {
         let font = match path {
             Some(p) => std::fs::read(p).ok().and_then(|b| FontVec::try_from_vec_and_index(b, 0).ok()),
-            None => load_font(&["CascadiaMono.ttf", "consola.ttf", "DejaVuSansMono.ttf", "cour.ttf"]),
+            None => load_font(MONO_FONTS),
         };
         let ok = font.is_some();
         if ok {

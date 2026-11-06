@@ -133,6 +133,11 @@ pub fn write_bytes(path: &Path, bytes: &[u8]) -> Result<(), SaveError> {
         if m.permissions().readonly() {
             return Err(SaveError::ReadOnly);
         }
+        // Renaming over a file only takes rights on the folder.
+        #[cfg(not(windows))]
+        if std::fs::OpenOptions::new().write(true).open(path).is_err_and(|e| e.kind() == std::io::ErrorKind::PermissionDenied) {
+            return Err(SaveError::ReadOnly);
+        }
     }
     let tmp = temp_path(path);
     let staged = (|| -> std::io::Result<()> {
@@ -176,7 +181,9 @@ fn replace(tmp: &Path, target: &Path) -> std::io::Result<()> {
     if let Ok(m) = std::fs::metadata(target) {
         let _ = std::fs::set_permissions(tmp, m.permissions());
     }
-    std::fs::rename(tmp, target)
+    // A symbolic link stays one: the file it points to is what changes.
+    let real = std::fs::canonicalize(target).unwrap_or_else(|_| target.to_path_buf());
+    std::fs::rename(tmp, real)
 }
 
 #[cfg(test)]
@@ -187,6 +194,28 @@ mod tests {
         let d = std::env::temp_dir().join(format!("rpad-io-{}-{:?}", std::process::id(), std::thread::current().id()));
         std::fs::create_dir_all(&d).unwrap();
         d
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn saving_keeps_symbolic_links_and_respects_permissions() {
+        use std::os::unix::fs::{symlink, PermissionsExt};
+        let d = dir();
+        let (real, link) = (d.join("real.txt"), d.join("link.txt"));
+        std::fs::write(&real, "old").unwrap();
+        let _ = std::fs::remove_file(&link);
+        symlink(&real, &link).unwrap();
+        write_bytes(&link, b"new").unwrap();
+        assert!(std::fs::symlink_metadata(&link).unwrap().file_type().is_symlink());
+        assert_eq!(std::fs::read(&real).unwrap(), b"new");
+        // Writable folder, file without write permission for its owner.
+        std::fs::set_permissions(&real, std::fs::Permissions::from_mode(0o000)).unwrap();
+        // SAFETY: geteuid has no preconditions; root ignores permissions.
+        if unsafe { libc::geteuid() } != 0 {
+            assert!(matches!(write_bytes(&real, b"x"), Err(SaveError::ReadOnly)));
+        }
+        std::fs::set_permissions(&real, std::fs::Permissions::from_mode(0o644)).unwrap();
+        assert_eq!(std::fs::read(&real).unwrap(), b"new");
     }
 
     #[test]

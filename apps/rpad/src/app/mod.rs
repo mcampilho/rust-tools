@@ -169,6 +169,9 @@ pub struct App {
     untitled: usize,
     pub overwrite: bool,
     pub toast: Option<(String, Instant)>,
+    /// Menus drawn in the window.
+    #[cfg(not(windows))]
+    pub menu: crate::ui::menu::Menu,
     pub layout: EditorLayout,
     pub quit: bool,
     pub menu_dirty: bool,
@@ -220,6 +223,8 @@ impl App {
             quit: false,
             menu_dirty: true,
             menu_rebuild: false,
+            #[cfg(not(windows))]
+            menu: crate::ui::menu::Menu::default(),
             close_window: false,
             fullscreen_request: false,
             font_dirty: true,
@@ -1850,25 +1855,15 @@ fn local_time() -> (u16, u16, u16, u16, u16, u16) {
     }
     #[cfg(not(windows))]
     {
-        let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
-        let days = (secs / 86400) as i64;
-        let (y, m, d) = civil(days);
-        let t = secs % 86400;
-        (y as u16, m as u16, d as u16, (t / 3600) as u16, (t / 60 % 60) as u16, (t % 60) as u16)
+        // SAFETY: time accepts a null pointer; localtime_r only writes `tm`.
+        let tm = unsafe {
+            let now = libc::time(std::ptr::null_mut());
+            let mut tm: libc::tm = std::mem::zeroed();
+            libc::localtime_r(&now, &mut tm);
+            tm
+        };
+        ((tm.tm_year + 1900) as u16, (tm.tm_mon + 1) as u16, tm.tm_mday as u16, tm.tm_hour as u16, tm.tm_min as u16, tm.tm_sec as u16)
     }
-}
-
-#[cfg(not(windows))]
-fn civil(z: i64) -> (i64, i64, i64) {
-    let z = z + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = z - era * 146_097;
-    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = doy - (153 * mp + 2) / 5 + 1;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 };
-    (yoe + era * 400 + i64::from(m <= 2), m, d)
 }
 
 /// File-name-safe timestamp: `2026-10-19_14-03-22`.

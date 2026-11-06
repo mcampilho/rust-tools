@@ -213,12 +213,12 @@ pub fn strip_mnemonic(s: &str) -> String {
     out
 }
 
-/// The Windows display language, mapped to a supported locale.
+/// The system display language, mapped to a supported locale.
 pub fn system_lang() -> Lang {
     #[cfg(windows)]
     let tag = crate::win::ui_language().unwrap_or_default();
     #[cfg(not(windows))]
-    let tag = std::env::var("LANG").unwrap_or_default().split('.').next().unwrap_or("").replace('_', "-");
+    let tag = crate::linux::ui_language().unwrap_or_default();
     Lang::best_match(&tag)
 }
 

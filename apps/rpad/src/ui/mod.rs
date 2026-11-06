@@ -8,6 +8,8 @@ pub mod gfx;
 pub mod layout;
 pub mod lineedit;
 pub mod markdown;
+#[cfg(not(windows))]
+pub mod menu;
 pub mod theme;
 pub mod view;
 
@@ -49,6 +51,12 @@ pub enum UiAction {
     /// Status bar segment (opens a menu): 0 language, 1 encoding, 2 EOL, 3 indentation, 4 position.
     Status(u8),
     Outline(usize),
+    /// Top-level menu drawn in the window.
+    #[cfg(not(windows))]
+    MenuTitle(usize),
+    /// Row of an open popup: (level, item).
+    #[cfg(not(windows))]
+    MenuRow(usize, usize),
     Editor,
     Label(u32),
     None,

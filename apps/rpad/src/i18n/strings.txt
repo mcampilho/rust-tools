@@ -472,3 +472,8 @@ key		Schlüssel	clave	clé	chiave	キー	chave		键
 heading		Überschrift	encabezado	titre	intestazione	見出し	título		标题
 Open rpad		rpad öffnen	Abrir rpad	Ouvrir rpad	Apri rpad	rpad を開く	Abrir o rpad		打开 rpad
 Exit		Beenden	Salir	Quitter	Esci	終了	Sair		退出
+Don't Save		Nicht speichern	No guardar	Ne pas enregistrer	Non salvare	保存しない	Não salvar	Não guardar	不保存
+Cancel		Abbrechen	Cancelar	Annuler	Annulla	キャンセル	Cancelar		取消
+Font		Schriftart	Fuente	Police	Carattere	フォント	Fonte	Tipo de letra	字体
+Font size		Schriftgröße	Tamaño de fuente	Taille de police	Dimensione carattere	フォント サイズ	Tamanho da fonte	Tamanho do tipo de letra	字号
+Install zenity or kdialog to use the file dialogs.		Installieren Sie zenity oder kdialog, um die Dateidialoge zu verwenden.	Instale zenity o kdialog para usar los diálogos de archivos.	Installez zenity ou kdialog pour utiliser les boîtes de dialogue de fichiers.	Installa zenity o kdialog per usare le finestre di dialogo dei file.	ファイル ダイアログを使うには zenity または kdialog をインストールしてください。	Instale o zenity ou o kdialog para usar as caixas de diálogo de arquivos.	Instala o zenity ou o kdialog para usar as caixas de diálogo de ficheiros.	请安装 zenity 或 kdialog 以使用文件对话框。

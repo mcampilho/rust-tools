@@ -1,8 +1,9 @@
 # rpad
 
-Um editor de texto e código para Windows, portátil e sem rede, escrito em Rust.
-O `rpad.exe` é um único executável de 4 MB, sem instalador, sem runtime e sem DLL
-além das que vêm com o Windows. Não faz ligações de rede e não tem telemetria.
+Um editor de texto e código para Windows e [Linux](#linux), portátil e sem rede,
+escrito em Rust. O `rpad.exe` é um único executável de 4 MB, sem instalador, sem
+runtime e sem DLL além das que vêm com o Windows. Não faz ligações de rede e não tem
+telemetria.
 
 O rpad inspira-se nos editores de texto clássicos do Windows (separadores,
 codificações e fins de linha, procura e substituição, ferramentas de texto,
@@ -87,6 +88,50 @@ O registo só é lido, para a lista de tipos de letra, o tema e a cor de destaqu
 Se o `settings.ini` estiver danificado, os valores inválidos voltam aos valores por
 omissão. Se a pasta de dados não puder ser escrita, o rpad funciona na mesma e
 mostra um aviso.
+
+## Linux
+
+O pacote para Linux é um `tar.gz` com o binário `rpad`. Funciona em X11 e Wayland e
+precisa da glibc 2.34 ou mais recente (Ubuntu 22.04, Debian 12, Fedora 35).
+
+- **Bibliotecas.** Carrega as bibliotecas gráficas ao arrancar, e qualquer ambiente de
+  trabalho as tem: `libwayland-client` e `libxkbcommon` em Wayland, `libX11`,
+  `libxcursor`, `libxkbcommon` e `libxkbcommon-x11` em X11. Se em X11 parar com um
+  erro sobre `libxkbcommon-x11.so`, instala o pacote `libxkbcommon-x11-0`.
+- **Diálogos.** Abrir, Guardar e as perguntas usam o `zenity` ou o `kdialog`, conforme
+  o que estiver instalado. Sem eles, o rpad mostra um aviso ao arrancar: os ficheiros
+  continuam a abrir pela linha de comandos, mas Guardar como não faz nada, e as
+  perguntas respondem que não, por isso nada é sobreposto. Enquanto um diálogo está
+  aberto a janela do rpad não responde, e alguns ambientes podem propor fechá-la.
+- **Menus.** São desenhados na janela, com os mesmos itens, teclas de acesso e atalhos.
+  Abrem com Alt+letra ou F10.
+- **Tipos de letra.** Usa DejaVu, Noto ou Liberation, em `/usr/share/fonts`,
+  `/usr/local/share/fonts`, `~/.local/share/fonts` ou `~/.fonts`. A escolha do tipo de
+  letra usa o fontconfig (`fc-list`, `fc-match`). A barra de ferramentas mostra texto,
+  porque o tipo de letra dos ícones é do Windows. O japonês e o chinês precisam de Noto
+  Sans CJK, WenQuanYi Zen Hei ou Droid Sans Fallback.
+- **Clipboard.** O texto copiado fica no rpad até um gestor de Clipboard o guardar, por
+  isso pode perder-se ao fechar o rpad num ambiente sem esse gestor.
+- **Área de notificação.** O `--tray` usa StatusNotifierItem, como no KDE, Xfce,
+  Cinnamon e outros. O GNOME precisa da extensão AppIndicator. Sem anfitrião para o
+  ícone, o `--tray` é ignorado e o rpad abre como uma janela normal. Como o Wayland não
+  esconde janelas, em modo residente a janela é fechada e criada de novo; os documentos
+  continuam abertos.
+- **Ficheiros.** Os documentos novos usam LF. Guardar segue ligações simbólicas e
+  recusa um ficheiro sem permissão de escrita, mesmo que a pasta a tenha. As definições
+  ficam em `~/.config/rpad`. A codificação antiga assumida ao abrir é Windows-1252.
+- **Tema e idioma.** "Sistema" lê as definições do GNOME ao arrancar e não acompanha
+  alterações posteriores. A cor de destaque é a predefinida. O idioma vem de `LC_ALL`,
+  `LC_MESSAGES` ou `LANG`.
+- **Diferenças.** Largar ficheiros na janela funciona em X11, não em Wayland.
+  *Mostrar no Explorador* abre a pasta com `xdg-open`.
+
+Verificado no WSL2 em X11: desenho, menus com teclado e rato, menus de contexto, cópia,
+Guardar como e Abrir, segundo arranque que passa o ficheiro, e modo residente. O
+`zenity` foi substituído por um script de teste, por isso os diálogos reais não foram
+vistos, e o `kdialog` não foi executado. O ícone foi testado com um anfitrião simulado.
+Em Wayland só foi arrancado, não usado. Um menu demasiado longo para a janela desloca-se,
+mas isso não foi experimentado.
 
 ## Funcionalidades
 
@@ -262,6 +307,7 @@ mostra um aviso.
 | `ui` | Renderer de CPU (tiny-skia + ab_glyph com os tipos de letra do sistema), widgets, vista do editor, pré-visualização de Markdown |
 | `i18n` | Idiomas da interface: a tabela de traduções (`strings.txt`), procura com alternativas |
 | `win` | Integração Win32: menus (com modo escuro), diálogos comuns, Clipboard, ícone na área de notificação, passagem para a instância única |
+| `linux` | Integração Linux: Clipboard, diálogos com zenity ou kdialog, tipos de letra, ícone na área de notificação, passagem para a instância única |
 
 A lógica da aplicação fala com o sistema através de um pequeno trait `Host` (diálogos e
 Clipboard). Isto permite que os testes de fluxo conduzam a aplicação inteira sem janela.
@@ -282,7 +328,7 @@ versões do Windows que não as têm, os menus ficam simplesmente claros.
 
 ## Testes
 
-`cargo test -p rpad` corre 115 testes. Cobrem o buffer e as operações de edição, as
+`cargo test -p rpad` corre 115 testes em Windows e 122 em Linux. Cobrem o buffer e as operações de edição, as
 codificações (ida e volta, deteção, caracteres não representáveis), os fins de linha, o
 lexer, a procura, as ferramentas de texto, XML, definições, ficheiros de sessão e de
 recuperação, layout e fluxos completos através de um host simulado:
@@ -345,8 +391,7 @@ predefinido.
 
 ## Limitações
 
-- Só Windows, por agora. Compila em Linux e os testes passam, mas faltam os menus, os
-  diálogos Abrir e Guardar e o Clipboard.
+- Só Windows e Linux: ver [Linux](#linux) para o que muda aí.
 - Os ficheiros acima de 256 MB são recusados. Os ficheiros acima de 16 MB abrem em modo de
   ficheiro grande: sem realce de sintaxe, dobragem, estrutura nem translineação.
 - O texto é desenhado numa grelha de células monoespaçadas, sem modelação de texto

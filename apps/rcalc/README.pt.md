@@ -263,7 +263,7 @@ arranque do processo.
 ## Linux
 
 O pacote para Linux é um `tar.gz` com o binário `rcalc`. Funciona em X11 e Wayland e
-precisa da glibc 2.35 ou mais recente (Ubuntu 22.04, Debian 12, Fedora 36).
+precisa da glibc 2.34 ou mais recente (Ubuntu 22.04, Debian 12, Fedora 35).
 
 - **Bibliotecas.** Carrega as bibliotecas gráficas ao arrancar, e qualquer ambiente
   de trabalho as tem: `libwayland-client` e `libxkbcommon` em Wayland, `libX11`,

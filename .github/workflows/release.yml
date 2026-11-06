@@ -1,8 +1,8 @@
 # Builds one tool when its version tag is pushed (rcalc-v1.1.0, rpad-v1.0.0,
 # rview-v1.1.0) and publishes it as a GitHub release, with SHA-256 sums and
-# build provenance. rcalc is published for Windows and Linux. rpad and rview
-# are published for Windows only, as their Linux versions are still incomplete
-# (see the root README), but they are built and tested there too.
+# build provenance. rcalc and rpad are published for Windows and Linux. rview
+# is published for Windows only, as its Linux version is still incomplete (see
+# the root README), but it is built and tested there too.
 name: release
 
 on:
@@ -25,6 +25,7 @@ permissions:
 
 env:
   TAG: ${{ github.event.inputs.tag || github.ref_name }}
+  LINUX_PACKAGE: ${{ !startsWith(github.event.inputs.tag || github.ref_name, 'rview-') }}
   CARGO_TERM_COLOR: always
 
 jobs:
@@ -105,8 +106,8 @@ jobs:
           name: windows-x86_64
           path: ${{ env.ASSET }}
 
-  # rcalc is published for Linux. The other tools are only kept compiling and
-  # passing their tests, so a failure there does not block their release.
+  # A tool without a Linux package is only kept compiling and passing its
+  # tests, so a failure there does not block its release.
   # The oldest runner gives the widest glibc compatibility.
   linux:
     runs-on: ubuntu-22.04
@@ -133,15 +134,15 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Test
-        continue-on-error: ${{ !startsWith(env.TAG, 'rcalc-') }}
+        continue-on-error: ${{ env.LINUX_PACKAGE != 'true' }}
         run: cargo test -p "$APP" --locked
 
       - name: Build
-        continue-on-error: ${{ !startsWith(env.TAG, 'rcalc-') }}
+        continue-on-error: ${{ env.LINUX_PACKAGE != 'true' }}
         run: cargo build -p "$APP" --profile "$PROFILE" --locked
 
       - name: Package
-        if: startsWith(env.TAG, 'rcalc-')
+        if: env.LINUX_PACKAGE == 'true'
         run: |
           dir="$APP-$VERSION-linux-x86_64"
           mkdir "$dir"
@@ -151,13 +152,13 @@ jobs:
           echo "ASSET=$dir.tar.gz" >> "$GITHUB_ENV"
 
       - name: Provenance
-        if: startsWith(env.TAG, 'rcalc-')
+        if: env.LINUX_PACKAGE == 'true'
         uses: actions/attest-build-provenance@v4
         with:
           subject-path: ${{ env.ASSET }}
 
       - uses: actions/upload-artifact@v7
-        if: startsWith(env.TAG, 'rcalc-')
+        if: env.LINUX_PACKAGE == 'true'
         with:
           name: linux-x86_64
           path: ${{ env.ASSET }}

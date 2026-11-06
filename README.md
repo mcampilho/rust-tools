@@ -48,7 +48,7 @@ for each tool.
 
 Each tool has its own [releases](https://github.com/mcampilho/rust-tools/releases),
 as a zip with the `.exe`, for 64-bit Windows 10/11. Unzip and run: there is
-nothing to install. rcalc also has a Linux package.
+nothing to install. rcalc and rpad also have a Linux package.
 
 To publish a version, set it in `apps/<tool>/Cargo.toml` and push a tag such as
 `rview-v1.1.0`. The [release workflow](.github/workflows/release.yml) then tests
@@ -57,12 +57,12 @@ and builds that tool, and publishes it with its SHA-256 sum and build provenance
 ## Linux
 
 The three tools compile on Linux and their tests pass there, and the workflow
-keeps it that way. Only rcalc is complete enough to have a package so far:
+keeps it that way. rcalc and rpad are complete enough to have a package:
 
 | Tool | On Linux, for now |
 | --- | --- |
 | rcalc | Works: see [its README](apps/rcalc/README.md#linux) |
-| rpad | No package: no menus, no Open and Save dialogs, no copy and paste |
+| rpad | Works: see [its README](apps/rpad/README.md#linux) |
 | rview | No package: opens Markdown, HTML, text and CSV; no PDF, images, menus or clipboard |
 
 ## Layout

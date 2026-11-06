@@ -1,9 +1,9 @@
 # rpad
 
-A portable, offline text and code editor for Windows, written in Rust.
-`rpad.exe` is one 4 MB executable with no installer, no runtime and no DLLs
-beyond those that ship with Windows. It makes no network connections and
-has no telemetry.
+A portable, offline text and code editor for Windows and [Linux](#linux),
+written in Rust. `rpad.exe` is one 4 MB executable with no installer, no runtime
+and no DLLs beyond those that ship with Windows. It makes no network connections
+and has no telemetry.
 
 rpad takes ideas from the classic Windows text editors (tabs, encodings and
 line endings, search and replace, text tools, XML helpers), but its code,
@@ -85,6 +85,48 @@ registry is only read, for the font list, theme and accent colour.
 
 If `settings.ini` is damaged, invalid values fall back to defaults. If the
 data folder cannot be written, rpad still works and shows a notice.
+
+## Linux
+
+The Linux package is a `tar.gz` with the `rpad` binary. It runs on X11 and
+Wayland, and needs glibc 2.34 or newer (Ubuntu 22.04, Debian 12, Fedora 35).
+
+- **Libraries.** It loads the display libraries when it starts, and they are on
+  any desktop: `libwayland-client` and `libxkbcommon` on Wayland, `libX11`,
+  `libxcursor`, `libxkbcommon` and `libxkbcommon-x11` on X11. If X11 stops with
+  an error naming `libxkbcommon-x11.so`, install `libxkbcommon-x11-0`.
+- **Dialogs.** Open, Save and the questions use `zenity` or `kdialog`, whichever
+  is installed. Without them rpad shows a notice when it starts: files still open
+  from the command line, but Save As does nothing, and questions answer no, so
+  nothing is overwritten. While a dialog is open the rpad window does not respond,
+  and some desktops may offer to close it.
+- **Menus.** They are drawn in the window, with the same items, access keys and
+  shortcuts. Alt+letter or F10 opens them.
+- **Fonts.** It uses DejaVu, Noto or Liberation, found under `/usr/share/fonts`,
+  `/usr/local/share/fonts`, `~/.local/share/fonts` or `~/.fonts`. Font choice uses
+  fontconfig (`fc-list`, `fc-match`). The toolbar shows text, as the icon font is
+  a Windows one. Japanese and Chinese need Noto Sans CJK, WenQuanYi Zen Hei or Droid
+  Sans Fallback.
+- **Clipboard.** Copied text lives in rpad until a clipboard manager takes it, so
+  it may be lost when rpad closes on a desktop without one.
+- **Notification area.** `--tray` uses StatusNotifierItem, as on KDE, Xfce, Cinnamon
+  and others. GNOME needs the AppIndicator extension. With no host for the icon,
+  `--tray` is ignored and rpad opens as a normal window. On Wayland it cannot be
+  hidden, so while resident the window is closed and made again; documents stay open.
+- **Files.** New documents use LF. Saving follows symbolic links, and refuses a file
+  you may not write even if you may write to its folder. Settings go in
+  `~/.config/rpad`. The legacy fallback when opening a file is Windows-1252.
+- **Theme and language.** "System" reads the GNOME settings when rpad starts, and
+  does not follow later changes. The accent colour is the default one. The language
+  comes from `LC_ALL`, `LC_MESSAGES` or `LANG`.
+- **Differences.** Dropping files on the window works on X11, not on Wayland.
+  *Show in Explorer* opens the folder with `xdg-open`.
+
+Checked under WSL2 on X11: drawing, menus with keyboard and mouse, context menus,
+copy, Save As and Open, a second launch that hands over its file, and resident mode.
+`zenity` was replaced by a test script, so the real dialogs were not seen, and
+`kdialog` was not run. The tray icon was checked against a simulated host. Wayland
+was started, not used. A menu too long for the window scrolls, but this was not tried.
 
 ## Features
 
@@ -255,6 +297,7 @@ data folder cannot be written, rpad still works and shows a notice.
 | `ui` | CPU renderer (tiny-skia + ab_glyph with system fonts), widgets, the editor view, Markdown preview |
 | `i18n` | Interface languages: the translation table (`strings.txt`), lookup with fallbacks |
 | `win` | Win32 integration: menus (with dark mode), common dialogs, clipboard, tray icon, single-instance hand-off |
+| `linux` | Linux integration: clipboard, dialogs through zenity or kdialog, fonts, tray icon, single-instance hand-off |
 
 The application logic talks to the OS through a small `Host` trait (dialogs
 and clipboard). This lets the workflow tests drive the whole app without a
@@ -276,7 +319,7 @@ Windows versions without them the menus just stay light.
 
 ## Tests
 
-`cargo test -p rpad` runs 115 tests. They cover the buffer and editing operations,
+`cargo test -p rpad` runs 115 tests on Windows and 122 on Linux. They cover the buffer and editing operations,
 encodings (round trips, detection, unmappable characters), line endings,
 the lexer, search, text tools, XML, settings, session and recovery files,
 layout, and end-to-end workflows through a mock host:
@@ -336,8 +379,7 @@ in the UI, and fonts other than the default.
 
 ## Limitations
 
-- Windows only for now. It compiles on Linux and its tests pass there, but
-  menus, the Open and Save dialogs and the clipboard are missing.
+- Windows and Linux only: see [Linux](#linux) for what differs there.
 - Files over 256 MB are refused. Files over 16 MB open in large-file mode:
   syntax highlighting, folding, the outline and word wrap are off.
 - Text is drawn on a monospace cell grid without complex text shaping:
