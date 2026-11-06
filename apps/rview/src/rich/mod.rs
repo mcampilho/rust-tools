@@ -77,6 +77,8 @@ pub struct Block {
     /// A rule below (Markdown h1/h2).
     pub underline: bool,
     pub anchor: Option<String>,
+    /// Heading level (1 to 6), or 0 for other blocks.
+    pub heading: u8,
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]

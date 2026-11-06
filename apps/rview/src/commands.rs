@@ -10,6 +10,11 @@ pub enum Command {
     /// Closes the window (hides it in resident mode).
     Close,
     Exit,
+    /// Copies the selection with its formatting.
+    Copy,
+    /// Copies the selection as text only.
+    CopyPlain,
+    SelectAll,
     ZoomIn,
     ZoomOut,
     ZoomReset,
@@ -42,6 +47,9 @@ impl Command {
             OpenFolder => "Show in &Folder",
             Close => "&Close",
             Exit => "E&xit",
+            Copy => "&Copy",
+            CopyPlain => "Copy as &Plain Text",
+            SelectAll => "Select &All",
             ZoomIn => "Zoom &In",
             ZoomOut => "Zoom &Out",
             ZoomReset => "&Actual Size",
@@ -74,6 +82,9 @@ pub const BINDINGS: &[(&str, Command)] = &[
     ("Ctrl+O", Open),
     ("F5", Reload),
     ("Ctrl+W", Close),
+    ("Ctrl+C", Copy),
+    ("Ctrl+Shift+C", CopyPlain),
+    ("Ctrl+A", SelectAll),
     ("Ctrl+=", ZoomIn),
     ("Ctrl++", ZoomIn),
     ("Ctrl+-", ZoomOut),
@@ -128,6 +139,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
                 Item(Exit),
             ],
         ),
+        ("&Edit", vec![Item(Copy), Item(CopyPlain), Sep, Item(SelectAll)]),
         (
             "&View",
             vec![
@@ -161,5 +173,9 @@ mod tests {
         assert_eq!(lookup(false, false, false, "f5"), Some(Reload));
         assert_eq!(lookup(false, false, true, "z"), Some(WordWrap));
         assert_eq!(lookup(false, false, false, "o"), None);
+        assert_eq!(lookup(true, false, false, "c"), Some(Copy));
+        assert_eq!(lookup(true, true, false, "c"), Some(CopyPlain));
+        assert_eq!(lookup(true, false, false, "a"), Some(SelectAll));
+        assert_eq!(lookup(false, false, false, "c"), None);
     }
 }

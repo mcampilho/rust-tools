@@ -8,6 +8,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod clip;
 mod commands;
 mod doc;
 mod i18n;
@@ -29,8 +30,9 @@ use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 use ui::gfx::{Align, FontId, Gfx, Rect};
-use view::{Axis, LinkAction, Viewer};
+use view::{Axis, Hover, LinkAction, Viewer};
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
@@ -77,7 +79,14 @@ enum Drag {
     Pan { x: f32, y: f32, sx: f32, sy: f32 },
     Bar(Axis),
     Link { href: String, x: f32, y: f32 },
+    Select,
 }
+
+/// Longest pause and distance between the clicks of a double click.
+const DOUBLE_CLICK: Duration = Duration::from_millis(500);
+const DOUBLE_CLICK_SLOP: f32 = 4.0;
+/// Pause between scroll steps while dragging a selection past the edge.
+const AUTOSCROLL_STEP: Duration = Duration::from_millis(30);
 
 struct Shell {
     viewer: Viewer,
@@ -103,6 +112,8 @@ struct Shell {
     dialog: Option<Dialog>,
     /// "Open with rview" is registered for this rview.exe.
     integrated: bool,
+    /// Time and place of the last click, and how many came in a row.
+    last_click: Option<(Instant, f32, f32, u32)>,
 }
 
 impl Shell {
@@ -226,6 +237,12 @@ impl Shell {
             }
             Command::Close => self.close(el),
             Command::Exit => self.quit(el),
+            Command::Copy => self.copy(false),
+            Command::CopyPlain => self.copy(true),
+            Command::SelectAll => {
+                self.viewer.select_all();
+                self.status_note = self.viewer.pdf_text_pending().then(|| tr("Reading the text of this PDF…"));
+            }
             Command::DarkPages => self.settings.dark_pages = !self.settings.dark_pages,
             Command::ZoomIn => self.viewer.zoom_step(1, None),
             Command::ZoomOut => self.viewer.zoom_step(-1, None),
@@ -275,6 +292,53 @@ impl Shell {
         self.redraw();
     }
 
+    /// Copies the selection, with its formats or as text only, and says
+    /// what happened in the status bar.
+    fn copy(&mut self, plain: bool) {
+        if !self.viewer.has_selection() {
+            return;
+        }
+        let Some(payload) = self.viewer.payload(plain) else {
+            self.status_note = Some(tr("The selection has no text."));
+            return;
+        };
+        #[cfg(windows)]
+        let written = self.win.as_ref().is_some_and(|w| win::clipboard::set(w.hwnd, &payload));
+        #[cfg(not(windows))]
+        let written = false;
+        self.status_note = Some(if !written {
+            tr("The clipboard is not available.")
+        } else if payload.too_large {
+            tr("The selection is too large for formats; it was copied as plain text.")
+        } else if plain {
+            tr("Copied to the clipboard as plain text.")
+        } else {
+            tr("Copied to the clipboard.")
+        });
+    }
+
+    /// Counts consecutive clicks at a place (1, 2 or 3, then back to 1).
+    fn count_click(&mut self, x: f32, y: f32) -> u32 {
+        let now = Instant::now();
+        let n = match self.last_click {
+            Some((t, cx, cy, n)) if now - t < DOUBLE_CLICK && (cx - x).abs() < DOUBLE_CLICK_SLOP && (cy - y).abs() < DOUBLE_CLICK_SLOP => n % 3 + 1,
+            _ => 1,
+        };
+        self.last_click = Some((now, x, y, n));
+        n
+    }
+
+    /// The context menu of the document.
+    #[cfg(windows)]
+    fn context_menu(&mut self, el: &ActiveEventLoop) {
+        let Some(hwnd) = self.win.as_ref().map(|w| w.hwnd) else { return };
+        let on = |s: &Shell, c: Command| Some((c, s.enabled(c)));
+        let items = [on(self, Command::Copy), on(self, Command::CopyPlain), None, on(self, Command::SelectAll)];
+        if let Some(c) = win::menu::popup(hwnd, &items) {
+            self.command(el, c);
+        }
+    }
+
     /// The close button: hides to the tray in resident mode.
     fn close(&mut self, el: &ActiveEventLoop) {
         if self.tray {
@@ -316,6 +380,11 @@ impl Shell {
         self.redraw();
     }
 
+    fn start_pan(&mut self, x: f32, y: f32) {
+        let (sx, sy) = self.viewer.scroll;
+        self.drag = Some(Drag::Pan { x, y, sx, sy });
+    }
+
     /// Runs a Windows Integration action from the menu and shows the result.
     #[cfg(windows)]
     fn integration(&mut self, action: Integration) {
@@ -351,6 +420,8 @@ impl Shell {
         let ready = matches!(self.viewer.state, view::State::Ready(_));
         match c {
             Command::Reload | Command::OpenFolder => self.viewer.path.is_some(),
+            Command::Copy | Command::CopyPlain => self.viewer.has_selection(),
+            Command::SelectAll => ready,
             Command::ZoomIn | Command::ZoomOut | Command::ZoomReset => ready,
             Command::FitWidth => ready && self.viewer.kind == doc::Kind::Pdf,
             Command::WordWrap => self.viewer.kind == doc::Kind::Text || self.viewer.path.is_none(),
@@ -437,7 +508,10 @@ impl Shell {
             WKey::Named(NamedKey::Home) => self.viewer.scroll_to(0.0),
             WKey::Named(NamedKey::End) => self.viewer.scroll_to(f32::MAX),
             WKey::Named(NamedKey::Escape) => {
-                if let Some(w) = &self.win {
+                if self.viewer.has_selection() {
+                    self.viewer.clear_selection();
+                    self.menu_dirty = true;
+                } else if let Some(w) = &self.win {
                     if w.window.fullscreen().is_some() {
                         w.window.set_fullscreen(None);
                     }
@@ -451,9 +525,18 @@ impl Shell {
     fn update_hover(&mut self) {
         let (link, icon) = match (self.cursor.filter(|_| self.dialog.is_none()), &self.drag) {
             (_, Some(Drag::Pan { .. })) => (None, CursorIcon::Grabbing),
+            (_, Some(Drag::Select)) => (None, self.cursor_icon),
             (Some((x, y)), _) => match self.viewer.link_at(x, y) {
                 Some(l) => (Some(l), CursorIcon::Pointer),
-                None => (None, CursorIcon::Default),
+                None => (
+                    None,
+                    match self.viewer.hover(x, y, self.mods.alt_key()) {
+                        Hover::Arrow => CursorIcon::Default,
+                        Hover::Text => CursorIcon::Text,
+                        Hover::Cell => CursorIcon::Cell,
+                        Hover::Cross => CursorIcon::Crosshair,
+                    },
+                ),
             },
             _ => (None, CursorIcon::Default),
         };
@@ -702,6 +785,14 @@ fn shortcuts_text() -> String {
         ("Ctrl+O", tr("Open a document")),
         ("F5", tr("Reload")),
         ("Ctrl+W", tr("Close rview")),
+        ("Drag", tr("Select text; in CSV, cells")),
+        ("Double / triple click", tr("Select a word / a line or paragraph")),
+        ("Shift+Click", tr("Extend the selection")),
+        ("Alt+Drag", tr("Select a rectangle of a PDF page")),
+        ("Ctrl+A", tr("Select everything")),
+        ("Ctrl+C", tr("Copy with formats")),
+        ("Ctrl+Shift+C", tr("Copy as plain text")),
+        ("Esc", tr("Clear the selection")),
         ("Ctrl+= / Ctrl+-", tr("Zoom in / out")),
         ("Ctrl+Wheel", tr("Zoom at the mouse pointer")),
         ("Ctrl+0", tr("Actual size (100 %)")),
@@ -712,7 +803,7 @@ fn shortcuts_text() -> String {
         ("Space / Shift+Space", tr("Page down / up")),
         ("Home / End", tr("Start / end of the document")),
         ("Ctrl+PgUp / Ctrl+PgDn", tr("Previous / next page (PDF)")),
-        ("Drag", tr("Pan the document")),
+        ("Middle drag / Ctrl+Drag", tr("Pan the document")),
     ];
     rows.iter().map(|(k, v)| format!("{k}\t{v}")).collect::<Vec<_>>().join("\n")
 }
@@ -821,6 +912,9 @@ impl ApplicationHandler<UserEvent> for Shell {
                     any |= self.viewer.on_media(done);
                 }
                 if any {
+                    if !self.viewer.pdf_text_pending() && self.status_note.as_deref() == Some(tr("Reading the text of this PDF…").as_str()) {
+                        self.status_note = None;
+                    }
                     self.menu_dirty = true;
                     self.redraw();
                 }
@@ -896,7 +990,10 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.redraw();
             }
             WindowEvent::Focused(false) => self.save_settings(),
-            WindowEvent::ModifiersChanged(m) => self.mods = m.state(),
+            WindowEvent::ModifiersChanged(m) => {
+                self.mods = m.state();
+                self.update_hover();
+            }
             WindowEvent::DroppedFile(p) => self.open(&p, false, None),
             WindowEvent::KeyboardInput { event, is_synthetic: false, .. } => {
                 if event.state == ElementState::Pressed {
@@ -919,10 +1016,17 @@ impl ApplicationHandler<UserEvent> for Shell {
                         self.viewer.drag_scrollbar(axis, x, y);
                         self.redraw();
                     }
-                    // Moving far turns a link press into panning.
+                    // Moving far turns a link press into a selection.
                     Some(Drag::Link { x: x0, y: y0, .. }) if (x - *x0).abs() + (y - *y0).abs() > 6.0 => {
-                        let (sx, sy) = self.viewer.scroll;
-                        self.drag = Some(Drag::Pan { x: *x0, y: *y0, sx, sy });
+                        let (x0, y0) = (*x0, *y0);
+                        self.viewer.select_press(&mut self.gfx, x0, y0, false, false, 1);
+                        self.viewer.select_drag(&mut self.gfx, x, y);
+                        self.drag = Some(Drag::Select);
+                        self.redraw();
+                    }
+                    Some(Drag::Select) => {
+                        self.viewer.select_drag(&mut self.gfx, x, y);
+                        self.redraw();
                     }
                     Some(Drag::Link { .. }) | None => {}
                 }
@@ -945,22 +1049,50 @@ impl ApplicationHandler<UserEvent> for Shell {
                     if let Some(axis) = self.viewer.scrollbar_at(x, y) {
                         self.viewer.drag_scrollbar(axis, x, y);
                         self.drag = Some(Drag::Bar(axis));
-                    } else if let Some(href) = self.viewer.link_at(x, y) {
+                    } else if self.mods.control_key() && self.viewer.in_view(x, y) {
+                        self.start_pan(x, y);
+                    } else if let Some(href) = self.viewer.link_at(x, y).filter(|_| !self.mods.shift_key()) {
                         self.drag = Some(Drag::Link { href, x, y });
                     } else if self.viewer.in_view(x, y) {
-                        let (sx, sy) = self.viewer.scroll;
-                        self.drag = Some(Drag::Pan { x, y, sx, sy });
+                        let clicks = self.count_click(x, y);
+                        self.viewer.select_press(&mut self.gfx, x, y, self.mods.shift_key(), self.mods.alt_key(), clicks);
+                        self.drag = Some(Drag::Select);
+                        self.status_note = self.viewer.pdf_text_pending().then(|| tr("Reading the text of this PDF…"));
+                        self.menu_dirty = true;
                     }
                     self.update_hover();
                     self.redraw();
                 }
                 ElementState::Released => {
-                    if let Some(Drag::Link { href, .. }) = self.drag.take() {
-                        self.follow(&href);
+                    match self.drag.take() {
+                        Some(Drag::Link { href, .. }) => self.follow(&href),
+                        Some(Drag::Select) => {
+                            self.menu_dirty = true;
+                            self.redraw();
+                        }
+                        _ => {}
                     }
                     self.update_hover();
                 }
             },
+            WindowEvent::MouseInput { state, button: MouseButton::Middle, .. } if self.dialog.is_none() => match state {
+                ElementState::Pressed => {
+                    if let Some((x, y)) = self.cursor.filter(|(x, y)| self.viewer.in_view(*x, *y) && self.viewer.scrollbar_at(*x, *y).is_none()) {
+                        self.start_pan(x, y);
+                        self.update_hover();
+                    }
+                }
+                ElementState::Released => {
+                    self.drag = None;
+                    self.update_hover();
+                }
+            },
+            #[cfg(windows)]
+            WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Right, .. } if self.dialog.is_none() => {
+                if self.cursor.is_some_and(|(x, y)| self.viewer.in_view(x, y)) && matches!(self.viewer.state, view::State::Ready(_)) {
+                    self.context_menu(el);
+                }
+            }
             WindowEvent::MouseWheel { .. } if self.dialog.is_some() => {}
             WindowEvent::MouseWheel { delta, .. } => {
                 let s = self.scale();
@@ -986,6 +1118,16 @@ impl ApplicationHandler<UserEvent> for Shell {
     }
 
     fn about_to_wait(&mut self, el: &ActiveEventLoop) {
+        // A selection dragged past the edge keeps scrolling while the
+        // pointer rests there.
+        if let (Some(Drag::Select), Some((x, y))) = (&self.drag, self.cursor) {
+            if self.viewer.autoscroll(x, y) {
+                self.viewer.select_drag(&mut self.gfx, x, y);
+                self.redraw();
+                el.set_control_flow(ControlFlow::WaitUntil(Instant::now() + AUTOSCROLL_STEP));
+                return;
+            }
+        }
         el.set_control_flow(ControlFlow::Wait);
     }
 }
@@ -1163,6 +1305,7 @@ fn main() {
         integrated: integrated_here(),
         #[cfg(not(windows))]
         integrated: false,
+        last_click: None,
     };
     shell.apply_language();
     if let Err(e) = event_loop.run_app(&mut shell) {

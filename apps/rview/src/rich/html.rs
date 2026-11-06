@@ -897,6 +897,7 @@ impl Converter<'_> {
                 };
                 b.margin_top = mt;
                 b.margin_bottom = mb;
+                b.heading = heading_level(&tag).unwrap_or(0) as u8;
                 if matches!(tag.as_str(), "body" | "html") {
                     // The page background is drawn separately.
                     out.extend(blocks);

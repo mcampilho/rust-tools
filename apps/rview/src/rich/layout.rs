@@ -3,6 +3,7 @@
 //! only walks the items intersecting the viewport.
 
 use super::{Align, Block, Inline, Kind, Length, RichDoc, Style, Table};
+use crate::clip::Tag;
 use crate::ui::gfx::{Color, FontId, Gfx, Rect};
 use std::collections::HashMap;
 
@@ -103,11 +104,49 @@ pub enum Item {
     Image { r: Rect, key: String },
 }
 
+/// A place in the text of a layout: inside text item `item` (an index into
+/// `Layout::items`) at byte `byte`, or before (0) or after (1) an image.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Pos {
+    pub item: u32,
+    pub byte: u32,
+}
+
+/// What selection and copying need to know about an item.
+#[derive(Clone, Debug, Default)]
+pub struct Meta {
+    /// Innermost structure node (index into `Layout::nodes`).
+    pub node: u32,
+    pub style: Style,
+    /// Width in pixels (text and images).
+    pub w: f32,
+    /// A list marker, not document text.
+    pub marker: bool,
+    /// A space separates this item from the previous one.
+    pub space: bool,
+    /// This item starts a wrapped line.
+    pub wrapped: bool,
+    /// Hard line breaks before this item.
+    pub breaks: u8,
+    pub alt: Option<Box<str>>,
+}
+
+/// The block structure around the text: a tree stored parent-first.
+#[derive(Clone, Debug)]
+pub struct Node {
+    pub parent: u32,
+    pub tag: Tag,
+}
+
 #[derive(Default)]
 pub struct Layout {
     pub items: Vec<Item>,
     /// Vertical extent of each item (for culling).
     pub spans: Vec<(f32, f32)>,
+    /// One entry per item.
+    pub meta: Vec<Meta>,
+    /// Node 0 is the document root.
+    pub nodes: Vec<Node>,
     pub width: f32,
     pub height: f32,
     pub links: Vec<(Rect, u32)>,
@@ -124,6 +163,7 @@ impl Layout {
         };
         self.items.push(it);
         self.spans.push(span);
+        self.meta.push(Meta::default());
         self.items.len() - 1
     }
 
@@ -138,12 +178,135 @@ impl Layout {
     pub fn link_at(&self, x: f32, y: f32) -> Option<u32> {
         self.links.iter().find(|(r, _)| r.contains(x, y)).map(|(_, l)| *l)
     }
+
+    /// Selectable box of an item, if it has one.
+    fn item_box(&self, i: usize) -> Option<Rect> {
+        match &self.items[i] {
+            Item::Text { x, y, s, px, .. } if !s.is_empty() => Some(Rect::new(*x, y - px * 0.95, self.meta[i].w, px * 1.3)),
+            Item::Image { r, .. } => Some(*r),
+            _ => None,
+        }
+    }
+
+    /// Whether a document point is on text.
+    pub fn over_text(&self, x: f32, y: f32) -> bool {
+        (0..self.items.len()).any(|i| matches!(self.items[i], Item::Text { .. }) && self.item_box(i).is_some_and(|b| b.contains(x, y)))
+    }
+
+    /// The place in the text nearest to a document point.
+    pub fn hit(&self, g: &mut Gfx, x: f32, y: f32) -> Option<Pos> {
+        let mut best: Option<(f32, usize)> = None;
+        for i in 0..self.items.len() {
+            let Some(b) = self.item_box(i) else { continue };
+            let dy = (b.y - y).max(y - b.bottom()).max(0.0);
+            let dx = (b.x - x).max(x - b.right()).max(0.0);
+            // Reaching along a line is more likely than reaching across lines.
+            let score = dy * 4.0 + dx;
+            if best.is_none_or(|(s, _)| score < s) {
+                best = Some((score, i));
+            }
+        }
+        let (_, i) = best?;
+        let byte = match &self.items[i] {
+            Item::Text { x: ix, s, px, font, .. } => {
+                let mut pen = *ix;
+                let mut at = s.len();
+                for (b, c) in s.char_indices() {
+                    let w = g.advance(c, *px, *font);
+                    if x < pen + w / 2.0 {
+                        at = b;
+                        break;
+                    }
+                    pen += w;
+                }
+                at
+            }
+            Item::Image { r, .. } => usize::from(x > r.x + r.w / 2.0),
+            Item::Fill { .. } => 0,
+        };
+        Some(Pos { item: i as u32, byte: byte as u32 })
+    }
+
+    /// Length of an item in `Pos::byte` units.
+    pub fn item_len(&self, i: usize) -> usize {
+        match &self.items[i] {
+            Item::Text { s, .. } => s.len(),
+            Item::Image { .. } => 1,
+            Item::Fill { .. } => 0,
+        }
+    }
+
+    /// First and past-the-end places of the document.
+    pub fn bounds(&self) -> Option<(Pos, Pos)> {
+        let sel = |i: &usize| self.item_len(*i) > 0;
+        let first = (0..self.items.len()).find(sel)?;
+        let last = (0..self.items.len()).rfind(sel)?;
+        Some((Pos { item: first as u32, byte: 0 }, Pos { item: last as u32, byte: self.item_len(last) as u32 }))
+    }
+
+    /// Items of the paragraph around item `i`, as a selection.
+    pub fn paragraph(&self, i: usize) -> (Pos, Pos) {
+        let node = self.meta[i].node;
+        let same = |k: &usize| self.item_len(*k) > 0 && self.meta[*k].node == node;
+        let first = (0..=i).rev().take_while(|k| self.item_len(*k) == 0 || self.meta[*k].node == node).filter(same).last().unwrap_or(i);
+        let last = (i..self.items.len()).take_while(|k| self.item_len(*k) == 0 || self.meta[*k].node == node).filter(same).last().unwrap_or(i);
+        (Pos { item: first as u32, byte: 0 }, Pos { item: last as u32, byte: self.item_len(last) as u32 })
+    }
+
+    /// Counts the visible characters before `p`. Layouts of one document
+    /// count the same however they wrap, so a selection survives zooming
+    /// and resizing.
+    pub fn ordinal(&self, p: Pos) -> usize {
+        let visible = |s: &str| s.chars().filter(|c| !c.is_whitespace()).count();
+        let mut n = 0;
+        for (i, it) in self.items.iter().enumerate().take(p.item as usize + 1) {
+            match it {
+                Item::Text { s, .. } if i == p.item as usize => n += visible(&s[..(p.byte as usize).min(s.len())]),
+                Item::Text { s, .. } => n += visible(s),
+                Item::Image { .. } => n += usize::from(i != p.item as usize || p.byte > 0),
+                Item::Fill { .. } => {}
+            }
+        }
+        n
+    }
+
+    /// The place after `n` visible characters (inverse of [`Layout::ordinal`]).
+    pub fn at_ordinal(&self, n: usize) -> Pos {
+        let mut left = n;
+        let mut end = Pos::default();
+        for (i, it) in self.items.iter().enumerate() {
+            match it {
+                Item::Text { s, .. } => {
+                    for (b, c) in s.char_indices() {
+                        if !c.is_whitespace() {
+                            if left == 0 {
+                                return Pos { item: i as u32, byte: b as u32 };
+                            }
+                            left -= 1;
+                        }
+                    }
+                    if !s.is_empty() {
+                        end = Pos { item: i as u32, byte: s.len() as u32 };
+                    }
+                }
+                Item::Image { .. } => {
+                    if left == 0 {
+                        return Pos { item: i as u32, byte: 0 };
+                    }
+                    left -= 1;
+                    end = Pos { item: i as u32, byte: 1 };
+                }
+                Item::Fill { .. } => {}
+            }
+        }
+        end
+    }
 }
 
 enum Atom {
     Word(String, Style, f32),
     Space(f32),
-    Image(String, Style, f32, f32),
+    Image(String, String, Style, f32, f32),
     Break,
     Anchor(String),
 }
@@ -158,6 +321,12 @@ pub struct Ctx<'a> {
     marker: Option<(String, f32)>,
     list_depth: usize,
     cell_align: Option<Align>,
+    /// Current structure node.
+    node: u32,
+    /// Between the previous line and the next item: a wrapped space.
+    lead_space: bool,
+    /// Between the previous line and the next item: hard line breaks.
+    lead_breaks: u8,
 }
 
 fn font_of(s: &Style) -> FontId {
@@ -177,6 +346,21 @@ fn is_cjk(c: char) -> bool {
 impl Ctx<'_> {
     fn px(&self, s: &Style) -> f32 {
         self.em * s.size * if s.mono { 0.92 } else { 1.0 }
+    }
+
+    /// Opens a structure node; returns the node to go back to.
+    fn enter(&mut self, tag: Tag) -> u32 {
+        let saved = self.node;
+        self.out.nodes.push(Node { parent: saved, tag });
+        self.node = (self.out.nodes.len() - 1) as u32;
+        saved
+    }
+
+    /// Adds a list marker.
+    fn push_marker(&mut self, x: f32, y: f32, s: String, px: f32, w: f32) {
+        let color = self.text;
+        let i = self.out.push(Item::Text { x, y, s, px, font: FontId::Regular, color });
+        self.out.meta[i] = Meta { node: self.node, marker: true, w, ..Meta::default() };
     }
 
     fn image_size(&mut self, src: &str, w: Option<Length>, h: Option<Length>, avail: f32) -> (String, Option<(f32, f32)>) {
@@ -266,7 +450,7 @@ impl Ctx<'_> {
                 Inline::Break => out.push(Atom::Break),
                 Inline::Anchor(a) => out.push(Atom::Anchor(a.clone())),
                 Inline::Image { src, alt, width, height, style } => match self.image_size(src, *width, *height, avail) {
-                    (key, Some((w, h))) => out.push(Atom::Image(key, *style, w, h)),
+                    (key, Some((w, h))) => out.push(Atom::Image(key, alt.clone(), *style, w, h)),
                     (_, None) => {
                         if !alt.is_empty() {
                             let s = Style { italic: true, ..*style };
@@ -325,6 +509,8 @@ impl Ctx<'_> {
             match atom {
                 Atom::Break => {
                     y = self.flush_line(&all, &mut line, x, w, y, align, first_style, true);
+                    self.lead_breaks = self.lead_breaks.saturating_add(1);
+                    self.lead_space = false;
                     cur = 0.0;
                     pending_space = 0.0;
                 }
@@ -334,9 +520,10 @@ impl Ctx<'_> {
                     }
                 }
                 Atom::Anchor(_) => line.push((i, cur)),
-                Atom::Word(_, _, aw) | Atom::Image(_, _, aw, _) => {
+                Atom::Word(_, _, aw) | Atom::Image(_, _, _, aw, _) => {
                     if !nowrap && cur + pending_space + aw > w && !line.is_empty() {
                         y = self.flush_line(&all, &mut line, x, w, y, align, first_style, false);
+                        self.lead_space = pending_space > 0.0;
                         cur = 0.0;
                         pending_space = 0.0;
                     }
@@ -353,10 +540,11 @@ impl Ctx<'_> {
             // A list item with no text: draw its marker anyway.
             let px = self.em;
             let mw = self.g.measure(&m, px, FontId::Regular);
-            let text = self.text;
-            self.out.push(Item::Text { x: right - mw, y: y + px, s: m, px, font: FontId::Regular, color: text });
+            self.push_marker(right - mw, y + px, m, px, mw);
             y += px * 1.5;
         }
+        self.lead_space = false;
+        self.lead_breaks = 0;
         y
     }
 
@@ -378,7 +566,7 @@ impl Ctx<'_> {
                     width = width.max(ax + aw);
                     has_content = true;
                 }
-                Atom::Image(_, _, iw, ih) => {
+                Atom::Image(_, _, _, iw, ih) => {
                     asc = asc.max(*ih + 2.0);
                     desc = desc.max(self.em * 0.2);
                     width = width.max(ax + iw);
@@ -416,11 +604,12 @@ impl Ctx<'_> {
         if let Some((m, right)) = self.marker.take() {
             let px = self.px(&first);
             let mw = self.g.measure(&m, px, FontId::Regular);
-            let text = self.text;
-            self.out.push(Item::Text { x: right - mw, y: baseline, s: m, px, font: FontId::Regular, color: text });
+            self.push_marker(right - mw, baseline, m, px, mw);
         }
         // Emit runs: consecutive words of the same style become one item.
         let mut k = 0;
+        // End of the previous item on this line.
+        let mut prev_end: Option<f32> = None;
         while k < line.len() {
             let (i, ax) = line[k];
             match &atoms[i] {
@@ -430,9 +619,21 @@ impl Ctx<'_> {
                     }
                     k += 1;
                 }
-                Atom::Image(key, s, iw, ih) => {
+                Atom::Image(key, alt, s, iw, ih) => {
                     let r = Rect::new(x + off + ax, baseline - ih, *iw, *ih);
-                    self.out.push(Item::Image { r, key: key.clone() });
+                    let idx = self.out.push(Item::Image { r, key: key.clone() });
+                    let wrapped = std::mem::take(&mut self.lead_space);
+                    self.out.meta[idx] = Meta {
+                        node: self.node,
+                        style: *s,
+                        w: *iw,
+                        wrapped,
+                        space: wrapped || prev_end.is_some_and(|e| ax - e > 0.01),
+                        breaks: std::mem::take(&mut self.lead_breaks),
+                        alt: (!alt.is_empty()).then(|| alt.as_str().into()),
+                        marker: false,
+                    };
+                    prev_end = Some(ax + iw);
                     if s.link != 0 {
                         self.out.links.push((r, s.link));
                     }
@@ -474,7 +675,18 @@ impl Ctx<'_> {
                         self.out.push(Item::Fill { r: Rect::new(rx - pad, base - px * 0.95, rw + 2.0 * pad, px * 1.25), color: bg });
                     }
                     let color = self.color(&s);
-                    self.out.push(Item::Text { x: rx, y: base, s: text, px, font, color });
+                    let idx = self.out.push(Item::Text { x: rx, y: base, s: text, px, font, color });
+                    let wrapped = std::mem::take(&mut self.lead_space);
+                    self.out.meta[idx] = Meta {
+                        node: self.node,
+                        style: s,
+                        w: rw,
+                        wrapped,
+                        space: wrapped || prev_end.is_some_and(|e| start_x - e > 0.01),
+                        breaks: std::mem::take(&mut self.lead_breaks),
+                        ..Meta::default()
+                    };
+                    prev_end = Some(end_x);
                     let thick = (px / 14.0).max(1.0).round();
                     if s.underline {
                         self.out.push(Item::Fill { r: Rect::new(rx, (base + px * 0.12).round(), rw, thick), color });
@@ -532,12 +744,29 @@ impl Ctx<'_> {
         if b.bar {
             self.text = self.pal.muted;
         }
+        let saved_node = self.node;
+        if b.bar {
+            self.enter(Tag::Quote);
+        }
+        let para_tag = |pre: bool| Tag::Para {
+            align: b.align,
+            pre,
+            heading: b.heading,
+            // The document's own colors: copies land on a light page.
+            bg: b.bg.or(if pre && b.padding > 0.0 { Some(Palette::paper().code_bg) } else { None }),
+        };
         let top = y;
         let mut y = y + pad;
         y = match &b.kind {
             Kind::Empty => y,
-            Kind::Para(inl) => self.para(inl, cx, cw, y, b.align, false),
-            Kind::Pre(inl) => self.para(inl, cx, cw, y, b.align, true),
+            Kind::Para(inl) => {
+                self.enter(para_tag(false));
+                self.para(inl, cx, cw, y, b.align, false)
+            }
+            Kind::Pre(inl) => {
+                self.enter(para_tag(true));
+                self.para(inl, cx, cw, y, b.align, true)
+            }
             Kind::Group(children) => self.blocks(children, cx, cw, y),
             Kind::Rule => {
                 let h = (em / 10.0).max(1.0).round();
@@ -547,6 +776,7 @@ impl Ctx<'_> {
             }
             Kind::List(l) => {
                 self.list_depth += 1;
+                self.enter(Tag::List { ordered: l.ordered, start: l.start });
                 let ind = em * 1.8;
                 let mut yy = y;
                 for (i, item) in l.items.iter().enumerate() {
@@ -560,19 +790,24 @@ impl Ctx<'_> {
                         yy += em * 0.2;
                     }
                     self.marker = Some((marker, cx + ind - em * 0.45));
+                    let list_node = self.enter(Tag::Item);
                     yy = self.blocks(&item.blocks, cx + ind, cw - ind, yy);
                     if let Some((m, right)) = self.marker.take() {
                         let mw = self.g.measure(&m, em, FontId::Regular);
-                        let text = self.text;
-                        self.out.push(Item::Text { x: right - mw, y: yy + em, s: m, px: em, font: FontId::Regular, color: text });
+                        self.push_marker(right - mw, yy + em, m, em, mw);
                         yy += em * 1.45;
                     }
+                    self.node = list_node;
                 }
                 self.list_depth -= 1;
                 yy
             }
-            Kind::Table(t) => self.table(t, cx, cw, y),
+            Kind::Table(t) => {
+                self.enter(Tag::Table);
+                self.table(t, cx, cw, y)
+            }
         };
+        self.node = saved_node;
         y += pad;
         if b.bar {
             self.out.push(Item::Fill { r: Rect::new(x, top, bar, y - top), color: self.pal.border });
@@ -599,7 +834,7 @@ impl Ctx<'_> {
         let (mut min, mut max, mut line) = (0.0f32, 0.0f32, 0.0f32);
         for a in &atoms {
             match a {
-                Atom::Word(_, _, w) | Atom::Image(_, _, w, _) => {
+                Atom::Word(_, _, w) | Atom::Image(_, _, _, w, _) => {
                     min = min.max(*w);
                     line += w;
                 }
@@ -707,6 +942,7 @@ impl Ctx<'_> {
         let line = (em / 14.0).max(1.0).round();
         let mut y = y;
         for (ri, row) in t.rows.iter().enumerate() {
+            let table_node = self.enter(Tag::Row);
             let top = y;
             let mut cx = x;
             let mut bottom = top;
@@ -722,7 +958,9 @@ impl Ctx<'_> {
                 let bg = c.bg.map(|x| self.pal.bgc(x)).or(if c.header { Some(self.pal.header_bg) } else if zebra { Some(self.pal.header_bg.mix(self.pal.bg, 0.5)) } else { None });
                 let bg_item = bg.map(|color| self.out.push(Item::Fill { r: Rect::default(), color }));
                 self.cell_align = Some(c.align);
+                let row_node = self.enter(Tag::Cell { header: c.header, colspan: c.colspan.max(1), align: c.align, bg: c.bg });
                 let b = self.blocks(&c.blocks, cx + padx, cw - pad2, top + pady);
+                self.node = row_node;
                 self.cell_align = None;
                 bottom = bottom.max(b + pady);
                 cells.push((cx, cw, bg_item));
@@ -742,6 +980,7 @@ impl Ctx<'_> {
                 self.out.push(Item::Fill { r: Rect::new(cx, top + h - line, cw, line), color: c });
             }
             y = top + h;
+            self.node = table_node;
         }
         let tw: f32 = widths.iter().sum();
         self.out.width = self.out.width.max(x + tw);
@@ -755,7 +994,8 @@ pub fn layout(doc: &RichDoc, g: &mut Gfx, width: f32, em: f32, pal: Palette, img
     let col = doc.max_width.map_or(width - 2.0 * pad, |m| (m * em).min(width - 2.0 * pad)).max(em * 8.0);
     let x = ((width - col) / 2.0).max(pad).round();
     let text = doc.page_color.map_or(pal.text, |c| pal.fg(c));
-    let mut ctx = Ctx { g, em, pal, text, img, out: Layout::default(), marker: None, list_depth: 0, cell_align: None };
+    let mut ctx = Ctx { g, em, pal, text, img, out: Layout::default(), marker: None, list_depth: 0, cell_align: None, node: 0, lead_space: false, lead_breaks: 0 };
+    ctx.out.nodes.push(Node { parent: 0, tag: Tag::Quote }); // the root; never written out
     let bottom = ctx.blocks(&doc.blocks, x, col, pad);
     let mut out = ctx.out;
     out.height = bottom + pad;

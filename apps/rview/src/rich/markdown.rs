@@ -279,6 +279,7 @@ impl Builder {
                     margin_bottom: if n <= 2 { 0.6 } else { 0.5 },
                     underline: n <= 2,
                     anchor: Some(anchor),
+                    heading: n as u8,
                     ..Block::default()
                 });
             }

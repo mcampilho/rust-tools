@@ -1,10 +1,12 @@
 # rview
 
 A small, fast, portable document viewer for Windows, written in Rust. It
-shows **PDF, Markdown, HTML, text and CSV** files, with zoom, and nothing
-else.
+shows **PDF, Markdown, HTML, text and CSV** files, with zoom, and lets you
+select and copy what you see.
 
-`rview.exe` is a single 2.3 MB executable: no installer, no runtime, no
+[Versão portuguesa](README.pt.md)
+
+`rview.exe` is a single 4.4 MB executable: no installer, no runtime, no
 DLLs beyond those that ship with Windows, and no registry writes unless you
 ask for Explorer integration. It makes no network connections, has no
 telemetry and never runs scripts.
@@ -22,7 +24,9 @@ telemetry and never runs scripts.
 
 The PDF engine and image codecs are part of Windows 10/11, so they add
 nothing to the executable. Everything else is drawn by rview's own
-CPU renderer (tiny-skia + ab_glyph with the system fonts).
+CPU renderer (tiny-skia + ab_glyph with the system fonts). Windows' PDF
+engine only draws pages, so the text of a PDF is read separately, on a
+background thread, with the lopdf library.
 
 ## Build
 
@@ -87,6 +91,11 @@ exit code is 0 on success.
 | Open | Ctrl+O |
 | Reload | F5 |
 | Close (hide in resident mode) | Ctrl+W |
+| Select | Drag with the mouse (see below) |
+| Select all | Ctrl+A |
+| Copy with formats | Ctrl+C |
+| Copy as plain text | Ctrl+Shift+C |
+| Clear the selection | Esc |
 | Zoom in / out | Ctrl+= / Ctrl+-, Ctrl+mouse wheel (zooms at the pointer) |
 | Actual size (100 %) | Ctrl+0 |
 | Fit width (PDF) | Ctrl+9 |
@@ -94,8 +103,38 @@ exit code is 0 on success.
 | Full screen | F11 (Esc leaves) |
 | Scroll | Arrows, Page Up/Down, Space / Shift+Space, Home / End, mouse wheel (Shift for sideways) |
 | Previous / next PDF page | Ctrl+Page Up / Ctrl+Page Down |
-| Pan | Drag with the mouse |
+| Pan | Drag with the middle mouse button, or Ctrl+drag |
 | Keyboard shortcuts | F1 |
+
+## Selecting and copying
+
+Drag to select, double-click for a word, triple-click for a line or
+paragraph, Shift+click to extend, and drag past the edge to keep scrolling.
+Ctrl+A selects everything. The Edit menu and the right-click menu offer the
+same commands. A link is followed on a click; dragging from it selects.
+
+**Copy** (Ctrl+C) puts the selection on the clipboard as text, HTML and RTF,
+so Word, Outlook, Excel, browsers and WordPad keep the formatting: fonts,
+sizes, bold, italic, colors, links, headings, lists, quotes, tables and
+highlighted code. **Copy as Plain Text** (Ctrl+Shift+C) puts text only.
+Copies use the document's own colors, even in the dark theme.
+
+- **Text and code:** any characters; code keeps its syntax colors.
+- **Markdown and HTML:** any characters, across paragraphs, lists and
+  tables. A selected image goes as a link in the HTML; an image selected on
+  its own also goes as a picture.
+- **CSV:** cells, in a rectangle; click a row number for the row, a column
+  title for the column, or the corner for all. Plain text is tab-separated
+  (with spreadsheet quoting), so it pastes into cells.
+- **PDF:** text, across pages, with fonts, sizes and colors; lines of a
+  paragraph are joined in formatted copies. Alt+drag selects a rectangle of
+  the page instead, copied as a picture as shown on screen (and as text, if
+  it holds any). Pages with no text, such as scans, always select a
+  rectangle; Ctrl+A on a document with no text at all takes the current
+  page.
+
+Selections over 8 MB of text (or 200,000 CSV cells) are copied as plain text
+only, and the status bar says so.
 
 ## Details per format
 
@@ -127,7 +166,9 @@ exit code is 0 on success.
 - **PDF:** pages are rendered on a background thread for the visible pages
   (plus the next and previous one) at the exact zoom; up to 256 MB of
   rendered pages are kept and the farthest are dropped first. Fit width is
-  the default.
+  the default. Text is read from embedded, Type 1, TrueType, composite and
+  Type 3 fonts, in rotated pages and inside form XObjects; it keeps the
+  file's own order, which is reading order in most documents.
 - **Links:** `#anchors` scroll; links to local documents of the supported
   types open in rview; `http`, `https` and `mailto` links open in the
   default browser or mail program on click. Links can never start a
@@ -151,7 +192,7 @@ View › Display Language.
 
 ## Tests and verification
 
-`cargo test` runs 61 tests: the text, CSV, Markdown, HTML and CSS parsers,
+`cargo test` runs 95 tests: the text, CSV, Markdown, HTML and CSS parsers,
 the layout engine (wrapping, zoom, long words, links), encodings, links
 and image paths, settings, the translation table (every string in the
 code and menus has all languages; placeholders and access keys match),
@@ -164,6 +205,11 @@ user's own default is left alone, a previous default is restored, other
 programs' verbs survive), and the Windows engines: a PDF generated in the test is opened and
 page 1 rendered through `Windows.Data.Pdf` (text pixels checked), a broken
 PDF reports an error, and a PNG is decoded through the Windows codecs.
+Selection is covered per format (characters, words, lines, wrapped text,
+zoom keeping the selection, CSV rows and columns, PDF regions), as are the
+plain text, HTML, RTF and picture written for the clipboard, and PDF text
+(positions, rotation, crop box, form XObjects, composite fonts, ligatures,
+Type 3 fonts).
 
 Measured on Windows 10 (release build):
 
@@ -183,12 +229,20 @@ Measured on Windows 10 (release build):
 - `--tray`: starts hidden (about 21 MB); a launch with a file hands it to
   the resident window, which shows it; the close button hides it with the
   document kept; a launch without a file shows it; File › Exit quits.
+- Selection and copied contents, on documents of every type in the light
+  and dark themes: Markdown, HTML, CSV and source code, a PDF with embedded
+  TrueType fonts (including a rotated page and a page with only an image)
+  and PDFs from pdflatex (Type 1 and Type 3 fonts). With the real mouse and
+  keyboard: dragging, double and triple click, the right-click menu, Ctrl+C
+  and Ctrl+Shift+C, dragging past the edge, Alt+drag on a PDF, panning with
+  the middle button; the Windows clipboard was read back after each copy,
+  and the RTF loads correctly in RichEdit (WordPad's engine).
 - Release build: no warnings, clippy clean; `dumpbin /dependents` lists only
   Windows system DLLs.
 
-Not exercised by hand: clicking links and dragging with the mouse (the
-link rules and hit-testing are unit-tested), screen readers, high-DPI
-monitors, very large or password-protected PDFs, right-to-left documents.
+Not exercised by hand: clicking links (the link rules are unit-tested),
+pasting into Word, Excel or Outlook, screen readers, high-DPI monitors, very
+large or password-protected PDFs, right-to-left documents.
 
 ## Limitations
 
@@ -201,10 +255,14 @@ monitors, very large or password-protected PDFs, right-to-left documents.
 - Text is drawn without complex shaping: right-to-left scripts and
   scripts needing shaping (Arabic, Devanagari, Thai) show separate glyphs;
   emoji are monochrome.
-- PDF: no text selection, search, outline or forms; password-protected
-  files cannot be opened.
-- No text selection or search in any format, no printing (it is a viewer
-  with zoom, by design).
+- PDF: no search, outline or forms; password-protected files cannot be
+  opened. Text with no Unicode information in the file (some older or
+  deliberately encoded fonts) copies as `�`, and scanned pages have no text
+  (a picture of them can still be copied). Selection follows the file's
+  text order, which can jump in unusual layouts.
+- No search in any format, no printing (it is a viewer with zoom, by
+  design).
+- Selection is by mouse, plus Ctrl+A; there is no keyboard caret.
 - Files over 512 MB (text, CSV, Markdown, HTML) are refused.
 
 ## License

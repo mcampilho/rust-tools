@@ -2,6 +2,7 @@
 //! here (on a loader thread); PDF pages are rendered by the media worker.
 
 pub mod csv;
+pub mod pdf;
 pub mod text;
 
 use crate::i18n::{tf, tr};

@@ -7,6 +7,7 @@
 //! locally.
 
 pub mod assoc;
+pub mod clipboard;
 pub mod darkmode;
 pub mod dialogs;
 pub mod menu;

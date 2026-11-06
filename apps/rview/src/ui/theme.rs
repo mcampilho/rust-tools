@@ -17,6 +17,8 @@ pub struct Theme {
     pub gutter_text: Color,
     pub stripe: Color,
     pub header: Color,
+    /// Selected text and cells (translucent: drawn over page images too).
+    pub selection: Color,
 }
 
 impl Theme {
@@ -35,6 +37,7 @@ impl Theme {
                 gutter_text: c(0x6E7681),
                 stripe: c(0x232325),
                 header: c(0x2A2A2D),
+                selection: Color::rgba(0x3390FF, 0x70),
             }
         } else {
             Theme {
@@ -49,6 +52,7 @@ impl Theme {
                 gutter_text: c(0x9A9A9A),
                 stripe: c(0xF7F8FA),
                 header: c(0xEEF1F5),
+                selection: Color::rgba(0x3390FF, 0x55),
             }
         }
     }

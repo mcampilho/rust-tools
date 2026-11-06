@@ -4,8 +4,10 @@
 //! when installed). One worker thread owns the open PDF; page requests
 //! replace older pending ones so scrolling never queues stale work.
 
+use crate::doc::pdf::PageText;
 use std::collections::VecDeque;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{mpsc, Arc, Condvar, Mutex};
 
 /// Decoded pixels, premultiplied RGBA.
@@ -26,28 +28,53 @@ pub enum Done {
     PdfFailed { gen: u64, message: String },
     Page { gen: u64, page: u32, width: u32, bmp: Bitmap },
     Image { key: String, bmp: Option<Bitmap> },
+    /// The text of the PDF's pages (empty when it cannot be read).
+    PdfText { gen: u64, pages: Vec<PageText> },
 }
 
 type Queue = Arc<(Mutex<VecDeque<Job>>, Condvar)>;
+type Wake = Arc<dyn Fn() + Send + Sync>;
 
 pub struct Media {
     queue: Queue,
     pub rx: mpsc::Receiver<Done>,
+    tx: mpsc::Sender<Done>,
+    wake: Wake,
+    /// Document whose text is wanted; an older read stops when this changes.
+    text_gen: Arc<AtomicU64>,
 }
 
 /// Largest bitmap edge produced (larger pages are drawn scaled up).
 pub const MAX_EDGE: u32 = 4096;
 
 impl Media {
-    pub fn start(wake: Arc<dyn Fn() + Send + Sync>) -> Media {
+    pub fn start(wake: Wake) -> Media {
         let queue: Queue = Arc::new((Mutex::new(VecDeque::new()), Condvar::new()));
         let (tx, rx) = mpsc::channel();
         let q = queue.clone();
+        let (worker_tx, worker_wake) = (tx.clone(), wake.clone());
         std::thread::Builder::new()
             .name("media".into())
-            .spawn(move || worker(q, tx, wake))
+            .spawn(move || worker(q, worker_tx, worker_wake))
             .expect("spawn media thread");
-        Media { queue, rx }
+        Media { queue, rx, tx, wake, text_gen: Arc::new(AtomicU64::new(0)) }
+    }
+
+    /// Reads the text of a PDF on its own thread, so page rendering never
+    /// waits for it. A file the reader cannot handle (even by panicking)
+    /// only means that its text cannot be selected.
+    pub fn read_pdf_text(&self, path: PathBuf, gen: u64, sizes: Vec<(f32, f32)>) {
+        self.text_gen.store(gen, Ordering::Relaxed);
+        let (tx, wake, current) = (self.tx.clone(), self.wake.clone(), self.text_gen.clone());
+        let work = move || {
+            let keep_going = || current.load(Ordering::Relaxed) == gen;
+            let pages = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| crate::doc::pdf::extract(&path, &sizes, &keep_going)));
+            let pages = pages.ok().flatten().unwrap_or_default();
+            if tx.send(Done::PdfText { gen, pages }).is_ok() {
+                wake();
+            }
+        };
+        let _ = std::thread::Builder::new().name("pdf-text".into()).stack_size(8 << 20).spawn(work);
     }
 
     pub fn send(&self, job: Job) {
@@ -151,7 +178,7 @@ mod winrt {
     }
 }
 
-fn worker(queue: Queue, tx: mpsc::Sender<Done>, wake: Arc<dyn Fn() + Send + Sync>) {
+fn worker(queue: Queue, tx: mpsc::Sender<Done>, wake: Wake) {
     #[cfg(windows)]
     winrt::init();
     #[cfg(windows)]

@@ -6,7 +6,7 @@ use crate::doc::text::{WrapIndex, TAB, WRAP_LIMIT};
 use crate::doc::{Content, Kind};
 use crate::i18n::{tf, tr};
 use crate::media::{Done, Job, Media, MAX_EDGE};
-use crate::rich::layout::{self, ImgState, Item, Layout, Palette};
+use crate::rich::layout::{self, ImgState, Item, Layout, Palette, Pos};
 use crate::rich::RichDoc;
 use crate::ui::gfx::{Color, FontId, Gfx, Rect};
 use crate::ui::layout as cells;
@@ -14,6 +14,11 @@ use crate::ui::theme::Theme;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use tiny_skia::Pixmap;
+
+mod selection;
+
+pub use selection::{Hover, Sel};
+use selection::{CsvGeom, TextGeom};
 
 pub const ZOOMS: [f32; 17] = [0.25, 0.33, 0.5, 0.67, 0.75, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 4.0, 5.0];
 /// Memory budget for rendered PDF pages.
@@ -59,6 +64,11 @@ struct Pdf {
     /// Page rectangles (document coordinates) from the last draw.
     rects: Vec<Rect>,
     current: usize,
+    /// Text of each page, once read.
+    text: Option<Vec<crate::doc::pdf::PageText>>,
+    text_asked: bool,
+    /// Select All was asked for before the text arrived.
+    all_pending: bool,
 }
 
 pub struct Viewer {
@@ -89,6 +99,9 @@ pub struct Viewer {
     pub dark_pages: bool,
     /// Syntax highlighting of the text document.
     hl: Option<crate::syntax::Highlighter>,
+    sel: Option<Sel>,
+    text_geom: TextGeom,
+    csv_geom: CsvGeom,
 }
 
 fn pixmap(b: crate::media::Bitmap) -> Option<Pixmap> {
@@ -198,6 +211,9 @@ impl Viewer {
             pdf: Pdf::default(),
             dark_pages: true,
             hl: None,
+            sel: None,
+            text_geom: TextGeom::default(),
+            csv_geom: CsvGeom::default(),
         }
     }
 
@@ -224,6 +240,7 @@ impl Viewer {
         self.pdf = Pdf::default();
         self.hl = None;
         self.hover_link = None;
+        self.sel = None;
         self.gen
     }
 
@@ -268,6 +285,13 @@ impl Viewer {
                 if let Some(p) = pixmap(bmp) {
                     self.pdf.pages.insert(page, (width, p));
                     self.evict_pages();
+                }
+                true
+            }
+            Done::PdfText { gen, pages } if gen == self.gen => {
+                self.pdf.text = Some(pages);
+                if std::mem::take(&mut self.pdf.all_pending) {
+                    self.select_all();
                 }
                 true
             }
@@ -597,6 +621,8 @@ impl Viewer {
         let pad = (8.0 * s).round();
         let digits = doc.line_count().to_string().len();
         let gutter = digits as f32 * cw + 2.0 * pad;
+        self.text_geom = TextGeom { cw, lh, pad, gutter };
+        let selected = self.text_range();
         let text_w = area.w - gutter - pad - SCROLLBAR;
         let wrap = self.wrap && doc.text.len() <= WRAP_LIMIT;
         let ncells = (text_w / cw).floor().max(8.0) as usize;
@@ -646,6 +672,15 @@ impl Viewer {
                 None => (0, usize::MAX),
             };
             let baseline = y + base_off;
+            if let Some((s, e)) = selected {
+                let start = doc.lines[line];
+                if s <= start + text.len() && e > start {
+                    if let Some((l, r)) = selection::sel_span(text, start, a, b, s, e, x0, cw, area.right()) {
+                        let l = l.max(area.x + gutter - cw);
+                        g.fill_rect(Rect::new(l, y, r - l, lh), th.selection);
+                    }
+                }
+            }
             if sub == 0 {
                 let n = (line + 1).to_string();
                 let nw = g.measure(&n, px * 0.9, FontId::Mono);
@@ -692,11 +727,13 @@ impl Viewer {
         let (px0, ref base) = *self.csv_cols.as_ref().expect("widths");
         let k = px / px0;
         let widths: Vec<f32> = base.iter().map(|w| (w * k).round()).collect();
+        let selected = self.csv_range();
         let rows = doc.rows();
         let body = rows.saturating_sub(1);
         let digits = body.max(1).to_string().len();
         let num_w = digits as f32 * g.advance('0', px, FontId::Regular) + 2.0 * pad;
         let total_w: f32 = num_w + widths.iter().sum::<f32>() + SCROLLBAR;
+        self.csv_geom = CsvGeom { rh, num_w, widths: widths.clone() };
         self.content = (total_w, (body as f32 + 1.0) * rh + SCROLLBAR);
         settle(&mut self.restore, &mut self.scroll, self.content, self.view);
         g.fill_rect(area, th.bg);
@@ -718,6 +755,9 @@ impl Viewer {
                     break;
                 }
                 if x + w >= area.x + num_w {
+                    if selected.is_some_and(|(r0, r1, c0, c1)| i + 1 >= r0 && i < r1 && c >= c0 && c <= c1) {
+                        g.fill_rect(Rect::new(x, y, *w, rh), th.selection);
+                    }
                     if let Some(f) = fields.get(c) {
                         let f = f.replace("\r\n", "\n").replace('\n', " ↵ ");
                         let t = fit_text(g, &f, w - 2.0 * pad, px, FontId::Regular);
@@ -748,6 +788,9 @@ impl Viewer {
                     break;
                 }
                 if x + w >= area.x + num_w {
+                    if selected.is_some_and(|(r0, _, c0, c1)| r0 == 0 && c >= c0 && c <= c1) {
+                        g.fill_rect(Rect::new(x, area.y, *w, rh), th.selection);
+                    }
                     let h = header.get(c).map(String::as_str).unwrap_or("");
                     let t = fit_text(g, h, w - 2.0 * pad, px, FontId::Bold);
                     g.text(&t, (x + pad).round(), area.y + base_off, px, FontId::Bold, th.text);
@@ -806,7 +849,9 @@ impl Viewer {
             let old_h = self.content.1;
             let frac = if old_h > 0.0 && self.rich.is_some() { Some(self.scroll.1 / old_h) } else { None };
             let l = layout::layout(doc, g, width, em, pal, &resolve);
+            let ordinals = self.sel_ordinals();
             self.rich = Some(l);
+            self.restore_ordinals(ordinals);
             self.rich_key = key;
             self.rich_pal = Some(pal);
             if self.restore.is_none() {
@@ -823,17 +868,32 @@ impl Viewer {
         settle(&mut self.restore, &mut self.scroll, self.content, self.view);
         let Some(l) = &self.rich else { return };
         let pal = self.rich_pal.unwrap_or(Palette::paper());
+        let selected = self.rich_range();
         g.fill_rect(area, pal.bg);
         let (ox, oy) = (area.x - self.scroll.0, area.y - self.scroll.1);
         let (top, bottom) = (self.scroll.1, self.scroll.1 + area.h);
-        for (item, &(a, b)) in l.items.iter().zip(&l.spans) {
+        for (i, (item, &(a, b))) in l.items.iter().zip(&l.spans).enumerate() {
             if b < top || a > bottom {
                 continue;
             }
+            let picked = selected.filter(|(from, to)| i >= from.item as usize && i <= to.item as usize);
             match item {
                 Item::Text { x, y, s, px, font, color } => {
                     if x + ox > area.right() {
                         continue;
+                    }
+                    if let Some((from, to)) = picked {
+                        let start = if i == from.item as usize { (from.byte as usize).min(s.len()) } else { 0 };
+                        let end = if i == to.item as usize { (to.byte as usize).min(s.len()) } else { s.len() };
+                        if start < end {
+                            let mut left = x + g.measure(&s[..start], *px, *font);
+                            let right = x + g.measure(&s[..end], *px, *font);
+                            // Cover the space before an item selected from its start.
+                            if start == 0 && i > from.item as usize && l.meta[i].space && !l.meta[i].wrapped {
+                                left -= g.advance(' ', *px, *font);
+                            }
+                            g.fill_rect(Rect::new(left + ox, y + oy - px * 0.95, right - left, px * 1.3), th.selection);
+                        }
                     }
                     g.text(s, (x + ox).round(), y + oy, *px, *font, *color);
                 }
@@ -843,6 +903,10 @@ impl Viewer {
                     match self.images.get(key).and_then(|i| i.pix.as_ref()) {
                         Some(p) => g.draw_image(p, dest),
                         None => g.stroke_rrect(dest, 2.0, 1.0, pal.border),
+                    }
+                    let (first, last) = (Pos { item: i as u32, byte: 0 }, Pos { item: i as u32, byte: 1 });
+                    if picked.is_some_and(|(from, to)| from <= first && last <= to) {
+                        g.fill_rect(dest, th.selection);
                     }
                 }
             }
@@ -881,6 +945,12 @@ impl Viewer {
             self.pdf.dark = dark;
             self.pdf.pages.clear();
             self.pdf.requested.clear();
+        }
+        if !self.pdf.text_asked && !self.pdf.sizes.is_empty() {
+            self.pdf.text_asked = true;
+            if let Some(p) = &self.path {
+                media.read_pdf_text(p.clone(), self.gen, self.pdf.sizes.clone());
+            }
         }
         let sizes = &self.pdf.sizes;
         if sizes.is_empty() {
@@ -938,6 +1008,17 @@ impl Viewer {
                     }
                 }
                 None => wanted.push((i as u32, target)),
+            }
+            let k = r.w / sizes[i].0;
+            if let Some(text) = self.pdf.text.as_ref().and_then(|t| t.get(i)) {
+                if let Some(range) = self.pdf_range(i as u32, text.glyphs.len()) {
+                    selection::paint_glyphs(g, text, range, dest, k, th.selection);
+                }
+            }
+            if let Some(s) = self.pdf_region(i as u32) {
+                let cut = Rect::new(dest.x + s.x * k, dest.y + s.y * k, s.w * k, s.h * k);
+                g.fill_rect(cut, th.selection);
+                g.stroke_rrect(cut, 0.0, 1.0, Color::rgb(0x3390FF));
             }
         }
         // Prefetch the next and previous page.

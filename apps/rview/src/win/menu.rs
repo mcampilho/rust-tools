@@ -2,7 +2,7 @@
 
 use super::wide;
 use crate::commands::{shortcut, Command, M};
-use windows_sys::Win32::Foundation::HWND;
+use windows_sys::Win32::Foundation::{HWND, POINT};
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
 pub struct MenuBar {
@@ -57,6 +57,36 @@ impl MenuBar {
                 EnableMenuItem(self.bar, id, MF_BYCOMMAND | if enabled(*cmd) { MF_ENABLED } else { MF_GRAYED });
             }
         }
+    }
+}
+
+/// Shows a context menu at the mouse pointer and returns the chosen
+/// command. `None` entries are separators; `items` holds each command and
+/// whether it is enabled.
+pub fn popup(hwnd: HWND, items: &[Option<(Command, bool)>]) -> Option<Command> {
+    // SAFETY: a temporary popup menu, destroyed before returning; strings
+    // outlive the calls that use them.
+    unsafe {
+        let menu = CreatePopupMenu();
+        if menu.is_null() {
+            return None;
+        }
+        for (i, item) in items.iter().enumerate() {
+            match item {
+                Some((cmd, enabled)) => {
+                    let t = wide(&item_text(&cmd.label(), *cmd));
+                    AppendMenuW(menu, MF_STRING | if *enabled { MF_ENABLED } else { MF_GRAYED }, FIRST_ID as usize + i, t.as_ptr());
+                }
+                None => {
+                    AppendMenuW(menu, MF_SEPARATOR, 0, std::ptr::null());
+                }
+            }
+        }
+        let mut pt = POINT { x: 0, y: 0 };
+        GetCursorPos(&mut pt);
+        let id = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, pt.x, pt.y, 0, hwnd, std::ptr::null());
+        DestroyMenu(menu);
+        (id as u32).checked_sub(FIRST_ID).and_then(|i| items.get(i as usize)).copied().flatten().map(|(c, _)| c)
     }
 }
 
