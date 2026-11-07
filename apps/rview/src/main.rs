@@ -774,7 +774,7 @@ impl Shell {
         g.text_in(&right, Rect::new(status.right() - rw - pad, status.y, rw, status.h), px, FontId::Regular, theme.dim, Align::Left);
         let left = self.viewer.hover_link.clone().or_else(|| self.status_note.clone()).or_else(|| self.viewer.path.as_ref().map(|p| p.display().to_string())).unwrap_or_default();
         let lw = (status.w - rw - 3.0 * pad).max(0.0);
-        let left = fit(g, &left, lw, px);
+        let left = rt_gfx::dialog::ellipsize(g, &left, lw, px, FontId::Regular);
         g.text_in(&left, Rect::new(status.x + pad, status.y, lw, status.h), px, FontId::Regular, theme.text, Align::Left);
         #[cfg(not(windows))]
         {
@@ -782,7 +782,7 @@ impl Shell {
             self.menu.draw_popups(g, full, &theme.menu_style(), s);
         }
         if let Some(d) = &mut self.dialog {
-            let (panel, ok) = draw_dialog(&mut self.gfx, full, &theme, s, &d.title, &d.text);
+            let (panel, ok) = rt_gfx::dialog::draw_message(&mut self.gfx, full, &theme.dialog_style(), s, &d.title, &d.text);
             d.panel = panel;
             d.ok = ok;
         }
@@ -862,107 +862,6 @@ impl Shell {
         nodes.push((root, r));
         TreeUpdate { nodes, tree: Some(TreeInfo::new(root)), tree_id: TreeId::ROOT, focus }
     }
-}
-
-/// Word-wraps `text` to `width` pixels.
-fn wrap_words(g: &mut Gfx, text: &str, width: f32, px: f32, font: FontId) -> Vec<String> {
-    let mut out = Vec::new();
-    let mut line = String::new();
-    for word in text.split(' ') {
-        let candidate = if line.is_empty() { word.to_string() } else { format!("{line} {word}") };
-        if !line.is_empty() && g.measure(&candidate, px, font) > width {
-            out.push(std::mem::take(&mut line));
-            line = word.to_string();
-        } else {
-            line = candidate;
-        }
-    }
-    out.push(line);
-    out
-}
-
-/// Draws a themed message panel over the window; returns (panel, OK button).
-fn draw_dialog(g: &mut Gfx, full: Rect, th: &ui::theme::Theme, s: f32, title: &str, text: &str) -> (Rect, Rect) {
-    use ui::gfx::Color;
-    g.fill_rect(full, Color::rgba(0x000000, if th.dark { 0x90 } else { 0x60 }));
-    let pad = (24.0 * s).round();
-    let px = 13.5 * s;
-    let lh = (px * 1.55).round();
-    let title_px = 17.0 * s;
-    let w = (600.0 * s).min(full.w - 32.0 * s).max(200.0 * s);
-    let inner = w - 2.0 * pad;
-    // Two-column rows: the key column fits the widest key.
-    let key_w = text
-        .lines()
-        .filter_map(|l| l.split_once('\t'))
-        .map(|(k, _)| g.measure(k, px, FontId::Bold))
-        .fold(0.0f32, f32::max);
-    let col = if key_w > 0.0 { (key_w + 20.0 * s).min(inner * 0.55) } else { 0.0 };
-    let mut rows: Vec<(String, String)> = Vec::new();
-    for line in text.lines() {
-        match line.split_once('\t') {
-            Some((k, v)) => {
-                for (i, part) in wrap_words(g, v, inner - col, px, FontId::Regular).into_iter().enumerate() {
-                    rows.push((if i == 0 { k.to_string() } else { String::new() }, part));
-                }
-            }
-            None => {
-                for part in wrap_words(g, line, inner, px, FontId::Regular) {
-                    rows.push((String::new(), part));
-                }
-            }
-        }
-    }
-    let btn_h = (32.0 * s).round();
-    let h = (pad + title_px * 1.6 + 8.0 * s + rows.len() as f32 * lh + 18.0 * s + btn_h + pad).min(full.h - 16.0 * s);
-    let panel = Rect::new(((full.w - w) / 2.0).round(), ((full.h - h) / 2.0).round().max(8.0 * s), w.round(), h.round());
-    let bg = if th.dark { Color::rgb(0x2B2B2B) } else { Color::rgb(0xFFFFFF) };
-    let r = (8.0 * s).round();
-    for i in 1..=4 {
-        let d = i as f32 * s;
-        g.fill_rrect(Rect::new(panel.x - d, panel.y - d + 2.0 * s, panel.w + 2.0 * d, panel.h + 2.0 * d), r + d, Color::rgba(0x000000, 0x18));
-    }
-    g.fill_rrect(panel, r, bg);
-    g.stroke_rrect(panel, r, 1.0, th.border);
-    let mut y = panel.y + pad;
-    let (asc, _) = g.metrics(title_px, FontId::Bold);
-    g.text(title, panel.x + pad, y + asc, title_px, FontId::Bold, th.text);
-    y += title_px * 1.6 + 8.0 * s;
-    let (asc, _) = g.metrics(px, FontId::Regular);
-    let bottom = panel.bottom() - pad - btn_h - 18.0 * s;
-    for (k, v) in rows {
-        if y + lh > bottom + 1.0 {
-            break;
-        }
-        let base = (y + (lh + asc) / 2.0 - px * 0.15).round();
-        if !k.is_empty() {
-            g.text(&k, panel.x + pad, base, px, FontId::Bold, th.text);
-        }
-        g.text(&v, panel.x + pad + col, base, px, FontId::Regular, if col > 0.0 { th.dim } else { th.text });
-        y += lh;
-    }
-    let bw = (88.0 * s).round();
-    let ok = Rect::new(panel.right() - pad - bw, panel.bottom() - pad - btn_h, bw, btn_h);
-    let accent = if th.dark { Color::rgb(0x4CC2FF) } else { Color::rgb(0x0067C0) };
-    g.fill_rrect(ok, (4.0 * s).round(), accent);
-    g.text_in("OK", ok, 13.0 * s, FontId::Bold, if th.dark { Color::rgb(0x000000) } else { Color::rgb(0xFFFFFF) }, Align::Center);
-    (panel, ok)
-}
-
-fn fit(g: &mut Gfx, s: &str, max: f32, px: f32) -> String {
-    if g.measure(s, px, FontId::Regular) <= max {
-        return s.to_string();
-    }
-    let mut out: String = String::new();
-    for c in s.chars() {
-        out.push(c);
-        if g.measure(&out, px, FontId::Regular) + g.measure("…", px, FontId::Regular) > max {
-            out.pop();
-            break;
-        }
-    }
-    out.push('…');
-    out
 }
 
 fn shortcuts_text() -> String {

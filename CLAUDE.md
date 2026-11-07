@@ -1,18 +1,19 @@
 # rust-tools — ferramentas portáteis em Rust para Windows
 
-Monorepo (workspace Cargo) com três aplicações, cada uma um único `.exe`, e os crates que partilham
+Monorepo (workspace Cargo) com quatro aplicações, cada uma um único `.exe`, e os crates que partilham
 (`crates/`):
 
 - `apps/rcalc` — calculadora.
 - `apps/rpad` — editor de texto e código.
 - `apps/rview` — visualizador de documentos.
+- `apps/rsize` — analisador de espaço em disco.
 
 Cada aplicação tem o seu `CLAUDE.md` com arquitetura e regras próprias.
 
 ## Comandos
 
 ```powershell
-./dev.ps1 dist                               # as três, com o perfil certo, em dist\
+./dev.ps1 dist                               # todas, com o perfil certo, em dist\
 ./dev.ps1 test --workspace
 ./dev.ps1 clippy --workspace --all-targets
 ```
@@ -23,7 +24,7 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
 ## Regras comuns
 
 - "Pronto" = sem avisos, clippy limpo, testes a passar.
-- Perfis só na raiz do `Cargo.toml`. rcalc e rpad usam `release-small` (`panic = "abort"`);
+- Perfis só na raiz do `Cargo.toml`. rcalc, rpad e rsize usam `release-small` (`panic = "abort"`);
   o rview usa sempre `release`, porque precisa de `catch_unwind`.
 - Compilar para distribuição com `./dev.ps1 dist`, que escolhe o perfil de cada aplicação.
 - `README.md` e `README.pt.md` são atualizados em conjunto, na raiz e em cada aplicação.
@@ -34,7 +35,8 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
 ## Releases
 
 `.github/workflows/release.yml` corre com tags `<app>-v<versão>` (ex.: `rview-v1.1.0`). A versão da
-tag tem de ser igual à de `apps/<app>/Cargo.toml`. As três são publicadas para Windows e Linux.
+tag tem de ser igual à de `apps/<app>/Cargo.toml`. Todas são publicadas para Windows e Linux (o rsize ainda
+não tem nenhuma versão publicada).
 
 ## Testar em Linux
 
@@ -42,6 +44,11 @@ O WSL corre X11 e Wayland, mas não simula tudo: o winit em X11 precisa da `libx
 de notificação precisa de um anfitrião StatusNotifierItem, que o WSL não tem. Em Wayland, a barra de título
 (`wayland-csd-adwaita`) faz o `weston` do WSLg cair com `signal 11` em cerca de 1 arranque em 4, e o cliente
 acaba com `Broken pipe`: ver `/mnt/wslg/stderr.log`. Não é erro das aplicações; testar com `WAYLAND_DISPLAY=`.
+
+No Ubuntu do WSL: compilar com `CARGO_TARGET_DIR=$HOME/rt-target` (fora de `/mnt`, e o `/tmp` perde-se entre
+chamadas). A `libxkbcommon-x11` e a `libxcb-xkb1` estão extraídas sem sudo em `~/xkb` (`apt-get download` e
+`dpkg -x`, mais a ligação `libxkbcommon-x11.so` → `.so.0`): correr com
+`LD_LIBRARY_PATH=$HOME/xkb/usr/lib/x86_64-linux-gnu`.
 
 ## Crates partilhados
 

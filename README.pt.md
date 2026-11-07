@@ -10,11 +10,12 @@ um único executável: sem instalador, sem runtime e sem telemetria.
 | [rcalc](apps/rcalc/README.pt.md) | Calculadora: padrão, científica, de programador, datas e conversores de unidades | 1,9 MB | 6,6 MB |
 | [rpad](apps/rpad/README.pt.md) | Editor de texto e código: separadores, codificações, procura com regex, vários cursores, realce de sintaxe | 4,2 MB | 9,2 MB |
 | [rview](apps/rview/README.pt.md) | Visualizador de PDF, Markdown, HTML, texto e CSV, com seleção e cópia | 4,4 MB | 16,6 MB |
+| [rsize](apps/rsize/README.pt.md) | Analisador de espaço em disco: pastas por tamanho e treemap, para discos, pastas e partilhas de rede | 1,7 MB | 5,4 MB |
 
-As três desenham a sua própria interface no CPU (winit, softbuffer, tiny-skia e
-ab_glyph), sem GPU nem biblioteca de interface. Têm 10 idiomas, seguem o tema
-claro ou escuro do sistema e podem ficar residentes na área de notificação com
-`--tray`.
+Todas desenham a sua própria interface no CPU (winit, softbuffer, tiny-skia e
+ab_glyph), sem GPU nem biblioteca de interface. Têm 10 idiomas e seguem o tema
+claro ou escuro do sistema. O rcalc, o rpad e o rview podem também ficar
+residentes na área de notificação com `--tray`.
 
 ## Compilar
 
@@ -22,7 +23,7 @@ Requisitos: Windows, Rust 1.88+ com o alvo `x86_64-pc-windows-msvc` e as MSVC
 Build Tools (linker e `rc.exe`).
 
 ```powershell
-./dev.ps1 dist              # compila as três para distribuição, em dist\
+./dev.ps1 dist              # compila todas para distribuição, em dist\
 ./dev.ps1 test --workspace
 ./dev.ps1 clippy --workspace --all-targets
 ```
@@ -37,10 +38,11 @@ Tools, se existir: o de `$env:RUST_TOOLS_MSVC_ENV`, ou o de
 | rcalc | `cargo build --profile release-small -p rcalc` | `target\release-small\rcalc.exe` |
 | rpad | `cargo build --profile release-small -p rpad` | `target\release-small\rpad.exe` |
 | rview | `cargo build --release -p rview` | `target\release\rview.exe` |
+| rsize | `cargo build --profile release-small -p rsize` | `target\release-small\rsize.exe` |
 
 Há dois perfis porque, num workspace, o `panic` não se pode definir por pacote.
-O `release-small` aborta em pânicos, o que torna o rcalc e o rpad cerca de 20%
-mais pequenos. O rview precisa do `release`: apanha os pânicos da biblioteca de
+O `release-small` aborta em pânicos, o que torna o rcalc, o rpad e o rsize cerca
+de 20% mais pequenos. O rview precisa do `release`: apanha os pânicos da biblioteca de
 PDF, para que um PDF malformado não feche o programa. O `./dev.ps1 dist` escolhe
 o perfil certo para cada ferramenta.
 
@@ -58,8 +60,8 @@ compila essa ferramenta e publica-a com a soma SHA-256 e a proveniência da comp
 
 Os pacotes para Linux precisam da glibc 2.35 ou mais recente (2.34 no rcalc e no
 rpad) e funcionam em X11 e Wayland. O que muda face ao Windows está em cada README:
-[rcalc](apps/rcalc/README.pt.md#linux), [rpad](apps/rpad/README.pt.md#linux) e
-[rview](apps/rview/README.pt.md#linux). Foram verificados no WSL2, não num ambiente de
+[rcalc](apps/rcalc/README.pt.md#linux), [rpad](apps/rpad/README.pt.md#linux),
+[rview](apps/rview/README.pt.md#linux) e [rsize](apps/rsize/README.pt.md#linux). Foram verificados no WSL2, não num ambiente de
 trabalho Linux real.
 
 No WSLg, a barra de título que estas ferramentas desenham em Wayland pode fazer cair
@@ -76,10 +78,11 @@ rust-tools/
 ├─ apps/
 │  ├─ rcalc/
 │  ├─ rpad/
+│  ├─ rsize/
 │  └─ rview/
 └─ crates/         código partilhado pelas aplicações
    ├─ rt-core/     traduções, definições, árvore de menus
-   ├─ rt-gfx/      desenho, disposição de texto, menus desenhados
+   ├─ rt-gfx/      desenho, disposição de texto, menus desenhados, painel de mensagens
    ├─ rt-sys/      integração com Windows e Linux
    ├─ rt-syntax/   realce de sintaxe
    └─ rt-build/    ícone e versão no executável de Windows

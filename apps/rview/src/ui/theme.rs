@@ -57,6 +57,11 @@ impl Theme {
         }
     }
 
+    /// Colours of the message panel (About, Keyboard shortcuts).
+    pub fn dialog_style(&self) -> rt_gfx::dialog::DialogStyle {
+        rt_gfx::dialog::DialogStyle { dark: self.dark, text: self.text, dim: self.dim, border: self.border }
+    }
+
     /// Colours of the menus drawn in the window.
     #[cfg(not(windows))]
     pub fn menu_style(&self) -> rt_gfx::menu::MenuStyle {

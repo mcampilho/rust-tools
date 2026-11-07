@@ -2,14 +2,14 @@
 
 [Versão portuguesa](README.pt.md)
 
-The code that rcalc, rpad and rview have in common. A new tool of the same kind
+The code that rcalc, rpad, rview and rsize have in common. A new tool of the same kind
 (a single executable that draws its own interface on the CPU) starts from these
 crates and only writes what is its own.
 
 | Crate | What it gives | Depends on |
 | --- | --- | --- |
 | `rt-core` | Ten UI languages (`i18n`), settings in a `key=value` file with portable mode (`store`), the menu tree (`menu`) | nothing |
-| `rt-gfx` | Drawing with tiny-skia and text with ab_glyph (`gfx`), monospace text layout (`layout`), menus drawn in the window (`menu`) | rt-core, tiny-skia, ab_glyph |
+| `rt-gfx` | Drawing with tiny-skia and text with ab_glyph (`gfx`), monospace text layout (`layout`), menus drawn in the window (`menu`), a message panel and text cut with an ellipsis (`dialog`) | rt-core, tiny-skia, ab_glyph |
 | `rt-sys` | Clipboard, theme, language, links, local time; on Windows: main window messages, single instance, native and dark menus, dialogs, tray icon; on Linux: zenity/kdialog dialogs, single instance over a Unix socket, StatusNotifierItem icon | rt-core, windows-sys / arboard, ksni, libc |
 | `rt-syntax` | Language definitions and a line-at-a-time lexer for syntax highlighting | nothing |
 | `rt-build` | `build.rs` helper: icon, version and manifest in the Windows executable | tiny-skia |
@@ -32,7 +32,7 @@ either.
 1. Create `apps/<name>/` with a `Cargo.toml` that depends on the crates it needs
    (paths `../../crates/rt-*`), plus winit, softbuffer and tiny-skia, with the
    Linux features of the other apps (`x11`, `wayland`, ...). rcalc is the
-   smallest example.
+   smallest example; rsize the newest, with menus and no resident mode.
 2. `build.rs`: include `src/ui/appicon.rs` and call
    `rt_build::windows_resources(&rt_build::Resources { name, description, icon, icon_source, manifest })`.
 3. Translations: a `Catalog` over `strings.txt`, installed before the first lookup:

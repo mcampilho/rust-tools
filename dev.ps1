@@ -1,5 +1,5 @@
 # Runs cargo with the portable MSVC Build Tools environment, if configured.
-# Usage: ./dev.ps1 dist                  release builds of all apps, in dist\
+# Usage: ./dev.ps1 dist                  release builds of all the apps, in dist\
 #        ./dev.ps1 build --release -p rview
 #        ./dev.ps1 test --workspace
 # Set RUST_TOOLS_MSVC_ENV to the path of a devcmd.ps1 (portable Build Tools)
@@ -13,7 +13,7 @@ if (-not $env:VCToolsInstallDir -and $envScript) {
 if ($args[0] -eq 'dist') {
     # Each app has its own profile: see Cargo.toml.
     New-Item -ItemType Directory -Force "$PSScriptRoot\dist" | Out-Null
-    foreach ($app in @(@('rcalc', 'release-small'), @('rpad', 'release-small'), @('rview', 'release'))) {
+    foreach ($app in @(@('rcalc', 'release-small'), @('rpad', 'release-small'), @('rview', 'release'), @('rsize', 'release-small'))) {
         cargo build --profile $app[1] -p $app[0] --manifest-path "$PSScriptRoot\Cargo.toml"
         if ($LASTEXITCODE) { exit $LASTEXITCODE }
         Copy-Item "$PSScriptRoot\target\$($app[1])\$($app[0]).exe" "$PSScriptRoot\dist\"

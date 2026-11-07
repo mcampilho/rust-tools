@@ -5,7 +5,9 @@
 //! - [`layout`]: monospace text in character cells (tabs, wide characters,
 //!   wrapping).
 //! - [`menu`]: menus drawn in the window, for systems without Win32 menus.
+//! - [`dialog`]: a message panel drawn over the window, and text cut to fit.
 
+pub mod dialog;
 pub mod gfx;
 pub mod layout;
 pub mod menu;

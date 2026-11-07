@@ -1,0 +1,83 @@
+# rsize UI translations. One string per line, columns separated by TAB:
+# en-US (key)	en-GB	de-DE	es-ES	fr-FR	it-IT	ja-JP	pt-BR	pt-PT	zh-CN
+# An empty cell falls back to en-US (en-GB) or pt-BR (pt-PT). "{}" is a placeholder;
+# "\n" is a line break in multi-line messages. Menu labels carry their own "&" access key.
+
+&File		&Datei	&Archivo	&Fichier	&File	ファイル(&F)	&Arquivo	&Ficheiro	文件(&F)
+&Edit		&Bearbeiten	&Edición	&Édition	&Modifica	編集(&E)	&Editar	&Editar	编辑(&E)
+&View		&Ansicht	&Ver	A&ffichage	&Visualizza	表示(&V)	E&xibir	&Ver	视图(&V)
+&Help		&Hilfe	A&yuda	A&ide	&Guida	ヘルプ(&H)	A&juda	A&juda	帮助(&H)
+Choose &Folder...		&Ordner auswählen...	Elegir &carpeta...	Choisir un &dossier...	Scegli &cartella...	フォルダーを選択(&F)...	Escolher &pasta...	Escolher &pasta...	选择文件夹(&F)...
+Show &Drives		&Laufwerke anzeigen	Mostrar &unidades	Afficher les &lecteurs	Mostra &unità	ドライブを表示(&D)	Mostrar &unidades	Mostrar &unidades	显示驱动器(&D)
+&Rescan		&Erneut einlesen	&Volver a analizar	&Réanalyser	&Rianalizza	再スキャン(&R)	&Analisar novamente	&Analisar novamente	重新扫描(&R)
+&Stop		&Anhalten	&Detener	&Arrêter	&Interrompi	停止(&S)	Pa&rar	Pa&rar	停止(&S)
+E&xit		&Beenden	&Salir	&Quitter	&Esci	終了(&X)	&Sair	&Sair	退出(&X)
+&Copy Path		Pfad &kopieren	&Copiar ruta	&Copier le chemin	&Copia percorso	パスをコピー(&C)	&Copiar caminho	&Copiar caminho	复制路径(&C)
+&Open		Ö&ffnen	&Abrir	&Ouvrir	&Apri	開く(&O)	&Abrir	&Abrir	打开(&O)
+Show in File &Manager		Im &Dateimanager anzeigen	Mostrar en el &explorador de archivos	Afficher dans le &gestionnaire de fichiers	Mostra nel &gestore file	ファイル マネージャーで表示(&M)	Mostrar no &gerenciador de arquivos	Mostrar no &gestor de ficheiros	在文件管理器中显示(&M)
+Zoom &In		&Vergrößern	&Acercar	Zoom &avant	&Ingrandisci	拡大(&I)	&Ampliar	&Ampliar	放大(&I)
+Zoom &Out		Ver&kleinern	A&lejar	Zoom a&rrière	&Riduci	縮小(&O)	&Reduzir	&Reduzir	缩小(&O)
+Zoom to &Top		&Gesamtansicht	Ver t&odo	&Vue d’ensemble	&Vista completa	全体を表示(&T)	&Ver tudo	&Ver tudo	显示全部(&T)
+File &Size		Dateig&röße	Tamaño de a&rchivo	Taille des &fichiers	&Dimensione file	ファイル サイズ(&S)	Ta&manho do arquivo	Ta&manho dos ficheiros	文件大小(&S)
+Size on &Disk		Größe auf Daten&träger	Tamaño en &disco	Taille sur le &disque	Dimensione su dis&co	ディスク上のサイズ(&D)	Tamanho em &disco	Tamanho em &disco	占用空间(&D)
+&Keyboard Shortcuts		&Tastenkombinationen	&Métodos abreviados de teclado	&Raccourcis clavier	&Tasti di scelta rapida	キーボード ショートカット(&K)	&Atalhos de teclado	&Atalhos de teclado	键盘快捷方式(&K)
+&About rsize		Ü&ber rsize	&Acerca de rsize	À &propos de rsize	&Informazioni su rsize	rsize について(&A)	&Sobre o rsize	&Acerca do rsize	关于 rsize(&A)
+B		B	B	o	B	B	B	B	B
+KB		KB	KB	Ko	KB	KB	KB	KB	KB
+MB		MB	MB	Mo	MB	MB	MB	MB	MB
+GB		GB	GB	Go	GB	GB	GB	GB	GB
+TB		TB	TB	To	TB	TB	TB	TB	TB
+PB		PB	PB	Po	PB	PB	PB	PB	PB
+Choose a drive or folder to analyze	Choose a drive or folder to analyse	Laufwerk oder Ordner zum Analysieren auswählen	Elija una unidad o carpeta para analizar	Choisissez un lecteur ou un dossier à analyser	Scegli un’unità o una cartella da analizzare	分析するドライブまたはフォルダーを選択してください	Escolha uma unidade ou pasta para analisar	Escolha uma unidade ou pasta para analisar	选择要分析的驱动器或文件夹
+Choose a folder to analyze	Choose a folder to analyse	Ordner zum Analysieren auswählen	Elija una carpeta para analizar	Choisissez un dossier à analyser	Scegli una cartella da analizzare	分析するフォルダーを選択	Escolha uma pasta para analisar	Escolha uma pasta para analisar	选择要分析的文件夹
+Looking for drives…		Laufwerke werden gesucht…	Buscando unidades…	Recherche des lecteurs…	Ricerca delle unità…	ドライブを検索しています…	Procurando unidades…	A procurar unidades…	正在查找驱动器…
+Network		Netzwerk	Red	Réseau	Rete	ネットワーク	Rede	Rede	网络
+{} free of {}		{} frei von {}	{} libres de {}	{} libres sur {}	{} liberi su {}	{} 空き / {}	{} livres de {}	{} livres de {}	{} 可用，共 {}
+No drives were found.		Keine Laufwerke gefunden.	No se encontraron unidades.	Aucun lecteur trouvé.	Nessuna unità trovata.	ドライブが見つかりませんでした。	Nenhuma unidade encontrada.	Nenhuma unidade encontrada.	未找到驱动器。
+Network folders can be chosen too, or given on the command line (\\server\share).		Netzwerkordner können ebenfalls ausgewählt oder in der Befehlszeile angegeben werden (\\server\share).	También se pueden elegir carpetas de red o indicarlas en la línea de comandos (\\server\share).	Les dossiers réseau peuvent aussi être choisis, ou indiqués sur la ligne de commande (\\server\share).	Si possono scegliere anche cartelle di rete, o indicarle nella riga di comando (\\server\share).	ネットワーク フォルダーも選択でき、コマンド ラインで指定することもできます (\\server\share)。	Também é possível escolher pastas de rede ou indicá-las na linha de comando (\\server\share).	Também pode escolher pastas de rede ou indicá-las na linha de comandos (\\server\share).	也可以选择网络文件夹，或在命令行中指定 (\\server\share)。
+Reading {}…		{} wird gelesen…	Leyendo {}…	Lecture de {}…	Lettura di {}…	{} を読み込んでいます…	Lendo {}…	A ler {}…	正在读取 {}…
+files		Dateien	archivos	fichiers	file	ファイル	arquivos	ficheiros	个文件
+folders		Ordner	carpetas	dossiers	cartelle	フォルダー	pastas	pastas	个文件夹
+found		gefunden	encontrados	trouvés	trovati	検出	encontrados	encontrados	已找到
+{} s		{} s	{} s	{} s	{} s	{} 秒	{} s	{} s	{} 秒
+{} folders could not be read		{} Ordner konnten nicht gelesen werden	No se pudieron leer {} carpetas	{} dossiers n’ont pas pu être lus	Impossibile leggere {} cartelle	{} 個のフォルダーを読み取れませんでした	{} pastas não puderam ser lidas	Não foi possível ler {} pastas	{} 个文件夹无法读取
+(cannot be read)		(nicht lesbar)	(no se puede leer)	(illisible)	(non leggibile)	(読み取れません)	(não pode ser lida)	(não é possível ler)	(无法读取)
+(other file system)		(anderes Dateisystem)	(otro sistema de archivos)	(autre système de fichiers)	(altro file system)	(別のファイル システム)	(outro sistema de arquivos)	(outro sistema de ficheiros)	(其他文件系统)
+(hard link, counted once)		(fester Link, einmal gezählt)	(vínculo físico, contado una vez)	(lien physique, compté une fois)	(collegamento fisico, contato una volta)	(ハード リンク、1 回だけカウント)	(link físico, contado uma vez)	(ligação física, contada uma vez)	(硬链接，只计一次)
+(link, not followed)		(Verknüpfung, nicht verfolgt)	(vínculo, no se sigue)	(lien, non suivi)	(collegamento, non seguito)	(リンク、たどりません)	(link, não seguido)	(ligação, não seguida)	(链接，未跟随)
+Size		Größe	Tamaño	Taille	Dimensione	サイズ	Tamanho	Tamanho	大小
+Size on disk		Größe auf Datenträger	Tamaño en disco	Taille sur le disque	Dimensione su disco	ディスク上のサイズ	Tamanho em disco	Tamanho em disco	占用空间
+Name		Name	Nombre	Nom	Nome	名前	Nome	Nome	名称
+Share of folder		Anteil am Ordner	Parte de la carpeta	Part du dossier	Quota della cartella	フォルダー内の割合	Parte da pasta	Parte da pasta	占文件夹比例
+Files		Dateien	Archivos	Fichiers	File	ファイル数	Arquivos	Ficheiros	文件数
+Modified		Geändert	Modificado	Modifié	Modificato	更新日時	Modificado	Modificado	修改日期
+Backspace: zoom out		Rücktaste: verkleinern	Retroceso: alejar	Retour arrière : zoom arrière	Backspace: riduci	Backspace: 縮小	Backspace: reduzir	Retrocesso: reduzir	Backspace：缩小
+Double-click a folder to zoom in		Doppelklick auf einen Ordner vergrößert ihn	Doble clic en una carpeta para acercar	Double-cliquez sur un dossier pour l’agrandir	Doppio clic su una cartella per ingrandirla	フォルダーをダブルクリックすると拡大します	Clique duas vezes em uma pasta para ampliar	Clique duas vezes numa pasta para ampliar	双击文件夹可放大
+Nothing here takes up space.		Hier belegt nichts Speicherplatz.	Aquí nada ocupa espacio.	Rien ici n’occupe d’espace.	Qui niente occupa spazio.	ここには容量を使っているものがありません。	Nada aqui ocupa espaço.	Nada aqui ocupa espaço.	这里没有占用空间的内容。
+{} files		{} Dateien	{} archivos	{} fichiers	{} file	{} 個のファイル	{} arquivos	{} ficheiros	{} 个文件
+{} folders		{} Ordner	{} carpetas	{} dossiers	{} cartelle	{} 個のフォルダー	{} pastas	{} pastas	{} 个文件夹
+read in {} s		in {} s gelesen	leído en {} s	lu en {} s	letto in {} s	{} 秒で読み込み	lido em {} s	lido em {} s	用时 {} 秒
+stopped before the end		vor dem Ende angehalten	detenido antes del final	arrêté avant la fin	interrotto prima della fine	途中で停止しました	interrompido antes do fim	interrompido antes do fim	在完成前已停止
+About rsize		Über rsize	Acerca de rsize	À propos de rsize	Informazioni su rsize	rsize について	Sobre o rsize	Acerca do rsize	关于 rsize
+rsize {}\n\nShows what takes up space on a drive or in a folder, written in Rust.\nNo telemetry, no network access.\n\nMIT License.		rsize {}\n\nZeigt, was auf einem Laufwerk oder in einem Ordner Platz belegt. Geschrieben in Rust.\nKeine Telemetrie, kein Netzwerkzugriff.\n\nMIT-Lizenz.	rsize {}\n\nMuestra qué ocupa espacio en una unidad o carpeta. Escrito en Rust.\nSin telemetría ni acceso a la red.\n\nLicencia MIT.	rsize {}\n\nMontre ce qui occupe de l’espace sur un lecteur ou dans un dossier. Écrit en Rust.\nAucune télémétrie, aucun accès au réseau.\n\nLicence MIT.	rsize {}\n\nMostra cosa occupa spazio su un’unità o in una cartella. Scritto in Rust.\nNessuna telemetria, nessun accesso alla rete.\n\nLicenza MIT.	rsize {}\n\nドライブやフォルダーで容量を使っているものを表示します。Rust で作成。\nテレメトリなし、ネットワーク アクセスなし。\n\nMIT ライセンス。	rsize {}\n\nMostra o que ocupa espaço em uma unidade ou pasta. Escrito em Rust.\nSem telemetria, sem acesso à rede.\n\nLicença MIT.	rsize {}\n\nMostra o que ocupa espaço numa unidade ou pasta. Escrito em Rust.\nSem telemetria, sem acesso à rede.\n\nLicença MIT.	rsize {}\n\n显示驱动器或文件夹中占用空间的内容。使用 Rust 编写。\n无遥测，无网络访问。\n\nMIT 许可证。
+Folders		Ordner	Carpetas	Dossiers	Cartelle	フォルダー	Pastas	Pastas	文件夹
+Treemap		Treemap	Mapa de árbol	Carte proportionnelle	Treemap	ツリーマップ	Mapa de árvore	Mapa de árvore	树状图
+Show the drives		Laufwerke anzeigen	Mostrar las unidades	Afficher les lecteurs	Mostra le unità	ドライブを表示	Mostrar as unidades	Mostrar as unidades	显示驱动器
+Read the same folder again		Denselben Ordner erneut einlesen	Volver a leer la misma carpeta	Relire le même dossier	Rileggi la stessa cartella	同じフォルダーをもう一度読み込む	Ler a mesma pasta novamente	Ler a mesma pasta outra vez	重新读取同一文件夹
+Stop reading		Lesen anhalten	Detener la lectura	Arrêter la lecture	Interrompi la lettura	読み込みを停止	Parar a leitura	Parar a leitura	停止读取
+Move in the list		In der Liste bewegen	Moverse por la lista	Se déplacer dans la liste	Spostarsi nell’elenco	一覧内を移動	Mover-se na lista	Mover-se na lista	在列表中移动
+Close or open a folder		Ordner schließen oder öffnen	Cerrar o abrir una carpeta	Fermer ou ouvrir un dossier	Chiudi o apri una cartella	フォルダーを閉じる/開く	Fechar ou abrir uma pasta	Fechar ou abrir uma pasta	折叠或展开文件夹
+Show the selected folder in the treemap		Ausgewählten Ordner in der Treemap anzeigen	Mostrar la carpeta seleccionada en el mapa de árbol	Afficher le dossier sélectionné dans la carte	Mostra la cartella selezionata nella treemap	選択したフォルダーをツリーマップに表示	Mostrar a pasta selecionada no mapa de árvore	Mostrar a pasta selecionada no mapa de árvore	在树状图中显示所选文件夹
+Treemap: one folder up		Treemap: eine Ebene nach oben	Mapa de árbol: una carpeta arriba	Carte : un dossier au-dessus	Treemap: una cartella su	ツリーマップ: 1 つ上のフォルダー	Mapa de árvore: uma pasta acima	Mapa de árvore: uma pasta acima	树状图：上一级文件夹
+Treemap: the whole scan		Treemap: alles	Mapa de árbol: todo el análisis	Carte : toute l’analyse	Treemap: tutta l’analisi	ツリーマップ: スキャン全体	Mapa de árvore: toda a análise	Mapa de árvore: toda a análise	树状图：全部扫描结果
+Treemap: one folder down		Treemap: eine Ebene nach unten	Mapa de árbol: una carpeta abajo	Carte : un dossier en dessous	Treemap: una cartella giù	ツリーマップ: 1 つ下のフォルダー	Mapa de árvore: uma pasta abaixo	Mapa de árvore: uma pasta abaixo	树状图：下一级文件夹
+Open the selected file or folder		Ausgewählte Datei oder Ordner öffnen	Abrir el archivo o la carpeta seleccionados	Ouvrir le fichier ou le dossier sélectionné	Apri il file o la cartella selezionati	選択したファイルまたはフォルダーを開く	Abrir o arquivo ou a pasta selecionados	Abrir o ficheiro ou a pasta selecionados	打开所选文件或文件夹
+Show it in the file manager		Im Dateimanager anzeigen	Mostrarlo en el explorador de archivos	L’afficher dans le gestionnaire de fichiers	Mostralo nel gestore file	ファイル マネージャーで表示	Mostrá-lo no gerenciador de arquivos	Mostrá-lo no gestor de ficheiros	在文件管理器中显示
+Copy its path		Pfad kopieren	Copiar su ruta	Copier son chemin	Copia il percorso	パスをコピー	Copiar o caminho	Copiar o caminho	复制路径
+Show file sizes / sizes on disk		Dateigrößen / Größen auf Datenträger anzeigen	Mostrar tamaños de archivo / en disco	Afficher la taille des fichiers / sur le disque	Mostra dimensioni dei file / su disco	ファイル サイズ / ディスク上のサイズを表示	Mostrar tamanho dos arquivos / em disco	Mostrar tamanho dos ficheiros / em disco	显示文件大小 / 占用空间
+T&heme		&Design	&Tema	&Thème	&Tema	テーマ(&H)	&Tema		主题(&H)
+Display &Language		&Anzeigesprache	&Idioma de la interfaz	&Langue de l’interface	&Lingua dell’interfaccia	表示言語(&L)	&Idioma da interface		界面语言(&L)
+Use &System Setting		&Systemeinstellung verwenden	Usar configuración del &sistema	Utiliser le paramètre du &système	Usa impostazione di &sistema	システム設定を使用(&S)	Usar configuração do &sistema	Usar definição do &sistema	使用系统设置(&S)
+&Light		&Hell	&Claro	&Clair	&Chiaro	ライト(&L)	&Claro		浅色(&L)
+&Dark		&Dunkel	&Oscuro	&Sombre	&Scuro	ダーク(&D)	&Escuro		深色(&D)
+Keyboard shortcuts		Tastenkombinationen	Métodos abreviados de teclado	Raccourcis clavier	Tasti di scelta rapida	キーボード ショートカット	Atalhos de teclado		键盘快捷方式

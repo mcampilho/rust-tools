@@ -2569,6 +2569,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsize"
+version = "0.1.0"
+dependencies = [
+ "accesskit",
+ "accesskit_winit",
+ "libc",
+ "rt-build",
+ "rt-core",
+ "rt-gfx",
+ "rt-sys",
+ "softbuffer",
+ "tiny-skia",
+ "windows-sys 0.59.0",
+ "winit",
+]
+
+[[package]]
 name = "rt-build"
 version = "0.1.0"
 dependencies = [
