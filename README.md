@@ -10,7 +10,7 @@ is a single executable: no installer, no runtime, and no telemetry.
 | [rcalc](apps/rcalc/README.md) | Calculator: standard, scientific, programmer, dates and unit converters | 1.9 MB | 6.6 MB |
 | [rpad](apps/rpad/README.md) | Text and code editor: tabs, encodings, regex search, multiple carets, syntax highlighting | 4.2 MB | 9.2 MB |
 | [rview](apps/rview/README.md) | Document viewer for PDF, Markdown, HTML, text and CSV, with selection and copy | 4.4 MB | 16.6 MB |
-| [rsize](apps/rsize/README.md) | Disk space analyzer: folders by size and a treemap, for drives, folders and network shares | 1.7 MB | 5.4 MB |
+| [rsize](apps/rsize/README.md) | Disk space analyzer: folders by size with a treemap, pie or rings, for drives, folders and network shares | 1.8 MB | 5.5 MB |
 
 They all draw their own interface on the CPU (winit, softbuffer, tiny-skia and
 ab_glyph), with no GPU and no UI toolkit. They come in 10 languages and follow

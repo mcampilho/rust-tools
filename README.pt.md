@@ -10,7 +10,7 @@ um único executável: sem instalador, sem runtime e sem telemetria.
 | [rcalc](apps/rcalc/README.pt.md) | Calculadora: padrão, científica, de programador, datas e conversores de unidades | 1,9 MB | 6,6 MB |
 | [rpad](apps/rpad/README.pt.md) | Editor de texto e código: separadores, codificações, procura com regex, vários cursores, realce de sintaxe | 4,2 MB | 9,2 MB |
 | [rview](apps/rview/README.pt.md) | Visualizador de PDF, Markdown, HTML, texto e CSV, com seleção e cópia | 4,4 MB | 16,6 MB |
-| [rsize](apps/rsize/README.pt.md) | Analisador de espaço em disco: pastas por tamanho e treemap, para discos, pastas e partilhas de rede | 1,7 MB | 5,4 MB |
+| [rsize](apps/rsize/README.pt.md) | Analisador de espaço em disco: pastas por tamanho com treemap, tarte ou anéis, para discos, pastas e partilhas de rede | 1,8 MB | 5,5 MB |
 
 Todas desenham a sua própria interface no CPU (winit, softbuffer, tiny-skia e
 ab_glyph), sem GPU nem biblioteca de interface. Têm 10 idiomas e seguem o tema

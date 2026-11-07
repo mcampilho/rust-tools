@@ -127,6 +127,49 @@ fn commands_and_menus_have_translations() {
     assert!(missing.is_empty(), "untranslated menu strings: {missing:?}");
 }
 
+/// Within each menu, no two items share an access key, in any language.
+#[test]
+fn access_keys_differ_within_each_menu() {
+    use crate::commands::{item_menu, menu_tree, M};
+    fn key_of(label: &str) -> Option<char> {
+        let b: Vec<char> = label.chars().collect();
+        b.windows(2).find(|w| w[0] == '&' && w[1] != '&').and_then(|w| w[1].to_lowercase().next())
+    }
+    fn check(title: &str, items: &[M], problems: &mut Vec<String>) {
+        for l in Lang::ALL {
+            let mut seen = std::collections::HashMap::new();
+            for it in items {
+                let key = match it {
+                    M::Item(c) => c.label_key().ok().map(str::to_string),
+                    M::Sub(t, _) => Some(t.to_string()),
+                    _ => None,
+                };
+                let Some(key) = key else { continue };
+                let text = tr_in(l, &key);
+                if let Some(k) = key_of(&text) {
+                    if let Some(other) = seen.insert(k, text.clone()) {
+                        problems.push(format!("{title} [{}]: {other} / {text}", l.tag()));
+                    }
+                }
+            }
+        }
+        for it in items {
+            if let M::Sub(t, children) = it {
+                check(t, children, problems);
+            }
+        }
+    }
+    let mut problems = Vec::new();
+    let tree = menu_tree();
+    let titles: Vec<M> = tree.iter().map(|(t, _)| M::Sub(t, Vec::new())).collect();
+    check("menu bar", &titles, &mut problems);
+    for (title, items) in &tree {
+        check(title, items, &mut problems);
+    }
+    check("context menu", &item_menu(), &mut problems);
+    assert!(problems.is_empty(), "{problems:#?}");
+}
+
 /// Draws every page in German; any string looked up without a translation fails.
 #[test]
 fn pages_render_fully_translated() {
@@ -147,10 +190,20 @@ fn pages_render_fully_translated() {
     let theme = Theme::new(false, None);
     let mut app = App::new();
     let mut draw = |app: &App| {
+        use crate::chart::{Chart, Hit};
+        use crate::settings::ChartType;
         let l = view::layout(app, 0.45, full, 1.0, true);
-        let map = app.scan.as_ref().map(|s| crate::treemap::Map::new(&s.tree, app.zoom, l.map.w as u32, l.map.h as u32));
-        let frame = view::Frame { mode: SizeMode::Allocated, map: map.as_ref(), hot: view::Hot::None, hover: None };
-        view::draw(&mut g, app, &l, &theme, 1.0, &frame);
+        let (w, h) = (l.map.w as u32, l.map.h as u32);
+        for kind in ChartType::ALL {
+            let map = app.scan.as_ref().map(|s| crate::treemap::Map::new(&s.tree, app.zoom, w, h));
+            let chart = app.scan.as_ref().map(|s| match kind {
+                ChartType::Pie => Chart::pie(&s.tree, app.zoom, w, h, 1.0, 0xFFFFFF),
+                _ => Chart::rings(&s.tree, app.zoom, w, h, 1.0, 0xFFFFFF),
+            });
+            let hover_seg = chart.as_ref().filter(|c| !c.segments.is_empty()).map(|_| Hit::Segment(0));
+            let frame = view::Frame { mode: SizeMode::Allocated, kind, map: map.as_ref(), chart: chart.as_ref(), hover_seg, hot: view::Hot::None, hover: None };
+            view::draw(&mut g, app, &l, &theme, 1.0, &frame);
+        }
         let _ = view::status_text(app, None);
     };
     draw(&app);

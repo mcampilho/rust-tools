@@ -1,6 +1,7 @@
 //! Commands, their menu labels (translation keys) and keyboard shortcuts.
 
 use crate::i18n::{tr, Lang};
+use crate::settings::ChartType;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Command {
@@ -20,6 +21,8 @@ pub enum Command {
     ZoomIn,
     ZoomOut,
     ZoomTop,
+    /// Which chart is shown below the list.
+    Chart(ChartType),
     SizeLogical,
     SizeAllocated,
     /// 0 system, 1 light, 2 dark.
@@ -46,8 +49,11 @@ impl Command {
             OpenItem => "&Open",
             Reveal => "Show in File &Manager",
             ZoomIn => "Zoom &In",
-            ZoomOut => "Zoom &Out",
+            ZoomOut => "Zoom O&ut",
             ZoomTop => "Zoom to &Top",
+            Chart(ChartType::Treemap) => "Tree&map",
+            Chart(ChartType::Pie) => "&Pie Chart",
+            Chart(ChartType::Rings) => "&Rings",
             SizeLogical => "File &Size",
             SizeAllocated => "Size on &Disk",
             Theme(0) => "Use &System Setting",
@@ -80,6 +86,9 @@ pub const BINDINGS: &[(&str, Command)] = &[
     ("Enter", ZoomIn),
     ("Backspace", ZoomOut),
     ("Ctrl+Backspace", ZoomTop),
+    ("F6", Chart(ChartType::Treemap)),
+    ("F7", Chart(ChartType::Pie)),
+    ("F8", Chart(ChartType::Rings)),
     ("Ctrl+1", SizeLogical),
     ("Ctrl+2", SizeAllocated),
     ("F1", Shortcuts),
@@ -127,6 +136,10 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
                 Item(ZoomOut),
                 Item(ZoomTop),
                 Sep,
+                Item(Chart(ChartType::Treemap)),
+                Item(Chart(ChartType::Pie)),
+                Item(Chart(ChartType::Rings)),
+                Sep,
                 Item(SizeLogical),
                 Item(SizeAllocated),
                 Sep,
@@ -158,6 +171,7 @@ mod tests {
         assert_eq!(lookup(true, false, false, "backspace"), Some(ZoomTop));
         assert_eq!(lookup(false, false, false, "esc"), Some(Stop));
         assert_eq!(lookup(true, false, false, "2"), Some(SizeAllocated));
+        assert_eq!(lookup(false, false, false, "f8"), Some(Chart(ChartType::Rings)));
         assert_eq!(lookup(false, false, false, "o"), None);
         assert_eq!(lookup(true, true, false, "c"), None);
     }

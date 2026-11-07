@@ -7,6 +7,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use rsize::app::{App, Scanning};
+use rsize::chart::{Chart, Hit};
+use rsize::settings::ChartType;
 use rsize::commands::{self, Command};
 use rsize::i18n::{self, tf, tr};
 use rsize::model::{Id, SizeMode};
@@ -77,6 +79,9 @@ const RESIZE_PAUSE: Duration = Duration::from_millis(150);
 
 /// What the cached treemap was drawn for: zoom, size, order, tree.
 type MapKey = (Id, u32, u32, SizeMode, u64);
+/// What the cached pie or rings were drawn for: the same, plus the chart,
+/// the background and the scale.
+type ChartKey = (ChartType, MapKey, u32, u32);
 
 struct Shell {
     app: App,
@@ -97,6 +102,11 @@ struct Shell {
     map_key: Option<MapKey>,
     /// When to make the treemap again at the new window size.
     map_due: Option<Instant>,
+    /// The pie or the rings, and what they were drawn for.
+    chart: Option<Chart>,
+    chart_key: Option<ChartKey>,
+    /// What the pointer is on in the pie or the rings.
+    hover_seg: Option<Hit>,
     /// The last change of the window size.
     resized: Instant,
     hot: Hot,
@@ -287,6 +297,11 @@ impl Shell {
             Command::ZoomIn => self.app.zoom_in(),
             Command::ZoomOut => self.app.zoom_out(),
             Command::ZoomTop => self.app.zoom_top(),
+            Command::Chart(kind) => {
+                self.settings.chart = kind;
+                self.hover = None;
+                self.hover_seg = None;
+            }
             Command::SizeLogical | Command::SizeAllocated => {
                 let mode = if cmd == Command::SizeLogical { SizeMode::Logical } else { SizeMode::Allocated };
                 self.settings.size_mode = mode;
@@ -315,6 +330,7 @@ impl Shell {
 
     fn checked(&self, c: Command) -> bool {
         match c {
+            Command::Chart(kind) => self.settings.chart == kind,
             Command::SizeLogical => self.settings.size_mode == SizeMode::Logical,
             Command::SizeAllocated => self.settings.size_mode == SizeMode::Allocated,
             Command::Theme(t) => self.settings.theme == t,
@@ -579,6 +595,9 @@ impl Shell {
             WKey::Named(n) => match n {
                 NamedKey::F1 => "f1".into(),
                 NamedKey::F5 => "f5".into(),
+                NamedKey::F6 => "f6".into(),
+                NamedKey::F7 => "f7".into(),
+                NamedKey::F8 => "f8".into(),
                 NamedKey::Enter => "enter".into(),
                 NamedKey::Backspace => "backspace".into(),
                 NamedKey::Escape => "esc".into(),
@@ -618,6 +637,7 @@ impl Shell {
     /// Updates what the pointer is on.
     fn pointer(&mut self, x: f32, y: f32) {
         let l = &self.layout;
+        let mut seg = None;
         let (hot, hover) = match view::page(&self.app) {
             Page::Start if !l.body.contains(x, y) => (Hot::None, None),
             Page::Start => {
@@ -628,8 +648,18 @@ impl Shell {
             Page::Result => {
                 if l.splitter.contains(x, y) {
                     (Hot::Splitter, None)
+                } else if let Some(&(kind, _)) = l.tabs.iter().find(|(_, r)| r.contains(x, y)) {
+                    (Hot::Tab(kind), None)
                 } else if let Some(i) = l.row_at(&self.app, x, y) {
                     (Hot::Row(i), Some(self.app.rows[i].0))
+                } else if let (Some(c), true) = (&self.chart, self.settings.chart != ChartType::Treemap && l.map.contains(x, y)) {
+                    seg = c.hit(x - l.map.x, y - l.map.y);
+                    let node = match seg {
+                        Some(Hit::Segment(i)) => c.segments[i].node,
+                        Some(Hit::Center) => Some(c.root),
+                        None => None,
+                    };
+                    (Hot::None, node)
                 } else if let Some((mx, my)) = self.map_point(x, y) {
                     (Hot::None, self.map.as_ref().and_then(|m| m.hit(mx, my)))
                 } else {
@@ -638,14 +668,16 @@ impl Shell {
             }
         };
         let hot = if self.dialog.is_some() { Hot::None } else { hot };
-        if hot != self.hot || hover != self.hover {
+        if hot != self.hot || hover != self.hover || seg != self.hover_seg {
             self.hot = hot;
             self.hover = hover;
+            self.hover_seg = seg;
             self.redraw();
         }
         let icon = match (self.drag, hot) {
             (Some(Drag::Splitter), _) | (_, Hot::Splitter) => CursorIcon::NsResize,
-            (_, Hot::Card(_) | Hot::Choose | Hot::Stop) => CursorIcon::Pointer,
+            (_, Hot::Card(_) | Hot::Choose | Hot::Stop | Hot::Tab(_)) => CursorIcon::Pointer,
+            _ if seg == Some(Hit::Center) => CursorIcon::Pointer,
             _ => CursorIcon::Default,
         };
         if icon != self.cursor_icon {
@@ -678,6 +710,7 @@ impl Shell {
             Hot::Choose => self.command(el, Command::ChooseFolder),
             Hot::Stop => self.command(el, Command::Stop),
             Hot::Splitter => self.drag = Some(Drag::Splitter),
+            Hot::Tab(kind) => self.command(el, Command::Chart(kind)),
             Hot::Row(i) => {
                 let (id, depth) = self.app.rows[i];
                 if self.layout.on_arrow(x, depth) || clicks == 2 {
@@ -690,6 +723,8 @@ impl Shell {
                 if l.track.contains(x, y) && self.app.rows.len() > l.page_rows() {
                     self.drag = Some(Drag::Thumb);
                     self.drag_to(y);
+                } else if self.settings.chart != ChartType::Treemap && l.map.contains(x, y) {
+                    self.chart_press(clicks);
                 } else if let Some((mx, my)) = self.map_point(x, y) {
                     if let Some(id) = self.map.as_ref().and_then(|m| m.hit(mx, my)) {
                         self.app.select(id);
@@ -702,6 +737,23 @@ impl Shell {
         }
         self.menu_dirty = true;
         self.redraw();
+    }
+
+    /// A click on the pie or the rings selects; a double click on a folder
+    /// shows it; a click in the middle of the rings goes up.
+    fn chart_press(&mut self, clicks: u32) {
+        match self.hover_seg {
+            Some(Hit::Center) => self.app.zoom_out(),
+            Some(Hit::Segment(i)) => {
+                let Some(id) = self.chart.as_ref().and_then(|c| c.segments.get(i)).and_then(|s| s.node) else { return };
+                self.app.select(id);
+                let t = &self.app.scan.as_ref().expect("a chart has a tree").tree;
+                if clicks == 2 && t.node(id).is_dir() && !t.children(id).is_empty() {
+                    self.app.zoom = id;
+                }
+            }
+            None => {}
+        }
     }
 
     /// A double click in the treemap shows the folder one level down
@@ -754,8 +806,16 @@ impl Shell {
         let full = Rect::new(0.0, 0.0, w.get() as f32, h.get() as f32);
         self.layout = view::layout(&self.app, self.settings.split, full, s, cfg!(not(windows)));
         self.app.page = self.layout.page_rows();
-        self.ensure_map();
-        let frame = view::Frame { mode: self.settings.size_mode, map: self.map.as_ref(), hot: self.hot, hover: self.hover };
+        self.ensure_map(theme.bg);
+        let frame = view::Frame {
+            mode: self.settings.size_mode,
+            kind: self.settings.chart,
+            map: self.map.as_ref(),
+            chart: self.chart.as_ref(),
+            hover_seg: self.hover_seg,
+            hot: self.hot,
+            hover: self.hover,
+        };
         view::draw(&mut self.gfx, &self.app, &self.layout, &theme, s, &frame);
         #[cfg(not(windows))]
         {
@@ -787,7 +847,7 @@ impl Shell {
     /// changed. While the window is being resized, the old one is stretched
     /// and the new one waits until the size has stayed the same for a moment:
     /// a large tree takes a fraction of a second to lay out.
-    fn ensure_map(&mut self) {
+    fn ensure_map(&mut self, bg: Color) {
         if view::page(&self.app) != Page::Result {
             return;
         }
@@ -795,6 +855,22 @@ impl Shell {
         let r = self.layout.map;
         let (w, h) = (r.w.max(1.0) as u32, r.h.max(1.0) as u32);
         let key = (self.app.zoom, w, h, self.settings.size_mode, self.tree_gen);
+        if self.settings.chart != ChartType::Treemap {
+            // A few thousand segments at most: quick enough to redo at once.
+            let s = self.scale();
+            let bg = (bg.r as u32) << 16 | (bg.g as u32) << 8 | bg.b as u32;
+            let ckey = (self.settings.chart, key, bg, s.to_bits());
+            if self.chart_key != Some(ckey) || self.chart.is_none() {
+                let t = &scan.tree;
+                self.chart = Some(match self.settings.chart {
+                    ChartType::Pie => Chart::pie(t, self.app.zoom, w, h, s, bg),
+                    _ => Chart::rings(t, self.app.zoom, w, h, s, bg),
+                });
+                self.chart_key = Some(ckey);
+                self.hover_seg = None;
+            }
+            return;
+        }
         if self.map_key == Some(key) && self.map.is_some() {
             self.map_due = None;
             return;
@@ -847,7 +923,7 @@ impl Shell {
             list.set_children(rows);
             nodes.push((NodeId(1), list));
             let mut map = Node::new(Role::Image);
-            map.set_label(tr("Treemap"));
+            map.set_label(view::chart_name(self.settings.chart));
             nodes.push((NodeId(2), map));
             children.extend([NodeId(1), NodeId(2)]);
         }
@@ -950,6 +1026,7 @@ fn shortcuts_text() -> String {
         ("Backspace", tr("Treemap: one folder up")),
         ("Ctrl+Backspace", tr("Treemap: the whole scan")),
         ("Double click", tr("Treemap: one folder down")),
+        ("F6 / F7 / F8", tr("Treemap / pie / rings")),
         ("Ctrl+Enter", tr("Open the selected file or folder")),
         ("Ctrl+E", tr("Show it in the file manager")),
         ("Ctrl+C", tr("Copy its path")),
@@ -1232,6 +1309,9 @@ fn main() {
         map: None,
         map_key: None,
         map_due: None,
+        chart: None,
+        chart_key: None,
+        hover_seg: None,
         resized: Instant::now(),
         hot: Hot::None,
         hover: None,

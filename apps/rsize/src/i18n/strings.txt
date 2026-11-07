@@ -5,23 +5,31 @@
 
 &File		&Datei	&Archivo	&Fichier	&File	ファイル(&F)	&Arquivo	&Ficheiro	文件(&F)
 &Edit		&Bearbeiten	&Edición	&Édition	&Modifica	編集(&E)	&Editar	&Editar	编辑(&E)
-&View		&Ansicht	&Ver	A&ffichage	&Visualizza	表示(&V)	E&xibir	&Ver	视图(&V)
+&View		&Ansicht	&Ver	&Affichage	&Visualizza	表示(&V)	E&xibir	&Ver	视图(&V)
 &Help		&Hilfe	A&yuda	A&ide	&Guida	ヘルプ(&H)	A&juda	A&juda	帮助(&H)
 Choose &Folder...		&Ordner auswählen...	Elegir &carpeta...	Choisir un &dossier...	Scegli &cartella...	フォルダーを選択(&F)...	Escolher &pasta...	Escolher &pasta...	选择文件夹(&F)...
 Show &Drives		&Laufwerke anzeigen	Mostrar &unidades	Afficher les &lecteurs	Mostra &unità	ドライブを表示(&D)	Mostrar &unidades	Mostrar &unidades	显示驱动器(&D)
 &Rescan		&Erneut einlesen	&Volver a analizar	&Réanalyser	&Rianalizza	再スキャン(&R)	&Analisar novamente	&Analisar novamente	重新扫描(&R)
 &Stop		&Anhalten	&Detener	&Arrêter	&Interrompi	停止(&S)	Pa&rar	Pa&rar	停止(&S)
 E&xit		&Beenden	&Salir	&Quitter	&Esci	終了(&X)	&Sair	&Sair	退出(&X)
-&Copy Path		Pfad &kopieren	&Copiar ruta	&Copier le chemin	&Copia percorso	パスをコピー(&C)	&Copiar caminho	&Copiar caminho	复制路径(&C)
-&Open		Ö&ffnen	&Abrir	&Ouvrir	&Apri	開く(&O)	&Abrir	&Abrir	打开(&O)
+&Copy Path		Pfad ko&pieren	&Copiar ruta	&Copier le chemin	&Copia percorso	パスをコピー(&C)	&Copiar caminho	&Copiar caminho	复制路径(&C)
+&Open		Ö&ffnen	A&brir	&Ouvrir	&Apri	開く(&O)	A&brir	A&brir	打开(&O)
 Show in File &Manager		Im &Dateimanager anzeigen	Mostrar en el &explorador de archivos	Afficher dans le &gestionnaire de fichiers	Mostra nel &gestore file	ファイル マネージャーで表示(&M)	Mostrar no &gerenciador de arquivos	Mostrar no &gestor de ficheiros	在文件管理器中显示(&M)
 Zoom &In		&Vergrößern	&Acercar	Zoom &avant	&Ingrandisci	拡大(&I)	&Ampliar	&Ampliar	放大(&I)
-Zoom &Out		Ver&kleinern	A&lejar	Zoom a&rrière	&Riduci	縮小(&O)	&Reduzir	&Reduzir	缩小(&O)
+Zoom O&ut		Ver&kleinern	A&lejar	Zoom a&rrière	&Riduci	縮小(&U)	&Reduzir	&Reduzir	缩小(&U)
 Zoom to &Top		&Gesamtansicht	Ver t&odo	&Vue d’ensemble	&Vista completa	全体を表示(&T)	&Ver tudo	&Ver tudo	显示全部(&T)
+Tree&map		Tree&map	&Mapa de árbol	&Carte proportionnelle	Tree&map	ツリーマップ(&M)	Mapa de árvor&e	Mapa de árvor&e	树状图(&M)
+&Pie Chart		Kr&eisdiagramm	&Gráfico circular	&Secteurs	&Grafico a torta	円グラフ(&P)	&Gráfico de pizza	&Gráfico circular	饼图(&P)
+&Rings		R&inge	A&nillos	A&nneaux	A&nelli	リング(&R)	A&néis	A&néis	环形图(&R)
+Pie		Kreis	Circular	Secteurs	Torta	円グラフ	Pizza	Circular	饼图
+Rings		Ringe	Anillos	Anneaux	Anelli	リング	Anéis	Anéis	环形图
+Other ({} items)		Andere ({} Elemente)	Otros ({} elementos)	Autres ({} éléments)	Altro ({} elementi)	その他 ({} 項目)	Outros ({} itens)	Outros ({} itens)	其他（{} 项）
+Double-click a folder to zoom in, click the middle to zoom out		Doppelklick auf einen Ordner vergrößert ihn, ein Klick in die Mitte verkleinert	Doble clic en una carpeta para acercar, clic en el centro para alejar	Double-cliquez sur un dossier pour l’agrandir, cliquez au centre pour revenir	Doppio clic su una cartella per ingrandirla, clic al centro per ridurre	フォルダーをダブルクリックで拡大、中央をクリックで縮小	Clique duas vezes em uma pasta para ampliar, clique no centro para reduzir	Clique duas vezes numa pasta para ampliar, clique no centro para reduzir	双击文件夹放大，单击中心缩小
+Treemap / pie / rings		Treemap / Kreis / Ringe	Mapa de árbol / circular / anillos	Carte / secteurs / anneaux	Treemap / torta / anelli	ツリーマップ / 円グラフ / リング	Mapa de árvore / pizza / anéis	Mapa de árvore / circular / anéis	树状图 / 饼图 / 环形图
 File &Size		Dateig&röße	Tamaño de a&rchivo	Taille des &fichiers	&Dimensione file	ファイル サイズ(&S)	Ta&manho do arquivo	Ta&manho dos ficheiros	文件大小(&S)
 Size on &Disk		Größe auf Daten&träger	Tamaño en &disco	Taille sur le &disque	Dimensione su dis&co	ディスク上のサイズ(&D)	Tamanho em &disco	Tamanho em &disco	占用空间(&D)
 &Keyboard Shortcuts		&Tastenkombinationen	&Métodos abreviados de teclado	&Raccourcis clavier	&Tasti di scelta rapida	キーボード ショートカット(&K)	&Atalhos de teclado	&Atalhos de teclado	键盘快捷方式(&K)
-&About rsize		Ü&ber rsize	&Acerca de rsize	À &propos de rsize	&Informazioni su rsize	rsize について(&A)	&Sobre o rsize	&Acerca do rsize	关于 rsize(&A)
+&About rsize		Ü&ber rsize	&Acerca de rsize	À &propos de rsize	&Informazioni su rsize	rsize について(&A)	&Sobre o rsize	A&cerca do rsize	关于 rsize(&A)
 B		B	B	o	B	B	B	B	B
 KB		KB	KB	Ko	KB	KB	KB	KB	KB
 MB		MB	MB	Mo	MB	MB	MB	MB	MB
@@ -79,5 +87,5 @@ T&heme		&Design	&Tema	&Thème	&Tema	テーマ(&H)	&Tema		主题(&H)
 Display &Language		&Anzeigesprache	&Idioma de la interfaz	&Langue de l’interface	&Lingua dell’interfaccia	表示言語(&L)	&Idioma da interface		界面语言(&L)
 Use &System Setting		&Systemeinstellung verwenden	Usar configuración del &sistema	Utiliser le paramètre du &système	Usa impostazione di &sistema	システム設定を使用(&S)	Usar configuração do &sistema	Usar definição do &sistema	使用系统设置(&S)
 &Light		&Hell	&Claro	&Clair	&Chiaro	ライト(&L)	&Claro		浅色(&L)
-&Dark		&Dunkel	&Oscuro	&Sombre	&Scuro	ダーク(&D)	&Escuro		深色(&D)
+&Dark		&Dunkel	&Oscuro	S&ombre	Sc&uro	ダーク(&D)	&Escuro		深色(&D)
 Keyboard shortcuts		Tastenkombinationen	Métodos abreviados de teclado	Raccourcis clavier	Tasti di scelta rapida	キーボード ショートカット	Atalhos de teclado		键盘快捷方式

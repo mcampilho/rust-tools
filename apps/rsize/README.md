@@ -2,21 +2,22 @@
 
 A portable disk space analyzer for Windows and [Linux](#linux), written in
 Rust. It reads a drive, a folder or a network share and shows what takes up the
-space: the folders and files by size, largest first, and a **treemap** where
-each file is a rectangle as large as the file.
+space: the folders and files by size, largest first, and a chart: a
+**treemap** where each file is a rectangle as large as the file, a **pie** of
+the folder's contents, or **rings** with the folders inside folders.
 
 [Versão portuguesa](README.pt.md)
 
 rsize is part of [rust-tools](../../README.md). Commands below run from the
 repository root.
 
-`rsize.exe` is a single 1.7 MB executable: no installer, no runtime, no DLLs
+`rsize.exe` is a single 1.8 MB executable: no installer, no runtime, no DLLs
 beyond those that ship with Windows. It makes no network connections of its own
 (it reads network shares you choose) and has no telemetry. It only reads: it
 never changes, moves or deletes anything.
 
-This is version 0.1, the first stage of the program. Still to come: pie and
-ring charts, reading NTFS directly (much faster, with administrator rights),
+This is version 0.1, the first stages of the program. Still to come: reading
+NTFS directly (much faster, with administrator rights),
 using the index of [Everything](https://www.voidtools.com/) when it is running,
 statistics by file type, exporting to CSV and deleting to the Recycle Bin.
 
@@ -47,9 +48,28 @@ The result has two parts, with a bar between them that can be dragged:
   get a colour each, the others are grey. Pointing at a rectangle shows its
   path and size in the status bar; clicking selects it in the list.
 
-The treemap shows one folder at a time: a double click goes one folder down
-toward the file clicked, **Enter** shows the folder selected in the list,
-**Backspace** goes one folder up and **Ctrl+Backspace** back to the top.
+The tabs above the chart (or **View**, or F6, F7 and F8) choose between three
+charts:
+
+- **Treemap**, as in WinDirStat or WizTree.
+- **Pie**, as in TreeSize or JDiskReport: one slice for each item of the
+  folder, the twelve largest, with the rest in one "Other" slice, and a legend
+  with their sizes and shares.
+- **Rings**, as in Baobab or Scanner: the folder in the middle, its contents in
+  a ring around it, theirs in the next ring, up to six levels, each item inside
+  the angle of its folder. The colour follows the angle and gets lighter
+  further out; files are paler than folders. Items too thin to see are left
+  out.
+
+In the pie and the rings, the slice under the pointer moves out from the
+centre and brightens, with everything inside it, and its path and size show in
+the status bar. A click selects it in the list.
+
+The chart shows one folder at a time. In the treemap, a double click goes one
+folder down toward the file clicked; in the pie and the rings, a double click
+on a folder shows that folder, and a click in the middle of the rings goes one
+folder up. **Enter** shows the folder selected in the list, **Backspace** goes
+one folder up and **Ctrl+Backspace** back to the top.
 
 **View > File Size / Size on Disk** chooses which size is shown and sorted by:
 the length of the files, or the space they take on the disk (clusters,
@@ -69,7 +89,8 @@ shows it in the file manager, copies its path, or zooms the treemap.
 | ↑ ↓ PgUp PgDn Home End | Move in the list |
 | ← → Space | Close or open a folder |
 | Enter | Show the selected folder in the treemap |
-| Backspace / Ctrl+Backspace | Treemap: one folder up / the whole scan |
+| Backspace / Ctrl+Backspace | Chart: one folder up / the whole scan |
+| F6 / F7 / F8 | Treemap / pie / rings |
 | Ctrl+Enter | Open the selected file or folder |
 | Ctrl+E | Show it in the file manager |
 | Ctrl+C | Copy its path |
@@ -98,7 +119,7 @@ faster, as the system keeps what it read.
 
 ## Linux
 
-The Linux package is a `tar.gz` with the `rsize` binary, 5.4 MB. It runs on X11
+The Linux package is a `tar.gz` with the `rsize` binary, 5.5 MB. It runs on X11
 and Wayland, and needs glibc 2.35 or newer.
 
 - **Libraries.** As the other tools: `libwayland-client` and `libxkbcommon` on
@@ -134,7 +155,7 @@ manifest (per-monitor DPI v2, long paths) are embedded by `build.rs`.
 
 ## Tests and verification
 
-`./dev.ps1 test -p rsize` runs 32 tests (31 on Linux), on:
+`./dev.ps1 test -p rsize` runs 36 tests (35 on Linux), on:
 
 - the tree: totals, sorting by either size, paths, extensions;
 - reading: a folder tree with deep and accented names, a missing root, a
@@ -142,10 +163,14 @@ manifest (per-monitor DPI v2, long paths) are embedded by `build.rs`.
   folders on Linux;
 - the treemap: the squarified layout fills the area in proportion, every pixel
   belongs to a file, clicks find the right file, colours follow the extensions;
+- the pie and the rings: slices cover the circle in proportion, small items
+  go into "Other", rings nest inside their folders, clicks find the right
+  segment;
 - the list: opening folders, selection, the keyboard, zoom;
 - sizes, counts, percentages and dates in several languages, settings;
-- translations: every string in the 10 languages, and all the pages drawn in
-  German with no untranslated text.
+- translations: every string in the 10 languages, no two items of a menu with
+  the same access key, and all the pages and charts drawn in German with no
+  untranslated text.
 
 Two more tests run on request: `screenshots` draws every page to
 `apps/rsize/target/screens/*.png`, and `bench` times the reading of the folder

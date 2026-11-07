@@ -1,14 +1,15 @@
 # rsize — analisador de espaço em disco portátil em Rust
 
 Lê um disco, uma pasta ou uma partilha de rede e mostra o que ocupa espaço: lista de pastas por
-tamanho e treemap com sombreado em almofada. Um único executável (~1,7 MB em Windows, 5,4 MB em Linux),
+tamanho e um gráfico à escolha (treemap com sombreado em almofada, tarte ou anéis). Um único executável
+(~1,8 MB em Windows, 5,5 MB em Linux),
 só leitura, sem rede própria nem telemetria. Funcionalidades, atalhos e limitações estão no `README.md`.
 
 ## Comandos
 
 ```powershell
 ./dev.ps1 build --profile release-small -p rsize
-./dev.ps1 test -p rsize       # 32 testes (31 em Linux)
+./dev.ps1 test -p rsize       # 36 testes (35 em Linux)
 ./dev.ps1 clippy -p rsize --all-targets
 ./dev.ps1 test -p rsize --release --lib screenshots '--' --ignored   # páginas em apps/rsize/target/screens/*.png
 $env:RSIZE_BENCH_DIR = 'C:\'; ./dev.ps1 test -p rsize --release --lib bench '--' --ignored --nocapture
@@ -28,6 +29,9 @@ Correm na raiz do repositório. Saída: `target\release-small\rsize.exe` (perfil
   Ligações, junções e pontos de montagem não são seguidos.
 - `treemap.rs` — disposição squarified e cushions (van Wijk), desenhados pixel a pixel numa `Pixmap`; mapa
   pixel → bloco para os cliques. Cores pelas 12 extensões maiores.
+- `chart.rs` — tarte (12 fatias, o resto em "Outros", legenda) e anéis (até 6 níveis, cor pelo ângulo, mais
+  clara para fora, segmentos com menos de 3 px omitidos). Desenhados uma vez numa `Pixmap`; o segmento sob o
+  ponteiro (e, nos anéis, o que tem dentro) é redesenhado deslocado para fora em `view.rs`.
 - `volumes.rs` — discos (Windows) ou montagens reais (`/proc/self/mounts`, Linux), lidos num fio à parte.
 - `app.rs` — estado sem janela: página, linhas da lista, pastas abertas, seleção, zoom do treemap.
 - `format.rs` — tamanhos (binários, 3 algarismos), contagens, percentagens, datas locais.
@@ -35,13 +39,14 @@ Correm na raiz do repositório. Saída: `target\release-small\rsize.exe` (perfil
   `ui/theme.rs`, `ui/appicon.rs`, `ui/menu.rs` (menus desenhados, só fora do Windows).
 - `main.rs` — janela, menus nativos (Windows) ou desenhados (Linux), rato, teclado, leitura em segundo plano
   (eventos `Scan(geração, …)`; os de leituras antigas são ignorados). O treemap é refeito quando muda a pasta,
-  o tamanho ou a ordem; durante o redimensionamento é esticado e refeito 150 ms depois.
+  o tamanho ou a ordem; durante o redimensionamento é esticado e refeito 150 ms depois. A tarte e os anéis
+  são refeitos logo (poucos milhares de segmentos), porque esticados ficariam ovais.
 - `i18n/strings.txt` — traduções (10 idiomas), mesma convenção das outras aplicações.
 
 ## Fases
 
 1. Feito (0.1): leitura pelas APIs do sistema, lista e treemap.
-2. Gráficos de tarte (TreeSize/JDiskReport) e anéis (Baobab/Scanner).
+2. Feito: gráficos de tarte (TreeSize/JDiskReport) e anéis (Baobab/Scanner), com separadores e F6/F7/F8.
 3. Leitura direta do NTFS (MFT), com botão "Reiniciar como administrador".
 4. Índice do Everything (IPC por `WM_COPYDATA`, sem a DLL), quando está a correr e a pasta está indexada.
 5. Estatísticas por extensão, exportação CSV, apagar para a Reciclagem (com confirmação).
@@ -51,7 +56,8 @@ Correm na raiz do repositório. Saída: `target\release-small\rsize.exe` (perfil
 - Só leitura: nada escreve, move ou apaga no disco analisado (até à fase 5, e aí só para a Reciclagem).
 - `unsafe` só para chamadas Win32 (`scan/win.rs`, `volumes.rs`, `SetErrorMode` no `main`), com `SAFETY`.
 - Qualquer string visível nova precisa de linha completa em `strings.txt`.
-- Os textos de menu têm de ter teclas de acesso diferentes dentro de cada menu, em todas as línguas.
+- Os textos de menu têm de ter teclas de acesso diferentes dentro de cada menu, em todas as línguas (há um
+  teste). A tabela foi gerada por script, mas edita-se à mão: uma linha por texto, colunas separadas por tab.
 - `README.md` e `README.pt.md` são atualizados em conjunto.
 
 ## Git

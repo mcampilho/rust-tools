@@ -15,6 +15,8 @@ use crate::app::App;
 use crate::format;
 use crate::i18n::{tf, tr};
 use crate::model::{Id, Kind, SizeMode, Tree, F_HARDLINK, F_OTHER_FS, F_UNREADABLE};
+use crate::chart::{pop_offset, sector, Chart, Hit, Kind as ChartKind, Segment};
+use crate::settings::ChartType;
 use crate::treemap::{self, Map};
 use rt_core::i18n::strip_mnemonic;
 use rt_gfx::dialog::{ellipsize, ellipsize_middle};
@@ -29,6 +31,8 @@ pub enum Hot {
     Stop,
     Row(usize),
     Splitter,
+    /// A chart tab above the chart.
+    Tab(ChartType),
 }
 
 /// Column positions of the list, as (x, width); a width of 0 hides a column.
@@ -57,6 +61,8 @@ pub struct Layout {
     pub track: Rect,
     pub splitter: Rect,
     pub map_title: Rect,
+    /// The chart tabs, at the right of the title.
+    pub tabs: Vec<(ChartType, Rect)>,
     pub map: Rect,
     // Start page.
     pub cards: Vec<Rect>,
@@ -155,6 +161,14 @@ pub fn layout(app: &App, settings_split: f32, full: Rect, s: f32, menu_bar: bool
             let mut top = area.take_top(split);
             l.splitter = area.take_top((6.0 * s).round());
             l.map_title = area.take_top((26.0 * s).round());
+            let mut x = l.map_title.right() - 6.0 * s;
+            for kind in ChartType::ALL.into_iter().rev() {
+                let w = (tab_w(kind) * s).round();
+                x -= w;
+                l.tabs.push((kind, Rect::new(x.round(), l.map_title.y + 3.0 * s, w, l.map_title.h - 6.0 * s)));
+                x -= 4.0 * s;
+            }
+            l.tabs.reverse();
             l.map = Rect::new(area.x.round(), area.y.round(), area.w.round(), area.h.round());
             l.header = top.take_top((26.0 * s).round());
             l.row_h = (22.0 * s).round();
@@ -186,8 +200,14 @@ pub fn layout(app: &App, settings_split: f32, full: Rect, s: f32, menu_bar: bool
 #[derive(Clone, Copy)]
 pub struct Frame<'a> {
     pub mode: SizeMode,
+    /// The chart shown below the list.
+    pub kind: ChartType,
     /// The treemap for `layout.map`.
     pub map: Option<&'a Map>,
+    /// The pie or the rings for `layout.map`.
+    pub chart: Option<&'a Chart>,
+    /// What the pointer is on in the pie or the rings.
+    pub hover_seg: Option<Hit>,
     pub hot: Hot,
     /// The node under the pointer.
     pub hover: Option<Id>,
@@ -323,7 +343,7 @@ fn note(tree: &Tree, id: Id) -> Option<String> {
 }
 
 fn draw_result(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, f: &Frame) {
-    let Frame { mode, map, hot, hover } = *f;
+    let Frame { mode, map, hot, hover, .. } = *f;
     let Some(scan) = &app.scan else { return };
     let t = &scan.tree;
     let p = px(s);
@@ -435,19 +455,38 @@ fn draw_result(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, f: &Frame
     g.fill_rect(l.splitter, if hot == Hot::Splitter { th.accent.with_alpha(0x60) } else { th.status });
     g.fill_rect(Rect::new(l.splitter.x, l.splitter.y, l.splitter.w, 1.0), th.border);
     g.fill_rect(Rect::new(l.splitter.x, l.splitter.bottom() - 1.0, l.splitter.w, 1.0), th.border);
-    // Treemap title: the folder shown.
-    let title_r = l.map_title.inset(0.0);
+    // Chart title: the folder shown, a hint, and the chart tabs.
+    let title_r = l.map_title;
     g.fill_rect(title_r, th.header);
+    for &(kind, r) in &l.tabs {
+        let on = kind == f.kind;
+        if on {
+            g.fill_rrect(r, (4.0 * s).round(), th.accent);
+        } else if hot == Hot::Tab(kind) {
+            g.fill_rrect(r, (4.0 * s).round(), th.hover);
+        }
+        let fg = if on { if th.dark { Color::rgb(0x000000) } else { Color::rgb(0xFFFFFF) } } else { th.text };
+        g.text_in(&chart_name(kind), r, p * 0.95, FontId::Regular, fg, Align::Center);
+    }
+    let tabs_x = l.tabs.first().map_or(title_r.right(), |t| t.1.x);
     let shown = t.path(app.zoom).to_string_lossy().into_owned();
     let title = format!("{shown} — {}", format::size(t.node(app.zoom).size_in(mode)));
-    let hint = if app.zoom != t.root() { tr("Backspace: zoom out") } else { tr("Double-click a folder to zoom in") };
+    let hint = match (app.zoom != t.root(), f.kind) {
+        (_, ChartType::Rings) => tr("Double-click a folder to zoom in, click the middle to zoom out"),
+        (true, _) => tr("Backspace: zoom out"),
+        (false, _) => tr("Double-click a folder to zoom in"),
+    };
     let hw = g.measure(&hint, p, FontId::Regular);
-    let room = title_r.w - 2.0 * pad - hw - 16.0 * s;
+    let room = tabs_x - title_r.x - 2.0 * pad - hw - 24.0 * s;
     let show_hint = room > 160.0 * s;
-    let title = ellipsize_middle(g, &title, if show_hint { room } else { title_r.w - 2.0 * pad }, p, FontId::Semibold);
+    let title_w = if show_hint { room } else { tabs_x - title_r.x - 2.0 * pad };
+    let title = ellipsize_middle(g, &title, title_w.max(0.0), p, FontId::Semibold);
     g.text_in(&title, Rect::new(title_r.x + pad, title_r.y, title_r.w, title_r.h), p, FontId::Semibold, th.text, Align::Left);
     if show_hint {
-        g.text_in(&hint, Rect::new(title_r.x, title_r.y, title_r.w - pad, title_r.h), p, FontId::Regular, th.dim, Align::Right);
+        g.text_in(&hint, Rect::new(title_r.x, title_r.y, tabs_x - title_r.x - 12.0 * s, title_r.h), p, FontId::Regular, th.dim, Align::Right);
+    }
+    if f.kind != ChartType::Treemap {
+        return draw_chart(g, app, l, th, s, f);
     }
     // Treemap.
     match map {
@@ -473,6 +512,113 @@ fn draw_result(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, f: &Frame
         }
         _ => {
             g.text_in(&tr("Nothing here takes up space."), l.map, p, FontId::Regular, th.dim, Align::Center);
+        }
+    }
+}
+
+/// Width of a chart tab, in unscaled pixels: room for the longest name in
+/// the ten languages.
+fn tab_w(kind: ChartType) -> f32 {
+    let n = chart_name(kind).chars().count() as f32;
+    (n * 7.0 + 22.0).clamp(56.0, 140.0)
+}
+
+/// The name of a chart on its tab.
+pub fn chart_name(kind: ChartType) -> String {
+    match kind {
+        ChartType::Treemap => tr("Treemap"),
+        ChartType::Pie => tr("Pie"),
+        ChartType::Rings => tr("Rings"),
+    }
+}
+
+fn sector_at(c: &Chart, seg: &Segment, ox: f32, oy: f32) -> Vec<(f32, f32)> {
+    sector(c.cx + ox, c.cy + oy, seg.r0, seg.r1, seg.a0, seg.a1)
+}
+
+/// The pie or the rings, the pointed segment moved out, the selection and
+/// the texts.
+fn draw_chart(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, f: &Frame) {
+    let (Some(scan), Some(c)) = (&app.scan, f.chart) else { return };
+    let t = &scan.tree;
+    let p = px(s);
+    let (x0, y0) = (l.map.x, l.map.y);
+    g.draw_image(&c.image, Rect::new(x0, y0, c.w as f32, c.h as f32));
+    if c.segments.is_empty() {
+        g.text_in(&tr("Nothing here takes up space."), l.map, p, FontId::Regular, th.dim, Align::Center);
+        return;
+    }
+    let sel = app.sel.and_then(|id| c.segment_of(t, id));
+    let hover = match f.hover_seg {
+        Some(Hit::Segment(i)) => Some(i),
+        _ => None,
+    };
+    // The pointed segment, and what is inside it, stands out.
+    let moved = match hover {
+        Some(h) if c.kind == ChartKind::Rings => c.subtree(h),
+        Some(h) => vec![h],
+        None => Vec::new(),
+    };
+    let (dx, dy) = hover.map_or((0.0, 0.0), |h| pop_offset(&c.segments[h], c.radius));
+    for &i in &moved {
+        let pts = sector_at(c, &c.segments[i], x0, y0);
+        g.fill_polygon(&pts, th.bg);
+        g.polyline(&pts, 2.0, th.bg, true);
+    }
+    for &i in &moved {
+        let seg = &c.segments[i];
+        let pts = sector_at(c, seg, x0 + dx, y0 + dy);
+        let color = Color::rgb(seg.color).mix(Color::rgb(0xFFFFFF), if Some(i) == hover { 0.22 } else { 0.1 });
+        g.fill_polygon(&pts, color);
+        g.polyline(&pts, 1.2 * s, th.bg, true);
+    }
+    if let Some(i) = sel {
+        let (ox, oy) = if moved.contains(&i) { (dx, dy) } else { (0.0, 0.0) };
+        let pts = sector_at(c, &c.segments[i], x0 + ox, y0 + oy);
+        g.polyline(&pts, (2.5 * s).round(), th.text, true);
+    }
+    match c.kind {
+        ChartKind::Rings => {
+            // The folder shown, in the middle.
+            let r = c.inner * 0.8;
+            let box_ = Rect::new(x0 + c.cx - r, y0 + c.cy - r * 0.55, 2.0 * r, r * 1.1);
+            // The scanned folder's name is its whole path: show its last part.
+            let full = t.name(c.root);
+            let name = std::path::Path::new(full).file_name().map_or(full.to_string(), |n| n.to_string_lossy().into_owned());
+            let name = ellipsize(g, &name, box_.w, p, FontId::Semibold);
+            let size = format::size(t.size(c.root));
+            let hot = f.hover_seg == Some(Hit::Center);
+            let color = if hot { th.accent } else { th.text };
+            g.text_in(&name, Rect::new(box_.x, box_.y, box_.w, box_.h / 2.0), p, FontId::Semibold, color, Align::Center);
+            g.text_in(&size, Rect::new(box_.x, box_.y + box_.h / 2.0, box_.w, box_.h / 2.0), p * 0.95, FontId::Regular, th.dim, Align::Center);
+        }
+        ChartKind::Pie => {
+            let total = t.size(c.root).max(1);
+            for &(i, r) in &c.legend {
+                let r = Rect::new(x0 + r.x, y0 + r.y, r.w, r.h);
+                let seg = &c.segments[i];
+                if hover == Some(i) {
+                    g.fill_rrect(r, (4.0 * s).round(), th.hover);
+                }
+                if sel == Some(i) {
+                    g.fill_rrect(r, (4.0 * s).round(), th.selection);
+                }
+                let sw = (12.0 * s).round();
+                g.fill_rrect(Rect::new(r.x + 6.0 * s, r.center_y() - sw / 2.0, sw, sw), 3.0 * s, Color::rgb(seg.color));
+                let size = format::size(seg.size);
+                let pct = format::percent(seg.size, total);
+                let (cw1, cw2) = ((72.0 * s).round(), (58.0 * s).round());
+                let name_x = r.x + 6.0 * s + sw + 8.0 * s;
+                let name_w = (r.right() - cw1 - cw2 - name_x - 8.0 * s).max(0.0);
+                let name = match seg.node {
+                    Some(id) => t.name(id).to_string(),
+                    None => tf("Other ({} items)", &[&format::count(seg.others as u64)]),
+                };
+                let name = ellipsize(g, &name, name_w, p, FontId::Regular);
+                g.text_in(&name, Rect::new(name_x, r.y, name_w, r.h), p, FontId::Regular, th.text, Align::Left);
+                g.text_in(&size, Rect::new(r.right() - cw1 - cw2, r.y, cw1, r.h), p, FontId::Regular, th.text, Align::Right);
+                g.text_in(&pct, Rect::new(r.right() - cw2, r.y, cw2 - 4.0 * s, r.h), p, FontId::Regular, th.dim, Align::Right);
+            }
         }
     }
 }
@@ -570,16 +716,25 @@ mod screenshots {
         let many: Vec<Volume> = (0..14u8)
             .map(|i| Volume { path: format!("{}:\\", (b'C' + i) as char).into(), label: format!("Disk {i}"), fs: "NTFS".into(), total: 500 * gb, free: (i as u64 * 30) * gb, remote: i > 9 })
             .collect();
-        let mut shot = |name: &str, app: &App, dark: bool, sel_hover: Option<Id>| {
+        let mut chart_shot = |name: &str, app: &App, dark: bool, kind: ChartType, pointed: Option<usize>| {
             g.resize(w, h);
             let th = Theme::new(dark, None);
             let l = layout(app, 0.45, full, 1.0, false);
-            let map = app.scan.as_ref().map(|s| Map::new(&s.tree, app.zoom, l.map.w as u32, l.map.h as u32));
-            let hot = if page(app) == Page::Start { Hot::Card(1) } else { Hot::None };
-            let f = Frame { mode: SizeMode::Logical, map: map.as_ref(), hot, hover: sel_hover };
+            let (mw, mh) = (l.map.w as u32, l.map.h as u32);
+            let bg = (th.bg.r as u32) << 16 | (th.bg.g as u32) << 8 | th.bg.b as u32;
+            let tree = &app.scan.as_ref().map(|s| &s.tree);
+            let map = tree.map(|t| Map::new(t, app.zoom, mw, mh));
+            let chart = tree.map(|t| match kind {
+                ChartType::Pie => Chart::pie(t, app.zoom, mw, mh, 1.0, bg),
+                _ => Chart::rings(t, app.zoom, mw, mh, 1.0, bg),
+            });
+            let hover = pointed.and_then(|i| chart.as_ref()?.segments.get(i)?.node);
+            let hot = if page(app) == Page::Start { Hot::Card(1) } else { Hot::Tab(ChartType::Pie) };
+            let f = Frame { mode: SizeMode::Logical, kind, map: map.as_ref(), chart: chart.as_ref(), hover_seg: pointed.map(Hit::Segment), hot, hover };
             draw(&mut g, app, &l, &th, 1.0, &f);
             g.pix.save_png(out.join(format!("{name}.png"))).unwrap();
         };
+        let mut shot = |name: &str, app: &App, dark: bool, _: Option<Id>| chart_shot(name, app, dark, ChartType::Treemap, None);
         set_lang(Lang::EnUS);
         let mut app = App::new();
         app.volumes = Some(vols);
@@ -611,5 +766,20 @@ mod screenshots {
         set_lang(Lang::PtPT);
         shot("result-pt", &app, false, None);
         set_lang(Lang::EnUS);
+        // The round charts, of a folder with varied contents when there is one.
+        let varied = {
+            let t = &app.scan.as_ref().unwrap().tree;
+            let find = |from: Id, name: &str| t.children(from).iter().copied().find(|&c| t.name(c) == name);
+            find(0, "target").and_then(|d| find(d, "debug")).map(|d| (d, t.children(d)[0]))
+        };
+        if let Some((debug, first)) = varied {
+            app.zoom = debug;
+            app.select(first);
+        }
+        drop(shot);
+        chart_shot("pie-light", &app, false, ChartType::Pie, Some(1));
+        chart_shot("pie-dark", &app, true, ChartType::Pie, None);
+        chart_shot("rings-light", &app, false, ChartType::Rings, Some(0));
+        chart_shot("rings-dark", &app, true, ChartType::Rings, Some(3));
     }
 }

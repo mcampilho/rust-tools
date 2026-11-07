@@ -2,6 +2,7 @@
 //! the window (`main.rs`), so it can be tested without one.
 
 pub mod app;
+pub mod chart;
 pub mod commands;
 pub mod format;
 pub mod i18n;

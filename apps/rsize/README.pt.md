@@ -2,22 +2,22 @@
 
 Um analisador de espaço em disco portátil para Windows e [Linux](#linux), escrito
 em Rust. Lê um disco, uma pasta ou uma partilha de rede e mostra o que ocupa o
-espaço: as pastas e os ficheiros por tamanho, dos maiores para os mais pequenos, e
-um **treemap** em que cada ficheiro é um retângulo do tamanho do ficheiro.
+espaço: as pastas e os ficheiros por tamanho, dos maiores para os mais pequenos, e um
+gráfico: um **treemap** em que cada ficheiro é um retângulo do tamanho do ficheiro,
+uma **tarte** com o conteúdo da pasta, ou **anéis** com as pastas dentro das pastas.
 
 [English version](README.md)
 
 O rsize faz parte do [rust-tools](../../README.pt.md). Os comandos abaixo correm na
 raiz do repositório.
 
-O `rsize.exe` é um único executável de 1,7 MB: sem instalador, sem runtime, sem DLLs
+O `rsize.exe` é um único executável de 1,8 MB: sem instalador, sem runtime, sem DLLs
 além das que vêm com o Windows. Não faz ligações de rede por iniciativa própria (lê
 as partilhas de rede que escolher) e não tem telemetria. Só lê: nunca altera, move
 ou apaga nada.
 
-Esta é a versão 0.1, a primeira fase do programa. Ainda faltam: os gráficos de tarte
-e de anéis, a leitura direta do NTFS (muito mais rápida, com direitos de
-administrador), o uso do índice do [Everything](https://www.voidtools.com/) quando
+Esta é a versão 0.1, as primeiras fases do programa. Ainda faltam: a leitura direta
+do NTFS (muito mais rápida, com direitos de administrador), o uso do índice do [Everything](https://www.voidtools.com/) quando
 está a correr, as estatísticas por tipo de ficheiro, a exportação para CSV e apagar
 para a Reciclagem.
 
@@ -49,9 +49,28 @@ O resultado tem duas partes, separadas por uma barra que se pode arrastar:
   as restantes são cinzentas. Apontar para um retângulo mostra o caminho e o tamanho
   na barra de estado; um clique seleciona-o na lista.
 
-O treemap mostra uma pasta de cada vez: um duplo clique desce uma pasta em direção
-ao ficheiro clicado, **Enter** mostra a pasta selecionada na lista, **Retrocesso**
-sobe uma pasta e **Ctrl+Retrocesso** volta ao topo.
+Os separadores por cima do gráfico (ou o menu **Ver**, ou F6, F7 e F8) escolhem
+entre três gráficos:
+
+- **Treemap**, como no WinDirStat ou no WizTree.
+- **Tarte**, como no TreeSize ou no JDiskReport: uma fatia para cada item da pasta,
+  os doze maiores, com os restantes numa fatia "Outros", e uma legenda com os
+  tamanhos e as percentagens.
+- **Anéis**, como no Baobab ou no Scanner: a pasta ao centro, o seu conteúdo num
+  anel à volta, o conteúdo desses no anel seguinte, até seis níveis, cada item dentro
+  do ângulo da sua pasta. A cor segue o ângulo e fica mais clara para fora; os
+  ficheiros são mais pálidos do que as pastas. Os itens finos demais para se verem
+  ficam de fora.
+
+Na tarte e nos anéis, a fatia sob o ponteiro afasta-se do centro e fica mais clara,
+com tudo o que tem dentro, e o caminho e o tamanho aparecem na barra de estado. Um
+clique seleciona-a na lista.
+
+O gráfico mostra uma pasta de cada vez. No treemap, um duplo clique desce uma pasta
+em direção ao ficheiro clicado; na tarte e nos anéis, um duplo clique numa pasta
+mostra essa pasta, e um clique no centro dos anéis sobe uma pasta. **Enter** mostra a
+pasta selecionada na lista, **Retrocesso** sobe uma pasta e **Ctrl+Retrocesso** volta
+ao topo.
 
 **Ver > Tamanho dos ficheiros / Tamanho em disco** escolhe o tamanho mostrado e
 usado para ordenar: o comprimento dos ficheiros, ou o espaço que ocupam no disco
@@ -71,7 +90,8 @@ gestor de ficheiros, copia o caminho ou muda a pasta do treemap.
 | ↑ ↓ PgUp PgDn Home End | Mover na lista |
 | ← → Espaço | Fechar ou abrir uma pasta |
 | Enter | Mostrar a pasta selecionada no treemap |
-| Retrocesso / Ctrl+Retrocesso | Treemap: uma pasta acima / tudo |
+| Retrocesso / Ctrl+Retrocesso | Gráfico: uma pasta acima / tudo |
+| F6 / F7 / F8 | Treemap / tarte / anéis |
 | Ctrl+Enter | Abrir o ficheiro ou a pasta selecionados |
 | Ctrl+E | Mostrá-lo no gestor de ficheiros |
 | Ctrl+C | Copiar o caminho |
@@ -99,7 +119,7 @@ porque o sistema guarda o que leu.
 
 ## Linux
 
-O pacote para Linux é um `tar.gz` com o binário `rsize`, de 5,4 MB. Funciona em X11
+O pacote para Linux é um `tar.gz` com o binário `rsize`, de 5,5 MB. Funciona em X11
 e Wayland e precisa da glibc 2.35 ou mais recente.
 
 - **Bibliotecas.** As mesmas das outras ferramentas: `libwayland-client` e
@@ -136,7 +156,7 @@ manifesto (DPI por monitor v2, caminhos longos) são embebidos pelo `build.rs`.
 
 ## Testes e verificação
 
-O `./dev.ps1 test -p rsize` corre 32 testes (31 em Linux), sobre:
+O `./dev.ps1 test -p rsize` corre 36 testes (35 em Linux), sobre:
 
 - a árvore: totais, ordenação pelos dois tamanhos, caminhos, extensões;
 - a leitura: uma árvore de pastas com nomes fundos e acentuados, uma raiz que não
@@ -145,10 +165,14 @@ O `./dev.ps1 test -p rsize` corre 32 testes (31 em Linux), sobre:
 - o treemap: a disposição squarified preenche a área em proporção, cada pixel
   pertence a um ficheiro, os cliques encontram o ficheiro certo, as cores seguem as
   extensões;
+- a tarte e os anéis: as fatias cobrem o círculo em proporção, os itens pequenos vão
+  para "Outros", os anéis ficam dentro das suas pastas, os cliques encontram o
+  segmento certo;
 - a lista: abrir pastas, seleção, teclado, zoom;
 - tamanhos, contagens, percentagens e datas em várias línguas, definições;
-- traduções: todos os textos nas 10 línguas, e todas as páginas desenhadas em alemão
-  sem texto por traduzir.
+- traduções: todos os textos nas 10 línguas, nenhum par de itens do mesmo menu com a
+  mesma tecla de acesso, e todas as páginas e gráficos desenhados em alemão sem texto
+  por traduzir.
 
 Há mais dois testes a pedido: `screenshots` desenha cada página em
 `apps/rsize/target/screens/*.png`, e `bench` mede a leitura da pasta em

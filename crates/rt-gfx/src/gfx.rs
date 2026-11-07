@@ -558,6 +558,23 @@ impl Gfx {
         }
     }
 
+    /// Fills a closed polygon (anti-aliased).
+    pub fn fill_polygon(&mut self, pts: &[(f32, f32)], c: Color) {
+        if pts.len() < 3 || c.a == 0 {
+            return;
+        }
+        let mut pb = PathBuilder::new();
+        pb.move_to(pts[0].0, pts[0].1);
+        for p in &pts[1..] {
+            pb.line_to(p.0, p.1);
+        }
+        pb.close();
+        if let Some(path) = pb.finish() {
+            let mask = self.clip.as_ref().map(|(_, m)| m);
+            self.pix.fill_path(&path, &c.paint(), FillRule::Winding, Transform::identity(), mask);
+        }
+    }
+
     /// Strokes a polyline.
     pub fn polyline(&mut self, pts: &[(f32, f32)], width: f32, c: Color, close: bool) {
         if pts.len() < 2 {
