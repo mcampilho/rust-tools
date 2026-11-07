@@ -37,9 +37,75 @@ impl<C: Copy> M<C> {
     }
 }
 
+/// The access key of a label: the letter after `&` (`&&` is a plain `&`).
+pub fn access_key(label: &str) -> Option<char> {
+    let mut it = label.chars();
+    while let Some(c) = it.next() {
+        if c == '&' {
+            match it.next() {
+                Some('&') => continue,
+                Some(k) => return k.to_lowercase().next(),
+                None => return None,
+            }
+        }
+    }
+    None
+}
+
+/// Items of the same menu that share an access key, in any of the
+/// languages, as "menu [lang]: label / label". The titles of the menu `bar`
+/// are checked together, then each menu and submenu, then the `context`
+/// menus (named for the report). The app's translation table must be
+/// installed. The current language is restored afterwards.
+pub fn access_key_clashes<C: MenuCommand>(bar: &Tree<C>, context: &[(&'static str, Vec<M<C>>)]) -> Vec<String> {
+    use crate::i18n::{lang, set_lang, tr, Lang};
+    fn label<C: MenuCommand>(m: &M<C>) -> Option<String> {
+        match m {
+            M::Item(c) => Some(c.label()),
+            M::Sub(t, _) => Some(tr(t).to_string()),
+            M::Dyn(..) | M::Sep => None,
+        }
+    }
+    fn check<C: MenuCommand>(name: &str, items: &[M<C>], l: Lang, out: &mut Vec<String>) {
+        let mut seen: Vec<(char, String)> = Vec::new();
+        for text in items.iter().filter_map(label) {
+            let Some(k) = access_key(&text) else { continue };
+            if let Some((_, other)) = seen.iter().find(|(c, _)| *c == k) {
+                out.push(format!("{name} [{}]: {other} / {text}", l.tag()));
+            }
+            seen.push((k, text));
+        }
+        for it in items {
+            if let M::Sub(t, children) = it {
+                check(t, children, l, out);
+            }
+        }
+    }
+    let before = lang();
+    let mut out = Vec::new();
+    for l in Lang::ALL {
+        set_lang(l);
+        let titles: Vec<M<C>> = bar.iter().map(|(t, _)| M::Sub(t, Vec::new())).collect();
+        check("menu bar", &titles, l, &mut out);
+        for (title, items) in bar.iter().chain(context) {
+            check(title, items, l, &mut out);
+        }
+    }
+    set_lang(before);
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn access_keys_are_found() {
+        assert_eq!(access_key("&Open"), Some('o'));
+        assert_eq!(access_key("Fish && &Chips"), Some('c'));
+        assert_eq!(access_key("開く(&O)..."), Some('o'));
+        assert_eq!(access_key("No key"), None);
+    }
 
     #[test]
     fn commands_are_found_in_submenus() {

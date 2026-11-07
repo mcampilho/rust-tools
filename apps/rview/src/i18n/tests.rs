@@ -109,6 +109,17 @@ fn source_strings_have_translations() {
     assert!(missing.is_empty(), "untranslated strings:\n{}", missing.join("\n"));
 }
 
+/// Within each menu, no two items share an access key, in any language.
+#[test]
+fn access_keys_differ_within_each_menu() {
+    use crate::commands::{menu_tree, Command};
+    use rt_core::menu::M::{Item, Sep};
+    install();
+    let context = vec![Item(Command::Copy), Item(Command::CopyPlain), Sep, Item(Command::SelectAll)];
+    let problems = rt_core::menu::access_key_clashes(&menu_tree(), &[("context menu", context)]);
+    assert!(problems.is_empty(), "{problems:#?}");
+}
+
 /// All command labels and menu titles are translated.
 #[test]
 fn commands_and_menus_have_translations() {

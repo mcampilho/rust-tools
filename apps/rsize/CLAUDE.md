@@ -56,8 +56,8 @@ Correm na raiz do repositório. Saída: `target\release-small\rsize.exe` (perfil
 - Só leitura: nada escreve, move ou apaga no disco analisado (até à fase 5, e aí só para a Reciclagem).
 - `unsafe` só para chamadas Win32 (`scan/win.rs`, `volumes.rs`, `SetErrorMode` no `main`), com `SAFETY`.
 - Qualquer string visível nova precisa de linha completa em `strings.txt`.
-- Os textos de menu têm de ter teclas de acesso diferentes dentro de cada menu, em todas as línguas (há um
-  teste). A tabela foi gerada por script, mas edita-se à mão: uma linha por texto, colunas separadas por tab.
+- Os textos de menu têm de ter teclas de acesso diferentes dentro de cada menu, em todas as línguas (teste com
+  `rt_core::menu::access_key_clashes`). A tabela foi gerada por script, mas edita-se à mão: uma linha por texto, colunas separadas por tab.
 - `README.md` e `README.pt.md` são atualizados em conjunto.
 
 ## Git

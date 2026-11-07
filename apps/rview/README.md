@@ -242,7 +242,7 @@ View › Display Language.
 
 ## Tests and verification
 
-`cargo test -p rview` runs 80 tests on Windows and 79 on Linux: the text, CSV, Markdown, HTML and CSS parsers,
+`cargo test -p rview` runs 81 tests on Windows and 80 on Linux: the text, CSV, Markdown, HTML and CSS parsers,
 the layout engine (wrapping, zoom, long words, links), encodings, links
 and image paths, settings, the translation table (every string in the
 code and menus has all languages; placeholders and access keys match),

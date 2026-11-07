@@ -4,18 +4,18 @@
 # "\n" is a line break in multi-line messages. Menu labels carry their own "&" access key.
 
 &File		&Datei	&Archivo	&Fichier	&File	ファイル(&F)	&Arquivo	&Ficheiro	文件(&F)
-&View		&Ansicht	&Ver	A&ffichage	&Visualizza	表示(&V)	E&xibir	&Ver	视图(&V)
+&View		&Ansicht	&Ver	&Affichage	&Visualizza	表示(&V)	E&xibir	&Ver	视图(&V)
 &Help		&Hilfe	A&yuda	A&ide	&Guida	ヘルプ(&H)	A&juda		帮助(&H)
 &Open...		Ö&ffnen...	&Abrir...	&Ouvrir...	&Apri...	開く(&O)...	&Abrir...		打开(&O)...
 E&xit		&Beenden	&Salir	&Quitter	&Esci	終了(&X)	&Sair		退出(&X)
 Zoom &In		&Vergrößern	&Acercar	Zoom &avant	&Ingrandisci	拡大(&I)	&Ampliar		放大(&I)
 Zoom &Out		Ver&kleinern	A&lejar	Zoom a&rrière	&Riduci	縮小(&O)	&Reduzir		缩小(&O)
-&Full Screen		&Vollbild	&Pantalla completa	&Plein écran	&Schermo intero	全画面表示(&F)	&Tela inteira	&Ecrã inteiro	全屏(&F)
+&Full Screen		Vollb&ild	&Pantalla completa	Plein é&cran	&Schermo intero	全画面表示(&F)	Tela i&nteira	&Ecrã inteiro	全屏(&F)
 T&heme		&Design	&Tema	&Thème	&Tema	テーマ(&H)	&Tema		主题(&H)
 Display &Language		&Anzeigesprache	&Idioma de la interfaz	&Langue de l’interface	&Lingua dell’interfaccia	表示言語(&L)	&Idioma da interface		界面语言(&L)
 Use &System Setting		&Systemeinstellung verwenden	Usar configuración del &sistema	Utiliser le paramètre du &système	Usa impostazione di &sistema	システム設定を使用(&S)	Usar configuração do &sistema	Usar definição do &sistema	使用系统设置(&S)
 &Light		&Hell	&Claro	&Clair	&Chiaro	ライト(&L)	&Claro		浅色(&L)
-&Dark		&Dunkel	&Oscuro	&Sombre	&Scuro	ダーク(&D)	&Escuro		深色(&D)
+&Dark		&Dunkel	&Oscuro	S&ombre	Sc&uro	ダーク(&D)	&Escuro		深色(&D)
 &Keyboard Shortcuts		&Tastenkombinationen	&Métodos abreviados de teclado	&Raccourcis clavier	&Tasti di scelta rapida	キーボード ショートカット(&K)	&Atalhos de teclado		键盘快捷方式(&K)
 Keyboard shortcuts		Tastenkombinationen	Métodos abreviados de teclado	Raccourcis clavier	Tasti di scelta rapida	キーボード ショートカット	Atalhos de teclado		键盘快捷方式
 Reload		Neu laden	Recargar	Recharger	Ricarica	再読み込み	Recarregar		重新加载
@@ -42,10 +42,10 @@ Shell script		Shell-Skript	Script de shell	Script shell	Script della shell	シ�
 Properties		Properties	Properties	Properties	Properties	Properties	Properties		Properties
 Batch		Batch	Batch	Batch	Batch	バッチ	Batch		批处理
 &Reload		&Neu laden	&Recargar	&Recharger	&Ricarica	再読み込み(&R)	&Recarregar		重新加载(&R)
-Show in &Folder		Im &Ordner anzeigen	Mostrar en la &carpeta	Afficher dans le &dossier	Mostra nella &cartella	フォルダーに表示(&F)	Mostrar na &pasta		在文件夹中显示(&F)
-&Actual Size		&Originalgröße	&Tamaño real	&Taille réelle	&Dimensioni effettive	実際のサイズ(&A)	&Tamanho real		实际大小(&A)
-Fit &Width		An &Breite anpassen	Ajustar al &ancho	Ajuster à la &largeur	Adatta alla &larghezza	幅に合わせる(&W)	Ajustar à &largura		适应宽度(&W)
-Word W&rap		&Zeilenumbruch	&Ajuste de línea	&Retour automatique à la ligne	&A capo automatico	右端で折り返す(&R)	&Quebra automática de linha	&Translineação	自动换行(&R)
+Show in &Folder		Im &Ordner anzeigen	Mostrar en la car&peta	Afficher dans le &dossier	Mostra nella car&tella	フォルダーに表示(&F)	Mostrar na &pasta		在文件夹中显示(&F)
+&Actual Size		&Originalgröße	Tamaño &real	Taille ré&elle	&Dimensioni effettive	実際のサイズ(&A)	Tamanho r&eal	Ta&manho real	实际大小(&A)
+Fit &Width		An &Breite anpassen	Ajustar al a&ncho	Ajuster à la lar&geur	Adatta alla lar&ghezza	幅に合わせる(&W)	Ajustar à &largura		适应宽度(&W)
+Word W&rap		&Zeilenumbruch	Ajuste de lín&ea	Retour a&utomatique à la ligne	&A capo automatico	右端で折り返す(&R)	&Quebra automática de linha	Tra&nslineação	自动换行(&R)
 &About rview		&Über rview	&Acerca de rview	&À propos de rview	&Informazioni su rview	rview のバージョン情報(&A)	&Sobre o rview		关于 rview(&A)
 About rview		Über rview	Acerca de rview	À propos de rview	Informazioni su rview	rview のバージョン情報	Sobre o rview		关于 rview
 Semicolon		Semikolon	Punto y coma	Point-virgule	Punto e virgola	セミコロン	Ponto e vírgula		分号
@@ -78,7 +78,7 @@ Previous / next page (PDF)		Vorherige / nächste Seite (PDF)	Página anterior / 
 Pan the document		Dokument verschieben	Desplazar el documento	Déplacer le document	Sposta il documento	ドキュメントを移動	Mover o documento		平移文档
 This link cannot be opened here: {}		Dieser Link kann hier nicht geöffnet werden: {}	Este vínculo no se puede abrir aquí: {}	Ce lien ne peut pas être ouvert ici : {}	Questo collegamento non può essere aperto qui: {}	このリンクはここでは開けません: {}	Este link não pode ser aberto aqui: {}	Esta ligação não pode ser aberta aqui: {}	无法在此处打开此链接：{}
 rview {}\n\nA small, fast, portable viewer for PDF, Markdown, HTML, text and CSV documents, written in Rust.\nNo telemetry, no network access, no scripts.\n\nPDF pages and images are rendered by Windows.\n\nMIT License.		rview {}\n\nEin kleiner, schneller, portabler Betrachter für PDF-, Markdown-, HTML-, Text- und CSV-Dokumente, geschrieben in Rust.\nKeine Telemetrie, kein Netzwerkzugriff, keine Skripte.\n\nPDF-Seiten und Bilder werden von Windows dargestellt.\n\nMIT-Lizenz.	rview {}\n\nUn visor pequeño, rápido y portátil de documentos PDF, Markdown, HTML, texto y CSV, escrito en Rust.\nSin telemetría, sin acceso a la red, sin scripts.\n\nWindows representa las páginas PDF y las imágenes.\n\nLicencia MIT.	rview {}\n\nUn visualiseur petit, rapide et portable pour les documents PDF, Markdown, HTML, texte et CSV, écrit en Rust.\nAucune télémétrie, aucun accès réseau, aucun script.\n\nLes pages PDF et les images sont rendues par Windows.\n\nLicence MIT.	rview {}\n\nUn visualizzatore piccolo, veloce e portatile per documenti PDF, Markdown, HTML, testo e CSV, scritto in Rust.\nNessuna telemetria, nessun accesso alla rete, nessuno script.\n\nLe pagine PDF e le immagini sono visualizzate da Windows.\n\nLicenza MIT.	rview {}\n\nRust で書かれた、小さく高速でポータブルな PDF、Markdown、HTML、テキスト、CSV ドキュメント ビューアーです。\nテレメトリ、ネットワーク アクセス、スクリプトはありません。\n\nPDF ページと画像は Windows によって描画されます。\n\nMIT ライセンス。	rview {}\n\nUm visualizador pequeno, rápido e portátil de documentos PDF, Markdown, HTML, texto e CSV, escrito em Rust.\nSem telemetria, sem acesso à rede, sem scripts.\n\nAs páginas PDF e as imagens são renderizadas pelo Windows.\n\nLicença MIT.	rview {}\n\nUm visualizador pequeno, rápido e portátil de documentos PDF, Markdown, HTML, texto e CSV, escrito em Rust.\nSem telemetria, sem acesso à rede, sem scripts.\n\nAs páginas PDF e as imagens são apresentadas pelo Windows.\n\nLicença MIT.	rview {}\n\n一款用 Rust 编写的小巧、快速、便携的 PDF、Markdown、HTML、文本和 CSV 文档查看器。\n无遥测，无网络访问，不运行脚本。\n\nPDF 页面和图像由 Windows 渲染。\n\nMIT 许可证。
-Dark &Pages in Dark Theme		Dunkle &Seiten im dunklen Design	&Páginas oscuras con el tema oscuro	&Pages sombres avec le thème sombre	&Pagine scure con il tema scuro	ダーク テーマでページを暗く表示(&P)	&Páginas escuras no tema escuro		深色主题下使用深色页面(&P)
+Dark &Pages in Dark Theme		Dunkle &Seiten im dunklen Design	Páginas &oscuras con el tema oscuro	&Pages sombres avec le thème sombre	&Pagine scure con il tema scuro	ダーク テーマでページを暗く表示(&P)	&Páginas escuras no tema escuro		深色主题下使用深色页面(&P)
 Open rview		rview öffnen	Abrir rview	Ouvrir rview	Apri rview	rview を開く	Abrir o rview		打开 rview
 Text		Text	Texto	Texte	Testo	テキスト	Texto		文本
 {} is a folder.		{} ist ein Ordner.	{} es una carpeta.	{} est un dossier.	{} è una cartella.	{} はフォルダーです。	{} é uma pasta.		{} 是一个文件夹。
@@ -99,7 +99,7 @@ Windows asks you to choose the default app yourself for: {}\nIn the Settings win
 Cannot change the Windows registry (error {}).		Die Windows-Registrierung kann nicht geändert werden (Fehler {}).	No se puede modificar el registro de Windows (error {}).	Impossible de modifier le Registre Windows (erreur {}).	Impossibile modificare il Registro di sistema di Windows (errore {}).	Windows レジストリを変更できません (エラー {})。	Não é possível alterar o Registro do Windows (erro {}).	Não é possível alterar o Registo do Windows (erro {}).	无法更改 Windows 注册表（错误 {}）。
 &Edit		&Bearbeiten	&Edición	É&dition	&Modifica	編集(&E)	&Editar		编辑(&E)
 &Copy		&Kopieren	&Copiar	&Copier	&Copia	コピー(&C)	&Copiar		复制(&C)
-Copy as &Plain Text		Als &Nur-Text kopieren	Copiar como texto &sin formato	Copier en &texte brut	Copia come testo &semplice	プレーン テキストとしてコピー(&P)	Copiar como texto &simples		复制为纯文本(&P)
+Copy as &Plain Text		Als &Nur-Text kopieren	Copiar como texto &sin formato	Copier en texte &brut	Copia come testo &semplice	プレーン テキストとしてコピー(&P)	Copiar como texto &simples		复制为纯文本(&P)
 Select &All		&Alles auswählen	Seleccionar &todo	Sélectionner &tout	Seleziona &tutto	すべて選択(&A)	Selecionar &tudo		全选(&A)
 Copied to the clipboard.		In die Zwischenablage kopiert.	Copiado al portapapeles.	Copié dans le Presse-papiers.	Copiato negli Appunti.	クリップボードにコピーしました。	Copiado para a área de transferência.		已复制到剪贴板。
 Copied to the clipboard as plain text.		Als Nur-Text in die Zwischenablage kopiert.	Copiado al portapapeles como texto sin formato.	Copié dans le Presse-papiers en texte brut.	Copiato negli Appunti come testo semplice.	プレーン テキストとしてクリップボードにコピーしました。	Copiado para a área de transferência como texto simples.		已作为纯文本复制到剪贴板。

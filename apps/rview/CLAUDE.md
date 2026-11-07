@@ -10,7 +10,7 @@ Detalhes por formato, atalhos e limitações estão no `README.md`.
 
 ```powershell
 ./dev.ps1 build --release -p rview
-./dev.ps1 test -p rview       # 80 testes (79 em Linux); os do código partilhado estão nos crates
+./dev.ps1 test -p rview       # 81 testes (80 em Linux); os do código partilhado estão nos crates
 ./dev.ps1 clippy -p rview --all-targets
 ```
 
@@ -43,6 +43,8 @@ Correm na raiz do repositório. Saída: `target\release\rview.exe`. Rust 1.88+, 
 - Integração com o Explorador escreve só em HKCU, não sobrepõe defaults escolhidos pelo
   utilizador e `--unregister` repõe o estado anterior; os testes usam uma chave de registo temporária.
 - Qualquer string visível nova precisa de linha completa em `strings.txt`.
+- Dentro de cada menu, as teclas de acesso não se repetem em nenhuma língua (`rt_core::menu::access_key_clashes`,
+  com teste).
 - Copiar usa sempre as cores originais do documento, nunca as adaptadas ao tema escuro.
 - A leitura de texto dos PDF corre numa thread própria com `catch_unwind`: um ficheiro que faça
   a lopdf entrar em pânico só fica sem texto selecionável. Por isso o rview usa sempre o perfil

@@ -130,43 +130,9 @@ fn commands_and_menus_have_translations() {
 /// Within each menu, no two items share an access key, in any language.
 #[test]
 fn access_keys_differ_within_each_menu() {
-    use crate::commands::{item_menu, menu_tree, M};
-    fn key_of(label: &str) -> Option<char> {
-        let b: Vec<char> = label.chars().collect();
-        b.windows(2).find(|w| w[0] == '&' && w[1] != '&').and_then(|w| w[1].to_lowercase().next())
-    }
-    fn check(title: &str, items: &[M], problems: &mut Vec<String>) {
-        for l in Lang::ALL {
-            let mut seen = std::collections::HashMap::new();
-            for it in items {
-                let key = match it {
-                    M::Item(c) => c.label_key().ok().map(str::to_string),
-                    M::Sub(t, _) => Some(t.to_string()),
-                    _ => None,
-                };
-                let Some(key) = key else { continue };
-                let text = tr_in(l, &key);
-                if let Some(k) = key_of(&text) {
-                    if let Some(other) = seen.insert(k, text.clone()) {
-                        problems.push(format!("{title} [{}]: {other} / {text}", l.tag()));
-                    }
-                }
-            }
-        }
-        for it in items {
-            if let M::Sub(t, children) = it {
-                check(t, children, problems);
-            }
-        }
-    }
-    let mut problems = Vec::new();
-    let tree = menu_tree();
-    let titles: Vec<M> = tree.iter().map(|(t, _)| M::Sub(t, Vec::new())).collect();
-    check("menu bar", &titles, &mut problems);
-    for (title, items) in &tree {
-        check(title, items, &mut problems);
-    }
-    check("context menu", &item_menu(), &mut problems);
+    use crate::commands::{item_menu, menu_tree};
+    install();
+    let problems = rt_core::menu::access_key_clashes(&menu_tree(), &[("context menu", item_menu())]);
     assert!(problems.is_empty(), "{problems:#?}");
 }
 

@@ -103,7 +103,7 @@ Status &Bar		&Statusleiste	Barra de &estado	Barre d’&état	Barra di s&tato	ス
 Search &Results Panel		Bereich &Suchergebnisse	Panel de &resultados de búsqueda	Volet des &résultats de recherche	Pannello &risultati della ricerca	検索結果パネル(&R)	Painel de &resultados da pesquisa		搜索结果面板(&R)
 Use &System Setting		&Systemeinstellung verwenden	Usar configuración del &sistema	Utiliser le paramètre du &système	Usa impostazione di &sistema	システム設定を使用(&S)	Usar configuração do &sistema	Usar definição do &sistema	使用系统设置(&S)
 &Light		&Hell	&Claro	&Clair	&Chiaro	ライト(&L)	&Claro		浅色(&L)
-&Dark		&Dunkel	&Oscuro	&Sombre	&Scuro	ダーク(&D)	&Escuro		深色(&D)
+&Dark		&Dunkel	&Oscuro	S&ombre	Sc&uro	ダーク(&D)	&Escuro		深色(&D)
 &Full Screen		&Vollbild	&Pantalla completa	&Plein écran	&Schermo intero	全画面表示(&F)	&Tela inteira	&Ecrã inteiro	全屏(&F)
 &Command Palette...		&Befehlspalette...	&Paleta de comandos...	&Palette de commandes...	&Riquadro comandi...	コマンド パレット(&C)...	&Paleta de comandos...		命令面板(&C)...
 Next Tab		Nächster Tab	Pestaña siguiente	Onglet suivant	Scheda successiva	次のタブ	Próxima aba	Separador seguinte	下一个标签页

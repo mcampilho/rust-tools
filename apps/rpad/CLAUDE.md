@@ -42,6 +42,8 @@ Correm na raiz do repositório. Saída: `target\release-small\rpad.exe`. Rust 1.
 - Nunca corromper texto em silêncio: encodings não representáveis são recusados, não substituídos.
 - Qualquer string visível nova precisa de linha completa em `strings.txt` (os testes verificam
   placeholders `{}`, quebras de linha e exatamente uma tecla de acesso nos menus).
+- Os menus têm teclas de acesso repetidas dentro do mesmo menu (184 casos nas 10 línguas, 11 em inglês, em
+  2026-11-07). Por isso o teste `rt_core::menu::access_key_clashes`, usado no rview e no rsize, ainda não corre aqui.
 - Nada de rede; o preview de Markdown nunca abre links nem busca imagens.
 - Em Linux, esconder a janela destrói-a e mostrar cria-a de novo, porque o Wayland não esconde janelas.
 - Em Linux, gravar segue ligações simbólicas e respeita a falta de permissão de escrita no ficheiro,
