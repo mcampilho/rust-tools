@@ -79,7 +79,7 @@ fn tmp(name: &str) -> PathBuf {
 fn app_in(dir: &Path) -> App {
     let data = dir.join("data");
     std::fs::create_dir_all(&data).unwrap();
-    let loc = Location { dir: Some(data), portable: true, error: None };
+    let loc = Location::at(crate::storage::PLACE, data);
     App::new(loc, Settings::default())
 }
 

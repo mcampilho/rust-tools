@@ -452,17 +452,20 @@ pub fn lookup(chord: &Chord) -> Option<Command> {
     BINDINGS.iter().find(|(k, _)| Chord::parse(k) == *chord).map(|(_, c)| *c)
 }
 
-/// Menu structure.
-pub enum M {
-    Item(Command),
-    /// Item with a dynamic label (recent files).
-    Dyn(Command, String),
-    Sep,
-    Sub(&'static str, Vec<M>),
+/// Menu structure (`Dyn` items have a label chosen at run time: recent files).
+pub type M = rt_core::menu::M<Command>;
+
+impl rt_core::menu::MenuCommand for Command {
+    fn label(self) -> String {
+        Command::label(self)
+    }
+    fn shortcut(self) -> Option<&'static str> {
+        shortcut(self)
+    }
 }
 
 pub fn menu_tree(recent: &[std::path::PathBuf]) -> Vec<(&'static str, Vec<M>)> {
-    use M::*;
+    use rt_core::menu::M::*;
     let mut recent_items: Vec<M> = recent
         .iter()
         .enumerate()

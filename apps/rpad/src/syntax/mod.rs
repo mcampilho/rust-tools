@@ -1,9 +1,10 @@
-//! Syntax highlighting, folding and outlines.
+//! Syntax highlighting, folding and outlines. Language definitions and the
+//! lexer come from `rt-syntax`.
 
 pub mod fold;
-pub mod lang;
-pub mod lexer;
 pub mod outline;
+
+pub use rt_syntax::{lang, lexer};
 
 pub use lang::{def, detect, Lang};
 pub use lexer::{Span, State, Tok};

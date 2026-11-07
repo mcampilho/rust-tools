@@ -73,13 +73,21 @@ rust-tools/
 ├─ .github/        workflow de release
 ├─ Cargo.toml      membros do workspace e perfis de compilação
 ├─ dev.ps1         cargo com o ambiente das Build Tools; dist
-└─ apps/
-   ├─ rcalc/
-   ├─ rpad/
-   └─ rview/
+├─ apps/
+│  ├─ rcalc/
+│  ├─ rpad/
+│  └─ rview/
+└─ crates/         código partilhado pelas aplicações
+   ├─ rt-core/     traduções, definições, árvore de menus
+   ├─ rt-gfx/      desenho, disposição de texto, menus desenhados
+   ├─ rt-sys/      integração com Windows e Linux
+   ├─ rt-syntax/   realce de sintaxe
+   └─ rt-build/    ícone e versão no executável de Windows
 ```
 
-Cada aplicação mantém o seu código, `build.rs`, README e tabela de traduções.
+Cada aplicação mantém o seu código, `build.rs`, README e tabela de traduções. Os
+[crates partilhados](crates/README.pt.md) explicam o que oferecem e como começar
+uma ferramenta nova a partir deles.
 
 ## Licença
 

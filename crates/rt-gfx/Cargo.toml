@@ -1,0 +1,13 @@
+[package]
+name = "rt-gfx"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+description = "Software drawing, text layout and drawn menus shared by the rust-tools apps"
+license = "MIT"
+publish = false
+
+[dependencies]
+rt-core = { path = "../rt-core" }
+tiny-skia = { version = "0.11", default-features = false, features = ["std", "simd"] }
+ab_glyph = { version = "0.2", default-features = false, features = ["std"] }

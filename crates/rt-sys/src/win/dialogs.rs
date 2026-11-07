@@ -6,7 +6,16 @@ use windows_sys::Win32::Foundation::HWND;
 use windows_sys::Win32::UI::Controls::Dialogs::*;
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
-const FILTER: &str = "All files (*.*)\0*.*\0Text files (*.txt;*.log;*.md)\0*.txt;*.log;*.md;*.markdown\0Source code\0*.rs;*.c;*.h;*.cpp;*.hpp;*.cs;*.java;*.js;*.ts;*.py;*.go;*.sql;*.sh;*.ps1;*.bat;*.cmd\0Markup and data\0*.xml;*.html;*.htm;*.css;*.json;*.yaml;*.yml;*.toml;*.ini;*.csproj;*.xaml;*.svg\0\0";
+/// A file type filter for the Open and Save dialogs from `(label, patterns)`
+/// pairs, with patterns like `*.txt;*.md`.
+pub fn filter(pairs: &[(String, &str)]) -> String {
+    let mut f = String::new();
+    for (label, pat) in pairs {
+        f.push_str(&format!("{label} ({pat})\0{pat}\0"));
+    }
+    f.push('\0');
+    f
+}
 
 fn base_ofn(hwnd: HWND, buf: &mut [u16], filter: &[u16], dir: &[u16]) -> OPENFILENAMEW {
     // SAFETY: zeroed is a valid initial state for this plain C struct.
@@ -23,18 +32,27 @@ fn base_ofn(hwnd: HWND, buf: &mut [u16], filter: &[u16], dir: &[u16]) -> OPENFIL
     ofn
 }
 
-/// Shows the Open dialog (multiple selection). Empty if cancelled.
-pub fn open_files(hwnd: HWND, dir: Option<&Path>) -> Vec<PathBuf> {
+fn dir_wide(dir: Option<&Path>) -> Vec<u16> {
+    wide(&dir.map(|d| d.display().to_string()).unwrap_or_default())
+}
+
+/// Shows the Open dialog for several files. Empty if cancelled. `filter`
+/// comes from [`filter`] (or is a raw `label\0patterns\0...\0` string).
+pub fn open_files(hwnd: HWND, dir: Option<&Path>, filter: &str) -> Vec<PathBuf> {
     let mut buf = vec![0u16; 64 * 1024];
-    let filter: Vec<u16> = FILTER.encode_utf16().collect();
-    let d = wide(&dir.map(|d| d.display().to_string()).unwrap_or_default());
+    let filter: Vec<u16> = filter.encode_utf16().collect();
+    let d = dir_wide(dir);
     let mut ofn = base_ofn(hwnd, &mut buf, &filter, &d);
     ofn.Flags = OFN_ALLOWMULTISELECT | OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
     // SAFETY: ofn points to live buffers for the duration of the call.
     if unsafe { GetOpenFileNameW(&mut ofn) } == 0 {
         return Vec::new();
     }
-    let parts: Vec<String> = buf.split(|c| *c == 0).take_while(|p| !p.is_empty()).map(String::from_utf16_lossy).collect();
+    let parts: Vec<String> = buf
+        .split(|c| *c == 0)
+        .take_while(|p| !p.is_empty())
+        .map(String::from_utf16_lossy)
+        .collect();
     match parts.len() {
         0 => Vec::new(),
         1 => vec![PathBuf::from(&parts[0])],
@@ -45,14 +63,28 @@ pub fn open_files(hwnd: HWND, dir: Option<&Path>) -> Vec<PathBuf> {
     }
 }
 
+/// Shows the Open dialog for one file.
+pub fn open_file(hwnd: HWND, dir: Option<&Path>, filter: &str) -> Option<PathBuf> {
+    let mut buf = vec![0u16; 32 * 1024];
+    let filter: Vec<u16> = filter.encode_utf16().collect();
+    let d = dir_wide(dir);
+    let mut ofn = base_ofn(hwnd, &mut buf, &filter, &d);
+    ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+    // SAFETY: ofn points to live buffers for the duration of the call.
+    if unsafe { GetOpenFileNameW(&mut ofn) } == 0 {
+        return None;
+    }
+    Some(PathBuf::from(from_wide(&buf)))
+}
+
 /// Shows the Save As dialog.
-pub fn save_file(hwnd: HWND, suggested: &str, dir: Option<&Path>) -> Option<PathBuf> {
+pub fn save_file(hwnd: HWND, suggested: &str, dir: Option<&Path>, filter: &str) -> Option<PathBuf> {
     let mut buf = vec![0u16; 32 * 1024];
     let name: Vec<u16> = suggested.encode_utf16().collect();
     let n = name.len().min(buf.len() - 1);
     buf[..n].copy_from_slice(&name[..n]);
-    let filter: Vec<u16> = FILTER.encode_utf16().collect();
-    let d = wide(&dir.map(|d| d.display().to_string()).unwrap_or_default());
+    let filter: Vec<u16> = filter.encode_utf16().collect();
+    let d = dir_wide(dir);
     let mut ofn = base_ofn(hwnd, &mut buf, &filter, &d);
     ofn.Flags = OFN_OVERWRITEPROMPT | OFN_EXPLORER | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
     // SAFETY: as above.
@@ -113,6 +145,7 @@ pub enum Icon {
     Question,
 }
 
+/// A message box, modal to `hwnd` (null: none).
 pub fn message(hwnd: HWND, title: &str, text: &str, buttons: Buttons, icon: Icon) -> Answer {
     let (t, c) = (wide(text), wide(title));
     let b = match buttons {
@@ -164,7 +197,9 @@ pub fn choose_font(hwnd: HWND, face: &str, size_pt: f32) -> Option<(String, f32)
 pub fn font_file(face: &str) -> Option<PathBuf> {
     use windows_sys::Win32::System::Registry::*;
     let key = wide("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts");
-    let fonts_dir = std::env::var_os("WINDIR").map(|w| PathBuf::from(w).join("Fonts")).unwrap_or_else(|| "C:\\Windows\\Fonts".into());
+    let fonts_dir = std::env::var_os("WINDIR")
+        .map(|w| PathBuf::from(w).join("Fonts"))
+        .unwrap_or_else(|| "C:\\Windows\\Fonts".into());
     let mut found = None;
     for root in [HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE] {
         // SAFETY: enumerates values into fixed-size buffers whose sizes are passed in.
@@ -180,7 +215,16 @@ pub fn font_file(face: &str) -> Option<PathBuf> {
                 let mut data = [0u16; 512];
                 let mut data_len = (data.len() * 2) as u32;
                 let mut ty = 0u32;
-                let rc = RegEnumValueW(h, i, name.as_mut_ptr(), &mut name_len, std::ptr::null(), &mut ty, data.as_mut_ptr() as *mut u8, &mut data_len);
+                let rc = RegEnumValueW(
+                    h,
+                    i,
+                    name.as_mut_ptr(),
+                    &mut name_len,
+                    std::ptr::null(),
+                    &mut ty,
+                    data.as_mut_ptr() as *mut u8,
+                    &mut data_len,
+                );
                 if rc != 0 {
                     break;
                 }
@@ -188,7 +232,9 @@ pub fn font_file(face: &str) -> Option<PathBuf> {
                 let n = from_wide(&name);
                 // "Consolas (TrueType)", "Cascadia Mono Regular (TrueType)", "A & B (TrueType)"
                 let base = n.split(" (").next().unwrap_or(&n);
-                let matches = base.split(" & ").any(|p| p.eq_ignore_ascii_case(face) || p.eq_ignore_ascii_case(&format!("{face} Regular")));
+                let matches = base
+                    .split(" & ")
+                    .any(|p| p.eq_ignore_ascii_case(face) || p.eq_ignore_ascii_case(&format!("{face} Regular")));
                 if matches {
                     let file = PathBuf::from(from_wide(&data));
                     found = Some(if file.is_absolute() { file } else { fonts_dir.join(file) });
@@ -202,4 +248,21 @@ pub fn font_file(face: &str) -> Option<PathBuf> {
         }
     }
     found
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn filters_are_double_nul_terminated() {
+        let f = filter(&[("Text".to_string(), "*.txt;*.md"), ("All".to_string(), "*.*")]);
+        assert_eq!(f, "Text (*.txt;*.md)\0*.txt;*.md\0All (*.*)\0*.*\0\0");
+    }
+
+    #[test]
+    fn segoe_ui_is_found() {
+        assert!(font_file("Segoe UI").is_some_and(|p| p.exists()));
+        assert_eq!(font_file("No Such Font 123"), None);
+    }
 }

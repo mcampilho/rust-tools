@@ -1,6 +1,7 @@
 # rust-tools — ferramentas portáteis em Rust para Windows
 
-Monorepo (workspace Cargo) com três aplicações, cada uma um único `.exe`:
+Monorepo (workspace Cargo) com três aplicações, cada uma um único `.exe`, e os crates que partilham
+(`crates/`):
 
 - `apps/rcalc` — calculadora.
 - `apps/rpad` — editor de texto e código.
@@ -42,11 +43,18 @@ de notificação precisa de um anfitrião StatusNotifierItem, que o WSL não tem
 (`wayland-csd-adwaita`) faz o `weston` do WSLg cair com `signal 11` em cerca de 1 arranque em 4, e o cliente
 acaba com `Broken pipe`: ver `/mnt/wslg/stderr.log`. Não é erro das aplicações; testar com `WAYLAND_DISPLAY=`.
 
-## Código repetido
+## Crates partilhados
 
-`syntax/lexer.rs` e `win/tray.rs` são iguais no rpad e no rview; `win/darkmode.rs`, `syntax/lang.rs`,
-`i18n/mod.rs`, `ui/gfx.rs` e `storage.rs` são quase iguais. Uma correção num destes ficheiros
-provavelmente aplica-se às outras aplicações. Ainda não há crates partilhados.
+O código comum está em `crates/` (ver `crates/README.pt.md`): `rt-core` (traduções, definições, árvore de
+menus), `rt-gfx` (desenho, texto, menus desenhados), `rt-sys` (Windows e Linux), `rt-syntax` (realce) e
+`rt-build` (recursos do `.exe`). As aplicações guardam módulos pequenos com o mesmo nome de antes
+(`ui/gfx.rs`, `storage.rs`, `win/mod.rs`, `linux/mod.rs`...) que reexportam dos crates e lhes dão a
+identidade da aplicação. Uma correção num destes assuntos faz-se no crate, uma vez.
+
+- Os crates não dependem das aplicações. Textos visíveis dos crates vão para `crates/rt-core/src/strings.txt`
+  (procurado depois da tabela da aplicação).
+- Linux inclui sempre X11 e Wayland.
+- Uma ferramenta nova começa pelos passos de `crates/README.md`.
 
 ## Git
 

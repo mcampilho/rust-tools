@@ -9,13 +9,13 @@ numérica e atalhos estão no `README.md` (e `README.pt.md`) — consulta-o ante
 
 ```powershell
 ./dev.ps1 build --profile release-small -p rcalc
-./dev.ps1 test -p rcalc       # 72 testes
+./dev.ps1 test -p rcalc       # 69 testes (os do código partilhado estão nos crates)
 ./dev.ps1 clippy -p rcalc --all-targets
 ./dev.ps1 test -p rcalc --lib screenshots '--' --ignored   # renderiza todas as vistas para apps/rcalc/target/screens/*.png
 ```
 
 Correm na raiz do repositório. Saída: `target\release-small\rcalc.exe`. Rust 1.88+, alvo `x86_64-pc-windows-msvc`.
-`.cargo/config.toml` liga o CRT estaticamente; `build.rs` desenha o ícone e
+`.cargo/config.toml` liga o CRT estaticamente; `build.rs` (com `rt-build`) desenha o ícone e
 embebe ícone + versão com `rc.exe` (sem `rc.exe` compila na mesma, sem ícone).
 
 ## Arquitetura
@@ -24,12 +24,15 @@ embebe ícone + versão com `rc.exe` (sem `rc.exe` compila na mesma, sem ícone)
 - `src/expr/` — tokenizer + parser Pratt + avaliador.
 - `src/calc/` — motores do teclado (Standard/Scientific/Programmer) e inteiros do Programmer.
 - `src/app.rs` — estado da aplicação, ações, atalhos, persistência.
-- `src/ui/` — camada immediate-mode própria: `gfx` (tiny-skia + ab_glyph), `view` (layouts),
+- `src/ui/` — camada immediate-mode própria: `gfx` (reexporta `rt-gfx`), `view` (layouts),
   `icons.rs` (ícones em caminhos vetoriais), `appicon.rs` (ícone da app).
-- `src/platform.rs`, `src/winshell.rs` — Win32 (clipboard, tema, tray, instância única, tecla Calculadora).
-- `src/linuxshell.rs` — Linux: instância única por socket Unix e ícone por StatusNotifierItem (ksni).
-  `platform.rs` usa arboard para o Clipboard e gsettings para o tema. `crate::shell` é o módulo da plataforma.
-- `src/i18n/strings.txt` — tabela de traduções (10 idiomas), uma linha por string.
+- `src/platform.rs` — Clipboard, tema, cor de destaque e data, de `rt-sys`; tecla Calculadora (Windows).
+- `src/winshell.rs` — janela escondida que recebe a ativação, a tecla Calculadora e o ícone de notificação
+  (`rt_sys::win::tray`). `src/linuxshell.rs` — instância única e ícone, com `rt_sys::linux::shell`.
+  `crate::shell` é o módulo da plataforma.
+- `src/storage.rs`, `src/i18n/mod.rs` — `rt-core` com o nome, o ficheiro `rcalc.ini` e a tabela do rcalc;
+  o `i18n` acrescenta os separadores de números e as datas.
+- `src/i18n/strings.txt` — tabela de traduções (10 idiomas), uma linha por string, colunas separadas por `|`.
 - Stack: winit + softbuffer (sem GPU) + tiny-skia + ab_glyph + accesskit. Não introduzir toolkits de UI (egui/iced/Slint).
 
 ## Regras

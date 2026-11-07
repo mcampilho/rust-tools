@@ -1,0 +1,10 @@
+# Strings of the shared crates, looked up after the app's own table.
+# Columns: en-US key, en-GB, de-DE, es-ES, fr-FR, it-IT, ja-JP, pt-BR, pt-PT, zh-CN (tab-separated).
+Save		Speichern	Guardar	Enregistrer	Salva	保存	Salvar	Guardar	保存
+Don't Save		Nicht speichern	No guardar	Ne pas enregistrer	Non salvare	保存しない	Não salvar	Não guardar	不保存
+Cancel		Abbrechen	Cancelar	Annuler	Annulla	キャンセル	Cancelar		取消
+Font		Schriftart	Fuente	Police	Carattere	フォント	Fonte	Tipo de letra	字体
+Font size		Schriftgröße	Tamaño de fuente	Taille de police	Dimensione carattere	フォント サイズ	Tamanho da fonte	Tamanho do tipo de letra	字号
+No user data folder is available.		Es ist kein Benutzerdatenordner verfügbar.	No hay ninguna carpeta de datos de usuario disponible.	Aucun dossier de données utilisateur n’est disponible.	Nessuna cartella dei dati utente disponibile.	ユーザー データ フォルダーを使用できません。	Nenhuma pasta de dados do usuário está disponível.	Não há nenhuma pasta de dados do utilizador disponível.	没有可用的用户数据文件夹。
+Could not read {}: {}		{} konnte nicht gelesen werden: {}	No se pudo leer {}: {}	Impossible de lire {} : {}	Impossibile leggere {}: {}	{} を読み取れませんでした: {}	Não foi possível ler {}: {}		无法读取 {}：{}
+Settings can't be saved to {}: {}		Einstellungen können nicht in {} gespeichert werden: {}	No se puede guardar la configuración en {}: {}	Impossible d’enregistrer les paramètres dans {} : {}	Impossibile salvare le impostazioni in {}: {}	設定を {} に保存できません: {}	Não é possível salvar as configurações em {}: {}	Não é possível guardar as definições em {}: {}	无法将设置保存到 {}：{}

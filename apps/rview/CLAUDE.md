@@ -10,12 +10,12 @@ Detalhes por formato, atalhos e limitações estão no `README.md`.
 
 ```powershell
 ./dev.ps1 build --release -p rview
-./dev.ps1 test -p rview       # 95 testes (97 em Linux)
+./dev.ps1 test -p rview       # 80 testes (79 em Linux); os do código partilhado estão nos crates
 ./dev.ps1 clippy -p rview --all-targets
 ```
 
 Correm na raiz do repositório. Saída: `target\release\rview.exe`. Rust 1.88+, alvo `x86_64-pc-windows-msvc`.
-`build.rs` embebe ícone, versão e manifesto.
+`build.rs` (com `rt-build`) embebe ícone, versão e manifesto.
 
 ## Arquitetura (`src/`)
 
@@ -24,14 +24,16 @@ Correm na raiz do repositório. Saída: `target\release\rview.exe`. Rust 1.88+, 
 - `clip.rs` — o que vai para o Clipboard: um só fluxo de eventos escrito como texto, HTML e RTF.
 - `view/selection.rs` — seleção por formato (`Sel`), teste de posição e construção do `Payload`.
 - `rich/` — Markdown (pulldown-cmark), parser HTML próprio, subconjunto de CSS, motor de layout comum.
-- `syntax/` — lexer por linha para realce de código (partilhado em espírito com o rpad).
+- `syntax/` — cache de estados por linha para o realce; linguagens, lexer e cores vêm de `rt-syntax`.
 - `media.rs` — PDF via `Windows.Data.Pdf` e imagens via codecs do Windows; em Linux, hayro e image
   (threads em fundo, cache de 256 MB). Os tamanhos das páginas são em DIPs nos dois sistemas.
 - `view.rs`, `main.rs` — vista, janela, input, modo `--tray`.
-- `win/` — Win32: menus escuros, diálogos, tray, `clipboard.rs`, `assoc.rs` (associações de ficheiros, só HKCU).
-- `linux/` — Clipboard (arboard: texto com HTML, ou imagem), diálogo Abrir (zenity ou kdialog), tema, links,
-  e `shell.rs`: modo residente com socket Unix e ícone StatusNotifierItem (ksni).
-- `ui/menu.rs` — menus desenhados na janela, só fora do Windows. Em Linux, `cfg(not(windows))` significa Linux.
+- `win/` — Win32 de `rt-sys` (menus escuros, diálogos, tray) com a identidade do rview, mais `clipboard.rs`
+  (o `Payload` em vários formatos) e `assoc.rs` (associações de ficheiros, só HKCU).
+- `linux/` — Clipboard (arboard: texto com HTML, ou imagem), e o resto de `rt-sys`: diálogo Abrir (zenity ou
+  kdialog), tema, links, e o modo residente com socket Unix e ícone StatusNotifierItem.
+- `ui/menu.rs` — menus desenhados na janela (`rt-gfx`), só fora do Windows. Em Linux, `cfg(not(windows))`
+  significa Linux.
 - `i18n/strings.txt` — traduções (10 idiomas), mesma convenção do rpad/rcalc.
 
 ## Regras

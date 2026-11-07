@@ -7,10 +7,12 @@ description = "A portable, self-contained desktop calculator inspired by Windows
 license = "MIT"
 
 [dependencies]
+rt-core = { path = "../../crates/rt-core" }
+rt-gfx = { path = "../../crates/rt-gfx" }
+rt-sys = { path = "../../crates/rt-sys" }
 winit = { version = "0.30", default-features = false, features = ["rwh_06"] }
 softbuffer = { version = "0.4", default-features = false }
 tiny-skia = { version = "0.11", default-features = false, features = ["std", "simd"] }
-ab_glyph = { version = "0.2", default-features = false, features = ["std"] }
 num-bigint = { version = "0.4", default-features = false, features = ["std"] }
 num-integer = { version = "0.1", default-features = false, features = ["std"] }
 num-traits = { version = "0.2", default-features = false, features = ["std"] }
@@ -20,31 +22,23 @@ accesskit_winit = { version = "0.34", default-features = false, features = ["rwh
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
-    "Win32_Globalization",
-    "Win32_Graphics_Dwm",
-    "Win32_Graphics_Gdi",
-    "Win32_System_DataExchange",
     "Win32_System_LibraryLoader",
-    "Win32_System_Memory",
-    "Win32_System_Ole",
     "Win32_System_Registry",
-    "Win32_System_SystemInformation",
     "Win32_Security",
     "Win32_UI_Input_KeyboardAndMouse",
-    "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",
 ] }
 
+# X11 and Wayland both: the same executable runs on either.
 [target.'cfg(target_os = "linux")'.dependencies]
 winit = { version = "0.30", default-features = false, features = ["rwh_06", "x11", "wayland", "wayland-dlopen", "wayland-csd-adwaita"] }
 softbuffer = { version = "0.4", default-features = false, features = ["x11", "x11-dlopen", "wayland", "wayland-dlopen"] }
 accesskit_winit = { version = "0.34", default-features = false, features = ["rwh_06", "async-io"] }
-arboard = { version = "3", default-features = false, features = ["wayland-data-control"] }
-ksni = { version = "0.3", default-features = false, features = ["async-io", "blocking"] }
-libc = "0.2"
 
 [build-dependencies]
-tiny-skia = { version = "0.11", default-features = false, features = ["std", "png-format"] }
+rt-build = { path = "../../crates/rt-build" }
+# build.rs draws the icon with the app's own `src/ui/appicon.rs`.
+tiny-skia = { version = "0.11", default-features = false, features = ["std"] }
 
 [dev-dependencies]
 # PNG output for the screenshot test (`cargo test -- --ignored screenshots`).

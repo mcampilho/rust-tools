@@ -1,8 +1,9 @@
 //! Notification-area (tray) icon for resident mode (`--tray`).
 //!
-//! The icon belongs to the main window; its callback message is routed by
-//! the window subclass in `win::mod` and reaches the app as
-//! [`super::WinMsg::Tray`].
+//! The icon belongs to a window of the app. For the main window, the subclass
+//! in [`super::window`] routes its callback message to the app as
+//! [`super::WinMsg::Tray`]; another window can call [`event`] and [`restore`]
+//! from its own window procedure.
 
 use super::wide;
 use std::cell::RefCell;
@@ -43,7 +44,11 @@ unsafe fn notify(hwnd: HWND, op: u32, tip: &str) -> bool {
     let (cx, cy) = (GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON));
     // Resource 1 is the application icon embedded by build.rs.
     let icon = LoadImageW(hinst, 1 as _, IMAGE_ICON, cx, cy, LR_DEFAULTCOLOR);
-    nid.hIcon = if icon.is_null() { LoadIconW(std::ptr::null_mut(), IDI_APPLICATION) } else { icon as HICON };
+    nid.hIcon = if icon.is_null() {
+        LoadIconW(std::ptr::null_mut(), IDI_APPLICATION)
+    } else {
+        icon as HICON
+    };
     let t: Vec<u16> = tip.encode_utf16().take(nid.szTip.len() - 1).collect();
     nid.szTip[..t.len()].copy_from_slice(&t);
     Shell_NotifyIconW(op, &nid) != 0
@@ -70,7 +75,7 @@ pub fn remove(hwnd: HWND) {
 }
 
 /// Puts the icon back after Explorer restarted (TaskbarCreated).
-pub(super) fn restore(hwnd: HWND) {
+pub fn restore(hwnd: HWND) {
     if let Some(tip) = TIP.with(|t| t.borrow().clone()) {
         // SAFETY: as in `show`.
         unsafe {
@@ -80,7 +85,7 @@ pub(super) fn restore(hwnd: HWND) {
 }
 
 /// Maps the icon's callback `lParam` to an event.
-pub(super) fn event(lp: isize) -> Option<TrayEvent> {
+pub fn event(lp: isize) -> Option<TrayEvent> {
     match lp as u32 {
         WM_LBUTTONUP | WM_LBUTTONDBLCLK => Some(TrayEvent::Activate),
         WM_RBUTTONUP | WM_CONTEXTMENU => Some(TrayEvent::Menu),
@@ -106,7 +111,15 @@ pub fn menu(hwnd: HWND, open: &str, exit: &str) -> Option<u8> {
         GetCursorPos(&mut pt);
         // Required so the menu closes when the user clicks elsewhere.
         SetForegroundWindow(hwnd);
-        let cmd = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_NONOTIFY, pt.x, pt.y, 0, hwnd, std::ptr::null());
+        let cmd = TrackPopupMenu(
+            menu,
+            TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_NONOTIFY,
+            pt.x,
+            pt.y,
+            0,
+            hwnd,
+            std::ptr::null(),
+        );
         PostMessageW(hwnd, WM_NULL, 0, 0);
         DestroyMenu(menu);
         match cmd {

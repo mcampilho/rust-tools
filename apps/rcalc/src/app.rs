@@ -1045,11 +1045,7 @@ mod tests {
     use super::*;
 
     fn app() -> App {
-        App::new(Location {
-            dir: None,
-            portable: false,
-            error: None,
-        })
+        App::new(Location { error: None, ..Location::nowhere(crate::storage::PLACE) })
     }
 
     fn press(a: &mut App, s: &str) {
@@ -1138,7 +1134,7 @@ mod tests {
         a.apply(&Action::Theme(ThemePref::Dark));
         let store = a.to_store();
         let mut b = app();
-        b.load(&crate::storage::Store::parse(&store.serialize()));
+        b.load(&crate::storage::Store::parse(&store.serialize("rcalc")));
         assert_eq!(b.mode, Mode::Programmer);
         assert_eq!(b.prog.radix, Radix::Hex);
         assert_eq!(b.prog.word, WordSize::Dword);

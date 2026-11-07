@@ -357,7 +357,7 @@ impl Shell {
     /// The context menu of the document, at the pointer.
     #[cfg(not(windows))]
     fn context_menu(&mut self, _el: &ActiveEventLoop) {
-        use commands::M::{Item, Sep};
+        use rt_core::menu::M::{Item, Sep};
         let tree = vec![Item(Command::Copy), Item(Command::CopyPlain), Sep, Item(Command::SelectAll)];
         let me = &*self;
         let items = ui::menu::build(tree, &|c| me.checked(c), &|c| me.enabled(c));
@@ -778,8 +778,8 @@ impl Shell {
         g.text_in(&left, Rect::new(status.x + pad, status.y, lw, status.h), px, FontId::Regular, theme.text, Align::Left);
         #[cfg(not(windows))]
         {
-            self.menu.draw_bar(g, bar, &theme, s);
-            self.menu.draw_popups(g, full, &theme, s);
+            self.menu.draw_bar(g, bar, &theme.menu_style(), s);
+            self.menu.draw_popups(g, full, &theme.menu_style(), s);
         }
         if let Some(d) = &mut self.dialog {
             let (panel, ok) = draw_dialog(&mut self.gfx, full, &theme, s, &d.title, &d.text);
@@ -1012,16 +1012,19 @@ fn mnemonics_of(tree: &[(&'static str, Vec<M>)]) -> String {
 #[cfg(not(windows))]
 fn start_resident(shell: &mut Shell) {
     let proxy = Mutex::new(shell.proxy.clone());
-    let (open, exit) = (tr("Open rview"), tr("Exit"));
-    shell.shell = linux::shell::Shell::new(
-        (&open, &exit),
+    let labels = linux::shell::TrayLabels { tip: "rview".into(), open: tr("Open rview"), exit: tr("Exit") };
+    // Only a resident rview listens for later launches, as on Windows.
+    let cfg = linux::shell::Config { app: linux::shell::APP, icon: ui::appicon::render, tray: Some(labels), listen_without_icon: false };
+    let resident = linux::shell::Shell::new(
+        cfg,
         Box::new(move |m| {
             if let Ok(p) = proxy.lock() {
                 let _ = p.send_event(UserEvent::Shell(m));
             }
         }),
     );
-    shell.tray = shell.shell.is_some();
+    shell.tray = resident.has_icon();
+    shell.shell = shell.tray.then_some(resident);
 }
 
 #[cfg(windows)]
@@ -1499,7 +1502,7 @@ fn main() {
             None
         };
         if let Some(action) = action {
-            let mut location = storage::Location::detect();
+            let mut location = storage::detect();
             let settings = Settings::load(&location.load());
             i18n::set_lang(settings.language.unwrap_or_else(i18n::system_lang));
             let result = integrate(action);
@@ -1524,11 +1527,14 @@ fn main() {
         return;
     }
     let _ = new_window;
-    let mut location = storage::Location::detect();
+    let mut location = storage::detect();
     let store = location.load();
     let settings = Settings::load(&store);
     let gfx = match Gfx::new() {
-        Ok(g) => g,
+        Ok(mut g) => {
+            g.set_mono_names(ui::gfx::RVIEW_MONO);
+            g
+        }
         Err(e) => {
             eprintln!("rview: {e}");
             std::process::exit(1);

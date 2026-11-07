@@ -1,0 +1,11 @@
+[package]
+name = "rt-build"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+description = "build.rs helper of the rust-tools apps: icon, version and manifest in the Windows executable"
+license = "MIT"
+publish = false
+
+[dependencies]
+tiny-skia = { version = "0.11", default-features = false, features = ["std", "png-format"] }

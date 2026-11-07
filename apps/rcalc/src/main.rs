@@ -731,7 +731,7 @@ fn main() {
     }
     let _ = new_window;
 
-    let mut location = storage::Location::detect();
+    let mut location = storage::detect();
     let store = location.load();
     let mut app = App::new(location);
     app.load(&store);

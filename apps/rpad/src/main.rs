@@ -595,7 +595,7 @@ impl Shell {
     }
 
     fn status_menu(&mut self, el: &ActiveEventLoop, k: u8) {
-        use M::*;
+        use rt_core::menu::M::*;
         let items = match k {
             0 => {
                 let mut v = vec![Item(Command::LangAuto), Sep];
@@ -629,7 +629,7 @@ impl Shell {
 
     fn editor_menu(&mut self, el: &ActiveEventLoop) {
         use Command::*;
-        use M::*;
+        use rt_core::menu::M::*;
         let items = vec![
             Item(Undo),
             Item(Redo),
@@ -655,7 +655,7 @@ impl Shell {
 
     fn tab_menu(&mut self, el: &ActiveEventLoop, i: usize) {
         use Command::*;
-        use M::*;
+        use rt_core::menu::M::*;
         self.app.activate(i);
         self.redraw();
         let items = vec![Item(Save), Item(SaveAs), Item(Reload), Sep, Item(CopyPath), Item(RevealInExplorer), Sep, Item(CloseTab), Item(CloseOthers), Item(CloseAll), Sep, Item(ReopenClosed)];
@@ -1170,10 +1170,10 @@ impl Shell {
     #[cfg(not(windows))]
     fn start_shell(&mut self) {
         let proxy = Mutex::new(self.proxy.clone());
-        let (open, exit) = (i18n::tr("Open rpad"), i18n::tr("Exit"));
+        let labels = linux::shell::TrayLabels { tip: "rpad".into(), open: i18n::tr("Open rpad"), exit: i18n::tr("Exit") };
+        let cfg = linux::shell::Config { app: linux::shell::APP, icon: ui::appicon::render, tray: self.tray.then_some(labels), listen_without_icon: true };
         let shell = linux::shell::Shell::new(
-            self.tray,
-            (&open, &exit),
+            cfg,
             Box::new(move |m| {
                 if let Ok(p) = proxy.lock() {
                     let _ = p.send_event(UserEvent::Shell(m));
@@ -1306,6 +1306,8 @@ impl ApplicationHandler<UserEvent> for Shell {
             UserEvent::Win(win::WinMsg::OpenFiles(paths)) => self.open_files(el, &paths),
             #[cfg(windows)]
             UserEvent::Win(win::WinMsg::Tray(win::tray::TrayEvent::Activate)) => self.show(el),
+            #[cfg(windows)]
+            UserEvent::Win(win::WinMsg::SystemTheme) => {}
             #[cfg(windows)]
             UserEvent::Win(win::WinMsg::Tray(win::tray::TrayEvent::Menu)) => {
                 match win::tray::menu(self.host.hwnd, &i18n::tr("Open rpad"), &i18n::tr("Exit")) {
@@ -1465,7 +1467,7 @@ fn main() {
     let tray = raw.iter().any(|a| a == "--tray" || a == "/tray");
     let files: Vec<PathBuf> = raw.iter().filter(|a| !a.starts_with("--")).map(PathBuf::from).collect();
 
-    let mut location = storage::Location::detect();
+    let mut location = storage::detect();
     let store = location.load();
     let settings = Settings::load(&store);
     // A launch while a resident instance runs shows it (and opens the files

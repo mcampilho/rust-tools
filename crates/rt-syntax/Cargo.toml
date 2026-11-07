@@ -1,0 +1,8 @@
+[package]
+name = "rt-syntax"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+description = "Language definitions and the line-at-a-time syntax lexer shared by the rust-tools apps"
+license = "MIT"
+publish = false

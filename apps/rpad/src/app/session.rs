@@ -51,7 +51,7 @@ pub fn serialize(tabs: &[SessionTab]) -> String {
             ),
         );
     }
-    s.serialize()
+    s.serialize("rpad")
 }
 
 pub fn parse(text: &str) -> Vec<SessionTab> {
@@ -206,7 +206,7 @@ mod tests {
     #[test]
     fn recovery_and_history_files() {
         let dir = std::env::temp_dir().join(format!("rpad-sess-{}", std::process::id()));
-        let loc = Location { dir: Some(dir.clone()), portable: true, error: None };
+        let loc = Location::at(crate::storage::PLACE, dir.clone());
         let rec = loc.file(RECOVERY_DIR).unwrap();
         write_recovery(&rec, "a.txt", Rope::from_str("unsaved ✓")).unwrap();
         write_recovery(&rec, "b.txt", Rope::from_str("x")).unwrap();

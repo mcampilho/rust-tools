@@ -119,14 +119,19 @@ pub fn lookup(ctrl: bool, shift: bool, alt: bool, key: &str) -> Option<Command> 
     .map(|(_, c)| *c)
 }
 
-pub enum M {
-    Item(Command),
-    Sep,
-    Sub(&'static str, Vec<M>),
+pub type M = rt_core::menu::M<Command>;
+
+impl rt_core::menu::MenuCommand for Command {
+    fn label(self) -> String {
+        Command::label(self)
+    }
+    fn shortcut(self) -> Option<&'static str> {
+        shortcut(self)
+    }
 }
 
 pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
-    use M::*;
+    use rt_core::menu::M::*;
     let mut langs = vec![Item(UiLanguage(0)), Sep];
     langs.extend((1..=Lang::ALL.len()).map(|i| Item(UiLanguage(i as u8))));
     let mut file = vec![Item(Open), Item(Reload), Item(OpenFolder), Sep];

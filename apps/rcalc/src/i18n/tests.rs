@@ -1,45 +1,12 @@
 use super::*;
-use std::cell::RefCell;
 use std::collections::BTreeSet;
-
-thread_local! {
-    static MISSES: RefCell<BTreeSet<String>> = const { RefCell::new(BTreeSet::new()) };
-}
-
-pub(super) fn record_miss(s: &str) {
-    MISSES.with(|m| {
-        m.borrow_mut().insert(s.to_string());
-    });
-}
 
 #[test]
 fn table_rows_are_well_formed() {
-    let mut keys = BTreeSet::new();
-    for (n, line) in TABLE.lines().enumerate() {
-        if line.trim().is_empty() || line.starts_with('#') {
-            continue;
-        }
-        let cells: Vec<&str> = line.split('|').collect();
-        assert_eq!(cells.len(), 10, "line {}: expected 10 columns: {line}", n + 1);
-        assert!(keys.insert(cells[0]), "line {}: duplicate key {}", n + 1, cells[0]);
-        let placeholders = cells[0].matches("{}").count();
-        for (i, c) in cells.iter().enumerate().skip(1) {
-            // en-GB and pt-PT may be empty (fallback); every other language is required.
-            let optional = i == 1 || i == 8;
-            assert!(optional || !c.is_empty(), "line {}: missing translation in column {}", n + 1, i + 1);
-            if !c.is_empty() {
-                assert_eq!(
-                    c.matches("{}").count(),
-                    placeholders,
-                    "line {}: placeholder mismatch in column {}",
-                    n + 1,
-                    i + 1
-                );
-                assert_eq!(c.trim(), *c, "line {}: stray whitespace in column {}", n + 1, i + 1);
-            }
-        }
-    }
-    assert!(keys.len() > 300);
+    let problems = core::check_table(TABLE.text(), '|');
+    assert!(problems.is_empty(), "{problems:#?}");
+    let rows = TABLE.text().lines().filter(|l| !l.trim().is_empty() && !l.starts_with('#')).count();
+    assert!(rows > 300);
 }
 
 #[test]
@@ -101,6 +68,7 @@ const UNTRANSLATED: &[&str] = &[];
 /// Every user-visible English literal in the UI sources has a translation.
 #[test]
 fn ui_strings_have_translations() {
+    install();
     let root = env!("CARGO_MANIFEST_DIR");
     let files = [
         "src/ui/view.rs",
@@ -115,7 +83,7 @@ fn ui_strings_have_translations() {
         let src = std::fs::read_to_string(format!("{root}/{f}")).unwrap();
         let code = src.split("#[cfg(test)]").next().unwrap();
         for lit in string_literals(code) {
-            if looks_like_ui_text(&lit) && !UNTRANSLATED.contains(&lit.as_str()) && !table().contains_key(lit.as_str()) {
+            if looks_like_ui_text(&lit) && !UNTRANSLATED.contains(&lit.as_str()) && !core::has_key(&lit) {
                 missing.push(format!("{f}: {lit}"));
             }
         }
@@ -170,7 +138,9 @@ fn looks_like_ui_text(s: &str) -> bool {
 
 /// Strings looked up on this thread that had no translation entry.
 pub(crate) fn take_misses() -> BTreeSet<String> {
-    MISSES.with(|m| std::mem::take(&mut *m.borrow_mut()))
+    let misses = core::take_misses();
+    core::record_misses(true);
+    misses
 }
 
 fn words(s: &str) -> impl Iterator<Item = String> + '_ {
@@ -185,7 +155,8 @@ fn words(s: &str) -> impl Iterator<Item = String> + '_ {
 pub(crate) fn has_english_leftover(l: Lang, s: &str) -> bool {
     let mut english = BTreeSet::new();
     let mut foreign = BTreeSet::new();
-    for (key, row) in table() {
+    install();
+    for (key, row) in TABLE.rows() {
         english.extend(words(key));
         foreign.extend(words(row[l.column()]));
     }

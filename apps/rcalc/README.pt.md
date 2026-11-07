@@ -183,7 +183,7 @@ target\release-small\rcalc.exe
 cargo test -p rcalc
 ```
 
-São 65 testes unitários e 7 de integração. Cobrem o motor decimal, o parser e o
+São 62 testes unitários e 7 de integração. Cobrem o motor decimal, o parser e o
 avaliador, os três motores de teclado, o excesso de capacidade no modo
 Programador, datas, conversores, a gravação e leitura das definições e o
 tratamento de teclado e de estado da aplicação. Três testes verificam a

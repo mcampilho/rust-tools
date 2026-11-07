@@ -249,7 +249,7 @@ escolhida em Ver › Idioma da interface.
 
 ## Testes e verificação
 
-`cargo test -p rview` corre 95 testes em Windows e 97 em Linux: os parsers de texto, CSV, Markdown, HTML e CSS, o
+`cargo test -p rview` corre 80 testes em Windows e 79 em Linux: os parsers de texto, CSV, Markdown, HTML e CSS, o
 motor de layout (quebra de linhas, zoom, palavras longas, ligações),
 codificações, ligações e caminhos de imagens, definições, a tabela de traduções
 (todas as frases do código e dos menus têm todos os idiomas; os marcadores e as

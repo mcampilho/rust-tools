@@ -10,11 +10,7 @@ use crate::expr::BinOp;
 use crate::storage::Location;
 
 fn app() -> App {
-    App::new(Location {
-        dir: None,
-        portable: false,
-        error: None,
-    })
+    App::new(Location { error: None, ..Location::nowhere(crate::storage::PLACE) })
 }
 
 fn shot(g: &mut Gfx, app: &App, name: &str, w: u32, h: u32, scale: f32, dark: bool) {

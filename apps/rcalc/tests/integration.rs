@@ -9,11 +9,7 @@ use rcalc::num::Dec;
 use rcalc::storage::{Location, Store};
 
 fn app() -> App {
-    App::new(Location {
-        dir: None,
-        portable: false,
-        error: None,
-    })
+    App::new(Location { error: None, ..Location::nowhere(rcalc::storage::PLACE) })
 }
 
 /// Types text as if on the keyboard (`\n` = Enter, `\x1b` = Esc, `\x08` = Backspace).
@@ -119,7 +115,7 @@ fn persistence_survives_round_trip() {
     type_keys(&mut a, "6*7=");
     a.apply(&Action::Navigate(Mode::Date));
     a.apply(&Action::ComboPick(ComboId::DateMode, 1));
-    let text = a.to_store().serialize();
+    let text = a.to_store().serialize("rcalc");
     let mut b = app();
     b.load(&Store::parse(&text));
     assert_eq!(b.mode, Mode::Date);

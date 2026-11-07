@@ -300,20 +300,19 @@ mas isso não foi experimentado.
 | --- | --- |
 | `doc` | Buffer rope (`ropey`), seleção múltipla, anular/refazer transacional, operações de edição |
 | `io` | Deteção, descodificação e codificação estrita; leitura de ficheiros e gravação atómica |
-| `syntax` | Definições de linguagens, lexer incremental por linha, dobragem, estrutura |
+| `syntax` | Dobragem e estrutura (as definições de linguagens e o lexer incremental por linha estão no `rt-syntax`) |
 | `search` | Planeamento de procura/substituição e procura em ficheiros |
 | `tools` | Transformações de texto e verificador/formatador de XML |
 | `app` | Estado da aplicação, comandos, documentos, sessão, recuperação, definições, input |
-| `ui` | Renderer de CPU (tiny-skia + ab_glyph com os tipos de letra do sistema), widgets, vista do editor, pré-visualização de Markdown |
+| `ui` | Widgets, vista do editor, pré-visualização de Markdown (o desenho no CPU com os tipos de letra do sistema está no `rt-gfx`) |
 | `i18n` | Idiomas da interface: a tabela de traduções (`strings.txt`), procura com alternativas |
-| `win` | Integração Win32: menus (com modo escuro), diálogos comuns, Clipboard, ícone na área de notificação, passagem para a instância única |
-| `linux` | Integração Linux: Clipboard, diálogos com zenity ou kdialog, tipos de letra, ícone na área de notificação, passagem para a instância única |
+| `win` | Integração Win32 do `rt-sys`: menus (com modo escuro), diálogos comuns, Clipboard, ícone na área de notificação, passagem para a instância única |
+| `linux` | Integração Linux do `rt-sys`: Clipboard, diálogos com zenity ou kdialog, tipos de letra, ícone na área de notificação, passagem para a instância única |
 
 A lógica da aplicação fala com o sistema através de um pequeno trait `Host` (diálogos e
 Clipboard). Isto permite que os testes de fluxo conduzam a aplicação inteira sem janela.
-O `unsafe` limita-se a chamadas Win32: o módulo `win` e chamadas isoladas a `ReplaceFileW`
-(gravação atómica), `GetACP` (página de código do sistema), hora local e posição do
-cursor. Cada uma tem um comentário `SAFETY`.
+O `unsafe` limita-se a chamadas Win32: o crate `rt-sys` e chamadas isoladas a `ReplaceFileW`
+(gravação atómica), `GetACP` (página de código do sistema) e posição do cursor. Cada uma tem um comentário `SAFETY`.
 
 As traduções estão em `src/i18n/strings.txt`: uma linha por texto, com o texto em inglês
 dos EUA como chave e uma coluna por idioma, separadas por tabulações. Os textos dos menus
@@ -323,15 +322,16 @@ levam a sua própria tecla de acesso `&`; o japonês e o chinês usam a convenç
 Os menus escuros usam as mesmas técnicas não documentadas de outros editores Win32: as
 funções de modo preferido da aplicação do uxtheme para os menus pendentes, e as mensagens
 `WM_UAHDRAWMENU`/`WM_UAHDRAWMENUITEM` para desenhar a barra de menus
-(`src/win/darkmode.rs`). As funções são procuradas durante a execução, por isso, nas
+(`crates/rt-sys/src/win/darkmode.rs`). As funções são procuradas durante a execução, por isso, nas
 versões do Windows que não as têm, os menus ficam simplesmente claros.
 
 ## Testes
 
-`cargo test -p rpad` corre 115 testes em Windows e 122 em Linux. Cobrem o buffer e as operações de edição, as
-codificações (ida e volta, deteção, caracteres não representáveis), os fins de linha, o
-lexer, a procura, as ferramentas de texto, XML, definições, ficheiros de sessão e de
-recuperação, layout e fluxos completos através de um host simulado:
+`cargo test -p rpad` corre 100 testes em Windows e 101 em Linux. Cobrem o buffer e as operações de edição, as
+codificações (ida e volta, deteção, caracteres não representáveis), os fins de linha, a
+dobragem, a procura, as ferramentas de texto, XML, definições, ficheiros de sessão e de
+recuperação e fluxos completos através de um host simulado (o lexer, o layout e os menus
+são testados nos crates partilhados):
 
 - ida e volta exata ao byte para UTF-8, UTF-8 com BOM, UTF-16 LE/BE, CR/LF/CRLF e
   Windows-1252;
@@ -354,7 +354,7 @@ recuperação, layout e fluxos completos através de um host simulado:
 
 ## Verificado à mão (Windows 10, escala 100%)
 
-Versão de distribuição: sem avisos, clippy limpo, 115/115 testes a passar. O
+Versão de distribuição: sem avisos, clippy limpo, 100/100 testes a passar. O
 `dumpbin /dependents` mostra apenas DLL do sistema (sem runtime VC).
 
 Na aplicação a correr:

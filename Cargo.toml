@@ -1,5 +1,5 @@
 [workspace]
-members = ["apps/*"]
+members = ["apps/*", "crates/*"]
 resolver = "2"
 
 # Profiles apply to the whole workspace: Cargo ignores them in member crates.

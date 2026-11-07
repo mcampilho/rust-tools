@@ -290,20 +290,20 @@ was started, not used. A menu too long for the window scrolls, but this was not 
 | --- | --- |
 | `doc` | Rope buffer (`ropey`), multi-selection, transactional undo/redo, editing operations |
 | `io` | Encoding detection, decoding and strict encoding; file load and atomic save |
-| `syntax` | Language definitions, per-line incremental lexer, folding, outline |
+| `syntax` | Folding and outline (language definitions and the per-line incremental lexer are in `rt-syntax`) |
 | `search` | Find/replace planning and find in files |
 | `tools` | Text transformations and the XML checker/formatter |
 | `app` | Application state, commands, documents, session, recovery, settings, input handling |
-| `ui` | CPU renderer (tiny-skia + ab_glyph with system fonts), widgets, the editor view, Markdown preview |
+| `ui` | Widgets, the editor view, Markdown preview (CPU drawing with system fonts is in `rt-gfx`) |
 | `i18n` | Interface languages: the translation table (`strings.txt`), lookup with fallbacks |
-| `win` | Win32 integration: menus (with dark mode), common dialogs, clipboard, tray icon, single-instance hand-off |
-| `linux` | Linux integration: clipboard, dialogs through zenity or kdialog, fonts, tray icon, single-instance hand-off |
+| `win` | Win32 integration from `rt-sys`: menus (with dark mode), common dialogs, clipboard, tray icon, single-instance hand-off |
+| `linux` | Linux integration from `rt-sys`: clipboard, dialogs through zenity or kdialog, fonts, tray icon, single-instance hand-off |
 
 The application logic talks to the OS through a small `Host` trait (dialogs
 and clipboard). This lets the workflow tests drive the whole app without a
-window. `unsafe` is limited to Win32 calls: the `win` module, plus single
-calls for `ReplaceFileW` (atomic save), `GetACP` (system code page), local
-time and the cursor position. Each one has a `SAFETY` comment.
+window. `unsafe` is limited to Win32 calls: the `rt-sys` crate, plus single
+calls for `ReplaceFileW` (atomic save), `GetACP` (system code page) and the
+cursor position. Each one has a `SAFETY` comment.
 
 Translations live in `src/i18n/strings.txt`: one line per string, keyed by
 its US English text, with tab-separated columns per language. Menu labels
@@ -314,15 +314,16 @@ pt-BR.
 Dark menus use the same undocumented techniques as other Win32 editors:
 uxtheme's preferred-app-mode functions for popup menus, and the
 `WM_UAHDRAWMENU`/`WM_UAHDRAWMENUITEM` messages to paint the menu bar
-(`src/win/darkmode.rs`). The functions are looked up at run time, so on
+(`crates/rt-sys/src/win/darkmode.rs`). The functions are looked up at run time, so on
 Windows versions without them the menus just stay light.
 
 ## Tests
 
-`cargo test -p rpad` runs 115 tests on Windows and 122 on Linux. They cover the buffer and editing operations,
+`cargo test -p rpad` runs 100 tests on Windows and 101 on Linux. They cover the buffer and editing operations,
 encodings (round trips, detection, unmappable characters), line endings,
-the lexer, search, text tools, XML, settings, session and recovery files,
-layout, and end-to-end workflows through a mock host:
+folding, search, text tools, XML, settings, session and recovery files, and
+end-to-end workflows through a mock host (the lexer, layout and menus are
+tested in the shared crates):
 
 - byte-exact round trips for UTF-8, UTF-8 BOM, UTF-16 LE/BE, CR/LF/CRLF
   and Windows-1252;
@@ -345,7 +346,7 @@ layout, and end-to-end workflows through a mock host:
 
 ## Verified manually (Windows 10, 100 % scaling)
 
-Release build: no warnings, clippy clean, 115/115 tests passing.
+Release build: no warnings, clippy clean, 100/100 tests passing.
 `dumpbin /dependents` shows only system DLLs (no VC runtime).
 
 In the running app:

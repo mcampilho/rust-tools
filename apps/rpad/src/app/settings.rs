@@ -249,7 +249,7 @@ mod tests {
         s.add_recent(std::path::Path::new("C:\\a.txt"));
         Settings::push_history(&mut s.find_history, "needle");
         s.window = Some((800.0, 600.0, true));
-        let back = Settings::load(&Store::parse(&s.to_store().serialize()));
+        let back = Settings::load(&Store::parse(&s.to_store().serialize("rpad")));
         assert_eq!(back, s);
         assert_eq!(back.recent[0], PathBuf::from("C:\\a.txt"));
         let bad = Settings::load(&Store::parse("tab_width=abc\nzoom=99999\ntheme=???\nnew_enc=bogus\nfont_size=-3\n"));

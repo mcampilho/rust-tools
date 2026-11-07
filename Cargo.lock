@@ -2440,15 +2440,15 @@ checksum = "20675572f6f24e9e76ef639bc5552774ed45f1c30e2951e1e99c59888861c539"
 name = "rcalc"
 version = "1.2.0"
 dependencies = [
- "ab_glyph",
  "accesskit",
  "accesskit_winit",
- "arboard",
- "ksni",
- "libc",
  "num-bigint",
  "num-integer",
  "num-traits",
+ "rt-build",
+ "rt-core",
+ "rt-gfx",
+ "rt-sys",
  "softbuffer",
  "tiny-skia",
  "windows-sys 0.59.0",
@@ -2550,20 +2550,57 @@ dependencies = [
 name = "rpad"
 version = "1.1.0"
 dependencies = [
- "ab_glyph",
  "accesskit",
  "accesskit_winit",
- "arboard",
  "encoding_rs",
- "ksni",
  "libc",
  "pulldown-cmark",
  "regex",
  "ropey",
+ "rt-build",
+ "rt-core",
+ "rt-gfx",
+ "rt-syntax",
+ "rt-sys",
  "softbuffer",
  "tiny-skia",
  "windows-sys 0.59.0",
  "winit",
+]
+
+[[package]]
+name = "rt-build"
+version = "0.1.0"
+dependencies = [
+ "tiny-skia",
+]
+
+[[package]]
+name = "rt-core"
+version = "0.1.0"
+
+[[package]]
+name = "rt-gfx"
+version = "0.1.0"
+dependencies = [
+ "ab_glyph",
+ "rt-core",
+ "tiny-skia",
+]
+
+[[package]]
+name = "rt-syntax"
+version = "0.1.0"
+
+[[package]]
+name = "rt-sys"
+version = "0.1.0"
+dependencies = [
+ "arboard",
+ "ksni",
+ "libc",
+ "rt-core",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -2617,17 +2654,20 @@ checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 name = "rview"
 version = "1.2.0"
 dependencies = [
- "ab_glyph",
  "accesskit",
  "accesskit_winit",
  "arboard",
  "encoding_rs",
  "hayro",
  "image",
- "ksni",
  "libc",
  "lopdf",
  "pulldown-cmark",
+ "rt-build",
+ "rt-core",
+ "rt-gfx",
+ "rt-syntax",
+ "rt-sys",
  "softbuffer",
  "tiny-skia",
  "windows",

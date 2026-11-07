@@ -72,13 +72,21 @@ rust-tools/
 ├─ .github/        release workflow
 ├─ Cargo.toml      workspace members and build profiles
 ├─ dev.ps1         cargo with the Build Tools environment; dist
-└─ apps/
-   ├─ rcalc/
-   ├─ rpad/
-   └─ rview/
+├─ apps/
+│  ├─ rcalc/
+│  ├─ rpad/
+│  └─ rview/
+└─ crates/         code shared by the apps
+   ├─ rt-core/     translations, settings, menu tree
+   ├─ rt-gfx/      drawing, text layout, drawn menus
+   ├─ rt-sys/      Windows and Linux integration
+   ├─ rt-syntax/   syntax highlighting
+   └─ rt-build/    icon and version in the Windows executable
 ```
 
-Each app keeps its own sources, `build.rs`, README and translation table.
+Each app keeps its own sources, `build.rs`, README and translation table. The
+[shared crates](crates/README.md) explain what they offer and how to start a new
+tool from them.
 
 ## License
 

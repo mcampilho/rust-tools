@@ -1842,40 +1842,16 @@ pub fn fuzzy_score(q: &str, s: &str) -> Option<i32> {
     Some(score * 10 - last)
 }
 
-fn local_time() -> (u16, u16, u16, u16, u16, u16) {
-    #[cfg(windows)]
-    {
-        // SAFETY: GetLocalTime only writes the provided struct.
-        let st = unsafe {
-            let mut st: windows_sys::Win32::Foundation::SYSTEMTIME = std::mem::zeroed();
-            windows_sys::Win32::System::SystemInformation::GetLocalTime(&mut st);
-            st
-        };
-        (st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond)
-    }
-    #[cfg(not(windows))]
-    {
-        // SAFETY: time accepts a null pointer; localtime_r only writes `tm`.
-        let tm = unsafe {
-            let now = libc::time(std::ptr::null_mut());
-            let mut tm: libc::tm = std::mem::zeroed();
-            libc::localtime_r(&now, &mut tm);
-            tm
-        };
-        ((tm.tm_year + 1900) as u16, (tm.tm_mon + 1) as u16, tm.tm_mday as u16, tm.tm_hour as u16, tm.tm_min as u16, tm.tm_sec as u16)
-    }
-}
-
 /// File-name-safe timestamp: `2026-10-19_14-03-22`.
 pub fn timestamp() -> String {
-    let (y, mo, d, h, mi, s) = local_time();
-    format!("{y:04}-{mo:02}-{d:02}_{h:02}-{mi:02}-{s:02}")
+    let t = rt_sys::local_time();
+    format!("{:04}-{:02}-{:02}_{:02}-{:02}-{:02}", t.year, t.month, t.day, t.hour, t.minute, t.second)
 }
 
 /// Human timestamp for Insert Date/Time: `2026-10-19 14:03`.
 pub fn timestamp_display() -> String {
-    let (y, mo, d, h, mi, _) = local_time();
-    format!("{y:04}-{mo:02}-{d:02} {h:02}:{mi:02}")
+    let t = rt_sys::local_time();
+    format!("{:04}-{:02}-{:02} {:02}:{:02}", t.year, t.month, t.day, t.hour, t.minute)
 }
 
 #[cfg(test)]

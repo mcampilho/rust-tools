@@ -4,25 +4,22 @@
 //! A hidden top-level window of class [`CLASS`] receives tray callbacks and
 //! "activate" requests from a second launch. Its window procedure runs on the
 //! UI thread (winit pumps all thread messages) and forwards events to the
-//! application through a callback.
+//! application through a callback. The icon itself is `rt_sys::win::tray`.
 
+use rt_sys::win::{tray, wide};
 use std::cell::RefCell;
-use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM};
+use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::System::Registry::{
     RegCloseKey, RegCreateKeyExW, RegDeleteValueW, RegGetValueW, RegSetValueExW, HKEY, HKEY_CURRENT_USER, KEY_SET_VALUE, REG_SZ,
     RRF_RT_REG_SZ,
 };
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{RegisterHotKey, UnregisterHotKey, VK_LAUNCH_APP2};
-use windows_sys::Win32::UI::Shell::{Shell_NotifyIconW, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE, NOTIFYICONDATAW};
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
 pub const CLASS: &str = "rcalc.shell.v1";
-const WM_TRAY: u32 = WM_APP + 1;
 const WM_ACTIVATE_REQUEST: u32 = WM_APP + 2;
 const HOTKEY_ID: i32 = 0x7C01;
-const CMD_OPEN: usize = 1;
-const CMD_EXIT: usize = 2;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ShellEvent {
@@ -35,18 +32,12 @@ pub enum ShellEvent {
 struct State {
     sink: Box<dyn Fn(ShellEvent)>,
     tray: bool,
-    icon: HICON,
     taskbar_created: u32,
     menu_labels: (String, String),
-    tip: String,
 }
 
 thread_local! {
     static STATE: RefCell<Option<State>> = const { RefCell::new(None) };
-}
-
-fn wide(s: &str) -> Vec<u16> {
-    s.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
 /// If another instance is running, asks it to show its window and returns
@@ -81,12 +72,7 @@ impl Shell {
         // thread-local STATE, then creates one hidden window of that class.
         unsafe {
             let hinst = GetModuleHandleW(std::ptr::null());
-            let wc = WNDCLASSW {
-                lpfnWndProc: Some(wndproc),
-                hInstance: hinst,
-                lpszClassName: class.as_ptr(),
-                ..std::mem::zeroed()
-            };
+            let wc = WNDCLASSW { lpfnWndProc: Some(wndproc), hInstance: hinst, lpszClassName: class.as_ptr(), ..std::mem::zeroed() };
             RegisterClassW(&wc);
             let hwnd = CreateWindowExW(
                 WS_EX_TOOLWINDOW,
@@ -105,20 +91,10 @@ impl Shell {
             if hwnd.is_null() {
                 return None;
             }
-            let icon = load_icon(hinst);
             let taskbar_created = RegisterWindowMessageW(wide("TaskbarCreated").as_ptr());
-            STATE.with(|s| {
-                *s.borrow_mut() = Some(State {
-                    sink,
-                    tray,
-                    icon,
-                    taskbar_created,
-                    menu_labels: (menu.0.to_string(), menu.1.to_string()),
-                    tip: tip.to_string(),
-                })
-            });
+            STATE.with(|s| *s.borrow_mut() = Some(State { sink, tray, taskbar_created, menu_labels: (menu.0.to_string(), menu.1.to_string()) }));
             if tray {
-                add_icon(hwnd);
+                tray::show(hwnd, tip);
                 RegisterHotKey(hwnd, HOTKEY_ID, 0, VK_LAUNCH_APP2 as u32);
             }
             Some(Shell { hwnd })
@@ -127,62 +103,30 @@ impl Shell {
 
     /// Updates the tray menu labels (after a language change).
     pub fn set_labels(&self, tip: &str, open: &str, exit: &str) {
-        STATE.with(|s| {
-            if let Some(st) = s.borrow_mut().as_mut() {
-                st.menu_labels = (open.to_string(), exit.to_string());
-                st.tip = tip.to_string();
-            }
+        let tray = STATE.with(|s| {
+            let mut s = s.borrow_mut();
+            let st = s.as_mut()?;
+            st.menu_labels = (open.to_string(), exit.to_string());
+            Some(st.tray)
         });
+        if tray == Some(true) {
+            tray::show(self.hwnd, tip);
+        }
     }
 }
 
 impl Drop for Shell {
     fn drop(&mut self) {
-        // SAFETY: removes the icon/hotkey owned by our window and destroys it.
+        // SAFETY: removes the hotkey owned by our window and destroys it.
         unsafe {
-            let tray = STATE.with(|s| s.borrow().as_ref().is_some_and(|st| st.tray));
-            if tray {
-                let nid = icon_data(self.hwnd);
-                Shell_NotifyIconW(NIM_DELETE, &nid);
+            if STATE.with(|s| s.borrow().as_ref().is_some_and(|st| st.tray)) {
+                tray::remove(self.hwnd);
                 UnregisterHotKey(self.hwnd, HOTKEY_ID);
             }
             DestroyWindow(self.hwnd);
         }
         STATE.with(|s| *s.borrow_mut() = None);
     }
-}
-
-unsafe fn load_icon(hinst: windows_sys::Win32::Foundation::HINSTANCE) -> HICON {
-    let cx = GetSystemMetrics(SM_CXSMICON);
-    let cy = GetSystemMetrics(SM_CYSMICON);
-    // Resource ID 1 is embedded by build.rs.
-    let h = LoadImageW(hinst, 1 as _, IMAGE_ICON, cx, cy, LR_DEFAULTCOLOR);
-    if !h.is_null() {
-        return h as HICON;
-    }
-    LoadIconW(std::ptr::null_mut(), IDI_APPLICATION)
-}
-
-unsafe fn icon_data(hwnd: HWND) -> NOTIFYICONDATAW {
-    let mut nid: NOTIFYICONDATAW = std::mem::zeroed();
-    nid.cbSize = std::mem::size_of::<NOTIFYICONDATAW>() as u32;
-    nid.hWnd = hwnd;
-    nid.uID = 1;
-    nid
-}
-
-unsafe fn add_icon(hwnd: HWND) {
-    let mut nid = icon_data(hwnd);
-    nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
-    nid.uCallbackMessage = WM_TRAY;
-    STATE.with(|s| {
-        if let Some(st) = s.borrow().as_ref() {
-            nid.hIcon = st.icon;
-            let tip: Vec<u16> = st.tip.encode_utf16().take(nid.szTip.len() - 1).collect();
-            nid.szTip[..tip.len()].copy_from_slice(&tip);
-        }
-    });
-    Shell_NotifyIconW(NIM_ADD, &nid);
 }
 
 fn emit(e: ShellEvent) {
@@ -199,36 +143,11 @@ fn emit(e: ShellEvent) {
     }
 }
 
-unsafe fn show_menu(hwnd: HWND) {
-    let (open, exit) = STATE
-        .with(|s| s.borrow().as_ref().map(|st| st.menu_labels.clone()))
-        .unwrap_or_default();
-    let menu = CreatePopupMenu();
-    if menu.is_null() {
-        return;
-    }
-    AppendMenuW(menu, MF_STRING, CMD_OPEN, wide(&open).as_ptr());
-    AppendMenuW(menu, MF_SEPARATOR, 0, std::ptr::null());
-    AppendMenuW(menu, MF_STRING, CMD_EXIT, wide(&exit).as_ptr());
-    SetMenuDefaultItem(menu, CMD_OPEN as u32, 0);
-    let mut pt = POINT { x: 0, y: 0 };
-    GetCursorPos(&mut pt);
-    // Required so the menu closes when the user clicks elsewhere.
-    SetForegroundWindow(hwnd);
-    let cmd = TrackPopupMenu(
-        menu,
-        TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_NONOTIFY,
-        pt.x,
-        pt.y,
-        0,
-        hwnd,
-        std::ptr::null(),
-    );
-    PostMessageW(hwnd, WM_NULL, 0, 0);
-    DestroyMenu(menu);
-    match cmd as usize {
-        CMD_OPEN => emit(ShellEvent::Activate),
-        CMD_EXIT => emit(ShellEvent::Exit),
+fn show_menu(hwnd: HWND) {
+    let (open, exit) = STATE.with(|s| s.borrow().as_ref().map(|st| st.menu_labels.clone())).unwrap_or_default();
+    match tray::menu(hwnd, &open, &exit) {
+        Some(1) => emit(ShellEvent::Activate),
+        Some(2) => emit(ShellEvent::Exit),
         _ => {}
     }
 }
@@ -243,23 +162,19 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
             emit(ShellEvent::Activate);
             0
         }
-        WM_TRAY => {
-            match lp as u32 {
-                WM_LBUTTONUP | WM_LBUTTONDBLCLK => emit(ShellEvent::Activate),
-                WM_RBUTTONUP | WM_CONTEXTMENU => show_menu(hwnd),
-                _ => {}
+        tray::WM_TRAY => {
+            match tray::event(lp) {
+                Some(tray::TrayEvent::Activate) => emit(ShellEvent::Activate),
+                Some(tray::TrayEvent::Menu) => show_menu(hwnd),
+                None => {}
             }
             0
         }
         _ => {
-            let recreate = STATE.with(|s| {
-                s.borrow()
-                    .as_ref()
-                    .is_some_and(|st| st.tray && st.taskbar_created == msg && msg != 0)
-            });
+            let recreate = STATE.with(|s| s.borrow().as_ref().is_some_and(|st| st.tray && st.taskbar_created == msg && msg != 0));
             if recreate {
                 // Explorer restarted: put the icon back.
-                add_icon(hwnd);
+                tray::restore(hwnd);
                 return 0;
             }
             DefWindowProcW(hwnd, msg, wp, lp)

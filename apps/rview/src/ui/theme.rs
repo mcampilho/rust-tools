@@ -56,4 +56,10 @@ impl Theme {
             }
         }
     }
+
+    /// Colours of the menus drawn in the window.
+    #[cfg(not(windows))]
+    pub fn menu_style(&self) -> rt_gfx::menu::MenuStyle {
+        rt_gfx::menu::MenuStyle { dark: self.dark, bar: self.status, border: self.border, text: self.text, dim: self.dim }
+    }
 }

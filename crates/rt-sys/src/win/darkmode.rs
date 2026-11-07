@@ -1,7 +1,7 @@
 //! Dark menus.
 //!
 //! Windows has no public API for dark menus. Like other Win32 editors
-//! (Notepad++, Notepad3), rview uses two well-known undocumented mechanisms:
+//! (Notepad++, Notepad3), the apps use two well-known undocumented mechanisms:
 //!
 //! - uxtheme's `SetPreferredAppMode` (ordinal 135, Windows 10 1903+) and
 //!   `FlushMenuThemes` (ordinal 136) switch popup menus (menu bar
@@ -78,7 +78,17 @@ fn windows_build() -> u32 {
     let mut buf = [0u16; 32];
     let mut size = (buf.len() * 2) as u32;
     // SAFETY: reads a REG_SZ into a fixed buffer whose size is passed in.
-    let rc = unsafe { RegGetValueW(HKEY_LOCAL_MACHINE, k.as_ptr(), v.as_ptr(), RRF_RT_REG_SZ, std::ptr::null_mut(), buf.as_mut_ptr() as *mut _, &mut size) };
+    let rc = unsafe {
+        RegGetValueW(
+            HKEY_LOCAL_MACHINE,
+            k.as_ptr(),
+            v.as_ptr(),
+            RRF_RT_REG_SZ,
+            std::ptr::null_mut(),
+            buf.as_mut_ptr() as *mut _,
+            &mut size,
+        )
+    };
     if rc != 0 {
         return 0;
     }

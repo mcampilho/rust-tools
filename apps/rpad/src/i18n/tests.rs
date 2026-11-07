@@ -1,76 +1,26 @@
 use super::*;
-use std::cell::RefCell;
 use std::collections::BTreeSet;
 
-thread_local! {
-    static MISSES: RefCell<BTreeSet<String>> = const { RefCell::new(BTreeSet::new()) };
-}
-
-pub(super) fn record_miss(s: &str) {
-    MISSES.with(|m| {
-        m.borrow_mut().insert(s.to_string());
-    });
-}
-
+/// Starts recording untranslated lookups on this thread, and returns the
+/// ones recorded so far.
 fn take_misses() -> BTreeSet<String> {
-    MISSES.with(|m| std::mem::take(&mut *m.borrow_mut()))
+    let misses = core::take_misses();
+    core::record_misses(true);
+    misses
 }
 
-fn rows() -> Vec<(usize, Vec<&'static str>)> {
-    TABLE
-        .lines()
-        .enumerate()
-        .filter(|(_, l)| !l.trim().is_empty() && !l.starts_with('#'))
-        .map(|(n, l)| (n + 1, l.split('\t').collect()))
-        .collect()
-}
-
-/// Number of menu access keys (`&x`, not `&&` or an entity like `&amp;`).
-fn access_keys(s: &str) -> usize {
-    let b = s.as_bytes();
-    let mut n = 0;
-    let mut i = 0;
-    while i < b.len() {
-        if b[i] == b'&' {
-            if b.get(i + 1) == Some(&b'&') {
-                i += 2;
-                continue;
-            }
-            let rest = &s[i + 1..];
-            let entity = rest.find(';').is_some_and(|p| p > 0 && p < 8 && rest[..p].chars().all(|c| c.is_ascii_alphanumeric() || c == '#' || c == '{' || c == '}'));
-            if !entity && rest.starts_with(|c: char| c.is_alphanumeric() || c == '{') {
-                n += 1;
-            }
-        }
-        i += 1;
-    }
-    n
+/// Whether rpad's table or the common one translates `key`.
+fn has_key(key: &str) -> bool {
+    install();
+    core::has_key(key)
 }
 
 #[test]
 fn table_rows_are_well_formed() {
-    let mut keys = BTreeSet::new();
-    for (n, cells) in rows() {
-        assert_eq!(cells.len(), 10, "line {n}: expected 10 columns: {cells:?}");
-        assert!(keys.insert(cells[0]), "line {n}: duplicate key {}", cells[0]);
-        let placeholders = cells[0].matches("{}").count();
-        let keys_in_key = access_keys(cells[0]);
-        for (i, c) in cells.iter().enumerate().skip(1) {
-            // en-GB and pt-PT may be empty (fallback); every other language is required.
-            let optional = i == 1 || i == 8;
-            assert!(optional || !c.is_empty(), "line {n}: missing translation in column {}", i + 1);
-            if c.is_empty() {
-                continue;
-            }
-            assert_eq!(c.matches("{}").count(), placeholders, "line {n}: placeholder mismatch in column {}: {c}", i + 1);
-            assert_eq!(c.trim(), *c, "line {n}: stray whitespace in column {}", i + 1);
-            assert_eq!(c.matches("\\n").count(), cells[0].matches("\\n").count(), "line {n}: line breaks differ in column {}", i + 1);
-            if keys_in_key > 0 {
-                assert_eq!(access_keys(c), 1, "line {n}: menu label needs exactly one access key in column {}: {c}", i + 1);
-            }
-        }
-    }
-    assert!(keys.len() > 400);
+    let problems = core::check_table(TABLE.text(), '\t');
+    assert!(problems.is_empty(), "{problems:#?}");
+    let rows = TABLE.text().lines().filter(|l| !l.trim().is_empty() && !l.starts_with('#')).count();
+    assert!(rows > 400);
 }
 
 #[test]
@@ -180,7 +130,7 @@ fn source_strings_have_translations() {
                 };
                 for lit in lits {
                     found += 1;
-                    if !table().contains_key(lit.replace('\n', "\\n").as_str()) {
+                    if !has_key(&lit) {
                         missing.push(format!("{}: {lit:?}", p.display()));
                     }
                 }
@@ -222,7 +172,7 @@ fn commands_and_menus_have_translations() {
             keys.push(k.to_string());
         }
     }
-    let missing: BTreeSet<String> = keys.into_iter().filter(|k| !table().contains_key(k.as_str())).collect();
+    let missing: BTreeSet<String> = keys.into_iter().filter(|k| !has_key(k)).collect();
     assert!(missing.is_empty(), "untranslated menu strings: {missing:?}");
 }
 
@@ -271,7 +221,7 @@ fn ui_renders_fully_translated() {
     take_misses();
     let dir = std::env::temp_dir().join(format!("rpad-i18n-{}", std::process::id()));
     let _ = std::fs::create_dir_all(&dir);
-    let loc = Location { dir: Some(dir.clone()), portable: true, error: None };
+    let loc = Location::at(crate::storage::PLACE, dir.clone());
     let s = Settings { toolbar: true, outline: true, markdown_preview: true, language: Some(Lang::DeDE), ..Settings::default() };
     let mut app = App::new(loc, s);
     let h = Quiet;

@@ -174,7 +174,7 @@ target\release-small\rcalc.exe
 cargo test -p rcalc
 ```
 
-The suite has 65 unit tests and 7 integration tests. They cover the decimal
+The suite has 62 unit tests and 7 integration tests. They cover the decimal
 engine, the parser and evaluator, all three keypad engines, programmer
 overflow, dates, converters, the persistence round-trip, and the app's
 keyboard and state handling. Three tests check the localization:

@@ -70,7 +70,7 @@ mod tests {
     #[test]
     fn round_trip_and_bad_values() {
         let s = Settings { theme: 2, language: Some(Lang::JaJP), wrap: false, dark_pages: false, last_dir: "C:\\docs".into(), window: Some((900.0, 700.0, true)) };
-        assert_eq!(Settings::load(&Store::parse(&s.to_store().serialize())), s);
+        assert_eq!(Settings::load(&Store::parse(&s.to_store().serialize("rview"))), s);
         let bad = Settings::load(&Store::parse("theme=??\nwindow=abc\nlanguage=xx-YY\n"));
         assert_eq!(bad, Settings::default());
     }
