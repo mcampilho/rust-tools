@@ -16,9 +16,8 @@ além das que vêm com o Windows. Não faz ligações de rede por iniciativa pr�
 as partilhas de rede que escolher) e não tem telemetria. Só lê: nunca altera, move
 ou apaga nada.
 
-Esta é a versão 0.1, as primeiras fases do programa. Ainda faltam: o uso do índice do [Everything](https://www.voidtools.com/) quando
-está a correr, as estatísticas por tipo de ficheiro, a exportação para CSV e apagar
-para a Reciclagem.
+Esta é a versão 0.1, as primeiras fases do programa. Ainda faltam: as estatísticas
+por tipo de ficheiro, a exportação para CSV e apagar para a Reciclagem.
 
 ## Utilização
 
@@ -99,6 +98,18 @@ gestor de ficheiros, copia o caminho ou muda a pasta do treemap.
 
 ## Como lê o disco
 
+O rsize experimenta três formas, a mais rápida primeiro, e a barra de estado diz qual
+deu o resultado.
+
+**Do índice do [Everything](https://www.voidtools.com/)** (Windows), quando o
+Everything está a correr: uma só pergunta ao Everything devolve todos os ficheiros e
+pastas abaixo da pasta, com tamanhos e datas, sem tocar no disco. A resposta só é
+usada quando parece completa: o Everything tem de ter os tamanhos no índice
+(Ferramentas > Opções > Índices, "Indexar o tamanho dos ficheiros") e tem de mostrar o
+que a pasta contém no primeiro nível. Caso contrário, o rsize lê a pasta de uma das
+outras formas. O rsize fala diretamente com a janela do Everything, como faz o SDK do
+próprio Everything, por isso não é preciso mais nada.
+
 **Diretamente do NTFS** (Windows, com direitos de administrador). Quando a pasta está
 num volume NTFS local, o rsize abre o volume e lê a sua Master File Table: um registo
 por ficheiro e pasta, em blocos grandes e seguidos, como fazem o WizTree e o
@@ -132,12 +143,17 @@ são seguidos, para que nada seja contado duas vezes e a leitura fique no volume
 Linux, as pastas noutro sistema de ficheiros não são lidas (como `du -x`), e um
 ficheiro com vários nomes (ligações físicas) conta uma vez.
 
-Tempos neste PC, pasta a pasta: C: (NTFS, 608 000 ficheiros e pastas) em 16 s, D:
-(NTFS, 1,9 milhões) em 23 s. A segunda leitura de uma pasta é muito mais rápida,
-porque o sistema guarda o que leu.
+Tempos neste PC:
 
-O leitor de NTFS é testado sobre uma imagem NTFS verdadeira feita pelo `mkntfs`
-(`tests/fixtures`), mas ainda não foi cronometrado num disco inteiro.
+| | Pasta a pasta | NTFS direto | Everything |
+| --- | --- | --- | --- |
+| C: (SSD, cerca de 650 000 ficheiros e pastas) | 16 s | 3 s | 2 a 3 s |
+| D: (SSD, 1,9 milhões) | 23 s | 5 s | |
+| E:\Projects (disco mecânico, 1,6 milhões) | | | 6 s |
+
+Pasta a pasta, a segunda leitura de uma pasta é muito mais rápida, porque o sistema
+guarda o que leu. O Everything precisa de um momento depois de arrancar para carregar
+o índice; até lá, o rsize lê das outras formas.
 
 ## Linux
 
@@ -178,7 +194,7 @@ manifesto (DPI por monitor v2, caminhos longos) são embebidos pelo `build.rs`.
 
 ## Testes e verificação
 
-O `./dev.ps1 test -p rsize` corre 41 testes (40 em Linux), sobre:
+O `./dev.ps1 test -p rsize` corre 44 testes (42 em Linux), sobre:
 
 - a árvore: totais, ordenação pelos dois tamanhos, caminhos, extensões;
 - a leitura: uma árvore de pastas com nomes fundos e acentuados, uma raiz que não
@@ -188,6 +204,9 @@ O `./dev.ps1 test -p rsize` corre 41 testes (40 em Linux), sobre:
   as listas de extensões, as sequências de atualização, ficheiros residentes e não
   residentes, um fluxo com nome, um nome acentuado, uma pasta abaixo da raiz, o
   `$BadClus`, a interrupção;
+- as respostas do Everything: a leitura, a árvore montada a partir dos caminhos (sem
+  distinguir maiúsculas), e a recusa de um índice sem a pasta ou sem os tamanhos; com
+  o Everything a correr, a mesma pasta lida das duas formas;
 - o treemap: a disposição squarified preenche a área em proporção, cada pixel
   pertence a um ficheiro, os cliques encontram o ficheiro certo, as cores seguem as
   extensões;
@@ -200,13 +219,15 @@ O `./dev.ps1 test -p rsize` corre 41 testes (40 em Linux), sobre:
   mesma tecla de acesso, e todas as páginas e gráficos desenhados em alemão sem texto
   por traduzir.
 
-Há mais dois testes a pedido: `screenshots` desenha cada página em
-`apps/rsize/target/screens/*.png`, e `bench` mede a leitura da pasta em
-`RSIZE_BENCH_DIR`:
+Há mais três testes a pedido: `screenshots` desenha cada página em
+`apps/rsize/target/screens/*.png`, `bench` mede a leitura da pasta em
+`RSIZE_BENCH_DIR` (da forma mais rápida disponível), e `probe` mostra o que um
+Everything a correr responde para ela:
 
 ```powershell
 ./dev.ps1 test -p rsize --release --lib screenshots '--' --ignored
 $env:RSIZE_BENCH_DIR = 'C:\'; ./dev.ps1 test -p rsize --release --lib bench '--' --ignored --nocapture
+./dev.ps1 test -p rsize --lib probe '--' --ignored --nocapture
 ```
 
 ## Limitações
@@ -217,6 +238,10 @@ $env:RSIZE_BENCH_DIR = 'C:\'; ./dev.ps1 test -p rsize --release --lib bench '--'
   nenhum destes problemas.
 - A leitura direta do NTFS lê a tabela do volume inteiro, mesmo para uma só pasta;
   para uma pasta pequena num disco grande, pasta a pasta pode ser mais rápido.
+- A partir do índice do Everything, o espaço em disco é estimado (tamanhos
+  arredondados a clusters inteiros), um ficheiro com vários nomes conta uma vez por
+  nome, e faltam as pastas que o Everything foi configurado para excluir. O Everything
+  também pode estar uns segundos atrasado em relação ao disco.
 - **Analisar novamente** lê a pasta inteira outra vez; ainda não se pode ler só uma
   pasta do resultado.
 - Com centenas de milhares de ficheiros, desenhar o treemap leva uma fração de

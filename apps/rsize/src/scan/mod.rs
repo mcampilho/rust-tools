@@ -18,6 +18,9 @@
 // opens volumes with it.
 #[cfg_attr(not(windows), allow(dead_code))]
 pub mod ntfs;
+// The same for the answers of Everything.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub mod everything;
 #[cfg(not(windows))]
 mod unix;
 #[cfg(windows)]
@@ -38,6 +41,8 @@ pub enum Method {
     System,
     /// The NTFS Master File Table, read directly (Windows, administrator).
     Ntfs,
+    /// The index of a running Everything (Windows).
+    Everything,
 }
 
 /// An entry as a lister returns it.
@@ -166,32 +171,62 @@ impl Queue {
 
 type Listed = (Id, PathBuf, std::io::Result<Vec<Raw>>);
 
-/// Scans `root` on this thread (with helper threads), calling `progress` now
-/// and then. Returns an error only when `root` itself cannot be read.
+/// The ways to read a folder besides the system's, tried in this order.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Ways {
+    /// The index of a running Everything (Windows).
+    pub everything: bool,
+    /// The NTFS table, read directly (Windows, administrator).
+    pub ntfs: bool,
+}
+
+impl Ways {
+    pub const ALL: Ways = Ways { everything: true, ntfs: true };
+    /// Folder by folder only.
+    pub const SYSTEM: Ways = Ways { everything: false, ntfs: false };
+}
+
+/// Scans `root` the fastest way available, calling `progress` now and then.
+/// Returns an error only when `root` itself cannot be read.
 pub fn scan(root: &Path, cancel: &AtomicBool, progress: &dyn Fn(&Progress)) -> Result<Scan, String> {
+    scan_with(root, Ways::ALL, cancel, progress)
+}
+
+/// Scans `root`, trying the `ways` first, then folder by folder.
+pub fn scan_with(root: &Path, ways: Ways, cancel: &AtomicBool, progress: &dyn Fn(&Progress)) -> Result<Scan, String> {
     let start = Instant::now();
     let root = normalize(root);
     let meta = std::fs::metadata(&root).map_err(|e| e.to_string())?;
     if !meta.is_dir() {
         return Err(std::io::Error::from(std::io::ErrorKind::NotADirectory).to_string());
     }
+    let stopped = |method: Method| -> Result<Scan, String> {
+        let mut tree = Tree::new(&root.to_string_lossy(), mtime_of(&meta));
+        tree.finish();
+        Ok(Scan { tree, method, elapsed: start.elapsed(), complete: false, admin_would_help: false })
+    };
     #[allow(unused_mut)]
     let mut admin_would_help = false;
     #[cfg(windows)]
-    {
+    if ways.everything {
+        match everything::scan_index(&root, cancel, progress) {
+            Ok(tree) => return Ok(Scan { tree, method: Method::Everything, elapsed: start.elapsed(), complete: true, admin_would_help: false }),
+            Err(everything::Skip::Stopped) => return stopped(Method::Everything),
+            Err(everything::Skip::NotRunning | everything::Skip::NotIndexed) => {}
+        }
+    }
+    #[cfg(windows)]
+    if ways.ntfs {
         let label = |pct: u64| crate::i18n::tf("Reading the NTFS table… {}%", &[&pct.to_string()]);
         match ntfs::scan_volume(&root, cancel, progress, &label) {
             Ok(tree) => return Ok(Scan { tree, method: Method::Ntfs, elapsed: start.elapsed(), complete: true, admin_would_help: false }),
-            Err(ntfs::Skip::Stopped) => {
-                let mut tree = Tree::new(&root.to_string_lossy(), mtime_of(&meta));
-                tree.finish();
-                return Ok(Scan { tree, method: Method::Ntfs, elapsed: start.elapsed(), complete: false, admin_would_help: false });
-            }
+            Err(ntfs::Skip::Stopped) => return stopped(Method::Ntfs),
             Err(ntfs::Skip::Denied) => admin_would_help = true,
             // Not NTFS, or something unexpected in the table: read folder by folder.
             Err(ntfs::Skip::NotNtfs | ntfs::Skip::Failed(_)) => {}
         }
     }
+    let _ = (ways, &stopped);
     let ctx = Ctx { dev: device_of(&meta) };
     let mut tree = Tree::new(&root.to_string_lossy(), mtime_of(&meta));
     // The root must be readable; anything below may fail on its own.
@@ -305,6 +340,11 @@ pub(crate) fn mtime_of(m: &std::fs::Metadata) -> i64 {
 pub(crate) mod tests {
     use super::*;
 
+    /// Folder by folder: what the tests check, whatever else this PC has.
+    pub(crate) fn sys(root: &Path, cancel: &AtomicBool, progress: &dyn Fn(&Progress)) -> Result<Scan, String> {
+        scan_with(root, Ways::SYSTEM, cancel, progress)
+    }
+
     /// A temporary folder tree, removed when dropped.
     pub(crate) struct TempTree(pub PathBuf);
 
@@ -342,7 +382,7 @@ pub(crate) mod tests {
         tt.file("docs/deep/ação ü.txt", 5);
         std::fs::create_dir_all(tt.0.join("empty")).unwrap();
         let calls = std::cell::Cell::new(0);
-        let s = scan(&tt.0, &AtomicBool::new(false), &|_| calls.set(calls.get() + 1)).unwrap();
+        let s = sys(&tt.0, &AtomicBool::new(false), &|_| calls.set(calls.get() + 1)).unwrap();
         assert!(s.complete && calls.get() >= 1);
         let t = &s.tree;
         let root = t.node(0);
@@ -362,9 +402,9 @@ pub(crate) mod tests {
     #[test]
     fn a_missing_or_file_root_is_an_error() {
         let tt = TempTree::new("missing");
-        assert!(scan(&tt.0.join("nope"), &AtomicBool::new(false), &|_| {}).is_err());
+        assert!(sys(&tt.0.join("nope"), &AtomicBool::new(false), &|_| {}).is_err());
         tt.file("f", 1);
-        assert!(scan(&tt.0.join("f"), &AtomicBool::new(false), &|_| {}).is_err());
+        assert!(sys(&tt.0.join("f"), &AtomicBool::new(false), &|_| {}).is_err());
     }
 
     #[test]
@@ -373,7 +413,7 @@ pub(crate) mod tests {
         for i in 0..20 {
             tt.file(&format!("d{i}/e/f.txt"), 10);
         }
-        let s = scan(&tt.0, &AtomicBool::new(true), &|_| {}).unwrap();
+        let s = sys(&tt.0, &AtomicBool::new(true), &|_| {}).unwrap();
         assert!(!s.complete);
         // The root was listed before the first check.
         assert_eq!(s.tree.children(0).len(), 20);
@@ -389,7 +429,8 @@ pub(crate) mod tests {
         let t = &s.tree;
         let root = t.node(0);
         println!(
-            "{} nodes, {} files, {} folders, {} bytes ({} on disk), {} unreadable, in {:.2?}",
+            "{:?}: {} nodes, {} files, {} folders, {} bytes ({} on disk), {} unreadable, in {:.2?}",
+            s.method,
             t.len(),
             root.files,
             root.dirs,
@@ -417,7 +458,7 @@ pub(crate) mod tests {
         tt.file("real/data.bin", 50_000);
         std::os::unix::fs::symlink(tt.0.join("real"), tt.0.join("link")).unwrap();
         std::fs::hard_link(tt.0.join("real/data.bin"), tt.0.join("twin.bin")).unwrap();
-        let s = scan(&tt.0, &AtomicBool::new(false), &|_| {}).unwrap();
+        let s = sys(&tt.0, &AtomicBool::new(false), &|_| {}).unwrap();
         let t = &s.tree;
         assert_eq!(t.node(0).size, 50_000, "the second name of the file adds nothing");
         let link = child(t, 0, "link");
@@ -437,7 +478,7 @@ pub(crate) mod tests {
         let tt = TempTree::new("perm");
         tt.file("locked/x", 10);
         std::fs::set_permissions(tt.0.join("locked"), std::fs::Permissions::from_mode(0o000)).unwrap();
-        let s = scan(&tt.0, &AtomicBool::new(false), &|_| {}).unwrap();
+        let s = sys(&tt.0, &AtomicBool::new(false), &|_| {}).unwrap();
         std::fs::set_permissions(tt.0.join("locked"), std::fs::Permissions::from_mode(0o755)).unwrap();
         assert_eq!(s.tree.unreadable(), 1);
         assert_eq!(s.tree.node(child(&s.tree, 0, "locked")).flags & F_UNREADABLE, F_UNREADABLE);

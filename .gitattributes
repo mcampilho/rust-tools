@@ -1,0 +1,4 @@
+# Shell scripts run under Linux (WSL): keep Unix line endings on Windows checkouts.
+*.sh text eol=lf
+# Test fixtures.
+*.zlib binary

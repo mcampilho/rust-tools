@@ -9,10 +9,11 @@ só leitura, sem rede própria nem telemetria. Funcionalidades, atalhos e limita
 
 ```powershell
 ./dev.ps1 build --profile release-small -p rsize
-./dev.ps1 test -p rsize       # 41 testes (40 em Linux)
+./dev.ps1 test -p rsize       # 44 testes (42 em Linux)
 ./dev.ps1 clippy -p rsize --all-targets
 ./dev.ps1 test -p rsize --release --lib screenshots '--' --ignored   # páginas em apps/rsize/target/screens/*.png
 $env:RSIZE_BENCH_DIR = 'C:\'; ./dev.ps1 test -p rsize --release --lib bench '--' --ignored --nocapture
+./dev.ps1 test -p rsize --lib probe '--' --ignored --nocapture   # o que o Everything responde para RSIZE_BENCH_DIR
 ```
 
 Correm na raiz do repositório. Saída: `target\release-small\rsize.exe` (perfil `release-small`: não precisa de
@@ -33,6 +34,14 @@ Correm na raiz do repositório. Saída: `target\release-small\rsize.exe` (perfil
   administrador). Lê qualquer `Disk` (Read + Seek): os testes usam `tests/fixtures/ntfs-small.img.zlib`, feita
   pelo `make-ntfs.sh` ao lado (mkntfs + ntfscp no WSL). Neste PC não há administrador: nunca foi corrida num
   disco real por mim. `rt_sys::win::{elevated, restart_elevated}` para o reinício como administrador.
+- `scan/everything.rs` — índice do Everything pela interface de mensagens (sem a DLL): `WM_COPYDATA` "query 2"
+  (dwData 18) para a janela `EVERYTHING_TASKBAR_NOTIFICATION`, resposta "list 2" para uma janela só de
+  mensagens do fio da leitura. Pede nome, pasta, tamanho e data; a árvore sai das pastas (sem distinguir
+  maiúsculas). Só é usado se o primeiro nível da pasta bate com o disco (≥ 95 %) e há tamanhos (≥ 90 %).
+  Ordem no `scan`: Everything → NTFS → pasta a pasta (`scan_with` + `Ways`; os testes usam `Ways::SYSTEM`).
+  O comando 411 do IPC antigo ("está indexado?") responde 0 no Everything 1.5: não usar. Enquanto o Everything
+  carrega a base de dados, o 401 responde 0 e uma pergunta pode levar mais de um minuto: por isso `running()`
+  exige o 401. Medido em 2026-11-07 com o Everything 1.5.0.1423b: C:\ em 2,3 s, E:\Projects (1,6 M) em 5,6 s.
 - `treemap.rs` — disposição squarified e cushions (van Wijk), desenhados pixel a pixel numa `Pixmap`; mapa
   pixel → bloco para os cliques. Cores pelas 12 extensões maiores.
 - `chart.rs` — tarte (12 fatias, o resto em "Outros", legenda) e anéis (até 6 níveis, cor pelo ângulo, mais
@@ -54,7 +63,7 @@ Correm na raiz do repositório. Saída: `target\release-small\rsize.exe` (perfil
 1. Feito (0.1): leitura pelas APIs do sistema, lista e treemap.
 2. Feito: gráficos de tarte (TreeSize/JDiskReport) e anéis (Baobab/Scanner), com separadores e F6/F7/F8.
 3. Feito: leitura direta do NTFS (MFT), com "Ficheiro > Reiniciar como administrador".
-4. Índice do Everything (IPC por `WM_COPYDATA`, sem a DLL), quando está a correr e a pasta está indexada.
+4. Feito: índice do Everything (IPC por `WM_COPYDATA`, sem a DLL), quando está a correr e a pasta está indexada.
 5. Estatísticas por extensão, exportação CSV, apagar para a Reciclagem (com confirmação).
 
 ## Regras

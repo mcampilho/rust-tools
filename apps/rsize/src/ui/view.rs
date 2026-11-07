@@ -676,6 +676,7 @@ pub fn status_text(app: &App, hover: Option<Id>) -> (String, String) {
         tf("read in {} s", &[&format::decimal(scan.elapsed.as_secs_f64(), 1)]),
         match scan.method {
             crate::scan::Method::Ntfs => tr("from the NTFS table"),
+            crate::scan::Method::Everything => tr("from the Everything index"),
             crate::scan::Method::System => tr("folder by folder"),
         },
     ];

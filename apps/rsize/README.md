@@ -17,7 +17,6 @@ beyond those that ship with Windows. It makes no network connections of its own
 never changes, moves or deletes anything.
 
 This is version 0.1, the first stages of the program. Still to come:
-using the index of [Everything](https://www.voidtools.com/) when it is running,
 statistics by file type, exporting to CSV and deleting to the Recycle Bin.
 
 ## Use
@@ -98,6 +97,18 @@ shows it in the file manager, copies its path, or zooms the treemap.
 
 ## How it reads
 
+rsize tries three ways, the fastest first, and the status bar says which one
+gave the result.
+
+**From the index of [Everything](https://www.voidtools.com/)** (Windows), when
+Everything is running: one question to Everything returns every file and
+folder below the folder, with sizes and dates, without touching the disk. The
+answer is used only when it looks complete: Everything must have file sizes
+in its index (Tools > Options > Indexes, "Index file size") and must list what
+the folder holds at its top level. Otherwise rsize reads the folder one of the
+other ways. rsize talks to Everything's window directly, as Everything's own
+SDK does, so nothing else is needed.
+
 **Directly from NTFS** (Windows, with administrator rights). When the folder
 is on a local NTFS volume, rsize opens the volume and reads its Master File
 Table: one record per file and folder, in large sequential chunks, the way
@@ -132,12 +143,17 @@ nothing is counted twice and the scan stays on the volume. On Linux, folders on
 another file system are not entered (like `du -x`), and a file with several
 names (hard links) is counted once.
 
-Times on this PC, folder by folder: C: (NTFS, 608,000 files and folders) in
-16 s, D: (NTFS, 1.9 million) in 23 s. The second reading of a folder is much
-faster, as the system keeps what it read.
+Times on this PC:
 
-The NTFS reader is tested on a real NTFS image made by `mkntfs`
-(`tests/fixtures`), but it has not yet been timed on a whole drive.
+| | Folder by folder | NTFS directly | Everything |
+| --- | --- | --- | --- |
+| C: (SSD, about 650,000 files and folders) | 16 s | 3 s | 2 to 3 s |
+| D: (SSD, 1.9 million) | 23 s | 5 s | |
+| E:\Projects (hard disk, 1.6 million) | | | 6 s |
+
+Folder by folder, the second reading of a folder is much faster, as the system
+keeps what it read. Everything needs a moment after it starts to load its
+index; until then rsize reads the other ways.
 
 ## Linux
 
@@ -177,7 +193,7 @@ manifest (per-monitor DPI v2, long paths) are embedded by `build.rs`.
 
 ## Tests and verification
 
-`./dev.ps1 test -p rsize` runs 41 tests (40 on Linux), on:
+`./dev.ps1 test -p rsize` runs 44 tests (42 on Linux), on:
 
 - the tree: totals, sorting by either size, paths, extensions;
 - reading: a folder tree with deep and accented names, a missing root, a
@@ -186,6 +202,9 @@ manifest (per-monitor DPI v2, long paths) are embedded by `build.rs`.
 - the NTFS reader, on an 8 MB volume made by `mkntfs`: the boot sector, run
   lists, update sequences, resident and non-resident files, a named stream, a
   name with accents, a folder below the root, `$BadClus`, stopping;
+- the answers of Everything: reading them, building the tree from the paths
+  (without case), and refusing an index that misses the folder or its sizes;
+  with Everything running, the same folder read both ways;
 - the treemap: the squarified layout fills the area in proportion, every pixel
   belongs to a file, clicks find the right file, colours follow the extensions;
 - the pie and the rings: slices cover the circle in proportion, small items
@@ -197,13 +216,15 @@ manifest (per-monitor DPI v2, long paths) are embedded by `build.rs`.
   the same access key, and all the pages and charts drawn in German with no
   untranslated text.
 
-Two more tests run on request: `screenshots` draws every page to
-`apps/rsize/target/screens/*.png`, and `bench` times the reading of the folder
-in `RSIZE_BENCH_DIR`:
+Three more tests run on request: `screenshots` draws every page to
+`apps/rsize/target/screens/*.png`, `bench` times the reading of the folder in
+`RSIZE_BENCH_DIR` (the fastest way available), and `probe` shows what a
+running Everything answers for it:
 
 ```powershell
 ./dev.ps1 test -p rsize --release --lib screenshots '--' --ignored
 $env:RSIZE_BENCH_DIR = 'C:\'; ./dev.ps1 test -p rsize --release --lib bench '--' --ignored --nocapture
+./dev.ps1 test -p rsize --lib probe '--' --ignored --nocapture
 ```
 
 ## Limitations
@@ -214,6 +235,10 @@ $env:RSIZE_BENCH_DIR = 'C:\'; ./dev.ps1 test -p rsize --release --lib bench '--'
   has neither problem.
 - Reading NTFS directly reads the whole volume's table even for one folder of
   it; for a small folder on a large drive, folder by folder may be quicker.
+- From the index of Everything, the space on the disk is estimated (sizes
+  rounded up to whole clusters), a file with several names counts once per
+  name, and folders Everything was told to leave out are missing. Everything
+  may also be a few seconds behind the disk.
 - **Rescan** reads the whole folder again; one folder of the result cannot be
   read again on its own yet.
 - With hundreds of thousands of files, drawing the treemap takes a fraction of

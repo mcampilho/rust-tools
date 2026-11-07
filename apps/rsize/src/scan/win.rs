@@ -205,7 +205,7 @@ mod tests {
         if !ok {
             return;
         }
-        let s = super::super::scan(&tt.0, &std::sync::atomic::AtomicBool::new(false), &|_| {}).unwrap();
+        let s = super::super::tests::sys(&tt.0, &std::sync::atomic::AtomicBool::new(false), &|_| {}).unwrap();
         let t = &s.tree;
         assert_eq!(t.node(0).size, 1000);
         let jn = *t.children(0).iter().find(|&&c| t.name(c) == "jn").unwrap();
