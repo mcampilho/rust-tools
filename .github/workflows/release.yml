@@ -1,8 +1,6 @@
 # Builds one tool when its version tag is pushed (rcalc-v1.1.0, rpad-v1.0.0,
 # rview-v1.1.0) and publishes it as a GitHub release, with SHA-256 sums and
-# build provenance. rcalc and rpad are published for Windows and Linux. rview
-# is published for Windows only, as its Linux version is still incomplete (see
-# the root README), but it is built and tested there too.
+# build provenance, for Windows and Linux.
 name: release
 
 on:
@@ -25,7 +23,6 @@ permissions:
 
 env:
   TAG: ${{ github.event.inputs.tag || github.ref_name }}
-  LINUX_PACKAGE: ${{ !startsWith(github.event.inputs.tag || github.ref_name, 'rview-') }}
   CARGO_TERM_COLOR: always
 
 jobs:
@@ -106,8 +103,6 @@ jobs:
           name: windows-x86_64
           path: ${{ env.ASSET }}
 
-  # A tool without a Linux package is only kept compiling and passing its
-  # tests, so a failure there does not block its release.
   # The oldest runner gives the widest glibc compatibility.
   linux:
     runs-on: ubuntu-22.04
@@ -134,15 +129,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Test
-        continue-on-error: ${{ env.LINUX_PACKAGE != 'true' }}
         run: cargo test -p "$APP" --locked
 
       - name: Build
-        continue-on-error: ${{ env.LINUX_PACKAGE != 'true' }}
         run: cargo build -p "$APP" --profile "$PROFILE" --locked
 
       - name: Package
-        if: env.LINUX_PACKAGE == 'true'
         run: |
           dir="$APP-$VERSION-linux-x86_64"
           mkdir "$dir"
@@ -152,13 +144,11 @@ jobs:
           echo "ASSET=$dir.tar.gz" >> "$GITHUB_ENV"
 
       - name: Provenance
-        if: env.LINUX_PACKAGE == 'true'
         uses: actions/attest-build-provenance@v4
         with:
           subject-path: ${{ env.ASSET }}
 
       - uses: actions/upload-artifact@v7
-        if: env.LINUX_PACKAGE == 'true'
         with:
           name: linux-x86_64
           path: ${{ env.ASSET }}
@@ -185,7 +175,8 @@ jobs:
           version="${TAG#*-v}"
           cat > notes.md <<EOF
           Windows 10/11, 64-bit. Unzip and run \`$app.exe\`: there is nothing to install.
-          $(ls dist/*.tar.gz > /dev/null 2>&1 && printf '\n%s\n' "Linux, x86-64. Extract and run \`./$app\`: see the README for what it needs.")
+
+          Linux, x86-64. Extract and run \`./$app\`: see the README for what it needs.
 
           See the [README](https://github.com/$GITHUB_REPOSITORY/blob/$TAG/apps/$app/README.md) ([em português](https://github.com/$GITHUB_REPOSITORY/blob/$TAG/apps/$app/README.pt.md)).
           EOF

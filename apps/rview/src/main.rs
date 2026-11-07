@@ -4,7 +4,8 @@
 //! The window is driven by winit and drawn on the CPU (tiny-skia +
 //! ab_glyph) into a softbuffer surface. Text, CSV, Markdown and HTML are
 //! parsed and laid out by rview itself; PDF pages and images are rendered
-//! by the engines built into Windows. No network access, no scripts.
+//! by the engines built into Windows, and by the hayro and image crates on
+//! Linux. No network access, no scripts.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -22,8 +23,12 @@ mod ui;
 mod view;
 #[cfg(windows)]
 mod win;
+#[cfg(not(windows))]
+mod linux;
 
-use commands::{Command, M};
+use commands::Command;
+#[cfg(windows)]
+use commands::M;
 use i18n::{tf, tr};
 use settings::Settings;
 use std::num::NonZeroU32;
@@ -47,6 +52,8 @@ enum UserEvent {
     Loaded(u64, Box<Result<doc::Content, String>>),
     #[cfg(windows)]
     Win(win::WinMsg),
+    #[cfg(not(windows))]
+    Shell(linux::shell::Msg),
 }
 
 impl From<accesskit_winit::Event> for UserEvent {
@@ -111,9 +118,15 @@ struct Shell {
     hidden: bool,
     dialog: Option<Dialog>,
     /// "Open with rview" is registered for this rview.exe.
+    #[cfg(windows)]
     integrated: bool,
     /// Time and place of the last click, and how many came in a row.
     last_click: Option<(Instant, f32, f32, u32)>,
+    /// Menus drawn in the window.
+    #[cfg(not(windows))]
+    menu: ui::menu::Menu,
+    #[cfg(not(windows))]
+    shell: Option<linux::shell::Shell>,
 }
 
 impl Shell {
@@ -199,23 +212,23 @@ impl Shell {
     }
 
     fn open_dialog(&mut self) {
+        let all = "*.pdf;*.md;*.markdown;*.html;*.htm;*.txt;*.csv";
+        let filter = vec![
+            (tr("Documents"), all),
+            (tr("PDF documents"), "*.pdf"),
+            ("Markdown".to_string(), "*.md;*.markdown"),
+            (tr("Web pages"), "*.html;*.htm"),
+            (tr("Text files"), "*.txt;*.log"),
+            (tr("CSV files"), "*.csv;*.tsv"),
+            (tr("All files"), if cfg!(windows) { "*.*" } else { "*" }),
+        ];
+        let dir = (!self.settings.last_dir.is_empty()).then(|| PathBuf::from(&self.settings.last_dir));
         #[cfg(windows)]
-        {
-            let Some(w) = &self.win else { return };
-            let all = "*.pdf;*.md;*.markdown;*.html;*.htm;*.txt;*.csv";
-            let filter = vec![
-                (tr("Documents"), all),
-                (tr("PDF documents"), "*.pdf"),
-                ("Markdown".to_string(), "*.md;*.markdown"),
-                (tr("Web pages"), "*.html;*.htm"),
-                (tr("Text files"), "*.txt;*.log"),
-                (tr("CSV files"), "*.csv;*.tsv"),
-                (tr("All files"), "*.*"),
-            ];
-            let dir = (!self.settings.last_dir.is_empty()).then(|| PathBuf::from(&self.settings.last_dir));
-            if let Some(p) = win::dialogs::open_file(w.hwnd, dir.as_deref(), &filter) {
-                self.open(&p, false, None);
-            }
+        let chosen = self.win.as_ref().and_then(|w| win::dialogs::open_file(w.hwnd, dir.as_deref(), &filter));
+        #[cfg(not(windows))]
+        let chosen = linux::open_file(dir.as_deref(), &filter);
+        if let Some(p) = chosen {
+            self.open(&p, false, None);
         }
     }
 
@@ -230,9 +243,11 @@ impl Shell {
                 }
             }
             Command::OpenFolder => {
-                #[cfg(windows)]
                 if let Some(p) = &self.viewer.path {
+                    #[cfg(windows)]
                     win::reveal_in_explorer(p);
+                    #[cfg(not(windows))]
+                    linux::reveal(p);
                 }
             }
             Command::Close => self.close(el),
@@ -277,16 +292,16 @@ impl Shell {
             Command::ExplorerMenu => self.integration(if self.integrated { Integration::Unregister } else { Integration::Register }),
             #[cfg(windows)]
             Command::DefaultViewer => self.integration(Integration::Associate),
-            #[cfg(not(windows))]
-            Command::ExplorerMenu | Command::DefaultViewer => {}
             Command::Shortcuts => self.info(&tr("Keyboard shortcuts"), &shortcuts_text()),
-            Command::About => self.info(
-                &tr("About rview"),
-                &tf(
-                    "rview {}\n\nA small, fast, portable viewer for PDF, Markdown, HTML, text and CSV documents, written in Rust.\nNo telemetry, no network access, no scripts.\n\nPDF pages and images are rendered by Windows.\n\nMIT License.",
-                    &[env!("CARGO_PKG_VERSION")],
-                ),
-            ),
+            Command::About => {
+                let version = [env!("CARGO_PKG_VERSION")];
+                let text = if cfg!(windows) {
+                    tf("rview {}\n\nA small, fast, portable viewer for PDF, Markdown, HTML, text and CSV documents, written in Rust.\nNo telemetry, no network access, no scripts.\n\nPDF pages and images are rendered by Windows.\n\nMIT License.", &version)
+                } else {
+                    tf("rview {}\n\nA small, fast, portable viewer for PDF, Markdown, HTML, text and CSV documents, written in Rust.\nNo telemetry, no network access, no scripts.\n\nPDF pages are rendered by hayro.\n\nMIT License.", &version)
+                };
+                self.info(&tr("About rview"), &text);
+            }
         }
         self.menu_dirty = true;
         self.redraw();
@@ -305,7 +320,7 @@ impl Shell {
         #[cfg(windows)]
         let written = self.win.as_ref().is_some_and(|w| win::clipboard::set(w.hwnd, &payload));
         #[cfg(not(windows))]
-        let written = false;
+        let written = linux::set_clipboard(&payload);
         self.status_note = Some(if !written {
             tr("The clipboard is not available.")
         } else if payload.too_large {
@@ -339,6 +354,134 @@ impl Shell {
         }
     }
 
+    /// The context menu of the document, at the pointer.
+    #[cfg(not(windows))]
+    fn context_menu(&mut self, _el: &ActiveEventLoop) {
+        use commands::M::{Item, Sep};
+        let tree = vec![Item(Command::Copy), Item(Command::CopyPlain), Sep, Item(Command::SelectAll)];
+        let me = &*self;
+        let items = ui::menu::build(tree, &|c| me.checked(c), &|c| me.enabled(c));
+        let at = self.cursor.unwrap_or((0.0, 0.0));
+        self.menu.open(None, items, at, false);
+        self.redraw();
+    }
+
+    /// Opens the top-level menu `i` under its title.
+    #[cfg(not(windows))]
+    fn open_menu(&mut self, i: usize, keyboard: bool) {
+        let Some((_, tree)) = commands::menu_tree().into_iter().nth(i) else { return };
+        let me = &*self;
+        let items = ui::menu::build(tree, &|c| me.checked(c), &|c| me.enabled(c));
+        let Some(rect) = self.menu.titles.get(i).map(|t| t.rect) else { return };
+        self.menu.open(Some(i), items, (rect.x, rect.bottom() + 2.0), keyboard);
+        self.redraw();
+    }
+
+    #[cfg(not(windows))]
+    fn menu_act(&mut self, el: &ActiveEventLoop, act: ui::menu::Act) {
+        use ui::menu::Act;
+        match act {
+            Act::Run(c) => {
+                self.menu.close();
+                self.command(el, c);
+            }
+            Act::Switch(dir) => {
+                let n = self.menu.titles.len() as isize;
+                if let Some(top) = self.menu.top {
+                    self.open_menu((top as isize + dir).rem_euclid(n) as usize, true);
+                }
+            }
+            Act::None => self.redraw(),
+        }
+    }
+
+    /// Keyboard for the menus. Returns true when it used the key.
+    #[cfg(not(windows))]
+    fn menu_key(&mut self, el: &ActiveEventLoop, event: &winit::event::KeyEvent) -> bool {
+        use ui::menu::Act;
+        use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
+        let key = event.key_without_modifiers();
+        if !self.menu.is_open() {
+            let found = match &key {
+                WKey::Named(NamedKey::F10) => Some(0),
+                WKey::Character(c) if self.mods.alt_key() && !self.mods.control_key() => {
+                    let k = c.chars().next().and_then(|c| c.to_lowercase().next());
+                    self.menu.titles.iter().position(|t| t.mnemonic == k)
+                }
+                _ => None,
+            };
+            if let Some(i) = found {
+                self.open_menu(i, true);
+            }
+            return found.is_some();
+        }
+        let act = match &key {
+            WKey::Named(NamedKey::ArrowUp) => {
+                self.menu.up_down(-1);
+                Act::None
+            }
+            WKey::Named(NamedKey::ArrowDown) => {
+                self.menu.up_down(1);
+                Act::None
+            }
+            WKey::Named(NamedKey::ArrowLeft) => self.menu.left(),
+            WKey::Named(NamedKey::ArrowRight) => self.menu.right(),
+            WKey::Named(NamedKey::Enter | NamedKey::Space) => self.menu.enter(),
+            WKey::Named(NamedKey::Escape) => {
+                self.menu.back();
+                Act::None
+            }
+            WKey::Character(c) => c.chars().next().map_or(Act::None, |c| self.menu.mnemonic(c)),
+            _ => Act::None,
+        };
+        self.menu_act(el, act);
+        true
+    }
+
+    /// The pointer follows the menus.
+    #[cfg(not(windows))]
+    fn menu_pointer(&mut self, x: f32, y: f32) {
+        let title = self.menu.title_at(x, y);
+        if title != self.menu.hot {
+            self.menu.hot = title;
+            self.redraw();
+        }
+        if !self.menu.is_open() {
+            return;
+        }
+        if let Some((l, i)) = self.menu.row_at(x, y) {
+            self.menu.hover(l, i);
+            self.redraw();
+        } else if let Some(i) = title.filter(|i| self.menu.top.is_some_and(|t| t != *i)) {
+            self.open_menu(i, false);
+        }
+    }
+
+    /// A left press on the menus. Returns true when they took it.
+    #[cfg(not(windows))]
+    fn menu_press(&mut self, el: &ActiveEventLoop, x: f32, y: f32) -> bool {
+        if let Some(i) = self.menu.title_at(x, y) {
+            if self.menu.top == Some(i) {
+                self.menu.close();
+                self.redraw();
+            } else {
+                self.open_menu(i, false);
+            }
+            return true;
+        }
+        if !self.menu.is_open() {
+            return false;
+        }
+        if let Some((l, i)) = self.menu.row_at(x, y) {
+            let act = self.menu.click(l, i);
+            self.menu_act(el, act);
+        } else if !self.menu.contains(x, y) {
+            self.menu.close();
+            self.redraw();
+        }
+        true
+    }
+
     /// The close button: hides to the tray in resident mode.
     fn close(&mut self, el: &ActiveEventLoop) {
         if self.tray {
@@ -354,14 +497,24 @@ impl Shell {
         if let Some(w) = &self.win {
             win::tray::remove(w.hwnd);
         }
+        #[cfg(not(windows))]
+        {
+            self.shell = None;
+        }
         el.exit();
     }
 
     /// Hides the window to the notification area, keeping the document.
     fn hide(&mut self) {
         self.save_settings();
-        if let Some(w) = &self.win {
-            w.window.set_visible(false);
+        if cfg!(windows) {
+            if let Some(w) = &self.win {
+                w.window.set_visible(false);
+            }
+        } else {
+            // Wayland cannot hide a window, so it is closed and made again.
+            self.win = None;
+            self.cursor = None;
         }
         self.hidden = true;
         self.drag = None;
@@ -370,7 +523,10 @@ impl Shell {
         self.gfx.trim_cache();
     }
 
-    fn show(&mut self) {
+    fn show(&mut self, el: &ActiveEventLoop) {
+        if self.win.is_none() && !self.open_window(el) {
+            return;
+        }
         if let Some(w) = &self.win {
             w.window.set_visible(true);
             w.window.set_minimized(false);
@@ -406,6 +562,7 @@ impl Shell {
         match c {
             Command::WordWrap => self.settings.wrap,
             Command::DarkPages => self.settings.dark_pages,
+            #[cfg(windows)]
             Command::ExplorerMenu => self.integrated,
             Command::FitWidth => self.viewer.fit && self.viewer.kind == doc::Kind::Pdf,
             Command::FullScreen => self.win.as_ref().is_some_and(|w| w.window.fullscreen().is_some()),
@@ -449,8 +606,23 @@ impl Shell {
         }
     }
 
+    /// The titles of the drawn menu bar, in the current language.
     #[cfg(not(windows))]
-    fn sync_menu(&mut self) {}
+    fn sync_menu(&mut self) {
+        self.menu_dirty = false;
+        if !self.menu.titles.is_empty() && !self.menu_rebuild {
+            return;
+        }
+        self.menu_rebuild = false;
+        self.menu.titles = commands::menu_tree()
+            .iter()
+            .map(|(title, _)| {
+                let (label, mnemonic, mark) = ui::menu::parse_label(&tr(title));
+                ui::menu::Title { label, mnemonic, mark, rect: Rect::default() }
+            })
+            .collect();
+        self.redraw();
+    }
 
     // ------------------------------------------------------------ input
 
@@ -460,6 +632,10 @@ impl Shell {
                 self.dialog = None;
                 self.redraw();
             }
+            return;
+        }
+        #[cfg(not(windows))]
+        if self.menu_key(el, event) {
             return;
         }
         let ctrl = self.mods.control_key();
@@ -558,6 +734,8 @@ impl Shell {
             LinkAction::OpenUrl(u) => {
                 #[cfg(windows)]
                 win::open_url(&u);
+                #[cfg(not(windows))]
+                linux::open_url(&u);
             }
             LinkAction::OpenFile(p, anchor) => self.open(&p, false, anchor),
             LinkAction::Unsupported(h) => self.status_note = Some(tf("This link cannot be opened here: {}", &[&h])),
@@ -580,6 +758,8 @@ impl Shell {
         self.gfx.resize(w.get(), h.get());
         let full = Rect::new(0.0, 0.0, w.get() as f32, h.get() as f32);
         let mut area = full;
+        #[cfg(not(windows))]
+        let bar = area.take_top((28.0 * s).round());
         let status = area.take_bottom((24.0 * s).round());
         self.viewer.dark_pages = self.settings.dark_pages;
         self.viewer.draw(&mut self.gfx, area, &theme, s, &self.media);
@@ -596,6 +776,11 @@ impl Shell {
         let lw = (status.w - rw - 3.0 * pad).max(0.0);
         let left = fit(g, &left, lw, px);
         g.text_in(&left, Rect::new(status.x + pad, status.y, lw, status.h), px, FontId::Regular, theme.text, Align::Left);
+        #[cfg(not(windows))]
+        {
+            self.menu.draw_bar(g, bar, &theme, s);
+            self.menu.draw_popups(g, full, &theme, s);
+        }
         if let Some(d) = &mut self.dialog {
             let (panel, ok) = draw_dialog(&mut self.gfx, full, &theme, s, &d.title, &d.text);
             d.panel = panel;
@@ -822,6 +1007,23 @@ fn mnemonics_of(tree: &[(&'static str, Vec<M>)]) -> String {
     tree.iter().filter_map(|(t, _)| tr(t).split('&').nth(1).and_then(|s| s.chars().next())).collect()
 }
 
+/// Starts resident mode: without an icon, a hidden window could not be
+/// reached or closed, so rview then runs as a normal window.
+#[cfg(not(windows))]
+fn start_resident(shell: &mut Shell) {
+    let proxy = Mutex::new(shell.proxy.clone());
+    let (open, exit) = (tr("Open rview"), tr("Exit"));
+    shell.shell = linux::shell::Shell::new(
+        (&open, &exit),
+        Box::new(move |m| {
+            if let Ok(p) = proxy.lock() {
+                let _ = p.send_event(UserEvent::Shell(m));
+            }
+        }),
+    );
+    shell.tray = shell.shell.is_some();
+}
+
 #[cfg(windows)]
 fn hwnd_of(window: &Window) -> windows_sys::Win32::Foundation::HWND {
     use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
@@ -831,11 +1033,8 @@ fn hwnd_of(window: &Window) -> windows_sys::Win32::Foundation::HWND {
     }
 }
 
-impl ApplicationHandler<UserEvent> for Shell {
-    fn resumed(&mut self, el: &ActiveEventLoop) {
-        if self.win.is_some() {
-            return;
-        }
+impl Shell {
+    fn open_window(&mut self, el: &ActiveEventLoop) -> bool {
         let (w, h, maximized) = self.settings.window.unwrap_or((1000.0, 760.0, false));
         let attrs = Window::default_attributes()
             .with_title("rview")
@@ -850,7 +1049,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             Err(e) => {
                 eprintln!("rview: cannot create window: {e}");
                 el.exit();
-                return;
+                return false;
             }
         };
         let adapter = accesskit_winit::Adapter::with_event_loop_proxy(el, &window, self.proxy.clone());
@@ -859,7 +1058,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             Err(e) => {
                 eprintln!("rview: cannot create drawing surface: {e}");
                 el.exit();
-                return;
+                return false;
             }
         };
         #[cfg(windows)]
@@ -888,7 +1087,29 @@ impl ApplicationHandler<UserEvent> for Shell {
             #[cfg(windows)]
             menu: None,
         });
+        true
+    }
+}
+
+impl ApplicationHandler<UserEvent> for Shell {
+    fn resumed(&mut self, el: &ActiveEventLoop) {
+        if self.win.is_some() {
+            return;
+        }
+        #[cfg(not(windows))]
+        if self.tray {
+            start_resident(self);
+        }
+        // Linux has no hidden window: a resident start makes it when first shown.
+        let no_window = cfg!(not(windows)) && self.tray && self.args.is_empty();
+        if !no_window && !self.open_window(el) {
+            return;
+        }
         self.sync_menu();
+        #[cfg(not(windows))]
+        if !linux::has_dialogs() {
+            self.status_note = Some(tr("Install zenity or kdialog to use the Open dialog."));
+        }
         if let Some(p) = self.args.first().cloned() {
             self.open(&p, false, None);
         }
@@ -925,6 +1146,15 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.update_title();
                 self.redraw();
             }
+            #[cfg(not(windows))]
+            UserEvent::Shell(linux::shell::Msg::Open(paths)) => {
+                self.show(el);
+                if let Some(p) = paths.first() {
+                    self.open(p, false, None);
+                }
+            }
+            #[cfg(not(windows))]
+            UserEvent::Shell(linux::shell::Msg::Quit) => self.quit(el),
             #[cfg(windows)]
             UserEvent::Win(win::WinMsg::Command(id)) => {
                 let cmd = self.win.as_ref().and_then(|w| w.menu.as_ref()).and_then(|m| m.command(id));
@@ -943,19 +1173,19 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
             #[cfg(windows)]
             UserEvent::Win(win::WinMsg::OpenFiles(paths)) => {
-                self.show();
+                self.show(el);
                 if let Some(p) = paths.first() {
                     self.open(p, false, None);
                 }
             }
             #[cfg(windows)]
-            UserEvent::Win(win::WinMsg::Tray(win::tray::TrayEvent::Activate)) => self.show(),
+            UserEvent::Win(win::WinMsg::Tray(win::tray::TrayEvent::Activate)) => self.show(el),
             #[cfg(windows)]
             UserEvent::Win(win::WinMsg::Tray(win::tray::TrayEvent::Menu)) => {
                 let hwnd = self.win.as_ref().map(|w| w.hwnd);
                 if let Some(hwnd) = hwnd {
                     match win::tray::menu(hwnd, &tr("Open rview"), &tr("Exit")) {
-                        Some(1) => self.show(),
+                        Some(1) => self.show(el),
                         Some(2) => self.quit(el),
                         _ => {}
                     }
@@ -1003,6 +1233,8 @@ impl ApplicationHandler<UserEvent> for Shell {
             WindowEvent::CursorMoved { position, .. } => {
                 let (x, y) = (position.x as f32, position.y as f32);
                 self.cursor = Some((x, y));
+                #[cfg(not(windows))]
+                self.menu_pointer(x, y);
                 match &mut self.drag {
                     Some(Drag::Pan { x: x0, y: y0, sx, sy }) => {
                         let (dx, dy) = (*x0 - x, *y0 - y);
@@ -1046,6 +1278,10 @@ impl ApplicationHandler<UserEvent> for Shell {
                         }
                         return;
                     }
+                    #[cfg(not(windows))]
+                    if self.menu_press(el, x, y) {
+                        return;
+                    }
                     if let Some(axis) = self.viewer.scrollbar_at(x, y) {
                         self.viewer.drag_scrollbar(axis, x, y);
                         self.drag = Some(Drag::Bar(axis));
@@ -1087,13 +1323,28 @@ impl ApplicationHandler<UserEvent> for Shell {
                     self.update_hover();
                 }
             },
-            #[cfg(windows)]
+            #[cfg(not(windows))]
+            WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Right, .. } if self.menu.is_open() => {
+                self.menu.close();
+                self.redraw();
+            }
             WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Right, .. } if self.dialog.is_none() => {
                 if self.cursor.is_some_and(|(x, y)| self.viewer.in_view(x, y)) && matches!(self.viewer.state, view::State::Ready(_)) {
                     self.context_menu(el);
                 }
             }
             WindowEvent::MouseWheel { .. } if self.dialog.is_some() => {}
+            #[cfg(not(windows))]
+            WindowEvent::MouseWheel { delta, .. } if self.menu.is_open() => {
+                if let Some((l, _)) = self.cursor.and_then(|(x, y)| self.menu.row_at(x, y)) {
+                    let down = match delta {
+                        MouseScrollDelta::LineDelta(_, y) => y < 0.0,
+                        MouseScrollDelta::PixelDelta(p) => p.y < 0.0,
+                    };
+                    self.menu.wheel(l, if down { 2 } else { -2 });
+                    self.redraw();
+                }
+            }
             WindowEvent::MouseWheel { delta, .. } => {
                 let s = self.scale();
                 let (dx, dy) = match delta {
@@ -1186,6 +1437,22 @@ fn integrate(action: Integration) -> Result<String, String> {
     }
 }
 
+#[cfg(not(windows))]
+const USAGE: &str = "rview [--tray] [--new-window] [file]
+
+  Shows a PDF, Markdown, HTML, text or CSV document.
+
+  --tray        Stay resident in the notification area: closing the window
+                hides it, and launching rview again (with or without a
+                file) or clicking the tray icon shows it instantly. Exit
+                from the tray icon's menu or File > Exit. Ignored on desktops
+                without a notification area.
+  --new-window  Open a separate window even when rview is resident.
+
+Settings are stored in ~/.config/rview, or next to the program when a file
+named rview.portable exists there (portable mode).";
+
+#[cfg(windows)]
 const USAGE: &str = "rview [--tray] [--new-window] [file]
        rview --register | --associate | --unregister
 
@@ -1252,6 +1519,10 @@ fn main() {
     if !new_window && win::hand_off_to_resident(&args) {
         return;
     }
+    #[cfg(not(windows))]
+    if !new_window && linux::shell::hand_off_to_resident(&args) {
+        return;
+    }
     let _ = new_window;
     let mut location = storage::Location::detect();
     let store = location.load();
@@ -1279,7 +1550,7 @@ fn main() {
     #[cfg(windows)]
     let system_dark = win::system_dark().unwrap_or(false);
     #[cfg(not(windows))]
-    let system_dark = false;
+    let system_dark = linux::system_dark().unwrap_or(false);
     let mut shell = Shell {
         viewer: Viewer::new(settings.wrap),
         gfx,
@@ -1303,9 +1574,11 @@ fn main() {
         dialog: None,
         #[cfg(windows)]
         integrated: integrated_here(),
-        #[cfg(not(windows))]
-        integrated: false,
         last_click: None,
+        #[cfg(not(windows))]
+        menu: ui::menu::Menu::default(),
+        #[cfg(not(windows))]
+        shell: None,
     };
     shell.apply_language();
     if let Err(e) = event_loop.run_app(&mut shell) {

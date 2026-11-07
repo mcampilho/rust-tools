@@ -30,8 +30,10 @@ pub enum Command {
     Shortcuts,
     About,
     /// "Open with rview" in Explorer (toggle; off removes all integration).
+    #[cfg(windows)]
     ExplorerMenu,
     /// Makes rview the default viewer where Windows allows it.
+    #[cfg(windows)]
     DefaultViewer,
 }
 
@@ -64,7 +66,9 @@ impl Command {
             UiLanguage(i) => return Err(Lang::ALL.get(i as usize - 1).map_or("", |l| l.native_name()).to_string()),
             Shortcuts => "&Keyboard Shortcuts",
             About => "&About rview",
+            #[cfg(windows)]
             ExplorerMenu => "&Explorer Context Menu",
+            #[cfg(windows)]
             DefaultViewer => "Set as &Default Viewer...",
         })
     }
@@ -125,20 +129,12 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
     use M::*;
     let mut langs = vec![Item(UiLanguage(0)), Sep];
     langs.extend((1..=Lang::ALL.len()).map(|i| Item(UiLanguage(i as u8))));
+    let mut file = vec![Item(Open), Item(Reload), Item(OpenFolder), Sep];
+    #[cfg(windows)]
+    file.extend([Sub("Windows &Integration", vec![Item(ExplorerMenu), Item(DefaultViewer)]), Sep]);
+    file.extend([Item(Close), Item(Exit)]);
     vec![
-        (
-            "&File",
-            vec![
-                Item(Open),
-                Item(Reload),
-                Item(OpenFolder),
-                Sep,
-                Sub("Windows &Integration", vec![Item(ExplorerMenu), Item(DefaultViewer)]),
-                Sep,
-                Item(Close),
-                Item(Exit),
-            ],
-        ),
+        ("&File", file),
         ("&Edit", vec![Item(Copy), Item(CopyPlain), Sep, Item(SelectAll)]),
         (
             "&View",

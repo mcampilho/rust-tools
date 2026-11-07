@@ -33,14 +33,14 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
 ## Releases
 
 `.github/workflows/release.yml` corre com tags `<app>-v<versão>` (ex.: `rview-v1.1.0`). A versão da
-tag tem de ser igual à de `apps/<app>/Cargo.toml`. O rcalc e o rpad são publicados para Windows e
-Linux; o rview só para Windows, embora seja compilado e testado em Linux. O que falta está no
-`README.md`: atualizar esse quadro e o workflow ao acrescentar suporte.
+tag tem de ser igual à de `apps/<app>/Cargo.toml`. As três são publicadas para Windows e Linux.
 
 ## Testar em Linux
 
 O WSL corre X11 e Wayland, mas não simula tudo: o winit em X11 precisa da `libxkbcommon-x11`, e o ícone
-de notificação precisa de um anfitrião StatusNotifierItem, que o WSL não tem.
+de notificação precisa de um anfitrião StatusNotifierItem, que o WSL não tem. Em Wayland, a barra de título
+(`wayland-csd-adwaita`) faz o `weston` do WSLg cair com `signal 11` em cerca de 1 arranque em 4, e o cliente
+acaba com `Broken pipe`: ver `/mnt/wslg/stderr.log`. Não é erro das aplicações; testar com `WAYLAND_DISPLAY=`.
 
 ## Código repetido
 

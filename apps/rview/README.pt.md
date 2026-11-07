@@ -1,7 +1,7 @@
 # rview
 
-Um visualizador de documentos pequeno, rápido e portátil para Windows,
-escrito em Rust. Mostra ficheiros **PDF, Markdown, HTML, texto e CSV**, com
+Um visualizador de documentos pequeno, rápido e portátil para Windows e
+[Linux](#linux), escrito em Rust. Mostra ficheiros **PDF, Markdown, HTML, texto e CSV**, com
 zoom, e permite selecionar e copiar o que se vê.
 
 [English version](README.md)
@@ -13,6 +13,53 @@ O `rview.exe` é um único executável de 4,4 MB: sem instalador, sem runtime,
 sem DLL além das que vêm com o Windows e sem escrever no registo, a não ser
 que peça a integração com o Explorador. Não faz ligações de rede, não tem
 telemetria e nunca executa scripts.
+
+## Linux
+
+O pacote para Linux é um `tar.gz` com o binário `rview`. Funciona em X11 e Wayland e
+precisa da glibc 2.34 ou mais recente (Ubuntu 22.04, Debian 12, Fedora 35). Compilá-lo
+precisa do Rust 1.92 ou mais recente.
+
+- **Desenho.** As páginas PDF são desenhadas pelo
+  [hayro](https://github.com/LaurenzV/hayro) e as imagens são descodificadas pela
+  biblioteca `image`, ambas dentro do binário, por isso não é preciso mais nada, mas
+  ele tem 16,6 MB, quase quatro vezes o de Windows. O hayro é recente (versão 0.9): PDF
+  complexos podem sair pior do que em Windows. Os tipos de letra que um PDF não embebe
+  usam os tipos de letra padrão do PDF, por isso esse texto em chinês, japonês ou
+  coreano não aparece. Os PDF com palavra-passe não abrem.
+- **Bibliotecas.** Carrega as bibliotecas gráficas ao arrancar, e qualquer ambiente de
+  trabalho as tem: `libwayland-client` e `libxkbcommon` em Wayland, `libX11`,
+  `libxcursor`, `libxkbcommon` e `libxkbcommon-x11` em X11. Se em X11 parar com um
+  erro sobre `libxkbcommon-x11.so`, instala o pacote `libxkbcommon-x11-0`.
+- **Diálogo Abrir.** Usa o `zenity` ou o `kdialog`, conforme o que estiver instalado.
+  Sem eles, a barra de estado avisa, e os ficheiros continuam a abrir pela linha de
+  comandos. Enquanto o diálogo está aberto a janela não responde, e alguns ambientes
+  podem propor fechá-la.
+- **Menus.** São desenhados na janela, com os mesmos itens e atalhos. Abrem com
+  Alt+letra ou F10. Não há a integração com o Windows.
+- **Clipboard.** Copiar coloca texto e HTML, ou uma imagem com Alt+arrastar num PDF.
+  Não há RTF, e a imagem vai sem o texto. O que é copiado fica no rview até um gestor
+  de Clipboard o guardar, por isso pode perder-se ao fechar o rview num ambiente sem
+  esse gestor.
+- **Tipos de letra.** Usa DejaVu, Noto ou Liberation, em `/usr/share/fonts`,
+  `/usr/local/share/fonts`, `~/.local/share/fonts` ou `~/.fonts`. O japonês e o chinês
+  precisam de Noto Sans CJK, WenQuanYi Zen Hei ou Droid Sans Fallback.
+- **Área de notificação.** O `--tray` usa StatusNotifierItem, como no KDE, Xfce,
+  Cinnamon e outros. O GNOME precisa da extensão AppIndicator. Sem anfitrião para o
+  ícone, o `--tray` é ignorado e o rview abre como uma janela normal.
+- **Tema e idioma.** "Sistema" lê as definições do GNOME ao arrancar e não acompanha
+  alterações posteriores. O idioma vem de `LC_ALL`, `LC_MESSAGES` ou `LANG`. As
+  definições ficam em `~/.config/rview`.
+- **Diferenças.** Largar um ficheiro na janela funciona em X11, não em Wayland. As
+  ligações e *Mostrar na pasta* usam `xdg-open`, só para ligações web e de correio.
+
+Verificado no WSL2 em X11: páginas PDF, incluindo com tipos de letra LaTeX, selecionar
+e copiar o texto, Alt+arrastar, Markdown com uma imagem PNG, menus e menu de contexto,
+cópia com e sem formatos, um PDF danificado e modo residente. O `zenity` foi substituído
+por um script de teste, por isso o diálogo real não foi visto, e o `kdialog` não foi
+executado. O ícone foi testado com um anfitrião simulado. Em Wayland só foi arrancado,
+não usado. JPEG e os outros formatos de imagem, deslocar PDF longos e seguir ligações
+não foram experimentados.
 
 ## Como desenha
 
@@ -202,7 +249,7 @@ escolhida em Ver › Idioma da interface.
 
 ## Testes e verificação
 
-`cargo test -p rview` corre 95 testes: os parsers de texto, CSV, Markdown, HTML e CSS, o
+`cargo test -p rview` corre 95 testes em Windows e 97 em Linux: os parsers de texto, CSV, Markdown, HTML e CSS, o
 motor de layout (quebra de linhas, zoom, palavras longas, ligações),
 codificações, ligações e caminhos de imagens, definições, a tabela de traduções
 (todas as frases do código e dos menus têm todos os idiomas; os marcadores e as

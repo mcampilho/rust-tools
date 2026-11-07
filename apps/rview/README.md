@@ -1,6 +1,7 @@
 # rview
 
-A small, fast, portable document viewer for Windows, written in Rust. It
+A small, fast, portable document viewer for Windows and [Linux](#linux), written
+in Rust. It
 shows **PDF, Markdown, HTML, text and CSV** files, with zoom, and lets you
 select and copy what you see.
 
@@ -13,6 +14,50 @@ repository root.
 DLLs beyond those that ship with Windows, and no registry writes unless you
 ask for Explorer integration. It makes no network connections, has no
 telemetry and never runs scripts.
+
+## Linux
+
+The Linux package is a `tar.gz` with the `rview` binary. It runs on X11 and
+Wayland, and needs glibc 2.34 or newer (Ubuntu 22.04, Debian 12, Fedora 35).
+Building it needs Rust 1.92 or newer.
+
+- **Rendering.** PDF pages are drawn by [hayro](https://github.com/LaurenzV/hayro)
+  and images are decoded by the `image` crate, both inside the binary, so nothing
+  else is needed, but it is 16.6 MB, almost four times the Windows one. hayro is young
+  (version 0.9): complex PDFs may come out worse than on Windows. Fonts a PDF does
+  not embed use the standard PDF fonts, so such Chinese, Japanese or Korean text is
+  not shown. Password-protected PDFs do not open.
+- **Libraries.** It loads the display libraries when it starts, and they are on
+  any desktop: `libwayland-client` and `libxkbcommon` on Wayland, `libX11`,
+  `libxcursor`, `libxkbcommon` and `libxkbcommon-x11` on X11. If X11 stops with
+  an error naming `libxkbcommon-x11.so`, install `libxkbcommon-x11-0`.
+- **Open dialog.** It uses `zenity` or `kdialog`, whichever is installed. Without
+  them the status bar says so, and files still open from the command line. While the
+  dialog is open the window does not respond, and some desktops may offer to close it.
+- **Menus.** They are drawn in the window, with the same items and shortcuts.
+  Alt+letter or F10 opens them. The Windows integration is not there.
+- **Clipboard.** Copying puts text and HTML, or an image for Alt+drag on a PDF. RTF
+  is not offered, and an image goes without its text. Copied data lives in rview
+  until a clipboard manager takes it, so it may be lost when rview closes on a
+  desktop without one.
+- **Fonts.** It uses DejaVu, Noto or Liberation, found under `/usr/share/fonts`,
+  `/usr/local/share/fonts`, `~/.local/share/fonts` or `~/.fonts`. Japanese and
+  Chinese need Noto Sans CJK, WenQuanYi Zen Hei or Droid Sans Fallback.
+- **Notification area.** `--tray` uses StatusNotifierItem, as on KDE, Xfce, Cinnamon
+  and others. GNOME needs the AppIndicator extension. With no host for the icon,
+  `--tray` is ignored and rview opens as a normal window.
+- **Theme and language.** "System" reads the GNOME settings when rview starts, and
+  does not follow later changes. The language comes from `LC_ALL`, `LC_MESSAGES` or
+  `LANG`. Settings go in `~/.config/rview`.
+- **Differences.** Dropping a file on the window works on X11, not on Wayland. Links
+  and *Show in Folder* use `xdg-open`, for web and mail links only.
+
+Checked under WSL2 on X11: PDF pages, including ones with LaTeX fonts, selecting and
+copying their text, Alt+drag, Markdown with a PNG image, menus and context menu, copy
+with and without formats, a damaged PDF, and resident mode. `zenity` was replaced by a
+test script, so the real dialog was not seen, and `kdialog` was not run. The tray icon
+was checked against a simulated host. Wayland was started, not used. JPEG and the other
+image formats, PDF scrolling on long documents, and following links were not tried.
 
 ## How it renders
 
@@ -197,7 +242,7 @@ View › Display Language.
 
 ## Tests and verification
 
-`cargo test -p rview` runs 95 tests: the text, CSV, Markdown, HTML and CSS parsers,
+`cargo test -p rview` runs 95 tests on Windows and 97 on Linux: the text, CSV, Markdown, HTML and CSS parsers,
 the layout engine (wrapping, zoom, long words, links), encodings, links
 and image paths, settings, the translation table (every string in the
 code and menus has all languages; placeholders and access keys match),

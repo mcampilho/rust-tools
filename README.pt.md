@@ -1,20 +1,19 @@
 # rust-tools
 
-Pequenas ferramentas portáteis para Windows, escritas em Rust. Cada uma é um
-único `.exe`: sem instalador, sem runtime, sem DLL além das que vêm com o
-Windows e sem telemetria.
+Pequenas ferramentas portáteis para Windows e Linux, escritas em Rust. Cada uma é
+um único executável: sem instalador, sem runtime e sem telemetria.
 
 [English version](README.md)
 
-| Ferramenta | O que é | Tamanho |
-| --- | --- | --- |
-| [rcalc](apps/rcalc/README.pt.md) | Calculadora: padrão, científica, de programador, datas e conversores de unidades | 1,9 MB |
-| [rpad](apps/rpad/README.pt.md) | Editor de texto e código: separadores, codificações, procura com regex, vários cursores, realce de sintaxe | 4,2 MB |
-| [rview](apps/rview/README.pt.md) | Visualizador de PDF, Markdown, HTML, texto e CSV, com seleção e cópia | 4,4 MB |
+| Ferramenta | O que é | Windows | Linux |
+| --- | --- | --- | --- |
+| [rcalc](apps/rcalc/README.pt.md) | Calculadora: padrão, científica, de programador, datas e conversores de unidades | 1,9 MB | 6,6 MB |
+| [rpad](apps/rpad/README.pt.md) | Editor de texto e código: separadores, codificações, procura com regex, vários cursores, realce de sintaxe | 4,2 MB | 9,2 MB |
+| [rview](apps/rview/README.pt.md) | Visualizador de PDF, Markdown, HTML, texto e CSV, com seleção e cópia | 4,4 MB | 16,6 MB |
 
 As três desenham a sua própria interface no CPU (winit, softbuffer, tiny-skia e
 ab_glyph), sem GPU nem biblioteca de interface. Têm 10 idiomas, seguem o tema
-claro ou escuro do Windows e podem ficar residentes na área de notificação com
+claro ou escuro do sistema e podem ficar residentes na área de notificação com
 `--tray`.
 
 ## Compilar
@@ -48,8 +47,8 @@ o perfil certo para cada ferramenta.
 ## Transferir
 
 Cada ferramenta tem as suas [releases](https://github.com/mcampilho/rust-tools/releases),
-num zip com o `.exe`, para Windows 10/11 de 64 bits. Basta descomprimir e executar:
-não há nada para instalar. O rcalc e o rpad têm também um pacote para Linux.
+num zip com o `.exe` para Windows 10/11 de 64 bits, e num `tar.gz` para Linux de
+64 bits. Basta extrair e executar: não há nada para instalar.
 
 Para publicar uma versão, define-a em `apps/<ferramenta>/Cargo.toml` e envia uma tag
 como `rview-v1.1.0`. O [workflow de release](.github/workflows/release.yml) testa e
@@ -57,14 +56,15 @@ compila essa ferramenta e publica-a com a soma SHA-256 e a proveniência da comp
 
 ## Linux
 
-As três ferramentas compilam em Linux e os testes passam, e o workflow garante que
-isso se mantém. O rcalc e o rpad estão suficientemente completos para ter pacote:
+Os pacotes para Linux precisam da glibc 2.34 ou mais recente e funcionam em X11 e
+Wayland. O que muda face ao Windows está em cada README:
+[rcalc](apps/rcalc/README.pt.md#linux), [rpad](apps/rpad/README.pt.md#linux) e
+[rview](apps/rview/README.pt.md#linux). Foram verificados no WSL2, não num ambiente de
+trabalho Linux real.
 
-| Ferramenta | Em Linux, por agora |
-| --- | --- |
-| rcalc | Funciona: ver o [README](apps/rcalc/README.pt.md#linux) |
-| rpad | Funciona: ver o [README](apps/rpad/README.pt.md#linux) |
-| rview | Sem pacote: abre Markdown, HTML, texto e CSV; sem PDF, imagens, menus nem Clipboard |
+No WSLg, a barra de título que estas ferramentas desenham em Wayland pode fazer cair
+o compositor, e elas podem fechar com o erro "Broken pipe". Executá-las com
+`WAYLAND_DISPLAY=` usa o X11.
 
 ## Organização
 

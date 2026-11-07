@@ -1,6 +1,6 @@
 # rview — visualizador de documentos portátil em Rust
 
-Visualizador para Windows (~4,4 MB, um só `.exe`) de PDF, Markdown, HTML, texto
+Visualizador para Windows (~4,4 MB, um só `.exe`) e Linux de PDF, Markdown, HTML, texto
 e CSV, com zoom, seleção e cópia para o Clipboard (com formatos ou só texto).
 Sem rede, sem telemetria, nunca executa scripts.
 Integração opcional com o Explorador (`--register`, `--associate`, `--unregister`).
@@ -10,7 +10,7 @@ Detalhes por formato, atalhos e limitações estão no `README.md`.
 
 ```powershell
 ./dev.ps1 build --release -p rview
-./dev.ps1 test -p rview       # 95 testes
+./dev.ps1 test -p rview       # 95 testes (97 em Linux)
 ./dev.ps1 clippy -p rview --all-targets
 ```
 
@@ -25,9 +25,13 @@ Correm na raiz do repositório. Saída: `target\release\rview.exe`. Rust 1.88+, 
 - `view/selection.rs` — seleção por formato (`Sel`), teste de posição e construção do `Payload`.
 - `rich/` — Markdown (pulldown-cmark), parser HTML próprio, subconjunto de CSS, motor de layout comum.
 - `syntax/` — lexer por linha para realce de código (partilhado em espírito com o rpad).
-- `media.rs` — PDF via `Windows.Data.Pdf` e imagens via codecs do Windows (threads em fundo, cache de 256 MB).
+- `media.rs` — PDF via `Windows.Data.Pdf` e imagens via codecs do Windows; em Linux, hayro e image
+  (threads em fundo, cache de 256 MB). Os tamanhos das páginas são em DIPs nos dois sistemas.
 - `view.rs`, `main.rs` — vista, janela, input, modo `--tray`.
 - `win/` — Win32: menus escuros, diálogos, tray, `clipboard.rs`, `assoc.rs` (associações de ficheiros, só HKCU).
+- `linux/` — Clipboard (arboard: texto com HTML, ou imagem), diálogo Abrir (zenity ou kdialog), tema, links,
+  e `shell.rs`: modo residente com socket Unix e ícone StatusNotifierItem (ksni).
+- `ui/menu.rs` — menus desenhados na janela, só fora do Windows. Em Linux, `cfg(not(windows))` significa Linux.
 - `i18n/strings.txt` — traduções (10 idiomas), mesma convenção do rpad/rcalc.
 
 ## Regras
@@ -41,6 +45,8 @@ Correm na raiz do repositório. Saída: `target\release\rview.exe`. Rust 1.88+, 
 - A leitura de texto dos PDF corre numa thread própria com `catch_unwind`: um ficheiro que faça
   a lopdf entrar em pânico só fica sem texto selecionável. Por isso o rview usa sempre o perfil
   `release`, nunca o `release-small`, que aborta em pânicos.
+- Em Linux, esconder a janela destrói-a e mostrar cria-a de novo, porque o Wayland não esconde janelas.
+- O hayro e o image correm dentro de `catch_unwind`: um ficheiro malformado dá erro, não fecha o programa.
 - O teclado e o rato reais são precisos para testar arrastos: o winit confirma a posição real do
   cursor e ignora `WM_MOUSEMOVE` simulado.
 - `README.md` e `README.pt.md` são atualizados em conjunto.

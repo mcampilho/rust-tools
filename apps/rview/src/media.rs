@@ -1,8 +1,8 @@
-//! Background work that uses Windows' built-in engines (nothing to ship):
-//! PDF pages are rendered by `Windows.Data.Pdf` and images are decoded by
-//! the Windows imaging codecs (PNG, JPEG, GIF, BMP, TIFF, ICO, WebP/HEIF
-//! when installed). One worker thread owns the open PDF; page requests
-//! replace older pending ones so scrolling never queues stale work.
+//! Background work on PDF pages and images. Windows has the engines built in
+//! (nothing to ship): `Windows.Data.Pdf` and its imaging codecs (PNG, JPEG, GIF,
+//! BMP, TIFF, ICO, WebP/HEIF when installed). Linux uses the hayro and image
+//! crates. One worker thread owns the open PDF; page requests replace older
+//! pending ones so scrolling never queues stale work.
 
 use crate::doc::pdf::PageText;
 use std::collections::VecDeque;
@@ -178,11 +178,83 @@ mod winrt {
     }
 }
 
+#[cfg(not(windows))]
+mod native {
+    use super::{Bitmap, MAX_EDGE};
+    use hayro::hayro_interpret::font::FontQuery;
+    use hayro::hayro_interpret::InterpreterSettings;
+    use hayro::hayro_syntax::Pdf;
+    use hayro::vello_cpu::color::palette::css::WHITE;
+    use hayro::{render, PixmapSettings, RenderCache, RenderSettings};
+    use std::sync::Arc;
+
+    /// Page sizes are in DIPs (1/96 in), as `Windows.Data.Pdf` gives them.
+    const DIPS_PER_POINT: f32 = 96.0 / 72.0;
+
+    /// Runs code from a library that may panic on a malformed file.
+    pub fn guard<T>(f: impl FnOnce() -> T) -> Option<T> {
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).ok()
+    }
+
+    pub fn open_pdf(path: &std::path::Path) -> Result<(Pdf, Vec<(f32, f32)>), String> {
+        let data = std::fs::read(path).map_err(|e| e.to_string())?;
+        let damaged = || crate::i18n::tr("The file is damaged or protected.");
+        let pdf = Pdf::new(data).map_err(|_| damaged())?;
+        let sizes: Vec<(f32, f32)> = pdf.pages().iter().map(|p| p.render_dimensions()).map(|(w, h)| ((w * DIPS_PER_POINT).max(1.0), (h * DIPS_PER_POINT).max(1.0))).collect();
+        if sizes.is_empty() {
+            return Err(damaged());
+        }
+        Ok((pdf, sizes))
+    }
+
+    pub fn render_page(pdf: &Pdf, page: u32, width: u32) -> Option<Bitmap> {
+        let pages = pdf.pages();
+        let p = pages.get(page as usize)?;
+        let (w, h) = p.render_dimensions();
+        let scale = (width as f32 / w).min(MAX_EDGE as f32 / h);
+        let settings = InterpreterSettings {
+            // Fonts that the PDF does not embed use the built-in standard ones.
+            font_resolver: Arc::new(|query| match query {
+                FontQuery::Standard(s) => Some(s.get_font_data()),
+                FontQuery::Fallback(f) => Some(f.pick_standard_font().get_font_data()),
+            }),
+            ..Default::default()
+        };
+        let pixmap_settings = PixmapSettings { x_scale: scale, y_scale: scale, bg_color: WHITE };
+        let px = render(p, &RenderCache::new(), &settings, &RenderSettings::default(), &pixmap_settings);
+        Some(Bitmap { w: px.width() as u32, h: px.height() as u32, rgba: px.data_as_u8_slice().to_vec() })
+    }
+
+    pub fn decode_image(bytes: &[u8], max: u32) -> Option<Bitmap> {
+        use image::{DynamicImage, ImageDecoder, ImageReader};
+        let mut decoder = ImageReader::new(std::io::Cursor::new(bytes)).with_guessed_format().ok()?.into_decoder().ok()?;
+        let orientation = decoder.orientation().ok();
+        let mut img = DynamicImage::from_decoder(decoder).ok()?;
+        if let Some(o) = orientation {
+            img.apply_orientation(o);
+        }
+        if img.width() > max || img.height() > max {
+            img = img.thumbnail(max, max);
+        }
+        let mut rgba = img.into_rgba8();
+        let (w, h) = rgba.dimensions();
+        for p in rgba.pixels_mut() {
+            let a = p[3] as u32;
+            for c in &mut p.0[..3] {
+                *c = (*c as u32 * a / 255) as u8;
+            }
+        }
+        Some(Bitmap { w, h, rgba: rgba.into_raw() })
+    }
+}
+
 fn worker(queue: Queue, tx: mpsc::Sender<Done>, wake: Wake) {
     #[cfg(windows)]
     winrt::init();
     #[cfg(windows)]
     let mut pdf: Option<(u64, windows::Data::Pdf::PdfDocument)> = None;
+    #[cfg(not(windows))]
+    let mut pdf: Option<(u64, hayro::hayro_syntax::Pdf)> = None;
     loop {
         let job = {
             let (m, cv) = &*queue;
@@ -220,11 +292,29 @@ fn worker(queue: Queue, tx: mpsc::Sender<Done>, wake: Wake) {
             #[cfg(windows)]
             Job::Image { key, bytes } => Done::Image { key, bmp: winrt::decode_bytes(&bytes, MAX_EDGE).ok() },
             #[cfg(not(windows))]
-            Job::OpenPdf { gen, .. } => Done::PdfFailed { gen, message: "PDF rendering needs Windows".into() },
+            Job::OpenPdf { path, gen } => {
+                let opened = native::guard(|| native::open_pdf(&path)).unwrap_or_else(|| Err(crate::i18n::tr("The file is damaged or protected.")));
+                match opened {
+                    Ok((doc, sizes)) => {
+                        pdf = Some((gen, doc));
+                        Done::PdfOpened { gen, sizes }
+                    }
+                    Err(message) => {
+                        pdf = None;
+                        Done::PdfFailed { gen, message }
+                    }
+                }
+            }
             #[cfg(not(windows))]
-            Job::RenderPage { .. } => continue,
+            Job::RenderPage { gen, page, width } => match &pdf {
+                Some((g, doc)) if *g == gen => match native::guard(|| native::render_page(doc, page, width.clamp(16, MAX_EDGE))) {
+                    Some(Some(bmp)) => Done::Page { gen, page, width, bmp },
+                    _ => continue,
+                },
+                _ => continue,
+            },
             #[cfg(not(windows))]
-            Job::Image { key, .. } => Done::Image { key, bmp: None },
+            Job::Image { key, bytes } => Done::Image { key, bmp: native::guard(|| native::decode_image(&bytes, MAX_EDGE)).flatten() },
         };
         if tx.send(done).is_err() {
             return;
@@ -233,7 +323,7 @@ fn worker(queue: Queue, tx: mpsc::Sender<Done>, wake: Wake) {
     }
 }
 
-#[cfg(all(test, windows))]
+#[cfg(test)]
 mod tests {
     use super::*;
     use std::time::Duration;
@@ -268,7 +358,7 @@ mod tests {
     }
 
     #[test]
-    fn renders_pdf_pages_with_windows() {
+    fn renders_pdf_pages() {
         let path = std::env::temp_dir().join(format!("rview-test-{}.pdf", std::process::id()));
         std::fs::write(&path, tiny_pdf()).unwrap();
         let m = Media::start(Arc::new(|| {}));
@@ -285,8 +375,9 @@ mod tests {
         m.request_pages(7, &[(0, 400)]);
         match next(&m) {
             Done::Page { page, width, bmp, .. } => {
-                assert_eq!((page, width, bmp.w), (0, 400, 400));
-                assert_eq!(bmp.h, 200);
+                assert_eq!((page, width), (0, 400));
+                // Scaling may round a pixel down.
+                assert!(bmp.w.abs_diff(400) <= 1 && bmp.h.abs_diff(200) <= 1, "{}x{}", bmp.w, bmp.h);
                 // White page with dark text pixels.
                 let dark = bmp.rgba.chunks(4).filter(|p| p[0] < 100 && p[3] > 200).count();
                 assert!(dark > 100, "text drawn ({dark} dark pixels)");
@@ -307,7 +398,7 @@ mod tests {
     }
 
     #[test]
-    fn decodes_images_with_windows() {
+    fn decodes_images() {
         let mut pm = tiny_skia::Pixmap::new(30, 20).unwrap();
         pm.fill(tiny_skia::Color::from_rgba8(255, 0, 0, 255));
         let png = pm.encode_png().unwrap();

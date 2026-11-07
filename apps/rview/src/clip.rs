@@ -74,6 +74,7 @@ pub struct Payload {
     pub text: String,
     /// A complete `HTML Format` clipboard document.
     pub html: Option<String>,
+    #[cfg_attr(not(windows), allow(dead_code))]
     pub rtf: Option<String>,
     pub image: Option<Bitmap>,
     /// Formats were dropped because the selection is very large.
@@ -585,6 +586,7 @@ pub fn rtf(evs: &[Ev]) -> String {
 
 /// An image as a `CF_DIB` block: a BITMAPINFOHEADER and bottom-up 24-bit
 /// rows, composited on white (premultiplied input).
+#[cfg_attr(not(windows), allow(dead_code))]
 pub fn dib(b: &Bitmap) -> Vec<u8> {
     let (w, h) = (b.w as usize, b.h as usize);
     let stride = (w * 3 + 3) & !3;
