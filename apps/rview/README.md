@@ -18,7 +18,7 @@ telemetry and never runs scripts.
 ## Linux
 
 The Linux package is a `tar.gz` with the `rview` binary. It runs on X11 and
-Wayland, and needs glibc 2.34 or newer (Ubuntu 22.04, Debian 12, Fedora 35).
+Wayland, and needs glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 36).
 Building it needs Rust 1.92 or newer.
 
 - **Rendering.** PDF pages are drawn by [hayro](https://github.com/LaurenzV/hayro)

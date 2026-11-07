@@ -55,7 +55,8 @@ and builds that tool, and publishes it with its SHA-256 sum and build provenance
 
 ## Linux
 
-The Linux packages need glibc 2.34 or newer and run on X11 and Wayland. What
+The Linux packages need glibc 2.35 or newer (2.34 for rcalc and rpad) and run on
+X11 and Wayland. What
 differs from Windows is in each README: [rcalc](apps/rcalc/README.md#linux),
 [rpad](apps/rpad/README.md#linux) and [rview](apps/rview/README.md#linux).
 They were checked under WSL2, not on a real Linux desktop.

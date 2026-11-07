@@ -17,7 +17,7 @@ telemetria e nunca executa scripts.
 ## Linux
 
 O pacote para Linux é um `tar.gz` com o binário `rview`. Funciona em X11 e Wayland e
-precisa da glibc 2.34 ou mais recente (Ubuntu 22.04, Debian 12, Fedora 35). Compilá-lo
+precisa da glibc 2.35 ou mais recente (Ubuntu 22.04, Debian 12, Fedora 36). Compilá-lo
 precisa do Rust 1.92 ou mais recente.
 
 - **Desenho.** As páginas PDF são desenhadas pelo

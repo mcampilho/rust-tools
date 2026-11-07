@@ -56,8 +56,8 @@ compila essa ferramenta e publica-a com a soma SHA-256 e a proveniência da comp
 
 ## Linux
 
-Os pacotes para Linux precisam da glibc 2.34 ou mais recente e funcionam em X11 e
-Wayland. O que muda face ao Windows está em cada README:
+Os pacotes para Linux precisam da glibc 2.35 ou mais recente (2.34 no rcalc e no
+rpad) e funcionam em X11 e Wayland. O que muda face ao Windows está em cada README:
 [rcalc](apps/rcalc/README.pt.md#linux), [rpad](apps/rpad/README.pt.md#linux) e
 [rview](apps/rview/README.pt.md#linux). Foram verificados no WSL2, não num ambiente de
 trabalho Linux real.
