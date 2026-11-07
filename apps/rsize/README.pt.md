@@ -16,8 +16,7 @@ além das que vêm com o Windows. Não faz ligações de rede por iniciativa pr�
 as partilhas de rede que escolher) e não tem telemetria. Só lê: nunca altera, move
 ou apaga nada.
 
-Esta é a versão 0.1, as primeiras fases do programa. Ainda faltam: a leitura direta
-do NTFS (muito mais rápida, com direitos de administrador), o uso do índice do [Everything](https://www.voidtools.com/) quando
+Esta é a versão 0.1, as primeiras fases do programa. Ainda faltam: o uso do índice do [Everything](https://www.voidtools.com/) quando
 está a correr, as estatísticas por tipo de ficheiro, a exportação para CSV e apagar
 para a Reciclagem.
 
@@ -100,7 +99,27 @@ gestor de ficheiros, copia o caminho ou muda a pasta do treemap.
 
 ## Como lê o disco
 
-Vários fios leem pastas ao mesmo tempo (até oito), o que conta sobretudo em SSDs e
+**Diretamente do NTFS** (Windows, com direitos de administrador). Quando a pasta está
+num volume NTFS local, o rsize abre o volume e lê a sua Master File Table: um registo
+por ficheiro e pasta, em blocos grandes e seguidos, como fazem o WizTree e o
+Everything. A árvore é depois montada a partir dos registos, por isso um disco inteiro
+leva segundos em vez de minutos. Também conta:
+
+- uma só vez cada ficheiro com vários nomes (ligações físicas, frequentes em
+  `C:\Windows\WinSxS`);
+- o que os ficheiros comprimidos e esparsos ocupam de facto, e os fluxos com nome;
+- o espaço do índice de cada pasta;
+- os ficheiros de sistema na raiz do volume (`$MFT`, `$LogFile`...).
+
+Sem direitos de administrador o Windows não deixa um programa abrir um volume, por
+isso o rsize lê pasta a pasta (abaixo) e a barra de estado diz que seria mais rápido
+como administrador. **Ficheiro > Reiniciar como administrador** volta a abrir o rsize
+com esses direitos (o Windows pergunta primeiro) e lê a mesma pasta. A barra de estado
+diz sempre de que forma o resultado foi lido.
+
+**Pasta a pasta**, através do sistema: para outros sistemas de ficheiros (FAT, exFAT,
+ReFS), partilhas de rede, Linux, e quando não há direitos de administrador. Vários fios
+leem pastas ao mesmo tempo (até oito), o que conta sobretudo em SSDs e
 partilhas de rede. Em Windows cada pasta é lida com
 `GetFileInformationByHandleEx(FileIdBothDirectoryInfo)`, que devolve as entradas com
 os tamanhos, o espaço em disco e as datas em lotes de 64 KB, sem abrir nada por
@@ -113,9 +132,12 @@ são seguidos, para que nada seja contado duas vezes e a leitura fique no volume
 Linux, as pastas noutro sistema de ficheiros não são lidas (como `du -x`), e um
 ficheiro com vários nomes (ligações físicas) conta uma vez.
 
-Tempos neste PC, através do sistema: C: (NTFS, 608 000 ficheiros e pastas) em 16 s,
-D: (NTFS, 1,9 milhões) em 23 s. A segunda leitura de uma pasta é muito mais rápida,
+Tempos neste PC, pasta a pasta: C: (NTFS, 608 000 ficheiros e pastas) em 16 s, D:
+(NTFS, 1,9 milhões) em 23 s. A segunda leitura de uma pasta é muito mais rápida,
 porque o sistema guarda o que leu.
+
+O leitor de NTFS é testado sobre uma imagem NTFS verdadeira feita pelo `mkntfs`
+(`tests/fixtures`), mas ainda não foi cronometrado num disco inteiro.
 
 ## Linux
 
@@ -156,12 +178,16 @@ manifesto (DPI por monitor v2, caminhos longos) são embebidos pelo `build.rs`.
 
 ## Testes e verificação
 
-O `./dev.ps1 test -p rsize` corre 36 testes (35 em Linux), sobre:
+O `./dev.ps1 test -p rsize` corre 41 testes (40 em Linux), sobre:
 
 - a árvore: totais, ordenação pelos dois tamanhos, caminhos, extensões;
 - a leitura: uma árvore de pastas com nomes fundos e acentuados, uma raiz que não
   existe, uma leitura interrompida, junções em Windows, ligações simbólicas e físicas
   e pastas sem permissão em Linux;
+- o leitor de NTFS, sobre um volume de 8 MB feito pelo `mkntfs`: o setor de arranque,
+  as listas de extensões, as sequências de atualização, ficheiros residentes e não
+  residentes, um fluxo com nome, um nome acentuado, uma pasta abaixo da raiz, o
+  `$BadClus`, a interrupção;
 - o treemap: a disposição squarified preenche a área em proporção, cada pixel
   pertence a um ficheiro, os cliques encontram o ficheiro certo, as cores seguem as
   extensões;
@@ -185,10 +211,12 @@ $env:RSIZE_BENCH_DIR = 'C:\'; ./dev.ps1 test -p rsize --release --lib bench '--'
 
 ## Limitações
 
-- Em Windows, um ficheiro com vários nomes (ligações físicas, frequentes em
-  `C:\Windows\WinSxS`) conta uma vez por nome, por isso um disco de sistema pode
-  mostrar mais do que tem. A leitura direta do NTFS (prevista) vai contá-lo uma vez.
-- O espaço em disco das próprias pastas não conta em Windows.
+- Lido pasta a pasta em Windows, um ficheiro com vários nomes (ligações físicas)
+  conta uma vez por nome, por isso um disco de sistema pode mostrar mais do que tem,
+  e o espaço em disco das próprias pastas não conta. A leitura direta do NTFS não tem
+  nenhum destes problemas.
+- A leitura direta do NTFS lê a tabela do volume inteiro, mesmo para uma só pasta;
+  para uma pasta pequena num disco grande, pasta a pasta pode ser mais rápido.
 - **Analisar novamente** lê a pasta inteira outra vez; ainda não se pode ler só uma
   pasta do resultado.
 - Com centenas de milhares de ficheiros, desenhar o treemap leva uma fração de

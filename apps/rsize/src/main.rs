@@ -121,6 +121,9 @@ struct Shell {
     dialog: Option<Dialog>,
     last_click: Option<(Instant, f32, f32, u32)>,
     args: Vec<PathBuf>,
+    /// Running with administrator rights (NTFS can be read directly).
+    #[cfg(windows)]
+    elevated: bool,
     #[cfg(not(windows))]
     menu: rsize::ui::menu::Menu,
 }
@@ -278,6 +281,17 @@ impl Shell {
                     h.cancel();
                 }
             }
+            #[cfg(windows)]
+            Command::RestartAdmin => {
+                // The new instance reads the same folder, now directly.
+                let root = self.app.scanning.as_ref().map(|s| s.root.clone()).or_else(|| self.app.scan.as_ref().map(|s| PathBuf::from(s.tree.name(s.tree.root()))));
+                // Without its last backslash, which would escape the closing quote:
+                // "C:" is read as C:\ again (see `scan::normalize`).
+                let args = root.map_or(String::new(), |r| format!("\"{}\"", r.display().to_string().trim_end_matches('\\')));
+                if rt_sys::win::restart_elevated(&args) {
+                    self.quit(el);
+                }
+            }
             Command::Exit => self.quit(el),
             Command::CopyPath => {
                 if let Some(p) = self.app.selected_path() {
@@ -345,6 +359,8 @@ impl Shell {
         match c {
             Command::Rescan => self.app.has_tree() && self.app.scanning.is_none(),
             Command::Stop => self.app.scanning.is_some(),
+            #[cfg(windows)]
+            Command::RestartAdmin => !self.elevated,
             Command::CopyPath | Command::OpenItem | Command::Reveal => result && self.app.sel.is_some(),
             Command::ZoomIn => result && self.app.sel.is_some(),
             Command::ZoomOut | Command::ZoomTop => result && self.app.scan.as_ref().is_some_and(|s| s.tree.parent(self.app.zoom).is_some()),
@@ -1323,6 +1339,8 @@ fn main() {
         dialog: None,
         last_click: None,
         args,
+        #[cfg(windows)]
+        elevated: rt_sys::win::elevated(),
         #[cfg(not(windows))]
         menu: rsize::ui::menu::Menu::default(),
     };

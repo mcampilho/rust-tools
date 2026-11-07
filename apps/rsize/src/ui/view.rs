@@ -674,7 +674,14 @@ pub fn status_text(app: &App, hover: Option<Id>) -> (String, String) {
         tf("{} files", &[&format::count(root.files)]),
         tf("{} folders", &[&format::count(root.dirs)]),
         tf("read in {} s", &[&format::decimal(scan.elapsed.as_secs_f64(), 1)]),
+        match scan.method {
+            crate::scan::Method::Ntfs => tr("from the NTFS table"),
+            crate::scan::Method::System => tr("folder by folder"),
+        },
     ];
+    if scan.admin_would_help {
+        parts.push(tr("faster as administrator (File menu)"));
+    }
     let bad = t.unreadable();
     if bad > 0 {
         parts.push(tf("{} folders could not be read", &[&format::count(bad as u64)]));

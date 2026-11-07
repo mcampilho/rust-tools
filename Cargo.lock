@@ -2575,6 +2575,7 @@ dependencies = [
  "accesskit",
  "accesskit_winit",
  "libc",
+ "miniz_oxide 0.8.9",
  "rt-build",
  "rt-core",
  "rt-gfx",

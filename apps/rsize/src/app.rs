@@ -190,15 +190,18 @@ impl App {
         }
     }
 
+    /// The chart shows the folder above; the list selects it, as when going down.
     pub fn zoom_out(&mut self) {
         if let Some(p) = self.scan.as_ref().and_then(|s| s.tree.parent(self.zoom)) {
             self.zoom = p;
+            self.select(p);
         }
     }
 
     pub fn zoom_top(&mut self) {
-        if let Some(s) = &self.scan {
-            self.zoom = s.tree.root();
+        if let Some(root) = self.scan.as_ref().map(|s| s.tree.root()) {
+            self.zoom = root;
+            self.select(root);
         }
     }
 
@@ -228,7 +231,7 @@ mod tests {
         t.finish();
         let mut a = App::new();
         a.page = 3;
-        a.set_scan(Scan { tree: t, method: Method::System, elapsed: Duration::ZERO, complete: true }, SizeMode::Logical);
+        a.set_scan(Scan { tree: t, method: Method::System, elapsed: Duration::ZERO, complete: true, admin_would_help: false }, SizeMode::Logical);
         a
     }
 
@@ -290,8 +293,10 @@ mod tests {
         assert_eq!(a.zoom, 6);
         a.zoom_out();
         assert_eq!(a.zoom, 1);
+        assert_eq!(a.sel, Some(1), "the list follows the chart up");
         a.zoom_top();
         assert_eq!(a.zoom, 0);
+        assert_eq!(a.sel, Some(0));
         a.zoom_out();
         assert_eq!(a.zoom, 0);
     }

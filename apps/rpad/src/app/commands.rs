@@ -162,12 +162,12 @@ impl Command {
             ReopenClosed => "Reopen Closed &Tab",
             Save => "&Save",
             SaveAs => "Save &As...",
-            SaveAll => "Save A&ll",
-            Reload => "&Reload from Disk",
+            SaveAll => "Sa&ve All",
+            Reload => "Reload from &Disk",
             ReopenWithEncoding(i) => return Err(Enc::all().get(i as usize).map_or_else(String::new, |e| e.name())),
-            LocalHistory => "Local &History...",
+            LocalHistory => "Local H&istory...",
             CloseTab => "&Close",
-            CloseOthers => "Close &Others",
+            CloseOthers => "Close Ot&hers",
             CloseAll => "Close A&ll",
             CopyPath => "Copy Full &Path",
             RevealInExplorer => "Show in &Explorer",
@@ -186,13 +186,13 @@ impl Command {
             JoinLines => "&Join Lines",
             Indent => "&Indent",
             Outdent => "&Outdent",
-            ToggleComment => "Toggle Line &Comment",
+            ToggleComment => "Toggle Line Co&mment",
             CaretAbove => "Add Caret &Above",
             CaretBelow => "Add Caret &Below",
             AddNextOccurrence => "Add &Next Occurrence",
             SelectAllOccurrences => "Select All &Occurrences",
             SplitSelectionIntoLines => "&Split Selection into Lines",
-            InsertDateTime => "Insert &Date/Time",
+            InsertDateTime => "&Insert Date/Time",
             InsertSnippet => "&Insert Snippet...",
             SaveSnippet => "&Save Selection as Snippet...",
             EditSnippets => "&Edit Snippets File",
@@ -208,13 +208,13 @@ impl Command {
             GotoSymbol => "Go to &Symbol...",
             WordWrap => "&Word Wrap",
             LineNumbers => "&Line Numbers",
-            HighlightLine => "&Highlight Current Line",
+            HighlightLine => "H&ighlight Current Line",
             ShowWhitespace => "Show White&space",
             ShowEol => "Show Line &Endings",
-            ShowRuler => "Show &Ruler",
-            FoldMargin => "Fold &Margin",
+            ShowRuler => "Show R&uler",
+            FoldMargin => "Fold Mar&gin",
             FoldCurrent => "&Fold Current Block",
-            UnfoldCurrent => "&Unfold Current Block",
+            UnfoldCurrent => "Unf&old Current Block",
             FoldAll => "Fold &All",
             UnfoldAll => "U&nfold All",
             ZoomIn => "Zoom &In",
@@ -222,7 +222,7 @@ impl Command {
             ZoomReset => "Reset &Zoom",
             Toolbar => "&Toolbar",
             StatusBar => "Status &Bar",
-            Outline => "&Outline Panel",
+            Outline => "Outline &Panel",
             MarkdownPreview => "&Markdown Preview",
             ResultsPanel => "Search &Results Panel",
             Theme(0) => "Use &System Setting",
@@ -231,7 +231,7 @@ impl Command {
             UiLanguage(0) => "Use &System Setting",
             UiLanguage(i) => return Err(crate::i18n::Lang::ALL.get(i as usize - 1).map_or("", |l| l.native_name()).to_string()),
             FullScreen => "&Full Screen",
-            CommandPalette => "&Command Palette...",
+            CommandPalette => "Comma&nd Palette...",
             NextTab => "Next Tab",
             PrevTab => "Previous Tab",
             LangAuto => "&Detect Automatically",
@@ -500,7 +500,7 @@ pub fn menu_tree(recent: &[std::path::PathBuf]) -> Vec<(&'static str, Vec<M>)> {
                 Item(SaveAs),
                 Item(SaveAll),
                 Item(Reload),
-                Sub("Reopen with &Encoding", encodings(ReopenWithEncoding)),
+                Sub("Reopen &with Encoding", encodings(ReopenWithEncoding)),
                 Item(LocalHistory),
                 Sep,
                 Item(CopyPath),
@@ -573,7 +573,7 @@ pub fn menu_tree(recent: &[std::path::PathBuf]) -> Vec<(&'static str, Vec<M>)> {
                 Item(MarkdownPreview),
                 Item(ResultsPanel),
                 Sub("T&heme", vec![Item(Theme(0)), Item(Theme(1)), Item(Theme(2))]),
-                Sub("Display &Language", {
+                Sub("&Display Language", {
                     let mut v = vec![Item(UiLanguage(0)), Sep];
                     v.extend((1..=crate::i18n::Lang::ALL.len()).map(|i| Item(UiLanguage(i as u8))));
                     v
@@ -588,7 +588,7 @@ pub fn menu_tree(recent: &[std::path::PathBuf]) -> Vec<(&'static str, Vec<M>)> {
             vec![
                 Sub("&Language", langs),
                 Sub("&Encoding", encodings(SetEncoding)),
-                Sub("Line &Endings", vec![Item(SetEol(0)), Item(SetEol(1)), Item(SetEol(2))]),
+                Sub("Line E&ndings", vec![Item(SetEol(0)), Item(SetEol(1)), Item(SetEol(2))]),
                 Sub(
                     "&Indentation",
                     vec![Item(UseSpaces), Item(UseTabs), Sep, Item(TabWidth(2)), Item(TabWidth(4)), Item(TabWidth(8)), Sep, Item(IndentToSpaces), Item(IndentToTabs)],
@@ -601,7 +601,7 @@ pub fn menu_tree(recent: &[std::path::PathBuf]) -> Vec<(&'static str, Vec<M>)> {
         (
             "&Tools",
             vec![
-                Sub("&Case", vec![Item(Upper), Item(Lower), Item(TitleCase), Item(SentenceCase), Item(InvertCase)]),
+                Sub("Ca&se", vec![Item(Upper), Item(Lower), Item(TitleCase), Item(SentenceCase), Item(InvertCase)]),
                 Sub(
                     "&Lines",
                     vec![
@@ -651,6 +651,37 @@ pub fn menu_tree(recent: &[std::path::PathBuf]) -> Vec<(&'static str, Vec<M>)> {
         ),
         ("&Help", vec![Item(Shortcuts), Item(About)]),
     ]
+}
+
+/// The editor's context menu.
+pub fn editor_menu() -> Vec<M> {
+    use rt_core::menu::M::*;
+    vec![
+        Item(Undo),
+        Item(Redo),
+        Sep,
+        Item(Cut),
+        Item(Copy),
+        Item(Paste),
+        Item(Delete),
+        Sep,
+        Item(SelectAll),
+        Item(ToggleComment),
+        Sub("Ca&se", vec![Item(Upper), Item(Lower), Item(TitleCase), Item(SentenceCase), Item(InvertCase)]),
+        Sub("&Lines", vec![Item(SortAsc), Item(SortDesc), Item(Reverse), Item(Dedupe), Item(RemoveBlank), Item(TrimTrailing)]),
+        Sep,
+        Item(GotoBracket),
+        Item(FoldCurrent),
+        Item(UnfoldCurrent),
+        Sep,
+        Item(CommandPalette),
+    ]
+}
+
+/// The context menu of a tab.
+pub fn tab_menu() -> Vec<M> {
+    use rt_core::menu::M::*;
+    vec![Item(Save), Item(SaveAs), Item(Reload), Sep, Item(CopyPath), Item(RevealInExplorer), Sep, Item(CloseTab), Item(CloseOthers), Item(CloseAll), Sep, Item(ReopenClosed)]
 }
 
 #[cfg(test)]

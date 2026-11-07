@@ -327,7 +327,7 @@ versões do Windows que não as têm, os menus ficam simplesmente claros.
 
 ## Testes
 
-`cargo test -p rpad` corre 100 testes em Windows e 101 em Linux. Cobrem o buffer e as operações de edição, as
+`cargo test -p rpad` corre 101 testes em Windows e 102 em Linux. Cobrem o buffer e as operações de edição, as
 codificações (ida e volta, deteção, caracteres não representáveis), os fins de linha, a
 dobragem, a procura, as ferramentas de texto, XML, definições, ficheiros de sessão e de
 recuperação e fluxos completos através de um host simulado (o lexer, o layout e os menus
@@ -347,7 +347,9 @@ são testados nos crates partilhados):
   cursores, Clipboard e paleta de comandos;
 - abertura de um ficheiro com mais de 16 MB em modo de ficheiro grande;
 - traduções: todas as linhas têm todos os idiomas, os marcadores `{}`, as quebras de
-  linha e exatamente uma tecla de acesso nos menus; todos os textos que o código traduz
+  linha e exatamente uma tecla de acesso nos menus; dentro de cada menu (incluindo os
+  menus de contexto do editor e dos separadores) as teclas de acesso não se repetem em
+  nenhuma língua; todos os textos que o código traduz
   (`tr`, `tf`, avisos, nomes de ferramentas, comandos, menus e paleta) têm linha; e a
   janela inteira é desenhada em alemão com todos os painéis abertos, registando qualquer
   procura sem tradução.

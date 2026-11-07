@@ -40,5 +40,7 @@ rt-build = { path = "../../crates/rt-build" }
 tiny-skia = { version = "0.11", default-features = false, features = ["std"] }
 
 [dev-dependencies]
+# Unpacks the NTFS image the MFT reader is tested on.
+miniz_oxide = "0.8"
 # PNG output for the screenshot test (`cargo test -- --ignored screenshots`).
 tiny-skia = { version = "0.11", default-features = false, features = ["std", "simd", "png-format"] }

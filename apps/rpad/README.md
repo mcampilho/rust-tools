@@ -319,7 +319,7 @@ Windows versions without them the menus just stay light.
 
 ## Tests
 
-`cargo test -p rpad` runs 100 tests on Windows and 101 on Linux. They cover the buffer and editing operations,
+`cargo test -p rpad` runs 101 tests on Windows and 102 on Linux. They cover the buffer and editing operations,
 encodings (round trips, detection, unmappable characters), line endings,
 folding, search, text tools, XML, settings, session and recovery files, and
 end-to-end workflows through a mock host (the lexer, layout and menus are
@@ -339,7 +339,9 @@ tested in the shared crates):
   clipboard and the command palette;
 - a 16+ MB file opening in large-file mode;
 - translations: every row has all languages, matching `{}` placeholders,
-  line breaks and exactly one menu access key; every string the code
+  line breaks and exactly one menu access key; within each menu (the
+  editor and tab context menus included) no two items share an access key
+  in any language; every string the code
   translates (`tr`, `tf`, notices, tool names, every command, menu and
   palette label) has a row; and the whole window is rendered in German
   with all panels open while recording any lookup without a translation.

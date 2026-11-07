@@ -141,6 +141,17 @@ fn source_strings_have_translations() {
     assert!(missing.is_empty(), "untranslated strings:\n{}", missing.join("\n"));
 }
 
+/// Within each menu, no two items share an access key, in any language.
+#[test]
+fn access_keys_differ_within_each_menu() {
+    use crate::app::commands::{editor_menu, menu_tree, tab_menu, M};
+    install();
+    let encodings = vec![M::Sub("&Save with encoding", Vec::new()), M::Sub("&Reopen with encoding", Vec::new())];
+    let context = [("editor menu", editor_menu()), ("tab menu", tab_menu()), ("encoding menu", encodings)];
+    let problems = rt_core::menu::access_key_clashes(&menu_tree(&[]), &context);
+    assert!(problems.is_empty(), "{} clashes: {problems:#?}", problems.len());
+}
+
 /// All command labels, menu titles and palette categories are translated.
 #[test]
 fn commands_and_menus_have_translations() {

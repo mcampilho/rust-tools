@@ -12,6 +12,9 @@ pub enum Command {
     Rescan,
     /// Stops the scan in progress.
     Stop,
+    /// Starts rsize again with administrator rights, to read NTFS directly.
+    #[cfg(windows)]
+    RestartAdmin,
     Exit,
     CopyPath,
     /// Opens the selected file or folder with its default program.
@@ -44,6 +47,8 @@ impl Command {
             Drives => "Show &Drives",
             Rescan => "&Rescan",
             Stop => "&Stop",
+            #[cfg(windows)]
+            RestartAdmin => "Restart as &Administrator",
             Exit => "E&xit",
             CopyPath => "&Copy Path",
             OpenItem => "&Open",
@@ -126,8 +131,12 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
     use rt_core::menu::M::*;
     let mut langs = vec![Item(UiLanguage(0)), Sep];
     langs.extend((1..=Lang::ALL.len()).map(|i| Item(UiLanguage(i as u8))));
+    let mut file = vec![Item(ChooseFolder), Item(Drives), Sep, Item(Rescan), Item(Stop), Sep];
+    #[cfg(windows)]
+    file.extend([Item(RestartAdmin), Sep]);
+    file.push(Item(Exit));
     vec![
-        ("&File", vec![Item(ChooseFolder), Item(Drives), Sep, Item(Rescan), Item(Stop), Sep, Item(Exit)]),
+        ("&File", file),
         ("&Edit", vec![Item(CopyPath), Sep, Item(OpenItem), Item(Reveal)]),
         (
             "&View",

@@ -111,6 +111,39 @@ pub fn shell_open(target: &str) -> bool {
     r as usize > 32
 }
 
+/// Whether this process runs with administrator rights (elevated).
+pub fn elevated() -> bool {
+    use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
+    use windows_sys::Win32::Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY};
+    use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
+    let mut token: HANDLE = std::ptr::null_mut();
+    // SAFETY: the pseudo-handle of this process; the token is closed below.
+    if unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) } == 0 {
+        return false;
+    }
+    let mut e = TOKEN_ELEVATION { TokenIsElevated: 0 };
+    let mut len = 0u32;
+    let size = std::mem::size_of::<TOKEN_ELEVATION>() as u32;
+    // SAFETY: `e` is as large as stated; `token` is open.
+    let ok = unsafe { GetTokenInformation(token, TokenElevation, (&mut e as *mut TOKEN_ELEVATION).cast(), size, &mut len) } != 0;
+    // SAFETY: closes the token opened above.
+    unsafe { CloseHandle(token) };
+    ok && e.TokenIsElevated != 0
+}
+
+/// Starts this program again with administrator rights, with `args`
+/// (Windows asks the user first). False when it did not start: the user
+/// said no, or it could not run.
+pub fn restart_elevated(args: &str) -> bool {
+    let Ok(exe) = std::env::current_exe() else { return false };
+    let (verb, file, params) = (wide("runas"), wide(&exe.to_string_lossy()), wide(args));
+    // SAFETY: valid NUL-terminated strings; no parent window needed.
+    let r = unsafe {
+        windows_sys::Win32::UI::Shell::ShellExecuteW(std::ptr::null_mut(), verb.as_ptr(), file.as_ptr(), params.as_ptr(), std::ptr::null(), SW_SHOWNORMAL)
+    };
+    r as usize > 32
+}
+
 /// Opens Explorer with `path` selected (explicit user command only).
 pub fn reveal_in_explorer(path: &std::path::Path) {
     let _ = std::process::Command::new("explorer.exe")
@@ -145,6 +178,6 @@ mod tests {
     #[test]
     fn system_settings_answer() {
         assert!(ui_language().is_some_and(|t| t.contains('-')));
-        let _ = (system_dark(), accent(), caret_blink_ms());
+        let _ = (system_dark(), accent(), caret_blink_ms(), elevated());
     }
 }

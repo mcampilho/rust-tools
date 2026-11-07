@@ -14,6 +14,10 @@
 //!
 //! Symbolic links, junctions and mount points are listed but not followed.
 
+// The MFT reader is plain parsing, tested on every system; only Windows
+// opens volumes with it.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub mod ntfs;
 #[cfg(not(windows))]
 mod unix;
 #[cfg(windows)]
@@ -32,6 +36,8 @@ use std::time::{Duration, Instant};
 pub enum Method {
     /// Folder by folder, through the operating system.
     System,
+    /// The NTFS Master File Table, read directly (Windows, administrator).
+    Ntfs,
 }
 
 /// An entry as a lister returns it.
@@ -70,6 +76,9 @@ pub struct Scan {
     pub elapsed: Duration,
     /// False when it was stopped: folders not read yet count as empty.
     pub complete: bool,
+    /// The folder is on a local NTFS volume that could have been read
+    /// directly with administrator rights.
+    pub admin_would_help: bool,
 }
 
 pub enum Event {
@@ -94,7 +103,9 @@ impl Handle {
 pub fn start(root: PathBuf, sink: Box<dyn Fn(Event) + Send>) -> Handle {
     let cancel = Arc::new(AtomicBool::new(false));
     let flag = cancel.clone();
+    let lang = crate::i18n::lang();
     std::thread::spawn(move || {
+        crate::i18n::set_lang(lang);
         let result = scan(&root, &flag, &|p| sink(Event::Progress(p.clone())));
         sink(Event::Done(result.map(Box::new)));
     });
@@ -163,6 +174,23 @@ pub fn scan(root: &Path, cancel: &AtomicBool, progress: &dyn Fn(&Progress)) -> R
     let meta = std::fs::metadata(&root).map_err(|e| e.to_string())?;
     if !meta.is_dir() {
         return Err(std::io::Error::from(std::io::ErrorKind::NotADirectory).to_string());
+    }
+    #[allow(unused_mut)]
+    let mut admin_would_help = false;
+    #[cfg(windows)]
+    {
+        let label = |pct: u64| crate::i18n::tf("Reading the NTFS table… {}%", &[&pct.to_string()]);
+        match ntfs::scan_volume(&root, cancel, progress, &label) {
+            Ok(tree) => return Ok(Scan { tree, method: Method::Ntfs, elapsed: start.elapsed(), complete: true, admin_would_help: false }),
+            Err(ntfs::Skip::Stopped) => {
+                let mut tree = Tree::new(&root.to_string_lossy(), mtime_of(&meta));
+                tree.finish();
+                return Ok(Scan { tree, method: Method::Ntfs, elapsed: start.elapsed(), complete: false, admin_would_help: false });
+            }
+            Err(ntfs::Skip::Denied) => admin_would_help = true,
+            // Not NTFS, or something unexpected in the table: read folder by folder.
+            Err(ntfs::Skip::NotNtfs | ntfs::Skip::Failed(_)) => {}
+        }
     }
     let ctx = Ctx { dev: device_of(&meta) };
     let mut tree = Tree::new(&root.to_string_lossy(), mtime_of(&meta));
@@ -245,7 +273,7 @@ pub fn scan(root: &Path, cancel: &AtomicBool, progress: &dyn Fn(&Progress)) -> R
     }
     queue.stop();
     tree.finish();
-    Ok(Scan { tree, method: Method::System, elapsed: start.elapsed(), complete })
+    Ok(Scan { tree, method: Method::System, elapsed: start.elapsed(), complete, admin_would_help })
 }
 
 fn list(path: &Path, ctx: Ctx) -> std::io::Result<Vec<Raw>> {

@@ -628,38 +628,13 @@ impl Shell {
     }
 
     fn editor_menu(&mut self, el: &ActiveEventLoop) {
-        use Command::*;
-        use rt_core::menu::M::*;
-        let items = vec![
-            Item(Undo),
-            Item(Redo),
-            Sep,
-            Item(Cut),
-            Item(Copy),
-            Item(Paste),
-            Item(Delete),
-            Sep,
-            Item(SelectAll),
-            Item(ToggleComment),
-            Sub("&Case", vec![Item(Upper), Item(Lower), Item(TitleCase), Item(SentenceCase), Item(InvertCase)]),
-            Sub("&Lines", vec![Item(SortAsc), Item(SortDesc), Item(Reverse), Item(Dedupe), Item(RemoveBlank), Item(TrimTrailing)]),
-            Sep,
-            Item(GotoBracket),
-            Item(FoldCurrent),
-            Item(UnfoldCurrent),
-            Sep,
-            Item(CommandPalette),
-        ];
-        self.popup(el, items);
+        self.popup(el, app::commands::editor_menu());
     }
 
     fn tab_menu(&mut self, el: &ActiveEventLoop, i: usize) {
-        use Command::*;
-        use rt_core::menu::M::*;
         self.app.activate(i);
         self.redraw();
-        let items = vec![Item(Save), Item(SaveAs), Item(Reload), Sep, Item(CopyPath), Item(RevealInExplorer), Sep, Item(CloseTab), Item(CloseOthers), Item(CloseAll), Sep, Item(ReopenClosed)];
-        self.popup(el, items);
+        self.popup(el, app::commands::tab_menu());
     }
 
     // ------------------------------------------------------------ keyboard

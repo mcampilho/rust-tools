@@ -10,7 +10,7 @@ atalhos e limitações estão no `README.md`.
 
 ```powershell
 ./dev.ps1 build --profile release-small -p rpad
-./dev.ps1 test -p rpad        # 100 testes (101 em Linux); os do código partilhado estão nos crates
+./dev.ps1 test -p rpad        # 101 testes (102 em Linux); os do código partilhado estão nos crates
 ./dev.ps1 clippy -p rpad --all-targets
 ```
 
@@ -42,8 +42,8 @@ Correm na raiz do repositório. Saída: `target\release-small\rpad.exe`. Rust 1.
 - Nunca corromper texto em silêncio: encodings não representáveis são recusados, não substituídos.
 - Qualquer string visível nova precisa de linha completa em `strings.txt` (os testes verificam
   placeholders `{}`, quebras de linha e exatamente uma tecla de acesso nos menus).
-- Os menus têm teclas de acesso repetidas dentro do mesmo menu (184 casos nas 10 línguas, 11 em inglês, em
-  2026-11-07). Por isso o teste `rt_core::menu::access_key_clashes`, usado no rview e no rsize, ainda não corre aqui.
+- Dentro de cada menu, as teclas de acesso não se repetem em nenhuma língua (`rt_core::menu::access_key_clashes`,
+  com teste). Os menus de contexto do editor e dos separadores estão em `app/commands.rs` para o teste os ver.
 - Nada de rede; o preview de Markdown nunca abre links nem busca imagens.
 - Em Linux, esconder a janela destrói-a e mostrar cria-a de novo, porque o Wayland não esconde janelas.
 - Em Linux, gravar segue ligações simbólicas e respeita a falta de permissão de escrita no ficheiro,

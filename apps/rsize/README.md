@@ -16,8 +16,7 @@ beyond those that ship with Windows. It makes no network connections of its own
 (it reads network shares you choose) and has no telemetry. It only reads: it
 never changes, moves or deletes anything.
 
-This is version 0.1, the first stages of the program. Still to come: reading
-NTFS directly (much faster, with administrator rights),
+This is version 0.1, the first stages of the program. Still to come:
 using the index of [Everything](https://www.voidtools.com/) when it is running,
 statistics by file type, exporting to CSV and deleting to the Recycle Bin.
 
@@ -99,7 +98,27 @@ shows it in the file manager, copies its path, or zooms the treemap.
 
 ## How it reads
 
-Several threads read folders at the same time (up to eight), which matters
+**Directly from NTFS** (Windows, with administrator rights). When the folder
+is on a local NTFS volume, rsize opens the volume and reads its Master File
+Table: one record per file and folder, in large sequential chunks, the way
+WizTree and Everything do. The tree is then put together from the records, so
+a whole drive takes seconds instead of minutes. It also counts:
+
+- each file with several names (hard links, common in `C:\Windows\WinSxS`)
+  once;
+- what compressed and sparse files really take, and named streams;
+- the space a folder's own index takes;
+- the system files at the root of the volume (`$MFT`, `$LogFile`...).
+
+Without administrator rights Windows does not let a program open a volume, so
+rsize reads folder by folder (below) and the status bar says it would be
+faster as administrator. **File > Restart as Administrator** starts rsize again
+with those rights (Windows asks first) and reads the same folder. The status
+bar always says which way the result was read.
+
+**Folder by folder**, through the system: for other file systems (FAT,
+exFAT, ReFS), network shares, Linux, and when there are no administrator
+rights. Several threads read folders at the same time (up to eight), which matters
 most on SSDs and network shares. On Windows each folder is read with
 `GetFileInformationByHandleEx(FileIdBothDirectoryInfo)`, which returns its
 entries with their sizes, space on the disk and dates in batches of 64 KB, with
@@ -113,9 +132,12 @@ nothing is counted twice and the scan stays on the volume. On Linux, folders on
 another file system are not entered (like `du -x`), and a file with several
 names (hard links) is counted once.
 
-Times on this PC, through the system: C: (NTFS, 608,000 files and folders) in
+Times on this PC, folder by folder: C: (NTFS, 608,000 files and folders) in
 16 s, D: (NTFS, 1.9 million) in 23 s. The second reading of a folder is much
 faster, as the system keeps what it read.
+
+The NTFS reader is tested on a real NTFS image made by `mkntfs`
+(`tests/fixtures`), but it has not yet been timed on a whole drive.
 
 ## Linux
 
@@ -155,12 +177,15 @@ manifest (per-monitor DPI v2, long paths) are embedded by `build.rs`.
 
 ## Tests and verification
 
-`./dev.ps1 test -p rsize` runs 36 tests (35 on Linux), on:
+`./dev.ps1 test -p rsize` runs 41 tests (40 on Linux), on:
 
 - the tree: totals, sorting by either size, paths, extensions;
 - reading: a folder tree with deep and accented names, a missing root, a
   stopped scan, junctions on Windows, symbolic and hard links and unreadable
   folders on Linux;
+- the NTFS reader, on an 8 MB volume made by `mkntfs`: the boot sector, run
+  lists, update sequences, resident and non-resident files, a named stream, a
+  name with accents, a folder below the root, `$BadClus`, stopping;
 - the treemap: the squarified layout fills the area in proportion, every pixel
   belongs to a file, clicks find the right file, colours follow the extensions;
 - the pie and the rings: slices cover the circle in proportion, small items
@@ -183,10 +208,12 @@ $env:RSIZE_BENCH_DIR = 'C:\'; ./dev.ps1 test -p rsize --release --lib bench '--'
 
 ## Limitations
 
-- On Windows, a file with several names (hard links, common in
-  `C:\Windows\WinSxS`) is counted once per name, so a system drive can show
-  more than it holds. Reading NTFS directly (planned) will count it once.
-- A folder's own space on the disk is not counted on Windows.
+- Read folder by folder on Windows, a file with several names (hard links)
+  is counted once per name, so a system drive can show more than it holds,
+  and a folder's own space on the disk is not counted. Reading NTFS directly
+  has neither problem.
+- Reading NTFS directly reads the whole volume's table even for one folder of
+  it; for a small folder on a large drive, folder by folder may be quicker.
 - **Rescan** reads the whole folder again; one folder of the result cannot be
   read again on its own yet.
 - With hundreds of thousands of files, drawing the treemap takes a fraction of

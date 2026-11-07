@@ -9,7 +9,7 @@ só leitura, sem rede própria nem telemetria. Funcionalidades, atalhos e limita
 
 ```powershell
 ./dev.ps1 build --profile release-small -p rsize
-./dev.ps1 test -p rsize       # 36 testes (35 em Linux)
+./dev.ps1 test -p rsize       # 41 testes (40 em Linux)
 ./dev.ps1 clippy -p rsize --all-targets
 ./dev.ps1 test -p rsize --release --lib screenshots '--' --ignored   # páginas em apps/rsize/target/screens/*.png
 $env:RSIZE_BENCH_DIR = 'C:\'; ./dev.ps1 test -p rsize --release --lib bench '--' --ignored --nocapture
@@ -27,6 +27,12 @@ Correm na raiz do repositório. Saída: `target\release-small\rsize.exe` (perfil
   pastas; `win.rs`: `GetFileInformationByHandleEx(FileIdBothDirectoryInfo)` com prefixo `\\?\`, e
   `FindFirstFile` como recurso; `unix.rs`: `readdir` + `lstat`, sem atravessar sistemas de ficheiros.
   Ligações, junções e pontos de montagem não são seguidos.
+- `scan/ntfs.rs` — leitura direta da MFT (Windows, volume local NTFS, administrador): setor de arranque,
+  runs da `$MFT` (incluindo a lista de atributos de uma MFT fragmentada), registos com fixups, árvore montada
+  pelos `$FILE_NAME`. O `scan` tenta-a primeiro e cai para pasta a pasta (`Scan::admin_would_help` quando falta
+  administrador). Lê qualquer `Disk` (Read + Seek): os testes usam `tests/fixtures/ntfs-small.img.zlib`, feita
+  pelo `make-ntfs.sh` ao lado (mkntfs + ntfscp no WSL). Neste PC não há administrador: nunca foi corrida num
+  disco real por mim. `rt_sys::win::{elevated, restart_elevated}` para o reinício como administrador.
 - `treemap.rs` — disposição squarified e cushions (van Wijk), desenhados pixel a pixel numa `Pixmap`; mapa
   pixel → bloco para os cliques. Cores pelas 12 extensões maiores.
 - `chart.rs` — tarte (12 fatias, o resto em "Outros", legenda) e anéis (até 6 níveis, cor pelo ângulo, mais
@@ -47,14 +53,15 @@ Correm na raiz do repositório. Saída: `target\release-small\rsize.exe` (perfil
 
 1. Feito (0.1): leitura pelas APIs do sistema, lista e treemap.
 2. Feito: gráficos de tarte (TreeSize/JDiskReport) e anéis (Baobab/Scanner), com separadores e F6/F7/F8.
-3. Leitura direta do NTFS (MFT), com botão "Reiniciar como administrador".
+3. Feito: leitura direta do NTFS (MFT), com "Ficheiro > Reiniciar como administrador".
 4. Índice do Everything (IPC por `WM_COPYDATA`, sem a DLL), quando está a correr e a pasta está indexada.
 5. Estatísticas por extensão, exportação CSV, apagar para a Reciclagem (com confirmação).
 
 ## Regras
 
 - Só leitura: nada escreve, move ou apaga no disco analisado (até à fase 5, e aí só para a Reciclagem).
-- `unsafe` só para chamadas Win32 (`scan/win.rs`, `volumes.rs`, `SetErrorMode` no `main`), com `SAFETY`.
+- `unsafe` só para chamadas Win32 (`scan/win.rs`, `scan/ntfs.rs`, `volumes.rs`, `SetErrorMode` no `main`), com
+  `SAFETY`. O volume é aberto só para leitura.
 - Qualquer string visível nova precisa de linha completa em `strings.txt`.
 - Os textos de menu têm de ter teclas de acesso diferentes dentro de cada menu, em todas as línguas (teste com
   `rt_core::menu::access_key_clashes`). A tabela foi gerada por script, mas edita-se à mão: uma linha por texto, colunas separadas por tab.

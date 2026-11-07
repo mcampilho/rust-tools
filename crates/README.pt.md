@@ -10,7 +10,7 @@ crates e só escreve o que é seu.
 | --- | --- | --- |
 | `rt-core` | Dez línguas de interface (`i18n`), definições num ficheiro `chave=valor` com modo portátil (`store`), a árvore de menus (`menu`) | nada |
 | `rt-gfx` | Desenho com tiny-skia e texto com ab_glyph (`gfx`), disposição de texto monoespaçado (`layout`), menus desenhados na janela (`menu`), painel de mensagens e texto cortado com reticências (`dialog`) | rt-core, tiny-skia, ab_glyph |
-| `rt-sys` | Clipboard, tema, língua, links, hora local; em Windows: mensagens da janela principal, instância única, menus nativos e escuros, diálogos, ícone de notificação; em Linux: diálogos zenity/kdialog, instância única por socket Unix, ícone StatusNotifierItem | rt-core, windows-sys / arboard, ksni, libc |
+| `rt-sys` | Clipboard, tema, língua, links, hora local; em Windows: mensagens da janela principal, instância única, direitos de administrador, menus nativos e escuros, diálogos, ícone de notificação; em Linux: diálogos zenity/kdialog, instância única por socket Unix, ícone StatusNotifierItem | rt-core, windows-sys / arboard, ksni, libc |
 | `rt-syntax` | Definições de linguagens e um lexer linha a linha para o realce de sintaxe | nada |
 | `rt-build` | Ajuda para o `build.rs`: ícone, versão e manifesto no executável de Windows | tiny-skia |
 
