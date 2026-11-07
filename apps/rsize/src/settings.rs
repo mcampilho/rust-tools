@@ -12,16 +12,19 @@ pub enum ChartType {
     Treemap,
     Pie,
     Rings,
+    /// Not a chart: the table of file types.
+    Types,
 }
 
 impl ChartType {
-    pub const ALL: [ChartType; 3] = [ChartType::Treemap, ChartType::Pie, ChartType::Rings];
+    pub const ALL: [ChartType; 4] = [ChartType::Treemap, ChartType::Pie, ChartType::Rings, ChartType::Types];
 
     fn tag(self) -> &'static str {
         match self {
             ChartType::Treemap => "treemap",
             ChartType::Pie => "pie",
             ChartType::Rings => "rings",
+            ChartType::Types => "types",
         }
     }
 }

@@ -71,6 +71,17 @@ pub fn date(secs: i64) -> String {
     format!("{y:04}-{m:02}-{d:02}")
 }
 
+/// A date and time as `2026-11-07 13:40:05` in local time (empty for none).
+pub fn datetime(secs: i64) -> String {
+    if secs <= 0 {
+        return String::new();
+    }
+    let local = secs + utc_offset();
+    let (y, m, d) = civil(local.div_euclid(86_400) as i32);
+    let t = local.rem_euclid(86_400);
+    format!("{y:04}-{m:02}-{d:02} {:02}:{:02}:{:02}", t / 3600, t / 60 % 60, t % 60)
+}
+
 /// Days since 1970 to (year, month, day) (Howard Hinnant's algorithm).
 fn civil(days: i32) -> (i32, u32, u32) {
     let z = days as i64 + 719_468;

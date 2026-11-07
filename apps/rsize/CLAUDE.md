@@ -1,15 +1,15 @@
 # rsize — analisador de espaço em disco portátil em Rust
 
 Lê um disco, uma pasta ou uma partilha de rede e mostra o que ocupa espaço: lista de pastas por
-tamanho e um gráfico à escolha (treemap com sombreado em almofada, tarte ou anéis). Um único executável
-(~1,8 MB em Windows, 5,5 MB em Linux),
-só leitura, sem rede própria nem telemetria. Funcionalidades, atalhos e limitações estão no `README.md`.
+tamanho e um gráfico à escolha (treemap com sombreado em almofada, tarte ou anéis) ou a tabela de tipos;
+exporta para CSV e manda para a Reciclagem. Um único executável (~1,9 MB em Windows, 5,5 MB em Linux), sem
+rede própria nem telemetria. Funcionalidades, atalhos e limitações estão no `README.md`.
 
 ## Comandos
 
 ```powershell
 ./dev.ps1 build --profile release-small -p rsize
-./dev.ps1 test -p rsize       # 44 testes (42 em Linux)
+./dev.ps1 test -p rsize       # 47 testes (45 em Linux)
 ./dev.ps1 clippy -p rsize --all-targets
 ./dev.ps1 test -p rsize --release --lib screenshots '--' --ignored   # páginas em apps/rsize/target/screens/*.png
 $env:RSIZE_BENCH_DIR = 'C:\'; ./dev.ps1 test -p rsize --release --lib bench '--' --ignored --nocapture
@@ -47,6 +47,12 @@ Correm na raiz do repositório. Saída: `target\release-small\rsize.exe` (perfil
 - `chart.rs` — tarte (12 fatias, o resto em "Outros", legenda) e anéis (até 6 níveis, cor pelo ângulo, mais
   clara para fora, segmentos com menos de 3 px omitidos). Desenhados uma vez numa `Pixmap`; o segmento sob o
   ponteiro (e, nos anéis, o que tem dentro) é redesenhado deslocado para fora em `view.rs`.
+- `export.rs` — CSV da pasta do gráfico (BOM UTF-8, vírgulas, CRLF, cabeçalhos traduzidos).
+- Eliminar: `rt_sys::recycle` / `rt_sys::win::recycle` (`SHFileOperationW` com `FOF_ALLOWUNDO |
+  FOF_NOCONFIRMATION | FOF_WANTNUKEWARNING`: o Windows avisa antes de apagar de vez) e `rt_sys::linux::trash`
+  (`gio trash`, ou o lixo freedesktop em `~/.local/share/Trash`). Depois, `Tree::remove` e `App::removed`
+  atualizam a árvore sem voltar a ler; `tree_gen` sobe para refazer os gráficos.
+- Separador Tipos (`ChartType::Types`): `Tree::ext_totals(zoom)`, desenhado em `view::draw_types`.
 - `volumes.rs` — discos (Windows) ou montagens reais (`/proc/self/mounts`, Linux), lidos num fio à parte.
 - `app.rs` — estado sem janela: página, linhas da lista, pastas abertas, seleção, zoom do treemap.
 - `format.rs` — tamanhos (binários, 3 algarismos), contagens, percentagens, datas locais.
@@ -64,11 +70,17 @@ Correm na raiz do repositório. Saída: `target\release-small\rsize.exe` (perfil
 2. Feito: gráficos de tarte (TreeSize/JDiskReport) e anéis (Baobab/Scanner), com separadores e F6/F7/F8.
 3. Feito: leitura direta do NTFS (MFT), com "Ficheiro > Reiniciar como administrador".
 4. Feito: índice do Everything (IPC por `WM_COPYDATA`, sem a DLL), quando está a correr e a pasta está indexada.
-5. Estatísticas por extensão, exportação CSV, apagar para a Reciclagem (com confirmação).
+5. Feito: separador Tipos (F9), exportação CSV (Ctrl+S), eliminar para a Reciclagem (Delete, com confirmação).
+   A confirmação e a gravação usam os diálogos do sistema, que os testes não cobrem.
+
+Por fazer: perceber os 76 s da leitura direta do NTFS no E: (disco mecânico); por exemplo uma opção
+`--timings` com o tamanho da MFT, os pedaços, e os tempos de leitura e de montagem.
 
 ## Regras
 
-- Só leitura: nada escreve, move ou apaga no disco analisado (até à fase 5, e aí só para a Reciclagem).
+- Só leitura, com uma exceção pedida pelo utilizador: Eliminar, que só manda para a Reciclagem (ou o lixo)
+  depois de confirmar. Nunca apagar de vez por iniciativa própria; o aviso do Windows trata dos casos sem
+  Reciclagem. O CSV só é escrito onde o utilizador escolhe.
 - `unsafe` só para chamadas Win32 (`scan/win.rs`, `scan/ntfs.rs`, `volumes.rs`, `SetErrorMode` no `main`), com
   `SAFETY`. O volume é aberto só para leitura.
 - Qualquer string visível nova precisa de linha completa em `strings.txt`.

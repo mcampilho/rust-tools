@@ -167,7 +167,17 @@ fn pages_render_fully_translated() {
                 _ => Chart::rings(&s.tree, app.zoom, w, h, 1.0, 0xFFFFFF),
             });
             let hover_seg = chart.as_ref().filter(|c| !c.segments.is_empty()).map(|_| Hit::Segment(0));
-            let frame = view::Frame { mode: SizeMode::Allocated, kind, map: map.as_ref(), chart: chart.as_ref(), hover_seg, hot: view::Hot::None, hover: None };
+            let types = app.scan.as_ref().map(|s| s.tree.ext_totals(app.zoom));
+            let frame = view::Frame {
+                mode: SizeMode::Allocated,
+                kind,
+                map: map.as_ref(),
+                chart: chart.as_ref(),
+                hover_seg,
+                types: types.as_deref(),
+                hot: view::Hot::None,
+                hover: None,
+            };
             view::draw(&mut g, app, &l, &theme, 1.0, &frame);
         }
         let _ = view::status_text(app, None);

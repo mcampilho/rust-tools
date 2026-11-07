@@ -4,6 +4,7 @@
 pub mod app;
 pub mod chart;
 pub mod commands;
+pub mod export;
 pub mod format;
 pub mod i18n;
 pub mod model;

@@ -34,6 +34,59 @@ pub fn reveal(path: &Path) {
     xdg_open(dir.as_os_str().to_os_string());
 }
 
+/// Moves `path` to the desktop's trash: with `gio trash` when it is there,
+/// otherwise into the user's own trash (freedesktop.org specification), which
+/// only takes what is on the same file system as the home folder.
+pub fn trash(path: &Path) -> Result<(), String> {
+    if on_path("gio") {
+        let ok = Command::new("gio").arg("trash").arg("--").arg(path).status().is_ok_and(|s| s.success());
+        if ok && path.symlink_metadata().is_err() {
+            return Ok(());
+        }
+    }
+    let data = std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))
+        .ok_or("no home folder")?;
+    trash_into(path, &data.join("Trash"))
+}
+
+/// Moves `path` into the trash folder `trash` (with `files` and `info`).
+pub fn trash_into(path: &Path, trash: &Path) -> Result<(), String> {
+    use std::os::unix::fs::MetadataExt;
+    let files = trash.join("files");
+    let info = trash.join("info");
+    std::fs::create_dir_all(&files).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&info).map_err(|e| e.to_string())?;
+    let abs = std::path::absolute(path).map_err(|e| e.to_string())?;
+    let dev = |p: &Path| std::fs::symlink_metadata(p).map(|m| m.dev()).map_err(|e| e.to_string());
+    if dev(&abs)? != dev(&files)? {
+        return Err("the trash is on another file system".into());
+    }
+    let base = abs.file_name().ok_or("no name")?.to_string_lossy().into_owned();
+    let t = crate::local_time();
+    let date = format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}", t.year, t.month, t.day, t.hour, t.minute, t.second);
+    let encoded: String = abs
+        .as_os_str()
+        .to_string_lossy()
+        .bytes()
+        .map(|b| if b.is_ascii_alphanumeric() || b"/-_.~".contains(&b) { (b as char).to_string() } else { format!("%{b:02X}") })
+        .collect();
+    for n in 1..10_000 {
+        let name = if n == 1 { base.clone() } else { format!("{base}.{n}") };
+        let entry = info.join(format!("{name}.trashinfo"));
+        // The info file is created first, and only if new: it reserves the name.
+        let Ok(mut f) = std::fs::OpenOptions::new().write(true).create_new(true).open(&entry) else { continue };
+        use std::io::Write;
+        f.write_all(format!("[Trash Info]\nPath={encoded}\nDeletionDate={date}\n").as_bytes()).map_err(|e| e.to_string())?;
+        return std::fs::rename(&abs, files.join(&name)).map_err(|e| {
+            let _ = std::fs::remove_file(&entry);
+            e.to_string()
+        });
+    }
+    Err("no free name in the trash".into())
+}
+
 fn gsetting(key: &str) -> Option<String> {
     let out = Command::new("gsettings")
         .args(["get", "org.gnome.desktop.interface", key])
@@ -91,6 +144,25 @@ pub fn mono_families() -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn files_go_into_the_trash_folder() {
+        let dir = std::env::temp_dir().join(format!("rt-sys-trash-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("data/sub")).unwrap();
+        std::fs::write(dir.join("data/sub/a b.txt"), "x").unwrap();
+        let trash = dir.join("Trash");
+        trash_into(&dir.join("data/sub"), &trash).unwrap();
+        assert!(!dir.join("data/sub").exists());
+        assert!(trash.join("files/sub/a b.txt").exists());
+        let info = std::fs::read_to_string(trash.join("info/sub.trashinfo")).unwrap();
+        assert!(info.starts_with("[Trash Info]\nPath=/") && info.contains("/data/sub\n") && info.contains("DeletionDate="));
+        // A second item of the same name gets another.
+        std::fs::create_dir_all(dir.join("data/sub")).unwrap();
+        trash_into(&dir.join("data/sub"), &trash).unwrap();
+        assert!(trash.join("files/sub.2").exists());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn programs_on_the_path() {

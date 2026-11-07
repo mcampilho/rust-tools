@@ -4,20 +4,20 @@ A portable disk space analyzer for Windows and [Linux](#linux), written in
 Rust. It reads a drive, a folder or a network share and shows what takes up the
 space: the folders and files by size, largest first, and a chart: a
 **treemap** where each file is a rectangle as large as the file, a **pie** of
-the folder's contents, or **rings** with the folders inside folders.
+the folder's contents, or **rings** with the folders inside folders. It also
+totals the space by file type, exports to CSV, and moves what you no longer
+want to the Recycle Bin.
 
 [Versão portuguesa](README.pt.md)
 
 rsize is part of [rust-tools](../../README.md). Commands below run from the
 repository root.
 
-`rsize.exe` is a single 1.8 MB executable: no installer, no runtime, no DLLs
+`rsize.exe` is a single 1.9 MB executable: no installer, no runtime, no DLLs
 beyond those that ship with Windows. It makes no network connections of its own
-(it reads network shares you choose) and has no telemetry. It only reads: it
-never changes, moves or deletes anything.
-
-This is version 0.1, the first stages of the program. Still to come:
-statistics by file type, exporting to CSV and deleting to the Recycle Bin.
+(it reads network shares you choose) and has no telemetry. It only reads, with
+one exception you ask for: **Delete**, which moves an item to the Recycle Bin
+after asking.
 
 ## Use
 
@@ -46,8 +46,8 @@ The result has two parts, with a bar between them that can be dragged:
   get a colour each, the others are grey. Pointing at a rectangle shows its
   path and size in the status bar; clicking selects it in the list.
 
-The tabs above the chart (or **View**, or F6, F7 and F8) choose between three
-charts:
+The tabs above the chart (or **View**, or F6 to F9) choose between three
+charts and a table:
 
 - **Treemap**, as in WinDirStat or WizTree.
 - **Pie**, as in TreeSize or JDiskReport: one slice for each item of the
@@ -58,6 +58,9 @@ charts:
   the angle of its folder. The colour follows the angle and gets lighter
   further out; files are paler than folders. Items too thin to see are left
   out.
+- **Types**: the files of the folder shown, by extension, largest first: the
+  colour they have in the treemap, their total size and share, and how many
+  files there are.
 
 In the pie and the rings, the slice under the pointer moves out from the
 centre and brightens, with everything inside it, and its path and size show in
@@ -73,8 +76,19 @@ one folder up and **Ctrl+Backspace** back to the top.
 the length of the files, or the space they take on the disk (clusters,
 compression, sparse files, and on Linux the folders themselves).
 
-The context menu of the list and the treemap (right click) opens the item,
-shows it in the file manager, copies its path, or zooms the treemap.
+The context menu of the list and the charts (right click) opens the item,
+shows it in the file manager, copies its path, zooms the chart, or deletes it.
+
+**Edit > Delete** (Delete) moves the selected file or folder to the Recycle
+Bin, or to the desktop's trash on Linux, after showing what it is and how much
+it holds. Where there is no Recycle Bin (a network share) or the item is too
+large for it, Windows asks before deleting it for good. The list, the totals
+and the charts then lose the item at once, without reading the disk again.
+
+**File > Export to CSV** (Ctrl+S) writes the folder shown in the chart, with
+everything below it, to a CSV file: one row per folder and file, with its
+path, kind, size, size on disk, files and folders inside, and last change. The
+file opens in spreadsheets as it is (UTF-8, commas).
 
 ### Keyboard
 
@@ -88,11 +102,13 @@ shows it in the file manager, copies its path, or zooms the treemap.
 | ← → Space | Close or open a folder |
 | Enter | Show the selected folder in the treemap |
 | Backspace / Ctrl+Backspace | Chart: one folder up / the whole scan |
-| F6 / F7 / F8 | Treemap / pie / rings |
+| F6 / F7 / F8 / F9 | Treemap / pie / rings / file types |
 | Ctrl+Enter | Open the selected file or folder |
 | Ctrl+E | Show it in the file manager |
 | Ctrl+C | Copy its path |
 | Ctrl+1 / Ctrl+2 | File sizes / sizes on disk |
+| Delete | Move it to the Recycle Bin, after asking |
+| Ctrl+S | Export the folder shown to CSV |
 | F1 | Keyboard shortcuts |
 
 ## How it reads
@@ -165,8 +181,12 @@ and Wayland, and needs glibc 2.35 or newer.
 - **Drives.** The start page lists the mounted file systems that hold files
   (ext4, btrfs, xfs, FAT, exFAT, NTFS, NFS, SMB and others), not `/proc`,
   `tmpfs` and the like. A device mounted more than once is listed once.
-- **Folder dialog.** It uses `zenity` or `kdialog`. Without them, a folder can
-  still be given on the command line.
+- **Dialogs.** The folder and save dialogs and the question before deleting
+  use `zenity` or `kdialog`. Without them, a folder can still be given on the
+  command line, but nothing can be deleted or exported.
+- **Trash.** Delete uses `gio trash` when it is there; otherwise it moves the
+  item into the user's trash (`~/.local/share/Trash`), which only takes items
+  on the same file system as the home folder.
 - **Menus.** They are drawn in the window, with the same items and shortcuts.
   Alt+letter or F10 opens them.
 - **Names.** File names that are not valid UTF-8 are shown with replacement
@@ -193,7 +213,7 @@ manifest (per-monitor DPI v2, long paths) are embedded by `build.rs`.
 
 ## Tests and verification
 
-`./dev.ps1 test -p rsize` runs 44 tests (42 on Linux), on:
+`./dev.ps1 test -p rsize` runs 47 tests (45 on Linux), on:
 
 - the tree: totals, sorting by either size, paths, extensions;
 - reading: a folder tree with deep and accented names, a missing root, a
@@ -211,6 +231,9 @@ manifest (per-monitor DPI v2, long paths) are embedded by `build.rs`.
   go into "Other", rings nest inside their folders, clicks find the right
   segment;
 - the list: opening folders, selection, the keyboard, zoom;
+- deleting: the item leaves its folder, the totals and the extension totals
+  shrink, and the chart moves up when it showed what was deleted; the CSV
+  export (order, quotes, columns); on Linux, the trash folder;
 - sizes, counts, percentages and dates in several languages, settings;
 - translations: every string in the 10 languages, no two items of a menu with
   the same access key, and all the pages and charts drawn in German with no

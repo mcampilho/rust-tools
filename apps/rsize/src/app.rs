@@ -42,6 +42,10 @@ pub struct App {
     pub page: usize,
     /// How far the start page is scrolled, in pixels.
     pub start_scroll: f32,
+    /// First row shown in the table of file types.
+    pub types_scroll: usize,
+    /// A message for the status bar (an export, a deletion).
+    pub note: Option<String>,
 }
 
 impl App {
@@ -60,7 +64,26 @@ impl App {
         self.zoom = root;
         self.sel = Some(root);
         self.scroll = 0;
+        self.types_scroll = 0;
+        self.note = None;
         self.rebuild();
+    }
+
+    /// Takes a deleted item out of the tree and the views; the selection
+    /// goes to its folder.
+    pub fn removed(&mut self, id: Id) -> bool {
+        let Some(scan) = &mut self.scan else { return false };
+        let Some(parent) = scan.tree.parent(id) else { return false };
+        if scan.tree.is_within(self.zoom, id) {
+            self.zoom = parent;
+        }
+        if !scan.tree.remove(id) {
+            return false;
+        }
+        self.expanded.remove(&id);
+        self.rebuild();
+        self.select(parent);
+        true
     }
 
     pub fn has_tree(&self) -> bool {
@@ -280,6 +303,20 @@ mod tests {
         assert_eq!(a.sel, Some(3));
         a.move_sel(-100);
         assert_eq!(a.sel, Some(0));
+    }
+
+    #[test]
+    fn a_deleted_folder_leaves_the_list() {
+        let mut a = app();
+        a.select(6);
+        a.zoom_in();
+        assert_eq!(a.zoom, 6);
+        assert!(a.removed(6));
+        assert_eq!(a.zoom, 1, "the chart shows the folder above");
+        assert_eq!(a.sel, Some(1));
+        assert!(!a.rows.iter().any(|&(r, _)| r == 6 || r == 7));
+        assert_eq!(a.scan.as_ref().unwrap().tree.node(0).size, 165);
+        assert!(!a.removed(0));
     }
 
     #[test]

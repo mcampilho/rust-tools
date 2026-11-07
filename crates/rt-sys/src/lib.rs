@@ -119,6 +119,17 @@ pub fn reveal(path: &Path) {
     let _ = path;
 }
 
+/// Moves `path` to the Recycle Bin (Windows) or the trash (Linux). Err when
+/// it is still there; an empty message means the user said no.
+pub fn recycle(path: &Path) -> Result<(), String> {
+    #[cfg(windows)]
+    return win::recycle(std::ptr::null_mut(), path);
+    #[cfg(target_os = "linux")]
+    return linux::trash(path);
+    #[cfg(not(any(windows, target_os = "linux")))]
+    Err(format!("cannot move {} to the trash here", path.display()))
+}
+
 /// Local date and time.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LocalTime {

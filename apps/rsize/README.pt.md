@@ -5,19 +5,19 @@ em Rust. Lê um disco, uma pasta ou uma partilha de rede e mostra o que ocupa o
 espaço: as pastas e os ficheiros por tamanho, dos maiores para os mais pequenos, e um
 gráfico: um **treemap** em que cada ficheiro é um retângulo do tamanho do ficheiro,
 uma **tarte** com o conteúdo da pasta, ou **anéis** com as pastas dentro das pastas.
+Também soma o espaço por tipo de ficheiro, exporta para CSV e manda para a Reciclagem
+o que já não quer.
 
 [English version](README.md)
 
 O rsize faz parte do [rust-tools](../../README.pt.md). Os comandos abaixo correm na
 raiz do repositório.
 
-O `rsize.exe` é um único executável de 1,8 MB: sem instalador, sem runtime, sem DLLs
+O `rsize.exe` é um único executável de 1,9 MB: sem instalador, sem runtime, sem DLLs
 além das que vêm com o Windows. Não faz ligações de rede por iniciativa própria (lê
-as partilhas de rede que escolher) e não tem telemetria. Só lê: nunca altera, move
-ou apaga nada.
-
-Esta é a versão 0.1, as primeiras fases do programa. Ainda faltam: as estatísticas
-por tipo de ficheiro, a exportação para CSV e apagar para a Reciclagem.
+as partilhas de rede que escolher) e não tem telemetria. Só lê, com uma exceção que
+é pedida por si: **Eliminar**, que manda um item para a Reciclagem depois de
+perguntar.
 
 ## Utilização
 
@@ -47,8 +47,8 @@ O resultado tem duas partes, separadas por uma barra que se pode arrastar:
   as restantes são cinzentas. Apontar para um retângulo mostra o caminho e o tamanho
   na barra de estado; um clique seleciona-o na lista.
 
-Os separadores por cima do gráfico (ou o menu **Ver**, ou F6, F7 e F8) escolhem
-entre três gráficos:
+Os separadores por cima do gráfico (ou o menu **Ver**, ou F6 a F9) escolhem entre
+três gráficos e uma tabela:
 
 - **Treemap**, como no WinDirStat ou no WizTree.
 - **Tarte**, como no TreeSize ou no JDiskReport: uma fatia para cada item da pasta,
@@ -59,6 +59,9 @@ entre três gráficos:
   do ângulo da sua pasta. A cor segue o ângulo e fica mais clara para fora; os
   ficheiros são mais pálidos do que as pastas. Os itens finos demais para se verem
   ficam de fora.
+- **Tipos**: os ficheiros da pasta mostrada, por extensão, dos maiores para os mais
+  pequenos: a cor que têm no treemap, o tamanho total e a percentagem, e quantos
+  ficheiros há.
 
 Na tarte e nos anéis, a fatia sob o ponteiro afasta-se do centro e fica mais clara,
 com tudo o que tem dentro, e o caminho e o tamanho aparecem na barra de estado. Um
@@ -74,8 +77,19 @@ ao topo.
 usado para ordenar: o comprimento dos ficheiros, ou o espaço que ocupam no disco
 (clusters, compressão, ficheiros esparsos e, em Linux, as próprias pastas).
 
-O menu de contexto da lista e do treemap (botão direito) abre o item, mostra-o no
-gestor de ficheiros, copia o caminho ou muda a pasta do treemap.
+O menu de contexto da lista e dos gráficos (botão direito) abre o item, mostra-o no
+gestor de ficheiros, copia o caminho, muda a pasta do gráfico ou elimina-o.
+
+**Editar > Eliminar** (Delete) manda o ficheiro ou a pasta selecionados para a
+Reciclagem, ou para o lixo do ambiente de trabalho em Linux, depois de mostrar o que é
+e quanto contém. Onde não há Reciclagem (uma partilha de rede) ou o item é grande
+demais para ela, o Windows pergunta antes de o apagar de vez. A lista, os totais e os
+gráficos perdem logo o item, sem voltar a ler o disco.
+
+**Ficheiro > Exportar para CSV** (Ctrl+S) grava num ficheiro CSV a pasta mostrada no
+gráfico, com tudo o que tem abaixo: uma linha por pasta e ficheiro, com o caminho, o
+tipo, o tamanho, o tamanho em disco, os ficheiros e pastas que contém e a última
+alteração. O ficheiro abre-se tal como está nas folhas de cálculo (UTF-8, vírgulas).
 
 ### Teclado
 
@@ -89,11 +103,13 @@ gestor de ficheiros, copia o caminho ou muda a pasta do treemap.
 | ← → Espaço | Fechar ou abrir uma pasta |
 | Enter | Mostrar a pasta selecionada no treemap |
 | Retrocesso / Ctrl+Retrocesso | Gráfico: uma pasta acima / tudo |
-| F6 / F7 / F8 | Treemap / tarte / anéis |
+| F6 / F7 / F8 / F9 | Treemap / tarte / anéis / tipos de ficheiro |
 | Ctrl+Enter | Abrir o ficheiro ou a pasta selecionados |
 | Ctrl+E | Mostrá-lo no gestor de ficheiros |
 | Ctrl+C | Copiar o caminho |
 | Ctrl+1 / Ctrl+2 | Tamanho dos ficheiros / tamanho em disco |
+| Delete | Mandá-lo para a Reciclagem, depois de perguntar |
+| Ctrl+S | Exportar para CSV a pasta mostrada |
 | F1 | Atalhos de teclado |
 
 ## Como lê o disco
@@ -166,8 +182,12 @@ e Wayland e precisa da glibc 2.35 ou mais recente.
 - **Discos.** A página inicial mostra os sistemas de ficheiros montados que guardam
   ficheiros (ext4, btrfs, xfs, FAT, exFAT, NTFS, NFS, SMB e outros), não o `/proc`,
   o `tmpfs` e semelhantes. Um dispositivo montado mais de uma vez aparece uma vez.
-- **Diálogo de pasta.** Usa o `zenity` ou o `kdialog`. Sem eles, a pasta pode ser
-  indicada na linha de comandos.
+- **Diálogos.** Os diálogos de pasta e de gravação e a pergunta antes de eliminar
+  usam o `zenity` ou o `kdialog`. Sem eles, a pasta pode ser indicada na linha de
+  comandos, mas não se pode eliminar nem exportar.
+- **Lixo.** Eliminar usa o `gio trash` quando existe; senão, move o item para o lixo
+  do utilizador (`~/.local/share/Trash`), que só aceita itens no mesmo sistema de
+  ficheiros da pasta pessoal.
 - **Menus.** São desenhados na janela, com os mesmos itens e atalhos. Abrem-se com
   Alt+letra ou F10.
 - **Nomes.** Os nomes de ficheiro que não são UTF-8 válido aparecem com caracteres
@@ -194,7 +214,7 @@ manifesto (DPI por monitor v2, caminhos longos) são embebidos pelo `build.rs`.
 
 ## Testes e verificação
 
-O `./dev.ps1 test -p rsize` corre 44 testes (42 em Linux), sobre:
+O `./dev.ps1 test -p rsize` corre 47 testes (45 em Linux), sobre:
 
 - a árvore: totais, ordenação pelos dois tamanhos, caminhos, extensões;
 - a leitura: uma árvore de pastas com nomes fundos e acentuados, uma raiz que não
@@ -214,6 +234,9 @@ O `./dev.ps1 test -p rsize` corre 44 testes (42 em Linux), sobre:
   para "Outros", os anéis ficam dentro das suas pastas, os cliques encontram o
   segmento certo;
 - a lista: abrir pastas, seleção, teclado, zoom;
+- eliminar: o item sai da pasta, os totais e os totais por extensão diminuem, e o
+  gráfico sobe quando mostrava o que foi eliminado; a exportação CSV (ordem, aspas,
+  colunas); em Linux, a pasta do lixo;
 - tamanhos, contagens, percentagens e datas em várias línguas, definições;
 - traduções: todos os textos nas 10 línguas, nenhum par de itens do mesmo menu com a
   mesma tecla de acesso, e todas as páginas e gráficos desenhados em alemão sem texto

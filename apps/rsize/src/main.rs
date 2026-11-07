@@ -107,6 +107,9 @@ struct Shell {
     chart_key: Option<ChartKey>,
     /// What the pointer is on in the pie or the rings.
     hover_seg: Option<Hit>,
+    /// The table of file types, and the folder and order it was made for.
+    types: Option<Vec<(u32, rsize::model::ExtStat)>>,
+    types_key: Option<MapKey>,
     /// The last change of the window size.
     resized: Instant,
     hot: Hot,
@@ -293,6 +296,8 @@ impl Shell {
                 }
             }
             Command::Exit => self.quit(el),
+            Command::ExportCsv => self.export_csv(),
+            Command::Delete => self.delete(),
             Command::CopyPath => {
                 if let Some(p) = self.app.selected_path() {
                     rt_sys::set_clipboard_text(&p.to_string_lossy());
@@ -342,6 +347,82 @@ impl Shell {
         self.redraw();
     }
 
+    /// Writes the folder shown, with all it holds, to a CSV file.
+    fn export_csv(&mut self) {
+        let Some(scan) = &self.app.scan else { return };
+        let name = rsize::export::suggested_name(&scan.tree, self.app.zoom);
+        let dir = (!self.settings.last_dir.is_empty()).then(|| PathBuf::from(&self.settings.last_dir));
+        #[cfg(windows)]
+        let chosen = self.win.as_ref().and_then(|w| {
+            let filter = rt_sys::win::dialogs::filter(&[(tr("CSV files"), "*.csv")]);
+            rt_sys::win::dialogs::save_file(w.hwnd, &name, dir.as_deref(), &filter)
+        });
+        #[cfg(not(windows))]
+        let chosen = rt_sys::linux::dialogs::save_file(&name, dir.as_deref());
+        let Some(path) = chosen else { return };
+        let result = std::fs::File::create(&path).and_then(|f| rsize::export::write_csv(&scan.tree, self.app.zoom, f));
+        let shown = path.display().to_string();
+        self.app.note = Some(match result {
+            Ok(rows) => tf("{} rows written to {}", &[&rsize::format::count(rows), &shown]),
+            Err(e) => tf("Could not write {}: {}", &[&shown, &e.to_string()]),
+        });
+        if let Some(d) = path.parent() {
+            self.settings.last_dir = d.display().to_string();
+        }
+    }
+
+    /// Moves the selection to the Recycle Bin (the trash on Linux), after
+    /// asking, and takes it out of the tree.
+    fn delete(&mut self) {
+        let Some(scan) = &self.app.scan else { return };
+        let Some(id) = self.app.sel.filter(|&s| s != scan.tree.root()) else { return };
+        let t = &scan.tree;
+        let path = t.path(id);
+        let name = t.name(id).to_string();
+        let n = t.node(id);
+        let what = if n.is_dir() {
+            tf("{} in {} files", &[&rsize::format::size(n.size), &rsize::format::count(n.files)])
+        } else {
+            rsize::format::size(n.size)
+        };
+        let question = if cfg!(windows) {
+            tf("Move “{}” to the Recycle Bin?\n\n{}\n{}", &[&name, &path.display().to_string(), &what])
+        } else {
+            tf("Move “{}” to the trash?\n\n{}\n{}", &[&name, &path.display().to_string(), &what])
+        };
+        let title = tr("Delete");
+        #[cfg(windows)]
+        let (yes, result) = {
+            use rt_sys::win::dialogs::{message, Answer, Buttons, Icon};
+            let hwnd = self.win.as_ref().map_or(std::ptr::null_mut(), |w| w.hwnd);
+            let yes = message(hwnd, &title, &question, Buttons::OkCancel, Icon::Warning) == Answer::Ok;
+            (yes, if yes { rt_sys::win::recycle(hwnd, &path) } else { Err(String::new()) })
+        };
+        #[cfg(not(windows))]
+        let (yes, result) = {
+            let yes = rt_sys::linux::dialogs::confirm(&title, &question);
+            (yes, if yes { rt_sys::recycle(&path) } else { Err(String::new()) })
+        };
+        if !yes {
+            return;
+        }
+        match result {
+            Ok(()) => {
+                self.app.removed(id);
+                self.tree_gen += 1;
+                self.hover = None;
+                self.hover_seg = None;
+                self.app.note = Some(if cfg!(windows) {
+                    tf("“{}” was moved to the Recycle Bin.", &[&name])
+                } else {
+                    tf("“{}” was moved to the trash.", &[&name])
+                });
+            }
+            Err(e) if e.is_empty() => {}
+            Err(e) => self.app.note = Some(tf("Could not delete “{}”: {}", &[&name, &e])),
+        }
+    }
+
     fn checked(&self, c: Command) -> bool {
         match c {
             Command::Chart(kind) => self.settings.chart == kind,
@@ -362,6 +443,9 @@ impl Shell {
             #[cfg(windows)]
             Command::RestartAdmin => !self.elevated,
             Command::CopyPath | Command::OpenItem | Command::Reveal => result && self.app.sel.is_some(),
+            Command::ExportCsv => result,
+            // Anything but the folder that was read.
+            Command::Delete => result && self.app.sel.is_some_and(|s| s != 0),
             Command::ZoomIn => result && self.app.sel.is_some(),
             Command::ZoomOut | Command::ZoomTop => result && self.app.scan.as_ref().is_some_and(|s| s.tree.parent(self.app.zoom).is_some()),
             _ => true,
@@ -614,6 +698,8 @@ impl Shell {
                 NamedKey::F6 => "f6".into(),
                 NamedKey::F7 => "f7".into(),
                 NamedKey::F8 => "f8".into(),
+                NamedKey::F9 => "f9".into(),
+                NamedKey::Delete => "delete".into(),
                 NamedKey::Enter => "enter".into(),
                 NamedKey::Backspace => "backspace".into(),
                 NamedKey::Escape => "esc".into(),
@@ -829,6 +915,7 @@ impl Shell {
             map: self.map.as_ref(),
             chart: self.chart.as_ref(),
             hover_seg: self.hover_seg,
+            types: self.types.as_deref(),
             hot: self.hot,
             hover: self.hover,
         };
@@ -871,6 +958,15 @@ impl Shell {
         let r = self.layout.map;
         let (w, h) = (r.w.max(1.0) as u32, r.h.max(1.0) as u32);
         let key = (self.app.zoom, w, h, self.settings.size_mode, self.tree_gen);
+        if self.settings.chart == ChartType::Types {
+            let tkey = (self.app.zoom, 0, 0, self.settings.size_mode, self.tree_gen);
+            if self.types_key != Some(tkey) || self.types.is_none() {
+                self.types = Some(scan.tree.ext_totals(self.app.zoom));
+                self.types_key = Some(tkey);
+                self.app.types_scroll = 0;
+            }
+            return;
+        }
         if self.settings.chart != ChartType::Treemap {
             // A few thousand segments at most: quick enough to redo at once.
             let s = self.scale();
@@ -1047,6 +1143,9 @@ fn shortcuts_text() -> String {
         ("Ctrl+E", tr("Show it in the file manager")),
         ("Ctrl+C", tr("Copy its path")),
         ("Ctrl+1 / Ctrl+2", tr("Show file sizes / sizes on disk")),
+        ("F9", tr("File types")),
+        ("Ctrl+S", tr("Export the folder shown to CSV")),
+        ("Delete", tr("Move it to the Recycle Bin or trash, after asking")),
     ];
     rows.iter().map(|(k, v)| format!("{k}\t{v}")).collect::<Vec<_>>().join("\n")
 }
@@ -1227,6 +1326,12 @@ impl ApplicationHandler<UserEvent> for Shell {
                 let l = &self.layout;
                 match view::page(&self.app) {
                     Page::Result if l.list.contains(x, y) || l.track.contains(x, y) || l.header.contains(x, y) => self.app.scroll_by(rows),
+                    Page::Result if self.settings.chart == ChartType::Types && l.map.contains(x, y) => {
+                        let n = self.types.as_ref().map_or(0, Vec::len);
+                        let fit = view::types_layout(l).2;
+                        let max = n.saturating_sub(fit) as isize;
+                        self.app.types_scroll = (self.app.types_scroll as isize + rows).clamp(0, max.max(0)) as usize;
+                    }
                     Page::Start if l.start_max > 0.0 => {
                         let step = 40.0 * self.scale();
                         self.app.start_scroll = (self.app.start_scroll + rows as f32 * step / 3.0).clamp(0.0, l.start_max);
@@ -1328,6 +1433,8 @@ fn main() {
         chart: None,
         chart_key: None,
         hover_seg: None,
+        types: None,
+        types_key: None,
         resized: Instant::now(),
         hot: Hot::None,
         hover: None,

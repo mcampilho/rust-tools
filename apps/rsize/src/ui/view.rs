@@ -14,7 +14,7 @@ use super::theme::Theme;
 use crate::app::App;
 use crate::format;
 use crate::i18n::{tf, tr};
-use crate::model::{Id, Kind, SizeMode, Tree, F_HARDLINK, F_OTHER_FS, F_UNREADABLE};
+use crate::model::{ExtStat, Id, Kind, SizeMode, Tree, F_HARDLINK, F_OTHER_FS, F_UNREADABLE};
 use crate::chart::{pop_offset, sector, Chart, Hit, Kind as ChartKind, Segment};
 use crate::settings::ChartType;
 use crate::treemap::{self, Map};
@@ -208,6 +208,8 @@ pub struct Frame<'a> {
     pub chart: Option<&'a Chart>,
     /// What the pointer is on in the pie or the rings.
     pub hover_seg: Option<Hit>,
+    /// The table of file types of the folder shown.
+    pub types: Option<&'a [(u32, ExtStat)]>,
     pub hot: Hot,
     /// The node under the pointer.
     pub hover: Option<Id>,
@@ -472,21 +474,24 @@ fn draw_result(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, f: &Frame
     let shown = t.path(app.zoom).to_string_lossy().into_owned();
     let title = format!("{shown} — {}", format::size(t.node(app.zoom).size_in(mode)));
     let hint = match (app.zoom != t.root(), f.kind) {
+        (_, ChartType::Types) => String::new(),
         (_, ChartType::Rings) => tr("Double-click a folder to zoom in, click the middle to zoom out"),
         (true, _) => tr("Backspace: zoom out"),
         (false, _) => tr("Double-click a folder to zoom in"),
     };
     let hw = g.measure(&hint, p, FontId::Regular);
     let room = tabs_x - title_r.x - 2.0 * pad - hw - 24.0 * s;
-    let show_hint = room > 160.0 * s;
+    let show_hint = room > 160.0 * s && !hint.is_empty();
     let title_w = if show_hint { room } else { tabs_x - title_r.x - 2.0 * pad };
     let title = ellipsize_middle(g, &title, title_w.max(0.0), p, FontId::Semibold);
     g.text_in(&title, Rect::new(title_r.x + pad, title_r.y, title_r.w, title_r.h), p, FontId::Semibold, th.text, Align::Left);
     if show_hint {
         g.text_in(&hint, Rect::new(title_r.x, title_r.y, tabs_x - title_r.x - 12.0 * s, title_r.h), p, FontId::Regular, th.dim, Align::Right);
     }
-    if f.kind != ChartType::Treemap {
-        return draw_chart(g, app, l, th, s, f);
+    match f.kind {
+        ChartType::Treemap => {}
+        ChartType::Types => return draw_types(g, app, l, th, s, f),
+        ChartType::Pie | ChartType::Rings => return draw_chart(g, app, l, th, s, f),
     }
     // Treemap.
     match map {
@@ -529,7 +534,74 @@ pub fn chart_name(kind: ChartType) -> String {
         ChartType::Treemap => tr("Treemap"),
         ChartType::Pie => tr("Pie"),
         ChartType::Rings => tr("Rings"),
+        ChartType::Types => tr("Types"),
     }
+}
+
+/// Rows of the table of file types that fit, and its header and rows areas.
+pub fn types_layout(l: &Layout) -> (Rect, Rect, usize) {
+    let mut area = l.map;
+    let header = area.take_top(l.row_h.max(1.0) + 4.0);
+    let rows = ((area.h / l.row_h.max(1.0)).floor() as usize).max(1);
+    (header, area, rows)
+}
+
+/// The table of file types: one row per extension below the folder shown.
+fn draw_types(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, f: &Frame) {
+    let (Some(scan), Some(types)) = (&app.scan, f.types) else { return };
+    let t = &scan.tree;
+    let p = px(s);
+    let pad = 8.0 * s;
+    let (header, rows, fit) = types_layout(l);
+    let total = t.node(app.zoom).size_in(f.mode).max(1);
+    g.fill_rect(header, th.header);
+    // Columns from the right.
+    let cw = |w: f32| (w * s).round();
+    let files_x = rows.right() - cw(100.0);
+    let size_x = files_x - cw(100.0);
+    let share_x = size_x - cw(170.0);
+    let name_x = rows.x + pad;
+    let head = |g: &mut Gfx, text: &str, x: f32, w: f32, a: Align| {
+        g.text_in(text, Rect::new(x + pad, header.y, w - 2.0 * pad, header.h), p, FontId::Semibold, th.dim, a);
+    };
+    head(g, &tr("Extension"), name_x - pad, share_x - name_x, Align::Left);
+    head(g, &tr("Share of folder"), share_x, cw(170.0), Align::Left);
+    head(g, &tr("Size"), size_x, cw(100.0), Align::Right);
+    head(g, &tr("Files"), files_x, cw(100.0), Align::Right);
+    if types.is_empty() {
+        g.text_in(&tr("Nothing here takes up space."), rows, p, FontId::Regular, th.dim, Align::Center);
+        return;
+    }
+    let table = treemap::ext_colors(t);
+    g.set_clip(Some(rows));
+    for (i, (ext, st)) in types.iter().enumerate().skip(app.types_scroll).take(fit + 1) {
+        let y = rows.y + (i - app.types_scroll) as f32 * l.row_h;
+        let row = Rect::new(rows.x, y, rows.w, l.row_h);
+        if i % 2 == 1 {
+            g.fill_rect(row, th.hover);
+        }
+        let color = match table.get(*ext as usize) {
+            Some(&k) if (k as usize) < treemap::PALETTE.len() && *ext != 0 => treemap::PALETTE[k as usize],
+            _ => treemap::OTHER,
+        };
+        let sw = (12.0 * s).round();
+        g.fill_rrect(Rect::new(name_x, row.center_y() - sw / 2.0, sw, sw), 2.0 * s, Color::rgb(color));
+        let name = if *ext == 0 { tr("(no extension)") } else { format!(".{}", t.ext_name(*ext)) };
+        let nx = name_x + sw + 8.0 * s;
+        let name = ellipsize(g, &name, share_x - nx - pad, p, FontId::Regular);
+        g.text_in(&name, Rect::new(nx, row.y, share_x - nx, row.h), p, FontId::Regular, th.text, Align::Left);
+        let size = match f.mode {
+            SizeMode::Logical => st.size,
+            SizeMode::Allocated => st.alloc,
+        };
+        let bar = Rect::new(share_x + pad, row.y + 4.0 * s, cw(170.0) - 2.0 * pad, row.h - 8.0 * s);
+        g.fill_rect(bar, th.bar_track);
+        g.fill_rect(Rect::new(bar.x, bar.y, (bar.w * size as f32 / total as f32).round(), bar.h), th.bar);
+        g.text_in(&format::percent(size, total), bar.inset(4.0 * s), p * 0.92, FontId::Regular, th.text, Align::Right);
+        g.text_in(&format::size(size), Rect::new(size_x + pad, row.y, cw(100.0) - 2.0 * pad, row.h), p, FontId::Regular, th.text, Align::Right);
+        g.text_in(&format::count(st.files), Rect::new(files_x + pad, row.y, cw(100.0) - 2.0 * pad, row.h), p, FontId::Regular, th.dim, Align::Right);
+    }
+    g.set_clip(None);
 }
 
 fn sector_at(c: &Chart, seg: &Segment, ox: f32, oy: f32) -> Vec<(f32, f32)> {
@@ -661,14 +733,15 @@ pub fn status_text(app: &App, hover: Option<Id>) -> (String, String) {
     }
     let Some(scan) = &app.scan else { return (String::new(), String::new()) };
     let t = &scan.tree;
-    let left = hover.or(app.sel).map_or(String::new(), |id| {
+    let note = app.note.clone().filter(|_| hover.is_none());
+    let left = note.unwrap_or_else(|| hover.or(app.sel).map_or(String::new(), |id| {
         let n = t.node(id);
         let mut text = format!("{}    {}", t.path(id).display(), format::size(t.size(id)));
         if n.kind == Kind::File && n.ext != 0 {
             text = format!("{text}    .{}", t.ext_name(n.ext));
         }
         text
-    });
+    }));
     let root = t.node(t.root());
     let mut parts = vec![
         tf("{} files", &[&format::count(root.files)]),
@@ -738,7 +811,8 @@ mod screenshots {
             });
             let hover = pointed.and_then(|i| chart.as_ref()?.segments.get(i)?.node);
             let hot = if page(app) == Page::Start { Hot::Card(1) } else { Hot::Tab(ChartType::Pie) };
-            let f = Frame { mode: SizeMode::Logical, kind, map: map.as_ref(), chart: chart.as_ref(), hover_seg: pointed.map(Hit::Segment), hot, hover };
+            let types = tree.map(|t| t.ext_totals(app.zoom));
+            let f = Frame { mode: SizeMode::Logical, kind, map: map.as_ref(), chart: chart.as_ref(), hover_seg: pointed.map(Hit::Segment), types: types.as_deref(), hot, hover };
             draw(&mut g, app, &l, &th, 1.0, &f);
             g.pix.save_png(out.join(format!("{name}.png"))).unwrap();
         };
@@ -789,5 +863,11 @@ mod screenshots {
         chart_shot("pie-dark", &app, true, ChartType::Pie, None);
         chart_shot("rings-light", &app, false, ChartType::Rings, Some(0));
         chart_shot("rings-dark", &app, true, ChartType::Rings, Some(3));
+        app.zoom = 0;
+        app.note = Some("“old.log” was moved to the Recycle Bin.".into());
+        chart_shot("types-light", &app, false, ChartType::Types, None);
+        set_lang(Lang::PtPT);
+        chart_shot("types-pt-dark", &app, true, ChartType::Types, None);
+        set_lang(Lang::EnUS);
     }
 }

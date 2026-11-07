@@ -15,8 +15,12 @@ pub enum Command {
     /// Starts rsize again with administrator rights, to read NTFS directly.
     #[cfg(windows)]
     RestartAdmin,
+    /// Writes the folder shown to a CSV file.
+    ExportCsv,
     Exit,
     CopyPath,
+    /// Moves the selection to the Recycle Bin (trash), after asking.
+    Delete,
     /// Opens the selected file or folder with its default program.
     OpenItem,
     Reveal,
@@ -49,8 +53,10 @@ impl Command {
             Stop => "&Stop",
             #[cfg(windows)]
             RestartAdmin => "Restart as &Administrator",
+            ExportCsv => "&Export to CSV...",
             Exit => "E&xit",
             CopyPath => "&Copy Path",
+            Delete => "&Delete...",
             OpenItem => "&Open",
             Reveal => "Show in File &Manager",
             ZoomIn => "Zoom &In",
@@ -59,6 +65,7 @@ impl Command {
             Chart(ChartType::Treemap) => "Tree&map",
             Chart(ChartType::Pie) => "&Pie Chart",
             Chart(ChartType::Rings) => "&Rings",
+            Chart(ChartType::Types) => "File T&ypes",
             SizeLogical => "File &Size",
             SizeAllocated => "Size on &Disk",
             Theme(0) => "Use &System Setting",
@@ -94,6 +101,9 @@ pub const BINDINGS: &[(&str, Command)] = &[
     ("F6", Chart(ChartType::Treemap)),
     ("F7", Chart(ChartType::Pie)),
     ("F8", Chart(ChartType::Rings)),
+    ("F9", Chart(ChartType::Types)),
+    ("Ctrl+S", ExportCsv),
+    ("Delete", Delete),
     ("Ctrl+1", SizeLogical),
     ("Ctrl+2", SizeAllocated),
     ("F1", Shortcuts),
@@ -131,13 +141,13 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
     use rt_core::menu::M::*;
     let mut langs = vec![Item(UiLanguage(0)), Sep];
     langs.extend((1..=Lang::ALL.len()).map(|i| Item(UiLanguage(i as u8))));
-    let mut file = vec![Item(ChooseFolder), Item(Drives), Sep, Item(Rescan), Item(Stop), Sep];
+    let mut file = vec![Item(ChooseFolder), Item(Drives), Sep, Item(Rescan), Item(Stop), Sep, Item(ExportCsv), Sep];
     #[cfg(windows)]
     file.extend([Item(RestartAdmin), Sep]);
     file.push(Item(Exit));
     vec![
         ("&File", file),
-        ("&Edit", vec![Item(CopyPath), Sep, Item(OpenItem), Item(Reveal)]),
+        ("&Edit", vec![Item(CopyPath), Sep, Item(OpenItem), Item(Reveal), Sep, Item(Delete)]),
         (
             "&View",
             vec![
@@ -148,6 +158,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
                 Item(Chart(ChartType::Treemap)),
                 Item(Chart(ChartType::Pie)),
                 Item(Chart(ChartType::Rings)),
+                Item(Chart(ChartType::Types)),
                 Sep,
                 Item(SizeLogical),
                 Item(SizeAllocated),
@@ -163,7 +174,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
 /// The context menu of a file or folder.
 pub fn item_menu() -> Vec<M> {
     use rt_core::menu::M::*;
-    vec![Item(OpenItem), Item(Reveal), Item(CopyPath), Sep, Item(ZoomIn), Item(ZoomOut)]
+    vec![Item(OpenItem), Item(Reveal), Item(CopyPath), Sep, Item(ZoomIn), Item(ZoomOut), Sep, Item(Delete)]
 }
 
 #[cfg(test)]
@@ -181,6 +192,8 @@ mod tests {
         assert_eq!(lookup(false, false, false, "esc"), Some(Stop));
         assert_eq!(lookup(true, false, false, "2"), Some(SizeAllocated));
         assert_eq!(lookup(false, false, false, "f8"), Some(Chart(ChartType::Rings)));
+        assert_eq!(lookup(false, false, false, "delete"), Some(Delete));
+        assert_eq!(lookup(true, false, false, "s"), Some(ExportCsv));
         assert_eq!(lookup(false, false, false, "o"), None);
         assert_eq!(lookup(true, true, false, "c"), None);
     }

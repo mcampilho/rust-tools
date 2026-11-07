@@ -144,6 +144,36 @@ pub fn restart_elevated(args: &str) -> bool {
     r as usize > 32
 }
 
+/// Moves `path` (a file, or a folder with what it holds) to the Recycle Bin.
+/// When it cannot go there (a network drive, too large), Windows asks
+/// before deleting it for good. Err when it is still there: it failed, or
+/// the user said no.
+pub fn recycle(owner: HWND, path: &std::path::Path) -> Result<(), String> {
+    use windows_sys::Win32::UI::Shell::{SHFileOperationW, FOF_ALLOWUNDO, FOF_NOCONFIRMATION, FOF_WANTNUKEWARNING, FO_DELETE, SHFILEOPSTRUCTW};
+    // A list of paths, each NUL-terminated, ending with an empty one.
+    let mut from: Vec<u16> = path.as_os_str().to_string_lossy().encode_utf16().collect();
+    from.extend([0, 0]);
+    let mut op = SHFILEOPSTRUCTW {
+        hwnd: owner,
+        wFunc: FO_DELETE,
+        pFrom: from.as_ptr(),
+        pTo: std::ptr::null(),
+        fFlags: (FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_WANTNUKEWARNING) as u16,
+        fAnyOperationsAborted: 0,
+        hNameMappings: std::ptr::null_mut(),
+        lpszProgressTitle: std::ptr::null(),
+    };
+    // SAFETY: `from` is double NUL-terminated and outlives the call.
+    let r = unsafe { SHFileOperationW(&mut op) };
+    if path.symlink_metadata().is_err() {
+        Ok(())
+    } else if r != 0 {
+        Err(std::io::Error::from_raw_os_error(r).to_string())
+    } else {
+        Err(String::new())
+    }
+}
+
 /// Opens Explorer with `path` selected (explicit user command only).
 pub fn reveal_in_explorer(path: &std::path::Path) {
     let _ = std::process::Command::new("explorer.exe")
@@ -173,6 +203,19 @@ mod tests {
         assert_eq!(w.last(), Some(&0));
         assert_eq!(from_wide(&w), "ação");
         assert_eq!(from_wide(&[0x61, 0, 0x62]), "a");
+    }
+
+    /// Puts a small file in the Recycle Bin (run on request: it stays there).
+    #[test]
+    #[ignore]
+    fn recycles_a_file() {
+        let dir = std::env::temp_dir().join(format!("rt-sys-recycle-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let f = dir.join("rt-sys recycle test.txt");
+        std::fs::write(&f, "test").unwrap();
+        recycle(std::ptr::null_mut(), &f).unwrap();
+        assert!(!f.exists());
+        let _ = std::fs::remove_dir(&dir);
     }
 
     #[test]

@@ -346,6 +346,81 @@ impl Tree {
         &self.ext_rank
     }
 
+    /// Totals per extension of the files below `top`, largest first in the
+    /// current mode.
+    pub fn ext_totals(&self, top: Id) -> Vec<(u32, ExtStat)> {
+        let mut totals: HashMap<u32, ExtStat> = HashMap::new();
+        let mut stack = vec![top];
+        while let Some(d) = stack.pop() {
+            let n = &self.nodes[d as usize];
+            if n.kind == Kind::File {
+                let st = totals.entry(n.ext).or_default();
+                st.size += n.size;
+                st.alloc += n.alloc;
+                st.files += 1;
+            }
+            stack.extend_from_slice(self.children(d));
+        }
+        let mode = self.mode;
+        let key = |s: &ExtStat| match mode {
+            SizeMode::Logical => s.size,
+            SizeMode::Allocated => s.alloc,
+        };
+        let mut v: Vec<(u32, ExtStat)> = totals.into_iter().collect();
+        v.sort_unstable_by(|a, b| key(&b.1).cmp(&key(&a.1)).then(a.0.cmp(&b.0)));
+        v
+    }
+
+    /// Takes `id` (and what is inside it) out of the tree, after it was
+    /// deleted: its folder no longer lists it and the totals above shrink.
+    /// The root cannot be removed.
+    pub fn remove(&mut self, id: Id) -> bool {
+        let Some(parent) = self.parent(id) else { return false };
+        let n = &self.nodes[id as usize];
+        let (size, alloc, files) = (n.size, n.alloc, n.files);
+        let dirs = n.dirs + u64::from(n.kind == Kind::Dir);
+        if n.kind == Kind::File {
+            let st = &mut self.ext_stats[n.ext as usize];
+            st.size = st.size.saturating_sub(size);
+            st.alloc = st.alloc.saturating_sub(alloc);
+            st.files = st.files.saturating_sub(1);
+        } else {
+            // A folder's files leave their extensions' totals too.
+            let mut stack = vec![id];
+            while let Some(d) = stack.pop() {
+                for &c in self.children(d).to_vec().iter() {
+                    let cn = &self.nodes[c as usize];
+                    if cn.kind == Kind::File {
+                        let st = &mut self.ext_stats[cn.ext as usize];
+                        st.size = st.size.saturating_sub(cn.size);
+                        st.alloc = st.alloc.saturating_sub(cn.alloc);
+                        st.files = st.files.saturating_sub(1);
+                    } else {
+                        stack.push(c);
+                    }
+                }
+            }
+        }
+        let mut cur = Some(parent);
+        while let Some(p) = cur {
+            let pn = &mut self.nodes[p as usize];
+            pn.size = pn.size.saturating_sub(size);
+            pn.alloc = pn.alloc.saturating_sub(alloc);
+            pn.files = pn.files.saturating_sub(files);
+            pn.dirs = pn.dirs.saturating_sub(dirs);
+            cur = self.parent(p);
+        }
+        // Out of its folder's children, keeping the others in order.
+        let pn = &self.nodes[parent as usize];
+        let (at, len) = (pn.kids_at as usize, pn.kids_len as usize);
+        if let Some(pos) = self.kids[at..at + len].iter().position(|&k| k == id) {
+            self.kids[at + pos..at + len].rotate_left(1);
+            self.nodes[parent as usize].kids_len -= 1;
+        }
+        self.nodes[id as usize].parent = NONE;
+        true
+    }
+
     /// Folders whose contents could not be read.
     pub fn unreadable(&self) -> usize {
         self.nodes.iter().filter(|n| n.flags & F_UNREADABLE != 0).count()
@@ -415,6 +490,28 @@ mod tests {
         assert_eq!(t.ext_stat(txt).size, 310);
         assert_eq!(t.ext_ranking()[0], t.node(t.children(0)[0]).ext, "bin is the largest");
         assert_eq!(t.node(t.children(sub)[1]).ext, 0, "no extension");
+    }
+
+    #[test]
+    fn removing_shrinks_the_totals() {
+        let mut t = sample();
+        let sub = t.children(0)[1];
+        let txt = t.node(t.children(sub)[0]).ext;
+        assert!(t.remove(sub));
+        assert_eq!(t.node(0).size, 5010);
+        assert_eq!(t.node(0).files, 2);
+        assert_eq!(t.node(0).dirs, 0);
+        let names: Vec<&str> = t.children(0).iter().map(|&c| t.name(c)).collect();
+        assert_eq!(names, ["big.bin", "a.txt"]);
+        assert_eq!(t.ext_stat(txt).files, 1, "x.TXT left with its folder");
+        let totals = t.ext_totals(0);
+        assert_eq!(totals.len(), 2);
+        assert_eq!((t.ext_name(totals[0].0), totals[0].1.size), ("bin", 5000));
+        let big = t.children(0)[0];
+        assert!(t.remove(big));
+        assert_eq!(t.node(0).size, 10);
+        assert!(!t.remove(0), "not the root");
+        assert!(!t.remove(big), "not twice");
     }
 
     #[test]
