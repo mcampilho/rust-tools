@@ -144,6 +144,13 @@ como administrador. **Ficheiro > Reiniciar como administrador** volta a abrir o 
 com esses direitos (o Windows pergunta primeiro) e lê a mesma pasta. A barra de estado
 diz sempre de que forma o resultado foi lido.
 
+A tabela é lida sem a cache do sistema, por um fio enquanto outro a interpreta. As
+sequências longas de registos livres (2 MB ou mais, marcadas no mapa de bits da própria
+tabela) são saltadas. O
+`rsize --timings <pasta>`, corrido como administrador, lê-a duas vezes (sem e com a
+cache) e mostra quanto tempo levaram o disco e a interpretação, para perceber porque é
+que um disco é lento.
+
 **Pasta a pasta**, através do sistema: para outros sistemas de ficheiros (FAT, exFAT,
 ReFS), partilhas de rede, Linux, e quando não há direitos de administrador. Vários fios
 leem pastas ao mesmo tempo (até oito), o que conta sobretudo em SSDs e

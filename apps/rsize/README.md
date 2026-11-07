@@ -143,6 +143,12 @@ faster as administrator. **File > Restart as Administrator** starts rsize again
 with those rights (Windows asks first) and reads the same folder. The status
 bar always says which way the result was read.
 
+The table is read without the system cache, by one thread while another
+parses it. Long stretches of free records (2 MB or more, as marked in the
+table's own bitmap) are skipped. `rsize --timings <folder>`, run as administrator, reads it twice
+(without and through the cache) and reports how long the disk and the parsing
+took, to find out why a drive is slow.
+
 **Folder by folder**, through the system: for other file systems (FAT,
 exFAT, ReFS), network shares, Linux, and when there are no administrator
 rights. Several threads read folders at the same time (up to eight), which matters

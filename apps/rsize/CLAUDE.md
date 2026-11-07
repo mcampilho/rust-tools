@@ -9,7 +9,7 @@ rede própria nem telemetria. Funcionalidades, atalhos e limitações estão no 
 
 ```powershell
 ./dev.ps1 build --profile release-small -p rsize
-./dev.ps1 test -p rsize       # 47 testes (45 em Linux)
+./dev.ps1 test -p rsize       # 50 testes (47 em Linux)
 ./dev.ps1 clippy -p rsize --all-targets
 ./dev.ps1 test -p rsize --release --lib screenshots '--' --ignored   # páginas em apps/rsize/target/screens/*.png
 $env:RSIZE_BENCH_DIR = 'C:\'; ./dev.ps1 test -p rsize --release --lib bench '--' --ignored --nocapture
@@ -73,8 +73,18 @@ Correm na raiz do repositório. Saída: `target\release-small\rsize.exe` (perfil
 5. Feito: separador Tipos (F9), exportação CSV (Ctrl+S), eliminar para a Reciclagem (Delete, com confirmação).
    A confirmação e a gravação usam os diálogos do sistema, que os testes não cobrem.
 
-Por fazer: perceber os 76 s da leitura direta do NTFS no E: (disco mecânico); por exemplo uma opção
-`--timings` com o tamanho da MFT, os pedaços, e os tempos de leitura e de montagem.
+Em curso: os 76 s da leitura direta do NTFS no E: (disco mecânico). Hipótese: o volume era aberto com cache, e
+o gestor de cache parte as leituras grandes de um volume em pedaços pequenos, lentos num disco mecânico. Agora
+lê sem cache (`ntfs::Volume`, `FILE_FLAG_NO_BUFFERING`, leituras alinhadas a 4 KB) num fio próprio, com
+outro a interpretar. `rsize --timings <pasta>` (como administrador) lê duas vezes, sem e com cache, e mostra o
+tamanho da MFT, os pedaços, os registos em uso e os tempos de disco, interpretação e árvore.
+Medido no E: em 2026-11-07: MFT de 4669 MB em 9 pedaços, 4,78 M registos (3,55 M em uso); 44 s, dos quais 41 s
+de disco a 113 MB/s, com ou sem cache (a hipótese da cache estava errada). Os 76 s iniciais eram de uma cópia
+grande a correr ao mesmo tempo no mesmo disco; sem ela, ~40 s. É o limite sequencial do disco: só
+ler menos ajuda. Por isso, o `$BITMAP` da `$MFT` (registo 0, ou registos de extensão) é lido e as
+sequências de registos livres de pelo menos `MIN_GAP` (2 MB) são saltadas (`stretches`, `read_stream`); sem
+mapa lê tudo. Medido no E:: lê 3900 MB em 100 sequências em vez de 4669 MB, 40 s em vez de 44 s (102 MB/s, pelos
+saltos). É o limite do disco; num disco mecânico grande o caminho rápido é o Everything (15 s no E:).
 
 ## Regras
 

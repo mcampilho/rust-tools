@@ -21,11 +21,17 @@
 //!
 //! Attributes in extension records (files with many names or fragments)
 //! are added to their base record.
+//!
+//! One thread reads the chunks while another parses them, and on Windows the
+//! volume is read without the system cache: through the cache, a large read
+//! of a volume is split into small ones, which a hard disk serves slowly.
 
 use super::Progress;
 use crate::model::{Entry, Kind, Tree, F_HARDLINK};
 use std::io::{self, Read, Seek, SeekFrom};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc;
+use std::time::{Duration, Instant};
 
 /// The root folder's record.
 pub const ROOT: u32 = 5;
@@ -37,6 +43,7 @@ const ATTR_LIST: u32 = 0x20;
 const ATTR_FILE_NAME: u32 = 0x30;
 const ATTR_DATA: u32 = 0x80;
 const ATTR_INDEX_ALLOC: u32 = 0xA0;
+const ATTR_BITMAP: u32 = 0xB0;
 const ATTR_REPARSE: u32 = 0xC0;
 const ATTR_END: u32 = 0xFFFF_FFFF;
 
@@ -45,14 +52,16 @@ const IO_REPARSE_TAG_SYMLINK: u32 = 0xA000_000C;
 
 /// Bytes read at a time.
 const CHUNK: u64 = 4 << 20;
+/// Chunks read ahead of the parsing.
+const AHEAD: usize = 3;
 
 /// Something to read a volume from, at any offset that is a multiple of
 /// the sector size, for a whole number of sectors.
-pub trait Disk {
+pub trait Disk: Send {
     fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> io::Result<()>;
 }
 
-impl<T: Read + Seek> Disk for T {
+impl<T: Read + Seek + Send> Disk for T {
     fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> io::Result<()> {
         self.seek(SeekFrom::Start(offset))?;
         self.read_exact(buf)
@@ -298,9 +307,26 @@ fn parse_record(n: u32, rec: &[u8], recs: &mut [Rec], names: &mut Vec<Name>) {
 /// Pieces of a run list, by their first VCN.
 type Extents = Vec<(u64, Vec<(Option<u64>, u64)>)>;
 
-/// Where the MFT's data lies: its runs in bytes (offset, length), and how
-/// many records it holds.
-fn mft_layout(disk: &mut dyn Disk, g: &Geometry) -> io::Result<(Vec<(u64, u64)>, u64)> {
+/// The run list piece of a non-resident attribute.
+fn extent(a: &Attr) -> (u64, Vec<(Option<u64>, u64)>) {
+    let (lowest, _, _) = non_resident_sizes(a);
+    let roff = u16_at(a.raw, 0x20).unwrap_or(0) as usize;
+    (lowest, runs(a.raw.get(roff..).unwrap_or(&[])))
+}
+
+/// Where the MFT lies and which of its records are in use.
+struct Layout {
+    /// Its runs in bytes: (offset on the disk, length).
+    runs: Vec<(u64, u64)>,
+    /// How many records it holds.
+    count: u64,
+    /// Its `$BITMAP`: one bit per record, set when it is in use.
+    bitmap: Option<Vec<u8>>,
+}
+
+/// Reads the MFT's own record (and its extension records): the runs of its
+/// `$DATA`, and its `$BITMAP`.
+fn mft_layout(disk: &mut dyn Disk, g: &Geometry) -> io::Result<Layout> {
     let bad = || io::Error::new(io::ErrorKind::InvalidData, "the MFT's own record cannot be read");
     let mut rec0 = vec![0u8; g.record.max(g.sector) as usize];
     disk.read_at(g.mft_lcn * g.cluster, &mut rec0)?;
@@ -311,14 +337,26 @@ fn mft_layout(disk: &mut dyn Disk, g: &Geometry) -> io::Result<(Vec<(u64, u64)>,
     let mut extents: Extents = Vec::new();
     let mut size = 0;
     let mut list = Vec::new();
+    let mut bits: Extents = Vec::new();
+    let mut bits_size = 0;
+    let mut bits_resident = None;
     for a in attrs(&rec0) {
         if a.kind == ATTR_DATA && !a.named && a.non_resident {
             let (lowest, s, _) = non_resident_sizes(&a);
             if lowest == 0 {
                 size = s;
             }
-            let roff = u16_at(a.raw, 0x20).unwrap_or(0) as usize;
-            extents.push((lowest, runs(a.raw.get(roff..).unwrap_or(&[]))));
+            extents.push(extent(&a));
+        } else if a.kind == ATTR_BITMAP && !a.named {
+            if a.non_resident {
+                let (lowest, s, _) = non_resident_sizes(&a);
+                if lowest == 0 {
+                    bits_size = s;
+                }
+                bits.push(extent(&a));
+            } else {
+                bits_resident = Some(a.value.to_vec());
+            }
         } else if a.kind == ATTR_LIST && !a.non_resident {
             list = a.value.to_vec();
         }
@@ -337,7 +375,7 @@ fn mft_layout(disk: &mut dyn Disk, g: &Geometry) -> io::Result<(Vec<(u64, u64)>,
             break;
         }
         let other = u64_at(&list, i + 0x10).map_or(0, frn_of);
-        if kind == ATTR_DATA && other != 0 {
+        if (kind == ATTR_DATA || kind == ATTR_BITMAP) && other != 0 {
             let layout = to_bytes(&extents);
             if let Some(off) = record_offset(&layout, other, g.record) {
                 let mut rec = vec![0u8; g.record.max(g.sector) as usize];
@@ -346,11 +384,15 @@ fn mft_layout(disk: &mut dyn Disk, g: &Geometry) -> io::Result<(Vec<(u64, u64)>,
                 rec.truncate(g.record as usize);
                 if rec.get(0..4) == Some(b"FILE") && fixup(&mut rec) {
                     for a in attrs(&rec) {
-                        if a.kind == ATTR_DATA && !a.named && a.non_resident {
-                            let (lowest, _, _) = non_resident_sizes(&a);
-                            let roff = u16_at(a.raw, 0x20).unwrap_or(0) as usize;
-                            if !extents.iter().any(|e| e.0 == lowest) {
-                                extents.push((lowest, runs(a.raw.get(roff..).unwrap_or(&[]))));
+                        let into = match a.kind {
+                            ATTR_DATA => &mut extents,
+                            ATTR_BITMAP => &mut bits,
+                            _ => continue,
+                        };
+                        if a.kind == kind && !a.named && a.non_resident {
+                            let e = extent(&a);
+                            if !into.iter().any(|x| x.0 == e.0) {
+                                into.push(e);
                             }
                         }
                     }
@@ -362,7 +404,66 @@ fn mft_layout(disk: &mut dyn Disk, g: &Geometry) -> io::Result<(Vec<(u64, u64)>,
     if size == 0 || extents.is_empty() {
         return Err(bad());
     }
-    Ok((to_bytes(&extents), size / g.record))
+    // The bitmap is a help, not a need: without it, every record is read.
+    let sparse = bits.iter().any(|e| e.1.iter().any(|r| r.0.is_none()));
+    let bitmap = bits_resident.or_else(|| {
+        if bits.is_empty() || bits_size == 0 || sparse {
+            return None;
+        }
+        let mut out = vec![0u8; bits_size as usize];
+        read_stream(disk, &to_bytes(&bits), 0, &mut out).ok()?;
+        Some(out)
+    });
+    Ok(Layout { runs: to_bytes(&extents), count: size / g.record, bitmap })
+}
+
+/// Reads `buf.len()` bytes from offset `at` of a stream lying in `runs`.
+fn read_stream(disk: &mut dyn Disk, runs: &[(u64, u64)], mut at: u64, buf: &mut [u8]) -> io::Result<()> {
+    let mut done = 0;
+    let mut base = 0;
+    for &(off, len) in runs {
+        if done == buf.len() {
+            break;
+        }
+        if at < base + len {
+            let inside = at - base;
+            let k = ((len - inside) as usize).min(buf.len() - done);
+            disk.read_at(off + inside, &mut buf[done..done + k])?;
+            done += k;
+            at += k as u64;
+        }
+        base += len;
+    }
+    if done < buf.len() {
+        return Err(io::ErrorKind::UnexpectedEof.into());
+    }
+    Ok(())
+}
+
+/// The stretches of records to read, as (first record, count): those in use,
+/// and the free ones between them unless at least `gap` follow each other
+/// (skipping fewer would cost more in seeking than reading them).
+fn stretches(count: u64, bitmap: Option<&[u8]>, gap: u64) -> Vec<(u64, u64)> {
+    let Some(bm) = bitmap else { return vec![(0, count)] };
+    let used = |r: u64| bm.get((r / 8) as usize).is_none_or(|b| (b >> (r % 8)) & 1 != 0);
+    let mut out = Vec::new();
+    let mut start: Option<u64> = None;
+    let mut last = 0;
+    for r in (0..count).filter(|&r| used(r)) {
+        match start {
+            None => start = Some(r),
+            Some(s) if r - last > gap => {
+                out.push((s, last + 1 - s));
+                start = Some(r);
+            }
+            Some(_) => {}
+        }
+        last = r;
+    }
+    if let Some(s) = start {
+        out.push((s, last + 1 - s));
+    }
+    out
 }
 
 /// The disk offset of record `n`, given the MFT's runs.
@@ -381,52 +482,140 @@ fn record_offset(layout: &[(u64, u64)], n: u64, record: u64) -> Option<u64> {
 struct Mft {
     recs: Vec<Rec>,
     names: Vec<Name>,
+    stats: Stats,
 }
 
+/// How a reading went, for `rsize --timings`.
+#[derive(Clone, Debug, Default)]
+pub struct Stats {
+    /// Bytes of the MFT, and the pieces it lies in on the disk.
+    pub mft_bytes: u64,
+    pub runs: usize,
+    /// Records in the MFT, and those in use.
+    pub records: u64,
+    pub in_use: u64,
+    /// Whether the MFT's bitmap was read, the bytes read (free stretches
+    /// skipped), and in how many stretches.
+    pub bitmap: bool,
+    pub read_bytes: u64,
+    pub stretches: usize,
+    pub names: usize,
+    /// Time spent waiting for the disk (in the reading thread).
+    pub read: Duration,
+    /// Time spent parsing the records.
+    pub parse: Duration,
+    /// Time spent putting the tree together.
+    pub build: Duration,
+    pub total: Duration,
+}
+
+/// Free records skipped only when at least this many bytes of them follow
+/// each other: on a hard disk, a seek costs about as much as reading 1 MB.
+const MIN_GAP: u64 = 2 << 20;
+
 fn read_mft(disk: &mut dyn Disk, cancel: &AtomicBool, progress: &dyn Fn(&Progress), label: &dyn Fn(u64) -> String) -> io::Result<Mft> {
+    read_mft_with(disk, MIN_GAP, cancel, progress, label)
+}
+
+/// [`read_mft`], skipping free stretches of at least `gap` bytes.
+fn read_mft_with(
+    disk: &mut dyn Disk,
+    gap: u64,
+    cancel: &AtomicBool,
+    progress: &dyn Fn(&Progress),
+    label: &dyn Fn(u64) -> String,
+) -> io::Result<Mft> {
+    let started = Instant::now();
     let mut boot = vec![0u8; 4096];
     disk.read_at(0, &mut boot[..512])?;
     let g = Geometry::parse(&boot).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "not an NTFS volume"))?;
-    let (layout, count) = mft_layout(disk, &g)?;
-    let count = count.min(u32::MAX as u64);
+    let layout = mft_layout(disk, &g)?;
+    let count = layout.count.min(u32::MAX as u64);
+    let rs = g.record as usize;
+    let parts = stretches(count, layout.bitmap.as_deref(), (gap / g.record).max(1));
+    let mut stats = Stats {
+        mft_bytes: layout.runs.iter().map(|r| r.1).sum(),
+        runs: layout.runs.len(),
+        records: count,
+        bitmap: layout.bitmap.is_some(),
+        read_bytes: parts.iter().map(|p| p.1 * g.record).sum(),
+        stretches: parts.len(),
+        ..Stats::default()
+    };
     let mut recs = vec![Rec::default(); count as usize];
     let mut names = Vec::new();
-    let rs = g.record as usize;
-    let mut pending: Vec<u8> = Vec::with_capacity(CHUNK as usize + rs);
-    let mut n: u64 = 0;
-    let mut p = Progress::default();
-    let mut last = std::time::Instant::now();
-    'runs: for &(off, len) in &layout {
-        let mut done = 0;
-        while done < len {
-            if cancel.load(Ordering::Relaxed) {
-                return Err(io::Error::new(io::ErrorKind::Interrupted, "stopped"));
-            }
-            let take = (len - done).min(CHUNK);
-            let start = pending.len();
-            pending.resize(start + take as usize, 0);
-            disk.read_at(off + done, &mut pending[start..])?;
-            done += take;
-            let whole = pending.len() / rs * rs;
-            for rec in pending[..whole].chunks_exact_mut(rs) {
-                if n >= count {
-                    break 'runs;
+    let (full_tx, full_rx) = mpsc::sync_channel::<io::Result<(u64, Vec<u8>)>>(AHEAD);
+    let (empty_tx, empty_rx) = mpsc::channel::<Vec<u8>>();
+    let runs = &layout.runs;
+    let parts = &parts;
+    let outcome = std::thread::scope(|s| {
+        // The reader: whole records, chunk after chunk, in the MFT's order,
+        // until the parser stops taking them.
+        let reader = s.spawn(move || {
+            let mut busy = Duration::ZERO;
+            let per_chunk = (CHUNK / rs as u64).max(1);
+            for &(first, n) in parts {
+                let mut r = first;
+                while r < first + n {
+                    if cancel.load(Ordering::Relaxed) {
+                        return busy;
+                    }
+                    let take = (first + n - r).min(per_chunk);
+                    let mut buf = empty_rx.try_recv().unwrap_or_default();
+                    buf.resize(take as usize * rs, 0);
+                    let t = Instant::now();
+                    let res = read_stream(disk, runs, r * rs as u64, &mut buf);
+                    busy += t.elapsed();
+                    let failed = res.is_err();
+                    if full_tx.send(res.map(|_| (r, buf))).is_err() || failed {
+                        return busy;
+                    }
+                    r += take;
                 }
-                if rec.starts_with(b"FILE") && fixup(rec) {
-                    parse_record(n as u32, rec, &mut recs, &mut names);
+            }
+            busy
+        });
+        // Takes the receiver: once the parsing ends, it is dropped, and that
+        // ends the reader if it is still going.
+        let parse = || -> io::Result<()> {
+            let full_rx = full_rx;
+            let mut p = Progress::default();
+            let mut last = Instant::now();
+            for chunk in full_rx.iter() {
+                if cancel.load(Ordering::Relaxed) {
+                    break;
                 }
-                n += 1;
+                let (first, mut chunk) = chunk?;
+                let t = Instant::now();
+                for (i, rec) in chunk.chunks_exact_mut(rs).enumerate() {
+                    if rec.starts_with(b"FILE") && fixup(rec) {
+                        parse_record((first + i as u64) as u32, rec, &mut recs, &mut names);
+                    }
+                }
+                let reached = first + (chunk.len() / rs) as u64;
+                let _ = empty_tx.send(chunk);
+                stats.parse += t.elapsed();
+                if last.elapsed().as_millis() >= 100 {
+                    last = Instant::now();
+                    p.files = reached;
+                    p.current = label(reached * 100 / count.max(1));
+                    progress(&p);
+                }
             }
-            pending.drain(..whole);
-            if last.elapsed().as_millis() >= 100 {
-                last = std::time::Instant::now();
-                p.files = n;
-                p.current = label(n * 100 / count.max(1));
-                progress(&p);
-            }
-        }
+            Ok(())
+        };
+        let outcome = parse();
+        stats.read = reader.join().unwrap_or_default();
+        outcome
+    });
+    if cancel.load(Ordering::Relaxed) {
+        return Err(io::Error::new(io::ErrorKind::Interrupted, "stopped"));
     }
-    Ok(Mft { recs, names })
+    outcome?;
+    stats.in_use = recs.iter().filter(|r| r.in_use).count() as u64;
+    stats.names = names.len();
+    stats.total = started.elapsed();
+    Ok(Mft { recs, names, stats })
 }
 
 /// The tree below record `top`, named `root` (its full path).
@@ -492,11 +681,97 @@ pub fn scan_disk(
     progress: &dyn Fn(&Progress),
     label: &dyn Fn(u64) -> String,
 ) -> io::Result<Tree> {
+    scan_disk_timed(disk, parts, root, cancel, progress, label).map(|(tree, _)| tree)
+}
+
+/// [`scan_disk`], with how long each part took.
+fn scan_disk_timed(
+    disk: &mut dyn Disk,
+    parts: &[String],
+    root: &str,
+    cancel: &AtomicBool,
+    progress: &dyn Fn(&Progress),
+    label: &dyn Fn(u64) -> String,
+) -> io::Result<(Tree, Stats)> {
     let m = read_mft(disk, cancel, progress, label)?;
+    let t = Instant::now();
     let top = find(&m, parts).ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))?;
     let mut tree = build(&m, top, root);
     tree.finish();
-    Ok(tree)
+    let mut stats = m.stats;
+    stats.build = t.elapsed();
+    stats.total += stats.build;
+    Ok((tree, stats))
+}
+
+/// A volume opened for reading, without the system cache unless asked:
+/// every read then starts and ends on a 4 KB boundary (a multiple of any
+/// sector size) and goes into a buffer aligned the same way.
+#[cfg(windows)]
+pub struct Volume {
+    file: std::fs::File,
+    raw: Vec<u8>,
+    /// Where the aligned part of `raw` starts.
+    start: usize,
+}
+
+#[cfg(windows)]
+impl Volume {
+    const ALIGN: usize = 4096;
+    /// The most read at once: a chunk, plus the rounding at both ends.
+    const CAP: usize = CHUNK as usize + 2 * Self::ALIGN;
+
+    pub fn open(device: &str, cached: bool) -> io::Result<Volume> {
+        use std::os::windows::fs::OpenOptionsExt;
+        use windows_sys::Win32::Storage::FileSystem::FILE_FLAG_NO_BUFFERING;
+        let mut o = std::fs::OpenOptions::new();
+        o.read(true);
+        if !cached {
+            o.custom_flags(FILE_FLAG_NO_BUFFERING);
+        }
+        let file = o.open(device)?;
+        let raw = vec![0u8; Self::CAP + Self::ALIGN];
+        let start = raw.as_ptr().align_offset(Self::ALIGN);
+        Ok(Volume { file, raw, start })
+    }
+}
+
+#[cfg(windows)]
+impl Disk for Volume {
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> io::Result<()> {
+        use std::os::windows::fs::FileExt;
+        let a = Self::ALIGN as u64;
+        let mut done = 0;
+        while done < buf.len() {
+            let at = offset + done as u64;
+            let base = at - at % a;
+            let skip = (at - base) as usize;
+            let want = (skip + buf.len() - done).next_multiple_of(Self::ALIGN).min(Self::CAP);
+            let scratch = &mut self.raw[self.start..self.start + want];
+            let mut got = 0;
+            while got < want {
+                match self.file.seek_read(&mut scratch[got..], base + got as u64) {
+                    Ok(0) => break,
+                    Ok(k) => {
+                        got += k;
+                        // Only the end of the volume (or file) leaves it unaligned.
+                        if got % Self::ALIGN != 0 {
+                            break;
+                        }
+                    }
+                    Err(e) if e.kind() == io::ErrorKind::Interrupted => {}
+                    Err(e) => return Err(e),
+                }
+            }
+            if got <= skip {
+                return Err(io::ErrorKind::UnexpectedEof.into());
+            }
+            let k = (got - skip).min(buf.len() - done);
+            buf[done..done + k].copy_from_slice(&scratch[skip..skip + k]);
+            done += k;
+        }
+        Ok(())
+    }
 }
 
 /// Why a volume was not read directly.
@@ -525,6 +800,58 @@ impl From<io::Error> for Skip {
 /// opened.
 #[cfg(windows)]
 pub fn scan_volume(root: &std::path::Path, cancel: &AtomicBool, progress: &dyn Fn(&Progress), label: &dyn Fn(u64) -> String) -> Result<Tree, Skip> {
+    let (device, parts, text) = locate(root)?;
+    let mut disk = Volume::open(&device, false)?;
+    Ok(scan_disk(&mut disk, &parts, &text, cancel, progress, label)?)
+}
+
+/// A report of how long reading `root` takes, first without the system
+/// cache (as rsize reads) and then through it: `rsize --timings <folder>`.
+/// A diagnostic, in English only.
+#[cfg(windows)]
+pub fn timings(root: &std::path::Path) -> String {
+    let mb = |b: u64| b as f64 / (1 << 20) as f64;
+    let secs = |d: Duration| d.as_secs_f64();
+    let (device, parts, text) = match locate(root) {
+        Ok(l) => l,
+        Err(e) => return format!("{}: not read directly ({e:?}).", root.display()),
+    };
+    let mut out = format!("{text}  ({device})\n");
+    for (cached, how) in [(false, "without the cache"), (true, "through the cache")] {
+        let r = Volume::open(&device, cached)
+            .and_then(|mut d| scan_disk_timed(&mut d, &parts, &text, &AtomicBool::new(false), &|_| {}, &|_| String::new()));
+        match r {
+            Err(e) => out += &format!("\n{how}: {e}\n"),
+            Ok((tree, s)) => {
+                out += &format!(
+                    "\n{how}: {:.1} s\n  MFT {:.0} MB in {} pieces, {} records ({} in use), {} names, {} items in the tree\n  \
+                     read {:.0} MB in {} stretches ({})\n  \
+                     disk {:.1} s ({:.0} MB/s), parsing {:.1} s, tree {:.1} s\n",
+                    secs(s.total),
+                    mb(s.mft_bytes),
+                    s.runs,
+                    s.records,
+                    s.in_use,
+                    s.names,
+                    tree.len(),
+                    mb(s.read_bytes),
+                    s.stretches,
+                    if s.bitmap { "free records skipped by the bitmap" } else { "no bitmap: every record" },
+                    secs(s.read),
+                    mb(s.read_bytes) / secs(s.read).max(0.001),
+                    secs(s.parse),
+                    secs(s.build),
+                );
+            }
+        }
+    }
+    out
+}
+
+/// The volume device of `root`, the folders below its mount point, and
+/// `root` as text.
+#[cfg(windows)]
+fn locate(root: &std::path::Path) -> Result<(String, Vec<String>, String), Skip> {
     use rt_sys::win::{from_wide, wide};
     use windows_sys::Win32::Storage::FileSystem::{GetDriveTypeW, GetVolumeInformationW, GetVolumeNameForVolumeMountPointW, GetVolumePathNameW};
     use windows_sys::Win32::System::WindowsProgramming::DRIVE_REMOTE;
@@ -556,9 +883,8 @@ pub fn scan_volume(root: &std::path::Path, cancel: &AtomicBool, progress: &dyn F
     }
     // "\\?\Volume{…}\" names the root folder; without the backslash, the volume.
     let device = from_wide(&guid).trim_end_matches('\\').to_string();
-    let mut disk = std::fs::File::open(&device)?;
     let parts: Vec<String> = text.get(mount_s.len()..).unwrap_or("").split('\\').filter(|p| !p.is_empty()).map(str::to_string).collect();
-    Ok(scan_disk(&mut disk, &parts, &text, cancel, progress, label)?)
+    Ok((device, parts, text))
 }
 
 #[cfg(test)]
@@ -643,6 +969,64 @@ mod tests {
         rec[510] = 0;
         rec[0x30] = 0x77;
         assert!(!fixup(&mut rec), "a torn record");
+    }
+
+    /// Without the cache, reads must be aligned: `Volume` rounds them out and
+    /// copies the part asked for. An ordinary file follows the same rules.
+    #[cfg(windows)]
+    #[test]
+    fn uncached_reads_at_any_offset() {
+        let data: Vec<u8> = (0..3 * 4096 + 700u32).map(|i| (i * 7 % 251) as u8).collect();
+        let path = std::env::temp_dir().join(format!("rsize-uncached-{}.bin", std::process::id()));
+        std::fs::write(&path, &data).unwrap();
+        let mut v = Volume::open(path.to_str().unwrap(), false).unwrap();
+        for (off, len) in [(0, 512), (512, 1000), (4000, 200), (4096, 8192), (3 * 4096, 700), (100, 3 * 4096)] {
+            let mut buf = vec![0u8; len];
+            v.read_at(off as u64, &mut buf).unwrap_or_else(|e| panic!("at {off}, {len} bytes: {e}"));
+            assert_eq!(buf, data[off..off + len], "at {off}, {len} bytes");
+        }
+        let mut past = vec![0u8; 800];
+        assert!(v.read_at(3 * 4096, &mut past).is_err(), "past the end");
+        // The image, read in chunks by the reader thread, gives the same tree.
+        std::fs::write(&path, image().into_inner()).unwrap();
+        let mut v = Volume::open(path.to_str().unwrap(), false).unwrap();
+        let t = scan_disk(&mut v, &[], "T:\\", &AtomicBool::new(false), &|_| {}, &|_| String::new()).unwrap();
+        assert_eq!(t.len(), scan_image(&[]).len());
+        drop(v);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn free_stretches_are_skipped_only_when_long() {
+        // Records 0-2 in use, 3-9 free, 10 in use, 11-15 free, and the
+        // bitmap ends before record 20 (as if those were in use).
+        let bm = [0b0000_0111, 0b0000_0100];
+        assert_eq!(stretches(16, Some(&bm), 3), vec![(0, 3), (10, 1)]);
+        assert_eq!(stretches(16, Some(&bm), 7), vec![(0, 3), (10, 1)], "7 free records, at least 7");
+        assert_eq!(stretches(16, Some(&bm), 8), vec![(0, 11)], "7 free records are read when 8 are needed");
+        assert_eq!(stretches(20, Some(&bm), 3), vec![(0, 3), (10, 1), (16, 4)]);
+        assert_eq!(stretches(16, None, 3), vec![(0, 16)]);
+    }
+
+    #[test]
+    fn the_bitmap_leaves_out_only_free_records() {
+        let mut d = image();
+        let mut boot = vec![0u8; 512];
+        d.read_at(0, &mut boot).unwrap();
+        let g = Geometry::parse(&boot).unwrap();
+        let layout = mft_layout(&mut d, &g).unwrap();
+        let bm = layout.bitmap.expect("the MFT's bitmap");
+        let used = (0..layout.count).filter(|&r| (bm[(r / 8) as usize] >> (r % 8)) & 1 != 0).count();
+        assert!(used > 16 && (used as u64) < layout.count, "{used} of {}", layout.count);
+        // Skipping every free record gives the same tree as reading them all.
+        let stop = AtomicBool::new(false);
+        let all = read_mft_with(&mut image(), u64::MAX, &stop, &|_| {}, &|_| String::new()).unwrap();
+        let some = read_mft_with(&mut image(), 1, &stop, &|_| {}, &|_| String::new()).unwrap();
+        assert!(some.stats.read_bytes < all.stats.read_bytes);
+        assert_eq!(some.stats.in_use, all.stats.in_use);
+        let (a, b) = (build(&all, ROOT, "T:\\"), build(&some, ROOT, "T:\\"));
+        assert_eq!(a.len(), b.len());
+        assert_eq!(all.names.len(), some.names.len());
     }
 
     #[test]

@@ -1373,6 +1373,9 @@ const USAGE: &str = "rsize [folder]
 
   folder   Start reading this folder (or drive, or network share) at once.
            Without it, rsize shows the drives to choose from.
+  --timings  (Windows, as administrator) Read the folder's NTFS table
+           twice, without and through the system cache, and report how long
+           each part took. Nothing is shown but the report.
 
 Settings are stored in the user's settings folder (%APPDATA%\\rsize on
 Windows, ~/.config/rsize on Linux), or next to the program when a file named
@@ -1385,6 +1388,12 @@ fn main() {
         rt_sys::win::report("rsize", USAGE);
         #[cfg(not(windows))]
         println!("{USAGE}");
+        return;
+    }
+    #[cfg(windows)]
+    if raw.iter().any(|a| a == "--timings") {
+        let dir = raw.iter().find(|a| !a.starts_with("--")).map_or_else(|| PathBuf::from("C:\\"), PathBuf::from);
+        rt_sys::win::report("rsize", &rsize::scan::ntfs::timings(&rsize::scan::normalize(&dir)));
         return;
     }
     #[cfg(windows)]
