@@ -37,7 +37,7 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
 
 `.github/workflows/release.yml` corre com tags `<app>-v<versão>` (ex.: `rview-v1.1.0`). A versão da
 tag tem de ser igual à de `apps/<app>/Cargo.toml`. Todas são publicadas para Windows e Linux (o rsize desde a
-0.1.0, em 2026-11-07; o rdup ainda não tem nenhuma versão publicada).
+0.1.0, em 2026-11-07, e a 0.1.1 em 2026-11-08 com a correção do "Mostrar no Explorador" com espaços; o rdup ainda não tem nenhuma versão publicada).
 
 ## Testar em Linux
 
