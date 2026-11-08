@@ -1,7 +1,7 @@
 //! Sizes, counts, percentages and dates as shown, with the decimal and
 //! thousands separators of the interface language.
 
-use crate::i18n::{lang, tr, Lang};
+use rt_core::i18n::{lang, tr, Lang};
 use std::sync::OnceLock;
 
 const UNITS: [&str; 6] = ["B", "KB", "MB", "GB", "TB", "PB"];
@@ -55,11 +55,20 @@ pub fn count(n: u64) -> String {
 /// language puts a space before the sign).
 pub fn percent(part: u64, whole: u64) -> String {
     let p = if whole == 0 { 0.0 } else { part as f64 * 100.0 / whole as f64 };
-    let space = match lang() {
+    format!("{}{}%", decimal(p, 1), percent_space())
+}
+
+/// A whole percentage: `90%` (`90 %` where the language puts a space before
+/// the sign).
+pub fn whole_percent(p: u64) -> String {
+    format!("{p}{}%", percent_space())
+}
+
+fn percent_space() -> &'static str {
+    match lang() {
         Lang::DeDE | Lang::FrFR | Lang::EsES | Lang::ItIT | Lang::PtPT => "\u{00A0}",
         _ => "",
-    };
-    format!("{}{space}%", decimal(p, 1))
+    }
 }
 
 /// A date as `2026-11-07` in local time (`secs` since 1970, UTC).
@@ -82,8 +91,15 @@ pub fn datetime(secs: i64) -> String {
     format!("{y:04}-{m:02}-{d:02} {:02}:{:02}:{:02}", t / 3600, t / 60 % 60, t % 60)
 }
 
+/// The start of a day in local time, in seconds since 1970 (UTC). None for
+/// a day that does not exist (`2025-02-30`).
+pub fn day_start(y: i32, m: u32, d: u32) -> Option<i64> {
+    let days = days_from_civil(y, m, d);
+    (civil(days as i32) == (y, m, d)).then(|| days * 86_400 - utc_offset())
+}
+
 /// Days since 1970 to (year, month, day) (Howard Hinnant's algorithm).
-fn civil(days: i32) -> (i32, u32, u32) {
+pub fn civil(days: i32) -> (i32, u32, u32) {
     let z = days as i64 + 719_468;
     let era = z.div_euclid(146_097);
     let doe = z.rem_euclid(146_097);
@@ -96,7 +112,7 @@ fn civil(days: i32) -> (i32, u32, u32) {
 }
 
 /// (year, month, day) to days since 1970.
-fn days_from_civil(y: i32, m: u32, d: u32) -> i64 {
+pub fn days_from_civil(y: i32, m: u32, d: u32) -> i64 {
     let y = y as i64 - i64::from(m <= 2);
     let era = y.div_euclid(400);
     let yoe = y.rem_euclid(400);
@@ -123,7 +139,7 @@ fn utc_offset() -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::i18n::set_lang;
+    use rt_core::i18n::set_lang;
 
     #[test]
     fn sizes_have_three_digits() {
@@ -151,6 +167,7 @@ mod tests {
         set_lang(Lang::PtPT);
         assert_eq!(count(1234567), "1\u{a0}234\u{a0}567");
         assert_eq!(percent(1, 2), "50,0\u{a0}%");
+        assert_eq!(whole_percent(90), "90\u{a0}%");
         set_lang(Lang::EnUS);
     }
 
@@ -163,6 +180,11 @@ mod tests {
         assert_eq!(civil(20_399), (2025, 11, 7));
         assert!(utc_offset().abs() <= 14 * 3600);
         assert_eq!(date(0), "");
+        let start = day_start(2024, 2, 29).unwrap();
+        assert_eq!(date(start), "2024-02-29");
+        assert_eq!(date(start - 1), "2024-02-28");
+        assert_eq!(day_start(2025, 2, 29), None);
+        assert_eq!(day_start(2025, 13, 1), None);
         assert_eq!(date(1_577_880_000).len(), 10);
     }
 }

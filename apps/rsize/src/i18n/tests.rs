@@ -147,10 +147,10 @@ fn pages_render_fully_translated() {
     let Ok(mut g) = Gfx::new() else { return };
     set_lang(Lang::DeDE);
     take_misses();
-    let tt = crate::scan::tests::TempTree::new("i18n");
+    let tt = crate::scan::testing::TempTree::new("rsize-i18n");
     tt.file("a.txt", 100);
     tt.file("sub/b.bin", 5000);
-    let scan = crate::scan::tests::sys(&tt.0, &std::sync::atomic::AtomicBool::new(false), &|_| {}).unwrap();
+    let scan = crate::scan::scan_with(&tt.0, crate::scan::Ways::SYSTEM, &std::sync::atomic::AtomicBool::new(false), &|_| {}).unwrap();
     let full = Rect::new(0.0, 0.0, 1000.0, 700.0);
     g.resize(1000, 700);
     let theme = Theme::new(false, None);

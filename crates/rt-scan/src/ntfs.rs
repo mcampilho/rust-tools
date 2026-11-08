@@ -895,7 +895,7 @@ mod tests {
     /// An 8 MB volume made by `mkntfs`, with files copied in by `ntfscp`
     /// (see the comment in the fixture's README).
     fn image() -> Cursor<Vec<u8>> {
-        let z = include_bytes!("../../tests/fixtures/ntfs-small.img.zlib");
+        let z = include_bytes!("../tests/fixtures/ntfs-small.img.zlib");
         Cursor::new(miniz_oxide::inflate::decompress_to_vec_zlib(z).expect("fixture"))
     }
 

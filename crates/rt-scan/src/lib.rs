@@ -1,4 +1,11 @@
-//! Reading a folder tree from the disk.
+//! Reading a folder tree from the disk, the fastest way there is: the index
+//! of Everything (`everything`), the NTFS table read directly (`ntfs`), or
+//! folder by folder through the system. Shared by rsize and rdup, with the
+//! tree they are read into (`model`), the drives to offer (`volumes`) and
+//! how sizes and dates are shown (`format`). Its visible strings are in
+//! `rt-core/src/strings.txt`.
+//!
+//! Folder by folder:
 //!
 //! A pool of worker threads lists folders, and one coordinator thread adds
 //! what they find to the [`Tree`] and gives them the subfolders to read next.
@@ -26,7 +33,12 @@ mod unix;
 #[cfg(windows)]
 mod win;
 
+pub mod format;
+pub mod model;
+pub mod volumes;
+
 use crate::model::{Entry, Id, Kind, Tree, F_HARDLINK, F_UNREADABLE};
+use rt_core::i18n;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -108,9 +120,9 @@ impl Handle {
 pub fn start(root: PathBuf, sink: Box<dyn Fn(Event) + Send>) -> Handle {
     let cancel = Arc::new(AtomicBool::new(false));
     let flag = cancel.clone();
-    let lang = crate::i18n::lang();
+    let lang = i18n::lang();
     std::thread::spawn(move || {
-        crate::i18n::set_lang(lang);
+        i18n::set_lang(lang);
         let result = scan(&root, &flag, &|p| sink(Event::Progress(p.clone())));
         sink(Event::Done(result.map(Box::new)));
     });
@@ -217,7 +229,7 @@ pub fn scan_with(root: &Path, ways: Ways, cancel: &AtomicBool, progress: &dyn Fn
     }
     #[cfg(windows)]
     if ways.ntfs {
-        let label = |pct: u64| crate::i18n::tf("Reading the NTFS table… {}%", &[&pct.to_string()]);
+        let label = |pct: u64| i18n::tf("Reading the NTFS table… {}%", &[&pct.to_string()]);
         match ntfs::scan_volume(&root, cancel, progress, &label) {
             Ok(tree) => return Ok(Scan { tree, method: Method::Ntfs, elapsed: start.elapsed(), complete: true, admin_would_help: false }),
             Err(ntfs::Skip::Stopped) => return stopped(Method::Ntfs),
@@ -336,6 +348,44 @@ pub(crate) fn mtime_of(m: &std::fs::Metadata) -> i64 {
         .map_or(0, |d| d.as_secs() as i64)
 }
 
+/// Helpers for the tests of the apps that read with this crate.
+pub mod testing {
+    use std::path::PathBuf;
+
+    /// A temporary folder tree, removed when dropped.
+    pub struct TempTree(pub PathBuf);
+
+    impl TempTree {
+        /// A new empty folder in the temporary folder, named after `tag`.
+        pub fn new(tag: &str) -> TempTree {
+            let dir = std::env::temp_dir().join(format!("rt-scan-{tag}-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&dir);
+            std::fs::create_dir_all(&dir).expect("temporary folder");
+            TempTree(dir)
+        }
+
+        /// A file at `rel` (folders created as needed) of `len` bytes 'x'.
+        pub fn file(&self, rel: &str, len: usize) {
+            self.write(rel, &vec![b'x'; len]);
+        }
+
+        /// A file at `rel` with these contents.
+        pub fn write(&self, rel: &str, data: &[u8]) {
+            let p = self.0.join(rel);
+            if let Some(dir) = p.parent() {
+                std::fs::create_dir_all(dir).expect("folder");
+            }
+            std::fs::write(p, data).expect("file");
+        }
+    }
+
+    impl Drop for TempTree {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
@@ -345,29 +395,7 @@ pub(crate) mod tests {
         scan_with(root, Ways::SYSTEM, cancel, progress)
     }
 
-    /// A temporary folder tree, removed when dropped.
-    pub(crate) struct TempTree(pub PathBuf);
-
-    impl TempTree {
-        pub fn new(tag: &str) -> TempTree {
-            let dir = std::env::temp_dir().join(format!("rsize-{tag}-{}", std::process::id()));
-            let _ = std::fs::remove_dir_all(&dir);
-            std::fs::create_dir_all(&dir).unwrap();
-            TempTree(dir)
-        }
-
-        pub fn file(&self, rel: &str, len: usize) {
-            let p = self.0.join(rel);
-            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
-            std::fs::write(p, vec![b'x'; len]).unwrap();
-        }
-    }
-
-    impl Drop for TempTree {
-        fn drop(&mut self) {
-            let _ = std::fs::remove_dir_all(&self.0);
-        }
-    }
+    pub(crate) use crate::testing::TempTree;
 
     fn child(t: &Tree, parent: Id, name: &str) -> Id {
         *t.children(parent).iter().find(|&&c| t.name(c) == name).unwrap_or_else(|| panic!("{name} not found"))
@@ -419,8 +447,8 @@ pub(crate) mod tests {
         assert_eq!(s.tree.children(0).len(), 20);
     }
 
-    /// Times a scan of `RSIZE_BENCH_DIR` and the treemap of the result:
-    /// `cargo test -p rsize --release --lib bench -- --ignored --nocapture`.
+    /// Times a scan of `RSIZE_BENCH_DIR`:
+    /// `cargo test -p rt-scan --release --lib bench -- --ignored --nocapture`.
     #[test]
     #[ignore]
     fn bench() {
@@ -439,9 +467,6 @@ pub(crate) mod tests {
             t.unreadable(),
             s.elapsed
         );
-        let start = Instant::now();
-        let m = crate::treemap::Map::new(t, 0, 1600, 700);
-        println!("treemap: {} tiles in {:.2?}", m.tiles.len(), start.elapsed());
     }
 
     #[cfg(windows)]

@@ -1,0 +1,31 @@
+[package]
+name = "rt-scan"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+description = "Reading folder trees fast (Everything, the NTFS table, or folder by folder), shared by the rust-tools apps"
+license = "MIT"
+publish = false
+
+[dependencies]
+rt-core = { path = "../rt-core" }
+rt-sys = { path = "../rt-sys" }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_DataExchange",
+    "Win32_System_IO",
+    "Win32_System_LibraryLoader",
+    "Win32_System_WindowsProgramming",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+# Unpacks the NTFS image the MFT reader is tested on.
+miniz_oxide = "0.8"

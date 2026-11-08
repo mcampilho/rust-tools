@@ -1,0 +1,199 @@
+# rdup's strings, looked up before the common table of rt-core.
+# Columns: en-US key, en-GB, de-DE, es-ES, fr-FR, it-IT, ja-JP, pt-BR, pt-PT, zh-CN (tab-separated).
+# An empty cell falls back (en-GB and pt-PT to en-US and pt-BR); edit by hand, one row per string.
+&Stop		&Anhalten	&Detener	&Arrêter	&Interrompi	停止(&S)	Pa&rar	Pa&rar	停止(&S)
+E&xit		&Beenden	&Salir	&Quitter	&Esci	終了(&X)	&Sair	&Sair	退出(&X)
+&Copy Path		Pfad ko&pieren	&Copiar ruta	&Copier le chemin	&Copia percorso	パスをコピー(&C)	&Copiar caminho	&Copiar caminho	复制路径(&C)
+&Open		Ö&ffnen	A&brir	&Ouvrir	&Apri	開く(&O)	A&brir	A&brir	打开(&O)
+Show in File &Manager		Im &Dateimanager anzeigen	Mostrar en el &explorador de archivos	Afficher dans le &gestionnaire de fichiers	Mostra nel &gestore file	ファイル マネージャーで表示(&M)	Mostrar no &gerenciador de arquivos	Mostrar no &gestor de ficheiros	在文件管理器中显示(&M)
+Use &System Setting		&Systemeinstellung verwenden	Usar configuración del &sistema	Utiliser le paramètre du &système	Usa impostazione di &sistema	システム設定を使用(&S)	Usar configuração do &sistema	Usar definição do &sistema	使用系统设置(&S)
+&Light		&Hell	&Claro	&Clair	&Chiaro	ライト(&L)	&Claro		浅色(&L)
+&Dark		&Dunkel	&Oscuro	S&ombre	Sc&uro	ダーク(&D)	&Escuro		深色(&D)
+&Keyboard Shortcuts		&Tastenkombinationen	&Métodos abreviados de teclado	&Raccourcis clavier	&Tasti di scelta rapida	キーボード ショートカット(&K)	&Atalhos de teclado	&Atalhos de teclado	键盘快捷方式(&K)
+&File		&Datei	&Archivo	&Fichier	&File	ファイル(&F)	&Arquivo	&Ficheiro	文件(&F)
+&Edit		&Bearbeiten	&Edición	&Édition	&Modifica	編集(&E)	&Editar	&Editar	编辑(&E)
+&Help		&Hilfe	A&yuda	A&ide	&Guida	ヘルプ(&H)	A&juda	A&juda	帮助(&H)
+T&heme		&Design	&Tema	&Thème	&Tema	テーマ(&H)	&Tema		主题(&H)
+Display &Language		&Anzeigesprache	&Idioma de la interfaz	&Langue de l’interface	&Lingua dell’interfaccia	表示言語(&L)	&Idioma da interface		界面语言(&L)
+Keyboard shortcuts		Tastenkombinationen	Métodos abreviados de teclado	Raccourcis clavier	Tasti di scelta rapida	キーボード ショートカット	Atalhos de teclado		键盘快捷方式
+Move in the list		In der Liste bewegen	Moverse por la lista	Se déplacer dans la liste	Spostarsi nell’elenco	一覧内を移動	Mover-se na lista	Mover-se na lista	在列表中移动
+Show it in the file manager		Im Dateimanager anzeigen	Mostrarlo en el explorador de archivos	L’afficher dans le gestionnaire de fichiers	Mostralo nel gestore file	ファイル マネージャーで表示	Mostrá-lo no gerenciador de arquivos	Mostrá-lo no gestor de ficheiros	在文件管理器中显示
+Copy its path		Pfad kopieren	Copiar su ruta	Copier son chemin	Copia il percorso	パスをコピー	Copiar o caminho	Copiar o caminho	复制路径
+Looking for drives…		Laufwerke werden gesucht…	Buscando unidades…	Recherche des lecteurs…	Ricerca delle unità…	ドライブを検索しています…	Procurando unidades…	A procurar unidades…	正在查找驱动器…
+Network		Netzwerk	Red	Réseau	Rete	ネットワーク	Rede	Rede	网络
+No drives were found.		Keine Laufwerke gefunden.	No se encontraron unidades.	Aucun lecteur trouvé.	Nessuna unità trovata.	ドライブが見つかりませんでした。	Nenhuma unidade encontrada.	Nenhuma unidade encontrada.	未找到驱动器。
+Folders		Ordner	Carpetas	Dossiers	Cartelle	フォルダー	Pastas	Pastas	文件夹
+Reading {}…		{} wird gelesen…	Leyendo {}…	Lecture de {}…	Lettura di {}…	{} を読み込んでいます…	Lendo {}…	A ler {}…	正在读取 {}…
+files		Dateien	archivos	fichiers	file	ファイル	arquivos	ficheiros	个文件
+folders		Ordner	carpetas	dossiers	cartelle	フォルダー	pastas	pastas	个文件夹
+found		gefunden	encontrados	trouvés	trovati	検出	encontrados	encontrados	已找到
+{} s		{} s	{} s	{} s	{} s	{} 秒	{} s	{} s	{} 秒
+{} folders could not be read		{} Ordner konnten nicht gelesen werden	No se pudieron leer {} carpetas	{} dossiers n’ont pas pu être lus	Impossibile leggere {} cartelle	{} 個のフォルダーを読み取れませんでした	{} pastas não puderam ser lidas	Não foi possível ler {} pastas	{} 个文件夹无法读取
+Name		Name	Nombre	Nom	Nome	名前	Nome	Nome	名称
+Size		Größe	Tamaño	Taille	Dimensione	サイズ	Tamanho	Tamanho	大小
+Modified		Geändert	Modificado	Modifié	Modificato	更新日時	Modificado	Modificado	修改日期
+from the NTFS table		aus der NTFS-Tabelle	desde la tabla NTFS	depuis la table NTFS	dalla tabella NTFS	NTFS テーブルから	pela tabela NTFS	pela tabela NTFS	来自 NTFS 表
+from the Everything index		aus dem Everything-Index	desde el índice de Everything	depuis l’index d’Everything	dall’indice di Everything	Everything のインデックスから	pelo índice do Everything	pelo índice do Everything	来自 Everything 索引
+folder by folder		Ordner für Ordner	carpeta por carpeta	dossier par dossier	cartella per cartella	フォルダーごと	pasta por pasta	pasta a pasta	逐个文件夹
+faster as administrator (File menu)		als Administrator schneller (Menü Datei)	más rápido como administrador (menú Archivo)	plus rapide en administrateur (menu Fichier)	più veloce come amministratore (menu File)	管理者ならより高速 ([ファイル] メニュー)	mais rápido como administrador (menu Arquivo)	mais rápido como administrador (menu Ficheiro)	以管理员身份运行更快（文件菜单）
+&Add Folder...		Ordner &hinzufügen...	&Agregar carpeta...	Ajouter un &dossier...	&Aggiungi cartella...	フォルダーを追加(&A)...	&Adicionar pasta...	&Adicionar pasta...	添加文件夹(&A)...
+Find &Duplicates		&Duplikate suchen	Buscar d&uplicados	&Rechercher les doublons	Trova &duplicati	重複を検索(&D)	Procurar &duplicatas	Procurar &duplicados	查找重复项(&D)
+&New Search		&Neue Suche	&Nueva búsqueda	&Nouvelle recherche	&Nuova ricerca	新しい検索(&N)	&Nova pesquisa	&Nova pesquisa	新搜索(&N)
+Restart as Ad&ministrator		Als Administrator neu &starten	Reiniciar como ad&ministrador	Redémarrer en tant qu’ad&ministrateur	Riavvia come a&mministratore	管理者として再起動(&M)	Reiniciar como ad&ministrador	Reiniciar como ad&ministrador	以管理员身份重新启动(&M)
+&About rdup		Ü&ber rdup	&Acerca de rdup	À &propos de rdup	&Informazioni su rdup	rdup について(&A)	&Sobre o rdup	A&cerca do rdup	关于 rdup(&A)
+About rdup		Über rdup	Acerca de rdup	À propos de rdup	Informazioni su rdup	rdup について	Sobre o rdup	Acerca do rdup	关于 rdup
+rdup {}\n\nFinds files with the same contents on drives and folders, written in Rust.\nNo telemetry, no network access.\n\nMIT License.		rdup {}\n\nFindet Dateien mit gleichem Inhalt auf Laufwerken und in Ordnern. Geschrieben in Rust.\nKeine Telemetrie, kein Netzwerkzugriff.\n\nMIT-Lizenz.	rdup {}\n\nEncuentra archivos con el mismo contenido en unidades y carpetas. Escrito en Rust.\nSin telemetría ni acceso a la red.\n\nLicencia MIT.	rdup {}\n\nTrouve les fichiers au contenu identique sur les lecteurs et dans les dossiers. Écrit en Rust.\nAucune télémétrie, aucun accès au réseau.\n\nLicence MIT.	rdup {}\n\nTrova i file con lo stesso contenuto su unità e cartelle. Scritto in Rust.\nNessuna telemetria, nessun accesso alla rete.\n\nLicenza MIT.	rdup {}\n\nドライブやフォルダーで内容が同じファイルを見つけます。Rust で作成。\nテレメトリなし、ネットワーク アクセスなし。\n\nMIT ライセンス。	rdup {}\n\nEncontra arquivos com o mesmo conteúdo em unidades e pastas. Escrito em Rust.\nSem telemetria, sem acesso à rede.\n\nLicença MIT.	rdup {}\n\nEncontra ficheiros com o mesmo conteúdo em unidades e pastas. Escrito em Rust.\nSem telemetria, sem acesso à rede.\n\nLicença MIT.	rdup {}\n\n在驱动器和文件夹中查找内容相同的文件。使用 Rust 编写。\n无遥测，无网络访问。\n\nMIT 许可证。
+The search was stopped.		Die Suche wurde angehalten.	La búsqueda se detuvo.	La recherche a été arrêtée.	La ricerca è stata interrotta.	検索を停止しました。	A pesquisa foi interrompida.	A pesquisa foi interrompida.	搜索已停止。
+Could not read: {}		Konnte nicht gelesen werden: {}	No se pudo leer: {}	Lecture impossible : {}	Impossibile leggere: {}	読み込めませんでした: {}	Não foi possível ler: {}	Não foi possível ler: {}	无法读取：{}
+Searching		Suche läuft	Buscando	Recherche	Ricerca in corso	検索中	Pesquisando	A pesquisar	正在搜索
+Choose a folder to search		Ordner für die Suche auswählen	Elija una carpeta para buscar	Choisissez un dossier à examiner	Scegli una cartella in cui cercare	検索するフォルダーを選択	Escolha uma pasta para pesquisar	Escolha uma pasta para pesquisar	选择要搜索的文件夹
+Duplicates		Duplikate	Duplicados	Doublons	Duplicati	重複	Duplicatas	Duplicados	重复项
+Add a folder to the search		Ordner zur Suche hinzufügen	Agregar una carpeta a la búsqueda	Ajouter un dossier à la recherche	Aggiungi una cartella alla ricerca	検索にフォルダーを追加	Adicionar uma pasta à pesquisa	Adicionar uma pasta à pesquisa	将文件夹添加到搜索
+Find the duplicates		Duplikate suchen	Buscar los duplicados	Rechercher les doublons	Trova i duplicati	重複を検索	Procurar as duplicatas	Procurar os duplicados	查找重复项
+Change the drives and folders		Laufwerke und Ordner ändern	Cambiar las unidades y carpetas	Changer les lecteurs et dossiers	Cambia unità e cartelle	ドライブとフォルダーを変更	Alterar as unidades e pastas	Alterar as unidades e pastas	更改驱动器和文件夹
+Stop the search		Suche anhalten	Detener la búsqueda	Arrêter la recherche	Interrompi la ricerca	検索を停止	Parar a pesquisa	Parar a pesquisa	停止搜索
+Open the selected file		Ausgewählte Datei öffnen	Abrir el archivo seleccionado	Ouvrir le fichier sélectionné	Apri il file selezionato	選択したファイルを開く	Abrir o arquivo selecionado	Abrir o ficheiro selecionado	打开所选文件
+Choose the drives and folders to search		Laufwerke und Ordner für die Suche auswählen	Elija las unidades y carpetas donde buscar	Choisissez les lecteurs et dossiers à examiner	Scegli le unità e le cartelle in cui cercare	検索するドライブとフォルダーを選択	Escolha as unidades e pastas para pesquisar	Escolha as unidades e pastas a pesquisar	选择要搜索的驱动器和文件夹
+Files with the same contents are found in all of them together.		Dateien mit gleichem Inhalt werden in allen zusammen gefunden.	Se buscan archivos con el mismo contenido en todas a la vez.	Les fichiers identiques sont cherchés dans l’ensemble.	I file con lo stesso contenuto vengono cercati in tutte insieme.	内容が同じファイルを、すべてをまとめて検索します。	Arquivos com o mesmo conteúdo são procurados em todas juntas.	Os ficheiros com o mesmo conteúdo são procurados em todas em conjunto.	在所有选定位置中一起查找内容相同的文件。
+{} used of {}		{} von {} belegt	{} usados de {}	{} utilisés sur {}	{} usati su {}	{} / {} 使用中	{} usados de {}	{} usados de {}	已用 {}，共 {}
+{} chosen		{} ausgewählt	{} elegidos	{} choisis	{} scelti	{} 件を選択	{} escolhidos	{} escolhidos	已选择 {} 个
+Tick at least one drive, or add a folder (network folders too).		Mindestens ein Laufwerk ankreuzen oder einen Ordner hinzufügen (auch im Netzwerk).	Marque al menos una unidad o agregue una carpeta (también de red).	Cochez au moins un lecteur ou ajoutez un dossier (réseau compris).	Seleziona almeno un’unità o aggiungi una cartella (anche di rete).	ドライブを 1 つ以上選ぶか、フォルダーを追加してください (ネットワーク上も可)。	Marque pelo menos uma unidade ou adicione uma pasta (também de rede).	Marque pelo menos uma unidade ou adicione uma pasta (também de rede).	请至少勾选一个驱动器，或添加文件夹（也可以是网络文件夹）。
+Reading {} ({} of {})…		{} wird gelesen ({} von {})…	Leyendo {} ({} de {})…	Lecture de {} ({} sur {})…	Lettura di {} ({} di {})…	{} を読み込んでいます ({}/{})…	Lendo {} ({} de {})…	A ler {} ({} de {})…	正在读取 {}（第 {} 个，共 {} 个）…
+Comparing the first and last bytes…		Erste und letzte Bytes werden verglichen…	Comparando los primeros y últimos bytes…	Comparaison des premiers et derniers octets…	Confronto dei primi e degli ultimi byte…	先頭と末尾のバイトを比較しています…	Comparando os primeiros e os últimos bytes…	A comparar os primeiros e os últimos bytes…	正在比较开头和结尾的字节…
+Comparing the contents…		Inhalte werden verglichen…	Comparando el contenido…	Comparaison des contenus…	Confronto dei contenuti…	内容を比較しています…	Comparando o conteúdo…	A comparar o conteúdo…	正在比较内容…
+of {} files		von {} Dateien	de {} archivos	sur {} fichiers	di {} file	/ {} ファイル	de {} arquivos	de {} ficheiros	/ {} 个文件
+of {} read		von {} gelesen	de {} leídos	sur {} lus	di {} letti	/ {} 読み込み済み	de {} lidos	de {} lidos	/ {} 已读取
+{} copies of {} · {} can be freed		{} Kopien von {} · {} können freigegeben werden	{} copias de {} · se pueden liberar {}	{} copies de {} · {} peuvent être libérés	{} copie di {} · {} liberabili	{} 個のコピー ({}) · {} を解放できます	{} cópias de {} · {} podem ser liberados	{} cópias de {} · {} podem ser libertados	{} 个副本，每个 {} · 可释放 {}
+No duplicates were found.		Es wurden keine Duplikate gefunden.	No se encontraron duplicados.	Aucun doublon n’a été trouvé.	Non sono stati trovati duplicati.	重複は見つかりませんでした。	Nenhuma duplicata foi encontrada.	Não foram encontrados duplicados.	未找到重复项。
+{} files were compared.		{} Dateien wurden verglichen.	Se compararon {} archivos.	{} fichiers ont été comparés.	Sono stati confrontati {} file.	{} 個のファイルを比較しました。	{} arquivos foram comparados.	Foram comparados {} ficheiros.	已比较 {} 个文件。
+Folder		Ordner	Carpeta	Dossier	Cartella	フォルダー	Pasta	Pasta	文件夹
+{} groups		{} Gruppen	{} grupos	{} groupes	{} gruppi	{} グループ	{} grupos	{} grupos	{} 组
+{} copies		{} Kopien	{} copias	{} copies	{} copie	{} 個のコピー	{} cópias	{} cópias	{} 个副本
+{} can be freed		{} können freigegeben werden	se pueden liberar {}	{} peuvent être libérés	{} liberabili	{} を解放できます	{} podem ser liberados	{} podem ser libertados	可释放 {}
+{} files compared		{} Dateien verglichen	{} archivos comparados	{} fichiers comparés	{} file confrontati	{} 個のファイルを比較	{} arquivos comparados	{} ficheiros comparados	已比较 {} 个文件
+in {} s		in {} s	en {} s	en {} s	in {} s	{} 秒	em {} s	em {} s	用时 {} 秒
+{} files could not be read		{} Dateien konnten nicht gelesen werden	No se pudieron leer {} archivos	{} fichiers n’ont pas pu être lus	Impossibile leggere {} file	{} 個のファイルを読み込めませんでした	{} arquivos não puderam ser lidos	{} ficheiros não puderam ser lidos	{} 个文件无法读取
+{} not read		{} nicht gelesen	{} sin leer	{} non lus	{} non letti	{} 件は読み込めず	{} não lidos	{} não lidos	{} 个未读取
+&View		&Ansicht	&Ver	&Affichage	&Visualizza	表示(&V)	E&xibir	&Ver	视图(&V)
+Any size		Jede Größe	Cualquiera	Toute taille	Qualsiasi	すべて	Qualquer	Qualquer	任意大小
+files of {} or more		Dateien ab {}	archivos de {} o más	fichiers de {} ou plus	file da {} in su	{} 以上のファイル	arquivos de {} ou mais	ficheiros de {} ou mais	{} 及以上的文件
+Filters		Filter	Filtros	Filtres	Filtri	フィルター	Filtros	Filtros	筛选
+Clear Filters		Filter leeren	Borrar filtros	Effacer les filtres	Cancella filtri	フィルターをクリア	Limpar filtros	Limpar filtros	清除筛选
+Types		Typen	Tipos	Types	Tipi	種類	Tipos	Tipos	类型
+Extensions		Endungen	Extensiones	Extensions	Estensioni	拡張子	Extensões	Extensões	扩展名
+Names		Namen	Nombres	Noms	Nomi	名前	Nomes	Nomes	名称
+At least, e.g. 1 MB		Mindestens, z. B. 1 MB	Al menos, p. ej. 1 MB	Au moins, p. ex. 1 Mo	Almeno, ad es. 1 MB	最小 (例: 1 MB)	No mínimo, ex.: 1 MB	Pelo menos, ex.: 1 MB	至少，例如 1 MB
+At most, e.g. 4 GB		Höchstens, z. B. 4 GB	Como máximo, p. ej. 4 GB	Au plus, p. ex. 4 Go	Al massimo, ad es. 4 GB	最大 (例: 4 GB)	No máximo, ex.: 4 GB	No máximo, ex.: 4 GB	至多，例如 4 GB
+From, e.g. 2024-01-31		Von, z. B. 2024-01-31	Desde, p. ej. 2024-01-31	Du, p. ex. 2024-01-31	Dal, ad es. 2024-01-31	開始日 (例: 2024-01-31)	De, ex.: 2024-01-31	De, ex.: 2024-01-31	从，例如 2024-01-31
+To, e.g. 2024-12-31		Bis, z. B. 2024-12-31	Hasta, p. ej. 2024-12-31	Au, p. ex. 2024-12-31	Al, ad es. 2024-12-31	終了日 (例: 2024-12-31)	Até, ex.: 2024-12-31	Até, ex.: 2024-12-31	到，例如 2024-12-31
+Only these, e.g. jpg png mp4		Nur diese, z. B. jpg png mp4	Solo estas, p. ej. jpg png mp4	Seulement, p. ex. jpg png mp4	Solo queste, ad es. jpg png mp4	これだけ (例: jpg png mp4)	Só estas, ex.: jpg png mp4	Só estas, ex.: jpg png mp4	仅这些，例如 jpg png mp4
+Leave out, e.g. tmp log obj		Auslassen, z. B. tmp log obj	Excluir, p. ej. tmp log obj	Exclure, p. ex. tmp log obj	Escludi, ad es. tmp log obj	除外 (例: tmp log obj)	Excluir, ex.: tmp log obj	Excluir, ex.: tmp log obj	排除，例如 tmp log obj
+Only these, e.g. Setup* *video*		Nur diese, z. B. Setup* *video*	Solo estos, p. ej. Setup* *video*	Seulement, p. ex. Setup* *video*	Solo questi, ad es. Setup* *video*	これだけ (例: Setup* *video*)	Só estes, ex.: Setup* *video*	Só estes, ex.: Setup* *video*	仅这些，例如 Setup* *video*
+Leave out, e.g. tmp* *cache*		Auslassen, z. B. tmp* *cache*	Excluir, p. ej. tmp* *cache*	Exclure, p. ex. tmp* *cache*	Escludi, ad es. tmp* *cache*	除外 (例: tmp* *cache*)	Excluir, ex.: tmp* *cache*	Excluir, ex.: tmp* *cache*	排除，例如 tmp* *cache*
+A size is not understood: use a number and a unit, such as 500 KB or 1.5 GB.		Eine Größe ist unverständlich: Zahl und Einheit angeben, etwa 500 KB oder 1,5 GB.	No se entiende un tamaño: use un número y una unidad, como 500 KB o 1,5 GB.	Une taille n’est pas comprise : indiquez un nombre et une unité, comme 500 Ko ou 1,5 Go.	Una dimensione non è chiara: usa un numero e un’unità, come 500 KB o 1,5 GB.	サイズを解釈できません。500 KB や 1.5 GB のように数値と単位で指定してください。	Um tamanho não foi entendido: use um número e uma unidade, como 500 KB ou 1,5 GB.	Um tamanho não foi percebido: use um número e uma unidade, como 500 KB ou 1,5 GB.	无法识别大小：请使用数字加单位，例如 500 KB 或 1.5 GB。
+A date is not understood: use year-month-day, such as 2024-01-31.		Ein Datum ist unverständlich: Jahr-Monat-Tag angeben, etwa 2024-01-31.	No se entiende una fecha: use año-mes-día, como 2024-01-31.	Une date n’est pas comprise : indiquez année-mois-jour, comme 2024-01-31.	Una data non è chiara: usa anno-mese-giorno, come 2024-01-31.	日付を解釈できません。2024-01-31 のように年-月-日で指定してください。	Uma data não foi entendida: use ano-mês-dia, como 2024-01-31.	Uma data não foi percebida: use ano-mês-dia, como 2024-01-31.	无法识别日期：请使用年-月-日，例如 2024-01-31。
+The largest size is smaller than the smallest.		Die größte Größe ist kleiner als die kleinste.	El tamaño máximo es menor que el mínimo.	La taille maximale est inférieure à la taille minimale.	La dimensione massima è inferiore alla minima.	最大サイズが最小サイズより小さくなっています。	O tamanho máximo é menor que o mínimo.	O tamanho máximo é menor do que o mínimo.	最大大小小于最小大小。
+The last date is before the first.		Das letzte Datum liegt vor dem ersten.	La última fecha es anterior a la primera.	La dernière date précède la première.	L’ultima data è precedente alla prima.	終了日が開始日より前になっています。	A última data é anterior à primeira.	A última data é anterior à primeira.	结束日期早于开始日期。
+Separate with spaces or commas; * stands for any text and ? for one character. Names are of files or of the folders they are in.		Mit Leerzeichen oder Kommas trennen; * steht für beliebigen Text, ? für ein Zeichen. Namen sind die von Dateien oder ihren Ordnern.	Separe con espacios o comas; * equivale a cualquier texto y ? a un carácter. Los nombres son de archivos o de sus carpetas.	Séparez par des espaces ou des virgules ; * remplace n’importe quel texte et ? un caractère. Les noms sont ceux des fichiers ou de leurs dossiers.	Separa con spazi o virgole; * indica qualsiasi testo e ? un carattere. I nomi sono di file o delle loro cartelle.	スペースかコンマで区切ります。* は任意の文字列、? は 1 文字を表します。名前はファイル名またはそのフォルダー名です。	Separe com espaços ou vírgulas; * vale qualquer texto e ? um caractere. Os nomes são de arquivos ou das pastas onde estão.	Separe com espaços ou vírgulas; * vale qualquer texto e ? um carácter. Os nomes são de ficheiros ou das pastas onde estão.	用空格或逗号分隔；* 代表任意文字，? 代表一个字符。名称可以是文件名或其所在文件夹名。
+with filters		mit Filtern	con filtros	avec filtres	con filtri	フィルターあり	com filtros	com filtros	已筛选
+Images		Bilder	Imágenes	Images	Immagini	画像	Imagens	Imagens	图片
+Videos		Videos	Vídeos	Vidéos	Video	動画	Vídeos	Vídeos	视频
+Audio		Audio	Audio	Audio	Audio	オーディオ	Áudio	Áudio	音频
+Archives		Archive	Comprimidos	Archives	Archivi	圧縮ファイル	Compactados	Comprimidos	压缩包
+Office		Office	Office	Bureautique	Office	Office	Office	Office	办公
+Programming		Programmierung	Programación	Programmation	Programmazione	プログラミング	Programação	Programação	编程
+System		System	Sistema	Système	Sistema	システム	Sistema	Sistema	系统
+Go to the next filter box		Zum nächsten Filterfeld	Ir al siguiente filtro	Aller au filtre suivant	Vai al filtro successivo	次のフィルター欄へ移動	Ir para o próximo filtro	Ir para o filtro seguinte	转到下一个筛选框
+{} is both to keep and to leave out: take it out of one of the boxes.		{} soll zugleich behalten und ausgelassen werden: aus einem der Felder entfernen.	{} está a la vez para incluir y para excluir: quítelo de una de las casillas.	{} est à la fois à garder et à exclure : retirez-le de l’une des cases.	{} è sia da includere sia da escludere: toglilo da una delle caselle.	{} が対象と除外の両方にあります。どちらかの欄から削除してください。	{} está ao mesmo tempo para incluir e para excluir: tire-o de uma das caixas.	{} está ao mesmo tempo para incluir e para excluir: tire-o de uma das caixas.	{} 同时在“仅这些”和“排除”中：请从其中一个框中删除。
+{month} {year}		{month} {year}	{month} de {year}	{month} {year}	{month} {year}	{year}年{month}	{month} de {year}	{month} de {year}	{year}年{month}
+Today		Heute	Hoy	Aujourd’hui	Oggi	今日	Hoje	Hoje	今天
+No Date		Kein Datum	Sin fecha	Aucune date	Nessuna data	日付なし	Sem data	Sem data	无日期
+Sun		So	do	di	do	日	dom	dom	日
+Mon		Mo	lu	lu	lu	月	seg	seg	一
+Tue		Di	ma	ma	ma	火	ter	ter	二
+Wed		Mi	mi	me	me	水	qua	qua	三
+Thu		Do	ju	je	gi	木	qui	qui	四
+Fri		Fr	vi	ve	ve	金	sex	sex	五
+Sat		Sa	sá	sa	sa	土	sáb	sáb	六
+January		Januar	enero	janvier	gennaio	1月	janeiro	janeiro	1月
+February		Februar	febrero	février	febbraio	2月	fevereiro	fevereiro	2月
+March		März	marzo	mars	marzo	3月	março	março	3月
+April		April	abril	avril	aprile	4月	abril	abril	4月
+May		Mai	mayo	mai	maggio	5月	maio	maio	5月
+June		Juni	junio	juin	giugno	6月	junho	junho	6月
+July		Juli	julio	juillet	luglio	7月	julho	julho	7月
+August		August	agosto	août	agosto	8月	agosto	agosto	8月
+September		September	septiembre	septembre	settembre	9月	setembro	setembro	9月
+October		Oktober	octubre	octobre	ottobre	10月	outubro	outubro	10月
+November		November	noviembre	novembre	novembre	11月	novembro	novembro	11月
+December		Dezember	diciembre	décembre	dicembre	12月	dezembro	dezembro	12月
+Step {} of 4		Schritt {} von 4	Paso {} de 4	Étape {} sur 4	Passo {} di 4	ステップ {}/4	Etapa {} de 4	Passo {} de 4	第 {} 步，共 4 步
+Comparing the folders…		Ordner werden verglichen…	Comparando las carpetas…	Comparaison des dossiers…	Confronto delle cartelle…	フォルダーを比較しています…	Comparando as pastas…	A comparar as pastas…	正在比较文件夹…
+{} identical folders of {} · {} can be freed		{} identische Ordner mit {} · {} können freigegeben werden	{} carpetas idénticas de {} · se pueden liberar {}	{} dossiers identiques de {} · {} peuvent être libérés	{} cartelle identiche da {} · {} liberabili	同一のフォルダー {} 個 ({}) · {} を解放できます	{} pastas idênticas de {} · {} podem ser liberados	{} pastas idênticas de {} · {} podem ser libertados	{} 个相同的文件夹，每个 {} · 可释放 {}
+{} the same · {} in common · {} of {} files		{} gleich · {} gemeinsam · {} von {} Dateien	{} igual · {} en común · {} de {} archivos	{} identique · {} en commun · {} fichiers sur {}	{} uguale · {} in comune · {} file su {}	{} 一致 · 共通 {} · {}/{} ファイル	{} igual · {} em comum · {} de {} arquivos	{} igual · {} em comum · {} de {} ficheiros	{} 相同 · 共有 {} · {}/{} 个文件
+Identical		Identisch	Idénticas	Identiques	Identiche	同一	Idênticas	Idênticas	相同
+{} or more		{} oder mehr	{} o más	{} ou plus	{} o più	{} 以上	{} ou mais	{} ou mais	{} 及以上
+Files ({})		Dateien ({})	Archivos ({})	Fichiers ({})	File ({})	ファイル ({})	Arquivos ({})	Ficheiros ({})	文件 ({})
+Folders ({})		Ordner ({})	Carpetas ({})	Dossiers ({})	Cartelle ({})	フォルダー ({})	Pastas ({})	Pastas ({})	文件夹 ({})
+Show:		Anzeigen:	Mostrar:	Afficher :	Mostra:	表示:	Mostrar:	Mostrar:	显示：
+No folders hold copies of each other.		Keine Ordner enthalten Kopien voneinander.	Ninguna carpeta contiene copias de otra.	Aucun dossier ne contient de copies d’un autre.	Nessuna cartella contiene copie di un’altra.	互いのコピーを含むフォルダーはありません。	Nenhuma pasta contém cópias de outra.	Nenhuma pasta contém cópias de outra.	没有文件夹包含彼此的副本。
+No folders have this much in common.		Keine Ordner haben so viel gemeinsam.	Ninguna carpeta tiene tanto en común.	Aucun dossier n’a autant en commun.	Nessuna cartella ha così tanto in comune.	これほど共通するフォルダーはありません。	Nenhuma pasta tem tanto em comum.	Nenhuma pasta tem tanto em comum.	没有文件夹有这么多共同内容。
+Folders are compared by the contents of all the files below them, whatever their names.		Ordner werden nach dem Inhalt aller Dateien darin verglichen, unabhängig von ihren Namen.	Las carpetas se comparan por el contenido de todos sus archivos, sean cuales sean sus nombres.	Les dossiers sont comparés selon le contenu de tous leurs fichiers, quels que soient leurs noms.	Le cartelle sono confrontate in base al contenuto di tutti i loro file, qualunque sia il nome.	フォルダーは、名前に関係なく、中のすべてのファイルの内容で比較されます。	As pastas são comparadas pelo conteúdo de todos os arquivos dentro delas, sejam quais forem os nomes.	As pastas são comparadas pelo conteúdo de todos os ficheiros dentro delas, sejam quais forem os nomes.	文件夹按其中所有文件的内容比较，与名称无关。
+{} files		{} Dateien	{} archivos	{} fichiers	{} file	{} ファイル	{} arquivos	{} ficheiros	{} 个文件
+&Files		Da&teien	&Archivos	&Fichiers	&File	ファイル(&F)	&Arquivos	&Ficheiros	文件(&F)
+F&olders		&Ordner	&Carpetas	&Dossiers	&Cartelle	フォルダー(&O)	&Pastas	&Pastas	文件夹(&O)
+Show the files or the folders		Dateien oder Ordner anzeigen	Mostrar los archivos o las carpetas	Afficher les fichiers ou les dossiers	Mostrare i file o le cartelle	ファイルまたはフォルダーを表示	Mostrar os arquivos ou as pastas	Mostrar os ficheiros ou as pastas	显示文件或文件夹
+Look for		Suchen nach	Buscar	Rechercher	Cerca	検索対象	Procurar	Procurar	查找
+Duplicate files		Doppelte Dateien	Archivos duplicados	Fichiers en double	File duplicati	重複ファイル	Arquivos duplicados	Ficheiros duplicados	重复文件
+Duplicate folders		Doppelte Ordner	Carpetas duplicadas	Dossiers en double	Cartelle duplicate	重複フォルダー	Pastas duplicadas	Pastas duplicadas	重复文件夹
+Tick duplicate files, duplicate folders or both: there is nothing to look for.		Doppelte Dateien, doppelte Ordner oder beides ankreuzen: Es gibt nichts zu suchen.	Marque archivos duplicados, carpetas duplicadas o ambos: no hay nada que buscar.	Cochez fichiers en double, dossiers en double ou les deux : il n’y a rien à rechercher.	Seleziona file duplicati, cartelle duplicate o entrambi: non c’è niente da cercare.	重複ファイル、重複フォルダー、またはその両方にチェックを付けてください。検索するものがありません。	Marque arquivos duplicados, pastas duplicadas ou ambos: não há nada para procurar.	Marque ficheiros duplicados, pastas duplicadas ou ambos: não há nada para procurar.	请勾选重复文件、重复文件夹或两者：没有可查找的内容。
+{} groups of folders		{} Ordnergruppen	{} grupos de carpetas	{} groupes de dossiers	{} gruppi di cartelle	{} 個のフォルダーグループ	{} grupos de pastas	{} grupos de pastas	{} 组文件夹
+&Mark		&Markieren	&Marcar	&Marquer	&Contrassegna	マーク(&K)	&Marcar	&Marcar	标记(&K)
+Mar&k or Unmark		Markierung &umschalten	&Marcar o desmarcar	&Marquer ou démarquer	&Segna o togli segno	マークの切り替え(&K)	&Marcar ou desmarcar	&Marcar ou desmarcar	标记/取消标记(&K)
+Keep the &Newest		Neueste &behalten	Conservar la más &nueva	Garder la plus &récente	Tieni la più &recente	最新のものを残す(&N)	Manter a mais &recente	Manter a mais &recente	保留最新的(&N)
+Keep the &Oldest		Älteste beh&alten	Conservar la más &antigua	Garder la plus &ancienne	Tieni la più &vecchia	最も古いものを残す(&O)	Manter a mais &antiga	Manter a mais &antiga	保留最旧的(&O)
+Keep the &Shortest Path		Kürzesten &Pfad behalten	Conservar la ruta más &corta	Garder le chemin le plus &court	Tieni il percorso più &corto	最短のパスを残す(&S)	Manter o caminho mais &curto	Manter o caminho mais &curto	保留路径最短的(&S)
+Keep Those in a &Folder...		Die in einem &Ordner behalten...	Conservar las de una car&peta...	Garder celles d’un &dossier...	Tieni quelle in una car&tella...	フォルダー内のものを残す(&F)...	Manter as de uma &pasta...	Manter as de uma &pasta...	保留某文件夹中的(&F)...
+&Unmark All		Alle Markierungen &entfernen	&Desmarcar todo	&Tout démarquer	Togli tutti i se&gni	すべてのマークを解除(&U)	&Desmarcar tudo	&Desmarcar tudo	全部取消标记(&U)
+Move to &Recycle Bin		In den Papierkorb &verschieben	Mover a la &papelera de reciclaje	Mettre à la cor&beille	Sposta nel ces&tino	ごみ箱に移動(&R)	Mover para a &Lixeira	Mover para a &Reciclagem	移到回收站(&R)
+Move to &Trash		In den Papierkorb &verschieben	Mover a la &papelera	Mettre à la cor&beille	Sposta nel ces&tino	ごみ箱に移動(&T)	Mover para a &Lixeira	Mover para o &lixo	移到回收站(&T)
+Mo&ve To...		Verschieben &nach...	Mo&ver a...	&Déplacer vers...	S&posta in...	移動先(&V)...	&Mover para...	&Mover para...	移动到(&V)...
+&Export to CSV...		Als CSV e&xportieren...	&Exportar a CSV...	&Exporter en CSV...	Es&porta in CSV...	CSV にエクスポート(&E)...	&Exportar para CSV...	&Exportar para CSV...	导出为 CSV(&E)...
+Mark Copies...		Kopien markieren...	Marcar copias...	Marquer les copies...	Segna le copie...	コピーをマーク...	Marcar cópias...	Marcar cópias...	标记副本...
+{} marked · {}		{} markiert · {}	{} marcadas · {}	{} marquées · {}	{} segnate · {}	{} 個をマーク · {}	{} marcadas · {}	{} marcadas · {}	已标记 {} 个 · {}
+{} marked		{} markiert	{} marcadas	{} marquées	{} segnate	{} 個をマーク	{} marcadas	{} marcadas	已标记 {} 个
+Tick the copies to move, or mark them with a rule.		Die zu verschiebenden Kopien ankreuzen oder mit einer Regel markieren.	Marque las copias que quiera mover, o márquelas con una regla.	Cochez les copies à déplacer, ou marquez-les avec une règle.	Spunta le copie da spostare, o segnale con una regola.	移動するコピーにチェックを付けるか、ルールでマークしてください。	Marque as cópias a mover, ou marque-as com uma regra.	Marque as cópias a mover, ou marque-as com uma regra.	勾选要移动的副本，或用规则标记它们。
+Similar folders cannot be marked: each holds files of its own.		Ähnliche Ordner können nicht markiert werden: Jeder enthält eigene Dateien.	Las carpetas parecidas no se pueden marcar: cada una tiene archivos propios.	Les dossiers semblables ne peuvent pas être marqués : chacun a ses propres fichiers.	Le cartelle simili non si possono segnare: ognuna ha file propri.	似ているフォルダーはマークできません。それぞれに固有のファイルがあります。	Pastas semelhantes não podem ser marcadas: cada uma tem arquivos próprios.	Pastas semelhantes não podem ser marcadas: cada uma tem ficheiros próprios.	相似的文件夹不能标记：每个都有自己独有的文件。
+Only identical folders can be marked: similar ones hold files of their own.		Nur identische Ordner können markiert werden: Ähnliche enthalten eigene Dateien.	Solo se pueden marcar carpetas idénticas: las parecidas tienen archivos propios.	Seuls les dossiers identiques peuvent être marqués : les semblables ont leurs propres fichiers.	Si possono segnare solo cartelle identiche: quelle simili hanno file propri.	マークできるのは同一のフォルダーだけです。似ているフォルダーには固有のファイルがあります。	Só pastas idênticas podem ser marcadas: as semelhantes têm arquivos próprios.	Só pastas idênticas podem ser marcadas: as semelhantes têm ficheiros próprios.	只能标记相同的文件夹：相似的文件夹有自己独有的文件。
+One copy of each group is always kept: this is the last one left.		Eine Kopie jeder Gruppe bleibt immer: Dies ist die letzte.	Siempre se conserva una copia de cada grupo: esta es la última que queda.	Une copie de chaque groupe est toujours gardée : c’est la dernière.	Si tiene sempre una copia di ogni gruppo: questa è l’ultima rimasta.	各グループのコピーは必ず 1 つ残ります。これが最後の 1 つです。	Uma cópia de cada grupo é sempre mantida: esta é a última que resta.	Uma cópia de cada grupo é sempre mantida: esta é a última que resta.	每组始终保留一个副本：这是最后一个。
+No copy was marked: the rule keeps them all.		Keine Kopie wurde markiert: Die Regel behält alle.	No se marcó ninguna copia: la regla las conserva todas.	Aucune copie n’a été marquée : la règle les garde toutes.	Nessuna copia segnata: la regola le tiene tutte.	マークされたコピーはありません。ルールではすべて残ります。	Nenhuma cópia foi marcada: a regra mantém todas.	Nenhuma cópia foi marcada: a regra mantém todas.	没有标记任何副本：此规则保留全部。
+Choose the folder whose copies to keep		Ordner wählen, dessen Kopien behalten werden	Elija la carpeta cuyas copias se conservan	Choisissez le dossier dont les copies sont gardées	Scegli la cartella le cui copie tenere	コピーを残すフォルダーを選択	Escolha a pasta cujas cópias manter	Escolha a pasta cujas cópias manter	选择要保留其中副本的文件夹
+Choose where to move the marked copies		Ziel für die markierten Kopien wählen	Elija adónde mover las copias marcadas	Choisissez où déplacer les copies marquées	Scegli dove spostare le copie segnate	マークしたコピーの移動先を選択	Escolha para onde mover as cópias marcadas	Escolha para onde mover as cópias marcadas	选择已标记副本的移动位置
+{} folders		{} Ordner	{} carpetas	{} dossiers	{} cartelle	{} 個のフォルダー	{} pastas	{} pastas	{} 个文件夹
+Move {} to the Recycle Bin?\n\n{} in all. One copy of each group stays where it is.		{} in den Papierkorb verschieben?\n\n{} insgesamt. Eine Kopie jeder Gruppe bleibt, wo sie ist.	¿Mover {} a la Papelera de reciclaje?\n\n{} en total. Una copia de cada grupo se queda donde está.	Déplacer {} vers la Corbeille ?\n\n{} au total. Une copie de chaque groupe reste où elle est.	Spostare {} nel Cestino?\n\n{} in tutto. Una copia di ogni gruppo resta dov’è.	{} をごみ箱に移動しますか?\n\n合計 {}。各グループのコピーが 1 つずつ元の場所に残ります。	Mover {} para a Lixeira?\n\n{} no total. Uma cópia de cada grupo fica onde está.	Mover {} para a Reciclagem?\n\n{} no total. Uma cópia de cada grupo fica onde está.	将 {} 移到回收站？\n\n共 {}。每组保留一个副本在原处。
+Move {} to the trash?\n\n{} in all. One copy of each group stays where it is.		{} in den Papierkorb verschieben?\n\n{} insgesamt. Eine Kopie jeder Gruppe bleibt, wo sie ist.	¿Mover {} a la papelera?\n\n{} en total. Una copia de cada grupo se queda donde está.	Déplacer {} vers la corbeille ?\n\n{} au total. Une copie de chaque groupe reste où elle est.	Spostare {} nel cestino?\n\n{} in tutto. Una copia di ogni gruppo resta dov’è.	{} をごみ箱に移動しますか?\n\n合計 {}。各グループのコピーが 1 つずつ元の場所に残ります。	Mover {} para a lixeira?\n\n{} no total. Uma cópia de cada grupo fica onde está.	Mover {} para o lixo?\n\n{} no total. Uma cópia de cada grupo fica onde está.	将 {} 移到回收站？\n\n共 {}。每组保留一个副本在原处。
+Move {} to {}?\n\n{} in all. One copy of each group stays where it is.		{} nach {} verschieben?\n\n{} insgesamt. Eine Kopie jeder Gruppe bleibt, wo sie ist.	¿Mover {} a {}?\n\n{} en total. Una copia de cada grupo se queda donde está.	Déplacer {} vers {} ?\n\n{} au total. Une copie de chaque groupe reste où elle est.	Spostare {} in {}?\n\n{} in tutto. Una copia di ogni gruppo resta dov’è.	{} を {} に移動しますか?\n\n合計 {}。各グループのコピーが 1 つずつ元の場所に残ります。	Mover {} para {}?\n\n{} no total. Uma cópia de cada grupo fica onde está.	Mover {} para {}?\n\n{} no total. Uma cópia de cada grupo fica onde está.	将 {} 移动到 {}？\n\n共 {}。每组保留一个副本在原处。
+Moving {} of {}…		{} von {} wird verschoben…	Moviendo {} de {}…	Déplacement de {} sur {}…	Spostamento {} di {}…	{}/{} を移動しています…	Movendo {} de {}…	A mover {} de {}…	正在移动第 {} 个，共 {} 个…
+{} moved.		{} verschoben.	{} movidas.	{} déplacées.	{} spostate.	{} 個を移動しました。	{} movidas.	{} movidas.	已移动 {} 个。
+{} could not be moved, such as {}: {}		{} konnten nicht verschoben werden, etwa {}: {}	{} no se pudieron mover, como {}: {}	{} n’ont pas pu être déplacées, comme {} : {}	{} non si sono potute spostare, come {}: {}	{} 個は移動できませんでした (例: {}: {})	{} não puderam ser movidas, como {}: {}	{} não puderam ser movidas, como {}: {}	{} 个无法移动，例如 {}：{}
+CSV files		CSV-Dateien	Archivos CSV	Fichiers CSV	File CSV	CSV ファイル	Arquivos CSV	Ficheiros CSV	CSV 文件
+The list was saved to {}.		Die Liste wurde in {} gespeichert.	La lista se guardó en {}.	La liste a été enregistrée dans {}.	L’elenco è stato salvato in {}.	一覧を {} に保存しました。	A lista foi salva em {}.	A lista foi guardada em {}.	列表已保存到 {}。
+Could not save {}: {}		{} konnte nicht gespeichert werden: {}	No se pudo guardar {}: {}	Impossible d’enregistrer {} : {}	Impossibile salvare {}: {}	{} を保存できませんでした: {}	Não foi possível salvar {}: {}	Não foi possível guardar {}: {}	无法保存 {}：{}
+It was left where it is.		Es blieb, wo es ist.	Se quedó donde está.	Il est resté où il est.	È rimasto dov’è.	元の場所に残しました。	Ficou onde está.	Ficou onde está.	已留在原处。
+It has no name.		Es hat keinen Namen.	No tiene nombre.	Il n’a pas de nom.	Non ha un nome.	名前がありません。	Não tem nome.	Não tem nome.	没有名称。
+A folder cannot be moved into itself.		Ein Ordner kann nicht in sich selbst verschoben werden.	Una carpeta no se puede mover dentro de sí misma.	Un dossier ne peut pas être déplacé dans lui-même.	Una cartella non può essere spostata in se stessa.	フォルダーをそれ自体の中には移動できません。	Uma pasta não pode ser movida para dentro de si mesma.	Uma pasta não pode ser movida para dentro de si própria.	文件夹不能移动到自身内部。
+The folder to move to is not there.		Der Zielordner ist nicht vorhanden.	La carpeta de destino no existe.	Le dossier de destination n’existe pas.	La cartella di destinazione non esiste.	移動先のフォルダーがありません。	A pasta de destino não existe.	A pasta de destino não existe.	目标文件夹不存在。
+It holds a link, which is not moved to another drive.		Er enthält eine Verknüpfung, die nicht auf ein anderes Laufwerk verschoben wird.	Contiene un enlace, que no se mueve a otra unidad.	Il contient un lien, qui n’est pas déplacé vers un autre lecteur.	Contiene un collegamento, che non viene spostato su un altro disco.	リンクが含まれているため、別のドライブには移動しません。	Contém um link, que não é movido para outra unidade.	Contém uma ligação, que não é movida para outro disco.	其中包含链接，不会移动到其他驱动器。
+Group		Gruppe	Grupo	Groupe	Gruppo	グループ	Grupo	Grupo	组
+Path		Pfad	Ruta	Chemin	Percorso	パス	Caminho	Caminho	路径
+In common		Gemeinsam	En común	En commun	In comune	共通	Em comum	Em comum	共同
+Size (bytes)		Größe (Bytes)	Tamaño (bytes)	Taille (octets)	Dimensione (byte)	サイズ (バイト)	Tamanho (bytes)	Tamanho (bytes)	大小（字节）
+Files		Dateien	Archivos	Fichiers	File	ファイル	Arquivos	Ficheiros	文件
+Marked		Markiert	Marcada	Marquée	Segnata	マーク	Marcada	Marcada	已标记
+Yes		Ja	Sí	Oui	Sì	はい	Sim	Sim	是
+Mark or unmark the selected copy		Ausgewählte Kopie markieren oder Markierung aufheben	Marcar o desmarcar la copia seleccionada	Marquer ou démarquer la copie sélectionnée	Segnare o togliere il segno alla copia selezionata	選択したコピーのマークを切り替え	Marcar ou desmarcar a cópia selecionada	Marcar ou desmarcar a cópia selecionada	标记或取消标记所选副本
+Move the marked copies to the Recycle Bin		Markierte Kopien in den Papierkorb verschieben	Mover las copias marcadas a la Papelera de reciclaje	Déplacer les copies marquées vers la Corbeille	Spostare le copie segnate nel Cestino	マークしたコピーをごみ箱に移動	Mover as cópias marcadas para a Lixeira	Mover as cópias marcadas para a Reciclagem	将已标记的副本移到回收站
+Move the marked copies to the trash		Markierte Kopien in den Papierkorb verschieben	Mover las copias marcadas a la papelera	Déplacer les copies marquées vers la corbeille	Spostare le copie segnate nel cestino	マークしたコピーをごみ箱に移動	Mover as cópias marcadas para a lixeira	Mover as cópias marcadas para o lixo	将已标记的副本移到回收站
+Move the marked copies to a folder		Markierte Kopien in einen Ordner verschieben	Mover las copias marcadas a una carpeta	Déplacer les copies marquées vers un dossier	Spostare le copie segnate in una cartella	マークしたコピーをフォルダーに移動	Mover as cópias marcadas para uma pasta	Mover as cópias marcadas para uma pasta	将已标记的副本移动到文件夹
+Save the list as CSV		Liste als CSV speichern	Guardar la lista como CSV	Enregistrer la liste en CSV	Salvare l’elenco in CSV	一覧を CSV で保存	Salvar a lista como CSV	Guardar a lista como CSV	将列表保存为 CSV
+{} hashes from the cache		{} Hashes aus dem Cache	{} hashes de la caché	{} empreintes du cache	{} hash dalla cache	キャッシュのハッシュ {} 個	{} hashes do cache	{} hashes da cache	{} 个哈希来自缓存

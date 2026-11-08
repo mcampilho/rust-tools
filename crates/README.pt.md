@@ -2,7 +2,7 @@
 
 [English version](README.md)
 
-O código que o rcalc, o rpad, o rview e o rsize têm em comum. Uma nova ferramenta do mesmo
+O código que o rcalc, o rpad, o rview, o rsize e o rdup têm em comum. Uma nova ferramenta do mesmo
 tipo (um único executável que desenha a sua própria interface no CPU) parte destes
 crates e só escreve o que é seu.
 
@@ -11,6 +11,7 @@ crates e só escreve o que é seu.
 | `rt-core` | Dez línguas de interface (`i18n`), definições num ficheiro `chave=valor` com modo portátil (`store`), a árvore de menus (`menu`) | nada |
 | `rt-gfx` | Desenho com tiny-skia e texto com ab_glyph (`gfx`), disposição de texto monoespaçado (`layout`), menus desenhados na janela (`menu`), painel de mensagens e texto cortado com reticências (`dialog`) | rt-core, tiny-skia, ab_glyph |
 | `rt-sys` | Clipboard, tema, língua, links, hora local, Reciclagem ou lixo; em Windows: mensagens da janela principal, instância única, direitos de administrador, menus nativos e escuros, diálogos, ícone de notificação; em Linux: diálogos zenity/kdialog, instância única por socket Unix, ícone StatusNotifierItem | rt-core, windows-sys / arboard, ksni, libc |
+| `rt-scan` | Leitura de uma árvore de pastas da forma mais rápida que houver: o índice do Everything, a tabela do NTFS lida diretamente, ou pasta a pasta (`scan_with`); a árvore compacta onde fica (`model`), os discos (`volumes`), tamanhos e datas como se mostram (`format`) | rt-core, rt-sys, windows-sys / libc |
 | `rt-syntax` | Definições de linguagens e um lexer linha a linha para o realce de sintaxe | nada |
 | `rt-build` | Ajuda para o `build.rs`: ícone, versão e manifesto no executável de Windows | tiny-skia |
 

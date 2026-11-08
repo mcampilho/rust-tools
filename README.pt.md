@@ -11,6 +11,7 @@ um único executável: sem instalador, sem runtime e sem telemetria.
 | [rpad](apps/rpad/README.pt.md) | Editor de texto e código: separadores, codificações, procura com regex, vários cursores, realce de sintaxe | 4,2 MB | 9,2 MB |
 | [rview](apps/rview/README.pt.md) | Visualizador de PDF, Markdown, HTML, texto e CSV, com seleção e cópia | 4,4 MB | 16,6 MB |
 | [rsize](apps/rsize/README.pt.md) | Analisador de espaço em disco: pastas por tamanho com treemap, tarte ou anéis, tipos de ficheiro, exportação CSV; lê o NTFS diretamente ou o índice do Everything | 1,9 MB | 5,5 MB |
+| [rdup](apps/rdup/README.pt.md) | Procurador de ficheiros duplicados: ficheiros com o mesmo conteúdo em vários discos e pastas de uma vez, por tamanho e hashes BLAKE3; lê os discos como o rsize | 1,9 MB | 5,6 MB |
 
 Todas desenham a sua própria interface no CPU (winit, softbuffer, tiny-skia e
 ab_glyph), sem GPU nem biblioteca de interface. Têm 10 idiomas e seguem o tema
@@ -39,10 +40,11 @@ Tools, se existir: o de `$env:RUST_TOOLS_MSVC_ENV`, ou o de
 | rpad | `cargo build --profile release-small -p rpad` | `target\release-small\rpad.exe` |
 | rview | `cargo build --release -p rview` | `target\release\rview.exe` |
 | rsize | `cargo build --profile release-small -p rsize` | `target\release-small\rsize.exe` |
+| rdup | `cargo build --profile release-small -p rdup` | `target\release-small\rdup.exe` |
 
 Há dois perfis porque, num workspace, o `panic` não se pode definir por pacote.
-O `release-small` aborta em pânicos, o que torna o rcalc, o rpad e o rsize cerca
-de 20% mais pequenos. O rview precisa do `release`: apanha os pânicos da biblioteca de
+O `release-small` aborta em pânicos, o que torna o rcalc, o rpad, o rsize e o rdup
+cerca de 20% mais pequenos. O rview precisa do `release`: apanha os pânicos da biblioteca de
 PDF, para que um PDF malformado não feche o programa. O `./dev.ps1 dist` escolhe
 o perfil certo para cada ferramenta.
 
@@ -61,7 +63,8 @@ compila essa ferramenta e publica-a com a soma SHA-256 e a proveniência da comp
 Os pacotes para Linux precisam da glibc 2.35 ou mais recente (2.34 no rcalc e no
 rpad) e funcionam em X11 e Wayland. O que muda face ao Windows está em cada README:
 [rcalc](apps/rcalc/README.pt.md#linux), [rpad](apps/rpad/README.pt.md#linux),
-[rview](apps/rview/README.pt.md#linux) e [rsize](apps/rsize/README.pt.md#linux). Foram verificados no WSL2, não num ambiente de
+[rview](apps/rview/README.pt.md#linux), [rsize](apps/rsize/README.pt.md#linux) e
+[rdup](apps/rdup/README.pt.md#linux). Foram verificados no WSL2, não num ambiente de
 trabalho Linux real.
 
 No WSLg, a barra de título que estas ferramentas desenham em Wayland pode fazer cair
@@ -77,12 +80,14 @@ rust-tools/
 ├─ dev.ps1         cargo com o ambiente das Build Tools; dist
 ├─ apps/
 │  ├─ rcalc/
+│  ├─ rdup/
 │  ├─ rpad/
 │  ├─ rsize/
 │  └─ rview/
 └─ crates/         código partilhado pelas aplicações
    ├─ rt-core/     traduções, definições, árvore de menus
    ├─ rt-gfx/      desenho, disposição de texto, menus desenhados, painel de mensagens
+   ├─ rt-scan/     leitura rápida dos discos: Everything, tabela NTFS, pasta a pasta
    ├─ rt-sys/      integração com Windows e Linux
    ├─ rt-syntax/   realce de sintaxe
    └─ rt-build/    ícone e versão no executável de Windows

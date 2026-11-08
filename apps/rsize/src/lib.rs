@@ -5,12 +5,13 @@ pub mod app;
 pub mod chart;
 pub mod commands;
 pub mod export;
-pub mod format;
 pub mod i18n;
-pub mod model;
-pub mod scan;
 pub mod settings;
 pub mod storage;
 pub mod treemap;
 pub mod ui;
-pub mod volumes;
+
+// Reading the disk, the tree and the formatting of sizes and dates are
+// shared with rdup (crates/rt-scan).
+pub use rt_scan as scan;
+pub use rt_scan::{format, model, volumes};

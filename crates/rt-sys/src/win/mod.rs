@@ -176,9 +176,24 @@ pub fn recycle(owner: HWND, path: &std::path::Path) -> Result<(), String> {
 
 /// Opens Explorer with `path` selected (explicit user command only).
 pub fn reveal_in_explorer(path: &std::path::Path) {
-    let _ = std::process::Command::new("explorer.exe")
-        .arg(format!("/select,{}", path.display()))
-        .spawn();
+    use std::os::windows::process::CommandExt;
+    // Explorer reads `/select,"C:\a b\c"` but not the whole argument quoted,
+    // which is how a path with spaces would be passed otherwise. A Windows
+    // path cannot hold a quote.
+    let _ = std::process::Command::new("explorer.exe").raw_arg(reveal_arg(path)).spawn();
+}
+
+/// The argument that makes Explorer select `path`.
+fn reveal_arg(path: &std::path::Path) -> String {
+    format!("/select,\"{}\"", path.display())
+}
+
+#[cfg(test)]
+mod reveal_tests {
+    #[test]
+    fn paths_with_spaces_are_quoted_after_select() {
+        assert_eq!(super::reveal_arg(std::path::Path::new(r"C:\My Files\a b.txt")), r#"/select,"C:\My Files\a b.txt""#);
+    }
 }
 
 /// Prints `text` to the console the app was started from, or shows it in a

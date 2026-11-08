@@ -8,3 +8,11 @@ Font size		Schriftgröße	Tamaño de fuente	Taille de police	Dimensione caratter
 No user data folder is available.		Es ist kein Benutzerdatenordner verfügbar.	No hay ninguna carpeta de datos de usuario disponible.	Aucun dossier de données utilisateur n’est disponible.	Nessuna cartella dei dati utente disponibile.	ユーザー データ フォルダーを使用できません。	Nenhuma pasta de dados do usuário está disponível.	Não há nenhuma pasta de dados do utilizador disponível.	没有可用的用户数据文件夹。
 Could not read {}: {}		{} konnte nicht gelesen werden: {}	No se pudo leer {}: {}	Impossible de lire {} : {}	Impossibile leggere {}: {}	{} を読み取れませんでした: {}	Não foi possível ler {}: {}		无法读取 {}：{}
 Settings can't be saved to {}: {}		Einstellungen können nicht in {} gespeichert werden: {}	No se puede guardar la configuración en {}: {}	Impossible d’enregistrer les paramètres dans {} : {}	Impossibile salvare le impostazioni in {}: {}	設定を {} に保存できません: {}	Não é possível salvar as configurações em {}: {}	Não é possível guardar as definições em {}: {}	无法将设置保存到 {}：{}
+Reading the NTFS table… {}%		NTFS-Tabelle wird gelesen… {} %	Leyendo la tabla NTFS… {} %	Lecture de la table NTFS… {} %	Lettura della tabella NTFS… {}%	NTFS テーブルを読み込んでいます… {}%	Lendo a tabela NTFS… {}%	A ler a tabela NTFS… {}%	正在读取 NTFS 表… {}%
+Asking Everything…		Everything wird abgefragt…	Consultando a Everything…	Interrogation d’Everything…	Interrogazione di Everything…	Everything に問い合わせています…	Consultando o Everything…	A consultar o Everything…	正在查询 Everything…
+B		B	B	o	B	B	B	B	B
+KB		KB	KB	Ko	KB	KB	KB	KB	KB
+MB		MB	MB	Mo	MB	MB	MB	MB	MB
+GB		GB	GB	Go	GB	GB	GB	GB	GB
+TB		TB	TB	To	TB	TB	TB	TB	TB
+PB		PB	PB	Po	PB	PB	PB	PB	PB

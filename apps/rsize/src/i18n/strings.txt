@@ -27,10 +27,8 @@ Other ({} items)		Andere ({} Elemente)	Otros ({} elementos)	Autres ({} élément
 Double-click a folder to zoom in, click the middle to zoom out		Doppelklick auf einen Ordner vergrößert ihn, ein Klick in die Mitte verkleinert	Doble clic en una carpeta para acercar, clic en el centro para alejar	Double-cliquez sur un dossier pour l’agrandir, cliquez au centre pour revenir	Doppio clic su una cartella per ingrandirla, clic al centro per ridurre	フォルダーをダブルクリックで拡大、中央をクリックで縮小	Clique duas vezes em uma pasta para ampliar, clique no centro para reduzir	Clique duas vezes numa pasta para ampliar, clique no centro para reduzir	双击文件夹放大，单击中心缩小
 Treemap / pie / rings		Treemap / Kreis / Ringe	Mapa de árbol / circular / anillos	Carte / secteurs / anneaux	Treemap / torta / anelli	ツリーマップ / 円グラフ / リング	Mapa de árvore / pizza / anéis	Mapa de árvore / circular / anéis	树状图 / 饼图 / 环形图
 Restart as &Administrator		Als Administrator neu &starten	Reiniciar como &administrador	Redémarrer en tant qu’ad&ministrateur	Riavvia come &amministratore	管理者として再起動(&A)	Reiniciar como a&dministrador	Reiniciar como a&dministrador	以管理员身份重新启动(&A)
-Reading the NTFS table… {}%		NTFS-Tabelle wird gelesen… {} %	Leyendo la tabla NTFS… {} %	Lecture de la table NTFS… {} %	Lettura della tabella NTFS… {}%	NTFS テーブルを読み込んでいます… {}%	Lendo a tabela NTFS… {}%	A ler a tabela NTFS… {}%	正在读取 NTFS 表… {}%
 from the NTFS table		aus der NTFS-Tabelle	desde la tabla NTFS	depuis la table NTFS	dalla tabella NTFS	NTFS テーブルから	pela tabela NTFS	pela tabela NTFS	来自 NTFS 表
 from the Everything index		aus dem Everything-Index	desde el índice de Everything	depuis l’index d’Everything	dall’indice di Everything	Everything のインデックスから	pelo índice do Everything	pelo índice do Everything	来自 Everything 索引
-Asking Everything…		Everything wird abgefragt…	Consultando a Everything…	Interrogation d’Everything…	Interrogazione di Everything…	Everything に問い合わせています…	Consultando o Everything…	A consultar o Everything…	正在查询 Everything…
 folder by folder		Ordner für Ordner	carpeta por carpeta	dossier par dossier	cartella per cartella	フォルダーごと	pasta por pasta	pasta a pasta	逐个文件夹
 faster as administrator (File menu)		als Administrator schneller (Menü Datei)	más rápido como administrador (menú Archivo)	plus rapide en administrateur (menu Fichier)	più veloce come amministratore (menu File)	管理者ならより高速 ([ファイル] メニュー)	mais rápido como administrador (menu Arquivo)	mais rápido como administrador (menu Ficheiro)	以管理员身份运行更快（文件菜单）
 &Export to CSV...		Als CSV e&xportieren...	&Exportar a CSV...	&Exporter en CSV...	Es&porta in CSV...	CSV にエクスポート(&E)...	&Exportar para CSV...	&Exportar para CSV...	导出为 CSV(&E)...
@@ -61,12 +59,6 @@ File &Size		Dateig&röße	Tamaño de a&rchivo	Taille des &fichiers	&Dimensione f
 Size on &Disk		Größe auf Daten&träger	Tamaño en &disco	Taille sur le &disque	Dimensione su dis&co	ディスク上のサイズ(&D)	Tamanho em &disco	Tamanho em &disco	占用空间(&D)
 &Keyboard Shortcuts		&Tastenkombinationen	&Métodos abreviados de teclado	&Raccourcis clavier	&Tasti di scelta rapida	キーボード ショートカット(&K)	&Atalhos de teclado	&Atalhos de teclado	键盘快捷方式(&K)
 &About rsize		Ü&ber rsize	&Acerca de rsize	À &propos de rsize	&Informazioni su rsize	rsize について(&A)	&Sobre o rsize	A&cerca do rsize	关于 rsize(&A)
-B		B	B	o	B	B	B	B	B
-KB		KB	KB	Ko	KB	KB	KB	KB	KB
-MB		MB	MB	Mo	MB	MB	MB	MB	MB
-GB		GB	GB	Go	GB	GB	GB	GB	GB
-TB		TB	TB	To	TB	TB	TB	TB	TB
-PB		PB	PB	Po	PB	PB	PB	PB	PB
 Choose a drive or folder to analyze	Choose a drive or folder to analyse	Laufwerk oder Ordner zum Analysieren auswählen	Elija una unidad o carpeta para analizar	Choisissez un lecteur ou un dossier à analyser	Scegli un’unità o una cartella da analizzare	分析するドライブまたはフォルダーを選択してください	Escolha uma unidade ou pasta para analisar	Escolha uma unidade ou pasta para analisar	选择要分析的驱动器或文件夹
 Choose a folder to analyze	Choose a folder to analyse	Ordner zum Analysieren auswählen	Elija una carpeta para analizar	Choisissez un dossier à analyser	Scegli una cartella da analizzare	分析するフォルダーを選択	Escolha uma pasta para analisar	Escolha uma pasta para analisar	选择要分析的文件夹
 Looking for drives…		Laufwerke werden gesucht…	Buscando unidades…	Recherche des lecteurs…	Ricerca delle unità…	ドライブを検索しています…	Procurando unidades…	A procurar unidades…	正在查找驱动器…

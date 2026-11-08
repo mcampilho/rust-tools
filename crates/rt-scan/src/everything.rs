@@ -5,7 +5,7 @@
 //! Everything is asked through its window-message interface, the same one
 //! its SDK uses, without the SDK's DLL: a `WM_COPYDATA` with a "query 2"
 //! request goes to Everything's window, and the answer comes back as a
-//! `WM_COPYDATA` to a hidden window of rsize.
+//! `WM_COPYDATA` to a hidden window of the app.
 //!
 //! The answer is used only when it looks complete: Everything must know the
 //! sizes, and it must list (nearly) everything the folder holds at its top
@@ -174,7 +174,7 @@ pub fn scan_index(root: &std::path::Path, cancel: &std::sync::atomic::AtomicBool
         return Err(Skip::NotRunning);
     }
     let text = root.to_string_lossy().into_owned();
-    progress(&Progress { current: crate::i18n::tr("Asking Everything…"), ..Progress::default() });
+    progress(&Progress { current: rt_core::i18n::tr("Asking Everything…").to_string(), ..Progress::default() });
     let items = query(&text, cancel)?;
     let top: Vec<String> = std::fs::read_dir(root).map(|d| d.flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect()).unwrap_or_default();
     let mtime = std::fs::metadata(root).map_or(0, |m| super::mtime_of(&m));
@@ -198,7 +198,7 @@ mod win {
     const CLASSES: [&str; 2] = ["EVERYTHING_TASKBAR_NOTIFICATION", "EVERYTHING_TASKBAR_NOTIFICATION_(1.5a)"];
     /// "query 2", UTF-16.
     const COPYDATA_QUERY2W: usize = 18;
-    /// The tag of the answer to rsize.
+    /// The tag of the answer to the app.
     const REPLY: usize = 0x5253_495A;
     /// Everything's own messages: is the database loaded?
     const WM_EVERYTHING_IPC: u32 = WM_USER;
@@ -242,7 +242,7 @@ mod win {
 
     /// A hidden window on this thread to receive the answer.
     fn reply_window() -> Option<HWND> {
-        let class = wide("rsize.everything.reply");
+        let class = wide("rt-scan.everything.reply");
         // SAFETY: the module handle of this program; registering twice only fails.
         unsafe {
             let inst = GetModuleHandleW(std::ptr::null());
@@ -387,14 +387,14 @@ mod tests {
     }
 
     /// What the running Everything answers for `RSIZE_BENCH_DIR`:
-    /// `cargo test -p rsize --lib probe -- --ignored --nocapture`.
+    /// `cargo test -p rt-scan --lib probe -- --ignored --nocapture`.
     #[cfg(windows)]
     #[test]
     #[ignore]
     fn probe() {
         use std::sync::atomic::AtomicBool;
         let Some(dir) = std::env::var_os("RSIZE_BENCH_DIR") else { return };
-        let dir = crate::scan::normalize(std::path::Path::new(&dir));
+        let dir = crate::normalize(std::path::Path::new(&dir));
         let text = dir.to_string_lossy().into_owned();
         println!("running: {}, search: {}", win::running(), search_for(&text));
         let start = std::time::Instant::now();
@@ -420,9 +420,9 @@ mod tests {
         if !win::running() {
             return;
         }
-        let dir = crate::scan::normalize(std::path::Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "\\src")));
+        let dir = crate::normalize(std::path::Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "\\src")));
         let t = scan_index(&dir, &AtomicBool::new(false), &|_| {}).expect("Everything is running but does not cover the sources");
-        let s = crate::scan::tests::sys(&dir, &AtomicBool::new(false), &|_| {}).unwrap();
+        let s = crate::tests::sys(&dir, &AtomicBool::new(false), &|_| {}).unwrap();
         // Files written in the last moments may not be in the index yet.
         assert!(t.node(0).files.abs_diff(s.tree.node(0).files) <= 2, "{} vs {}", t.node(0).files, s.tree.node(0).files);
     }

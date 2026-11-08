@@ -9,17 +9,22 @@ rede própria nem telemetria. Funcionalidades, atalhos e limitações estão no 
 
 ```powershell
 ./dev.ps1 build --profile release-small -p rsize
-./dev.ps1 test -p rsize       # 50 testes (47 em Linux)
+./dev.ps1 test -p rsize -p rt-scan   # 23 + 27 testes no Windows
 ./dev.ps1 clippy -p rsize --all-targets
 ./dev.ps1 test -p rsize --release --lib screenshots '--' --ignored   # páginas em apps/rsize/target/screens/*.png
-$env:RSIZE_BENCH_DIR = 'C:\'; ./dev.ps1 test -p rsize --release --lib bench '--' --ignored --nocapture
-./dev.ps1 test -p rsize --lib probe '--' --ignored --nocapture   # o que o Everything responde para RSIZE_BENCH_DIR
+$env:RSIZE_BENCH_DIR = 'C:\'; ./dev.ps1 test -p rt-scan --release --lib bench '--' --ignored --nocapture
+./dev.ps1 test -p rt-scan --lib probe '--' --ignored --nocapture   # o que o Everything responde para RSIZE_BENCH_DIR
 ```
 
 Correm na raiz do repositório. Saída: `target\release-small\rsize.exe` (perfil `release-small`: não precisa de
 `catch_unwind`).
 
 ## Arquitetura (`src/`)
+
+Desde 2026-11-07 a leitura dos discos, a árvore, `volumes` e `format` estão no crate `crates/rt-scan` (partilhado
+com o rdup); o `lib.rs` do rsize reexporta-os (`scan`, `model`, `volumes`, `format`) e os testes deles correm com
+`./dev.ps1 test -p rt-scan` (a imagem NTFS está em `crates/rt-scan/tests/fixtures`). Os nomes abaixo são os
+módulos do crate:
 
 - `model.rs` — a árvore num bloco compacto (`Tree`, ~56 bytes por nó mais o nome). As entradas de uma pasta
   entram juntas, com ids seguidos e sempre depois da pasta; `finish` soma os tamanhos do último id para o
