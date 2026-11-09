@@ -135,7 +135,8 @@ administrador) e aponta para o `rview.exe` a partir do qual é executado:
 Se mover o `rview.exe`, o item do menu aparece desmarcado; marque-o outra vez
 para apontar as entradas para o novo local. Numa consola, as opções da linha
 de comandos escrevem o resultado; caso contrário, é mostrado numa caixa de
-mensagem. O código de saída é 0 em caso de sucesso.
+mensagem. O código de saída é 0 em caso de sucesso. O `--help` também escreve na
+consola; sem ela, o rview abre e mostra-o na sua janela, com o seu tema.
 
 | Ação | Teclas |
 | --- | --- |

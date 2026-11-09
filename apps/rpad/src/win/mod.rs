@@ -1,5 +1,6 @@
 //! Win32 integration, from `rt-sys`, with rpad's identity and file types.
 
+pub mod assoc;
 pub mod menu;
 
 pub use rt_sys::win::{accent, caret_blink_ms, darkmode, set_mnemonics, system_dark, tray, WinMsg};

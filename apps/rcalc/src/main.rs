@@ -63,6 +63,9 @@ struct Shell {
     lang: rcalc::i18n::Lang,
     #[cfg(any(windows, target_os = "linux"))]
     shell: Option<rcalc::shell::Shell>,
+    /// The command-line help, shown over the calculator (asked for without a
+    /// console): where its panel and OK button were drawn.
+    help: Option<(ui::gfx::Rect, ui::gfx::Rect)>,
 }
 
 const DEFAULT_SIZE: (f64, f64) = (340.0, 560.0);
@@ -236,6 +239,13 @@ impl Shell {
     }
 
     fn key(&mut self, event: &winit::event::KeyEvent) {
+        if self.help.is_some() {
+            if matches!(event.logical_key, WKey::Named(NamedKey::Escape | NamedKey::Enter | NamedKey::Space)) {
+                self.help = None;
+                self.request_redraw();
+            }
+            return;
+        }
         let ctrl = self.mods.control_key();
         let key = if ctrl {
             use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
@@ -359,6 +369,11 @@ impl Shell {
         let ui::Ui { widgets, scrolls, .. } = u;
         self.widgets = widgets;
         self.scrolls = scrolls;
+        if self.help.is_some() {
+            let style = rt_gfx::dialog::DialogStyle { dark: theme.dark, text: theme.text, dim: theme.text_secondary, border: theme.border };
+            let full = ui::gfx::Rect::new(0.0, 0.0, w.get() as f32, h.get() as f32);
+            self.help = Some(rt_gfx::dialog::draw_message(&mut self.gfx, full, &style, scale, "rcalc", USAGE));
+        }
         if let Ok(mut buf) = win.surface.buffer_mut() {
             self.gfx.copy_to(&mut buf);
             let _ = buf.present();
@@ -648,6 +663,20 @@ impl ApplicationHandler<UserEvent> for Shell {
                 }
             }
             WindowEvent::MouseInput {
+                state: ElementState::Pressed,
+                button: MouseButton::Left,
+                ..
+            } if self.help.is_some() => {
+                // The OK button, or a click outside the help, closes it.
+                if let (Some((panel, ok)), Some((x, y))) = (self.help, self.cursor) {
+                    if ok.contains(x, y) || !panel.contains(x, y) {
+                        self.help = None;
+                        self.request_redraw();
+                    }
+                }
+            }
+            WindowEvent::MouseInput { .. } if self.help.is_some() => {}
+            WindowEvent::MouseInput {
                 state,
                 button: MouseButton::Left,
                 ..
@@ -714,15 +743,20 @@ const USAGE: &str = "rcalc [--tray] [--new-window]
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    if args.iter().any(|a| a == "--help" || a == "-h" || a == "/?") {
-        #[cfg(windows)]
-        message_box(USAGE);
-        #[cfg(not(windows))]
+    // The help goes to the console it was asked from; without one, rcalc
+    // starts and shows it over the calculator, in its theme.
+    let help = args.iter().any(|a| a == "--help" || a == "-h" || a == "/?");
+    #[cfg(windows)]
+    if help && rt_sys::win::print_to_console(USAGE) {
+        return;
+    }
+    #[cfg(not(windows))]
+    if help {
         println!("{USAGE}");
         return;
     }
-    let tray = args.iter().any(|a| a == "--tray" || a == "/tray");
-    let new_window = args.iter().any(|a| a == "--new-window");
+    let tray = args.iter().any(|a| a == "--tray" || a == "/tray") && !help;
+    let new_window = args.iter().any(|a| a == "--new-window") || help;
     // A second launch (including the Calculator key) shows the running
     // instance and exits immediately.
     #[cfg(any(windows, target_os = "linux"))]
@@ -775,19 +809,9 @@ fn main() {
         lang: rcalc::i18n::lang(),
         #[cfg(any(windows, target_os = "linux"))]
         shell: None,
+        help: help.then(Default::default),
     };
     if let Err(e) = event_loop.run_app(&mut shell) {
         eprintln!("rcalc: {e}");
-    }
-}
-
-#[cfg(windows)]
-fn message_box(text: &str) {
-    use windows_sys::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONINFORMATION, MB_OK};
-    let w = |s: &str| s.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>();
-    let (t, c) = (w(text), w("rcalc"));
-    // SAFETY: valid NUL-terminated strings; no owner window.
-    unsafe {
-        MessageBoxW(std::ptr::null_mut(), t.as_ptr(), c.as_ptr(), MB_OK | MB_ICONINFORMATION);
     }
 }

@@ -179,6 +179,9 @@ pub struct App {
     pub menu_rebuild: bool,
     /// Closing the last tab asked to close the window.
     pub close_window: bool,
+    /// "Edit with rpad" is on the Explorer context menu, for this rpad.exe
+    /// (Windows; set by the window).
+    pub explorer_menu: bool,
     pub fullscreen_request: bool,
     pub font_dirty: bool,
     /// Scroll the active editor so the primary caret is visible.
@@ -226,6 +229,7 @@ impl App {
             #[cfg(not(windows))]
             menu: crate::ui::menu::Menu::default(),
             close_window: false,
+            explorer_menu: false,
             fullscreen_request: false,
             font_dirty: true,
             reveal_caret: true,
@@ -1028,6 +1032,8 @@ impl App {
                 }
                 None => host.info(&tr("Settings folder"), &tr("No settings folder is available on this system.")),
             },
+            // The window does these (Windows only).
+            ExplorerMenu | DefaultEditor => {}
             Shortcuts => self.open_shortcuts_doc(),
             About => host.info(
                 &tr("About rpad"),
@@ -1080,6 +1086,7 @@ impl App {
             OptSingleInstance => s.single_instance,
             LastTabKeep => s.last_tab_close == LastTabClose::KeepEmpty,
             LastTabCloseWindow => s.last_tab_close == LastTabClose::CloseWindow,
+            ExplorerMenu => self.explorer_menu,
             _ => false,
         }
     }

@@ -15,6 +15,9 @@ pub enum Command {
     /// Starts rdup again with administrator rights, to read NTFS directly.
     #[cfg(windows)]
     RestartAdmin,
+    /// "Find duplicates with rdup" on the Explorer menu of folders and drives (on or off).
+    #[cfg(windows)]
+    ExplorerMenu,
     Exit,
     CopyPath,
     /// Opens the selected file with its default program.
@@ -59,6 +62,8 @@ impl Command {
             Stop => "&Stop",
             #[cfg(windows)]
             RestartAdmin => "Restart as Ad&ministrator",
+            #[cfg(windows)]
+            ExplorerMenu => "&Explorer Context Menu",
             Exit => "E&xit",
             CopyPath => "&Copy Path",
             OpenItem => "&Open",
@@ -145,7 +150,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
     langs.extend((1..=Lang::ALL.len()).map(|i| Item(UiLanguage(i as u8))));
     let mut file = vec![Item(AddFolder), Item(Search), Item(NewSearch), Item(Stop), Sep, Item(Export), Sep];
     #[cfg(windows)]
-    file.extend([Item(RestartAdmin), Sep]);
+    file.extend([Item(RestartAdmin), Sub("Windows &Integration", vec![Item(ExplorerMenu)]), Sep]);
     file.push(Item(Exit));
     vec![
         ("&File", file),

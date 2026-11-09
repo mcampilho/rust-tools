@@ -137,6 +137,12 @@ pub enum Command {
     LastTabKeep,
     LastTabCloseWindow,
     OpenDataFolder,
+    /// Windows: "Edit with rpad" on the Explorer context menu (on or off),
+    /// and rpad as the default editor (done by the window, not the app).
+    #[cfg_attr(not(windows), allow(dead_code))]
+    ExplorerMenu,
+    #[cfg_attr(not(windows), allow(dead_code))]
+    DefaultEditor,
     // Help
     Shortcuts,
     About,
@@ -280,6 +286,8 @@ impl Command {
             LastTabKeep => "Keep an &Empty Document",
             LastTabCloseWindow => "&Close the Window",
             OpenDataFolder => "Open Settings &Folder",
+            ExplorerMenu => "&Explorer Context Menu",
+            DefaultEditor => "Set as &Default Editor...",
             Shortcuts => "&Keyboard Shortcuts",
             About => "&About rpad",
         })
@@ -509,6 +517,10 @@ pub fn menu_tree(recent: &[std::path::PathBuf]) -> Vec<(&'static str, Vec<M>)> {
                 Item(CloseTab),
                 Item(CloseOthers),
                 Item(CloseAll),
+                Sep,
+                #[cfg(windows)]
+                Sub("Windows Inte&gration", vec![Item(ExplorerMenu), Item(DefaultEditor)]),
+                #[cfg(windows)]
                 Sep,
                 Item(Exit),
             ],

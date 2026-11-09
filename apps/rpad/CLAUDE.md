@@ -28,7 +28,12 @@ Correm na raiz do repositório. Saída: `target\release-small\rpad.exe`. Rust 1.
   do trait `Host` (diálogos, clipboard), o que permite testes de fluxo completos sem janela.
 - `ui` — widgets, vista do editor, preview Markdown; o desenho no CPU vem de `rt-gfx`.
 - `win` — Win32 de `rt-sys` (menus com dark mode via `WM_UAHDRAWMENU`, diálogos, tray, instância única),
-  com a identidade do rpad e os seus tipos de ficheiro.
+  com a identidade do rpad e os seus tipos de ficheiro; `win/assoc.rs`: os tipos para "Editar com o rpad" e
+  editor predefinido (`rt_sys::win::assoc`, só HKCU), pelo menu Ficheiro › Integração com o Windows ou
+  `--register`/`--associate`/`--unregister` (tratados no `main.rs`, não na `App`).
+- `Host::info` não abre caixa do sistema: a mensagem (About, `--help` sem consola...) é desenhada na janela,
+  com o tema (`Shell::dialog`, `rt_gfx::dialog::draw_message`). `--tray` com a janela maximizada da última
+  vez: maximiza só ao mostrar (`maximize_on_show`), porque maximizar mostra a janela no Windows.
 - `linux` — de `rt-sys`: Clipboard (arboard), diálogos (zenity ou kdialog), tema, tipos de letra
   (fontconfig), instância única por socket Unix com passagem de ficheiros, tray por StatusNotifierItem.
 - `ui/menu.rs` — menus desenhados na janela, só fora do Windows: estado e navegação em `rt-gfx`; `view.rs`

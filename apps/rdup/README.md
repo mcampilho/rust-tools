@@ -19,8 +19,28 @@ a folder you choose; one copy of each group is always kept.
 ## Use
 
 ```text
-rdup [folder...]
+rdup [--tray] [--new-window] [folder...]
+rdup --register | --unregister
 ```
+
+Folders on the command line are searched at once. `rdup --help` prints the
+options in the console it was typed in; started without one (from Run, for
+example), rdup opens and shows them in its window.
+
+**Resident mode:** `rdup --tray` starts hidden in the notification area.
+Launching rdup again (with or without folders) or clicking the tray icon
+shows the window instantly and searches the folders there; closing the
+window only hides it, and a search goes on. Quit from the tray icon's menu
+or File › Exit. `--new-window` opens a separate window even when rdup is
+resident. To start it with Windows, put a shortcut to `rdup.exe --tray` in
+`shell:startup`.
+
+**Explorer integration** (Windows): File › Windows Integration › Explorer
+Context Menu, or `--register`, adds "Find duplicates with rdup" to the
+right-click menu of folders and drives, and of the empty space inside a
+folder; it searches that folder (in the resident rdup, if there is one). It
+is written for the current user only, pointing to the `rdup.exe` it was
+turned on from; unchecking it, or `--unregister`, removes it.
 
 Without folders, rdup shows the drives and the folders added before, each with
 a box to tick: the folders stay on the list, ticked or not, until their ×

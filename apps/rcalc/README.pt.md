@@ -127,6 +127,9 @@ rcalc.exe [--tray] [--new-window]
   --help        show this summary
 ```
 
+O `--help` escreve o resumo na consola onde foi escrito; arrancado sem consola (do
+Executar, por exemplo), o rcalc abre e mostra-o por cima da calculadora.
+
 **Outros.**
 - Copiar e colar (Ctrl+C/Ctrl+V). O texto colado é lido como uma expressão
   completa, por exemplo `2(3+4)^2 - sin 30`. No modo Programador é lido na base

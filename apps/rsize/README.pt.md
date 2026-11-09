@@ -22,13 +22,31 @@ perguntar.
 ## Utilização
 
 ```text
-rsize [pasta]
+rsize [--tray] [--new-window] [pasta]
+rsize --register | --unregister
 ```
 
 Sem pasta, o rsize mostra os discos, com o sistema de ficheiros e quão cheios estão;
 um clique lê o disco. **Escolher pasta** (Ctrl+O) lê qualquer pasta, também na rede:
 no diálogo, ou na linha de comandos como `\\servidor\partilha\pasta`. Uma pasta
 largada na janela também é lida.
+
+`rsize --help` escreve as opções na consola onde foi escrito; arrancado sem
+consola (do Executar, por exemplo), o rsize abre e mostra-as na sua janela.
+
+**Modo residente:** `rsize --tray` arranca escondido na área de notificação. Voltar
+a arrancar o rsize (com ou sem pasta) ou clicar no ícone mostra a janela de imediato
+e lê lá a pasta; fechar a janela só a esconde, e uma leitura continua. Para sair, usa
+o menu do ícone ou Ficheiro › Sair. `--new-window` abre uma janela à parte mesmo com
+o rsize residente. Para o arrancar com o Windows, coloca um atalho para
+`rsize.exe --tray` em `shell:startup`.
+
+**Integração com o Explorador** (Windows): Ficheiro › Integração com o Windows ›
+Menu de contexto do Explorador, ou `--register`, acrescenta "Analisar com o rsize"
+ao menu do botão direito das pastas e dos discos, e do espaço vazio dentro de uma
+pasta; lê essa pasta (no rsize residente, se houver). É escrito só para o
+utilizador atual, a apontar para o `rsize.exe` de onde foi ligado; desmarcá-lo, ou
+`--unregister`, tira-o.
 
 Durante a leitura, a janela mostra quantos ficheiros e pastas já encontrou e o seu
 tamanho. **Parar** (Esc) termina a leitura e mostra o que já foi lido; a barra de

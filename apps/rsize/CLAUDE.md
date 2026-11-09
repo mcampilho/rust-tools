@@ -66,7 +66,11 @@ módulos do crate:
 - `main.rs` — janela, menus nativos (Windows) ou desenhados (Linux), rato, teclado, leitura em segundo plano
   (eventos `Scan(geração, …)`; os de leituras antigas são ignorados). O treemap é refeito quando muda a pasta,
   o tamanho ou a ordem; durante o redimensionamento é esticado e refeito 150 ms depois. A tarte e os anéis
-  são refeitos logo (poucos milhares de segmentos), porque esticados ficariam ovais.
+  são refeitos logo (poucos milhares de segmentos), porque esticados ficariam ovais. Modo residente (`--tray`,
+  como o rview: ícone `rt_sys::win::tray` ou StatusNotifierItem em Linux; outro arranque passa a pasta com
+  `hand_off`, `--new-window` não). Menu "Analisar com o rsize" nas pastas e discos (`rt_sys::win::assoc::
+  register_folders`, só HKCU; Ficheiro › Integração com o Windows, `--register`/`--unregister`): o disco chega
+  como `C:"` (`folder_arg`). `--help` na consola (`print_to_console`) ou, sem ela, no diálogo da janela.
 - `i18n/strings.txt` — traduções (10 idiomas), mesma convenção das outras aplicações.
 
 ## Fases

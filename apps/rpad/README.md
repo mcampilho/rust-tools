@@ -41,7 +41,11 @@ per-monitor DPI awareness v2 and long paths.
 
 ```
 rpad [--tray] [--new-window] [files...]
+rpad --register | --associate | --unregister
 ```
+
+`rpad --help` prints the options in the console it was typed in; started
+without one (from Run, for example), rpad opens and shows them in its window.
 
 - Files on the command line are opened in tabs. A file that does not exist
   yet opens as an empty tab and is only created when you save it.
@@ -65,7 +69,28 @@ instant access:
 - Hidden, rpad uses about 20-30 MB and no CPU.
 
 To start it with Windows, put a shortcut to `rpad.exe --tray` in the
-Startup folder (`shell:startup`); rpad does not add itself.
+Startup folder (`shell:startup`); rpad does not add itself. It stays hidden
+even when the window was last maximized.
+
+### Explorer integration
+
+File › Windows Integration, or the command line. Everything is written for
+the current user only (no administrator rights) and points to the
+`rpad.exe` you run it from:
+
+- *Explorer Context Menu* / `--register`: adds "Edit with rpad" to the
+  right-click menu of text, Markdown, configuration (`.ini`, `.toml`,
+  `.json`, `.yaml`...), XML and source files (`.rs`, `.py`, `.js`, `.c`,
+  `.cs`, `.ps1`, `.sh`...), and rpad to their "Open with" list. Unchecking it
+  (or `--unregister`) removes everything rpad added, including defaults,
+  and restores the previous ones.
+- *Set as Default Editor* / `--associate`: also registers rpad in Windows'
+  Default apps and makes it the default for the types where you chose no
+  default yourself. Those you chose are left alone: Settings › Default apps
+  opens, listing them, so you can pick rpad there.
+
+If you move `rpad.exe`, the menu item shows unchecked; check it again to
+point the entries at the new location.
 
 ### Interface language
 
@@ -81,7 +106,8 @@ Settings, the session, crash-recovery files, local history and snippets are
 stored in `%APPDATA%\rpad`. To keep everything next to the executable (on a
 USB stick, for example), create an empty file named `rpad.portable` beside
 `rpad.exe`. No administrator rights or registry writes are needed. The
-registry is only read, for the font list, theme and accent colour.
+registry is only read, for the font list, theme and accent colour, unless
+you turn on the Explorer integration.
 
 If `settings.ini` is damaged, invalid values fall back to defaults. If the
 data folder cannot be written, rpad still works and shows a notice.

@@ -22,13 +22,32 @@ after asking.
 ## Use
 
 ```text
-rsize [folder]
+rsize [--tray] [--new-window] [folder]
+rsize --register | --unregister
 ```
 
 Without a folder, rsize shows the drives, with their file system and how full
 they are; click one to read it. **Choose Folder** (Ctrl+O) reads any folder,
 including one on the network: in the dialog, or on the command line as
 `\\server\share\folder`. A folder dropped on the window is read too.
+
+`rsize --help` prints the options in the console it was typed in; started
+without one (from Run, for example), rsize opens and shows them in its window.
+
+**Resident mode:** `rsize --tray` starts hidden in the notification area.
+Launching rsize again (with or without a folder) or clicking the tray icon
+shows the window instantly and reads the folder there; closing the window
+only hides it, and a reading goes on. Quit from the tray icon's menu or
+File › Exit. `--new-window` opens a separate window even when rsize is
+resident. To start it with Windows, put a shortcut to `rsize.exe --tray` in
+`shell:startup`.
+
+**Explorer integration** (Windows): File › Windows Integration › Explorer
+Context Menu, or `--register`, adds "Analyze with rsize" to the right-click
+menu of folders and drives, and of the empty space inside a folder; it reads
+that folder (in the resident rsize, if there is one). It is written for the
+current user only, pointing to the `rsize.exe` it was turned on from;
+unchecking it, or `--unregister`, removes it.
 
 While it reads, the window shows how many files and folders it has found and
 their size. **Stop** (Esc) ends the reading and shows what was read so far; the

@@ -29,7 +29,8 @@ Correm na raiz do repositório. Saída: `target\release\rview.exe`. Rust 1.88+, 
   (threads em fundo, cache de 256 MB). Os tamanhos das páginas são em DIPs nos dois sistemas.
 - `view.rs`, `main.rs` — vista, janela, input, modo `--tray`.
 - `win/` — Win32 de `rt-sys` (menus escuros, diálogos, tray) com a identidade do rview, mais `clipboard.rs`
-  (o `Payload` em vários formatos) e `assoc.rs` (associações de ficheiros, só HKCU).
+  (o `Payload` em vários formatos) e `assoc.rs` (os tipos de ficheiro do rview para `rt_sys::win::assoc`, que
+  escreve as associações só em HKCU e tem os testes).
 - `linux/` — Clipboard (arboard: texto com HTML, ou imagem), e o resto de `rt-sys`: diálogo Abrir (zenity ou
   kdialog), tema, links, e o modo residente com socket Unix e ícone StatusNotifierItem.
 - `ui/menu.rs` — menus desenhados na janela (`rt-gfx`), só fora do Windows. Em Linux, `cfg(not(windows))`

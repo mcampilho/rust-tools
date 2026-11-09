@@ -20,8 +20,27 @@ fica sempre uma cópia de cada grupo.
 ## Utilização
 
 ```text
-rdup [pasta...]
+rdup [--tray] [--new-window] [pasta...]
+rdup --register | --unregister
 ```
+
+As pastas na linha de comandos são procuradas logo. `rdup --help` escreve as
+opções na consola onde foi escrito; arrancado sem consola (do Executar, por
+exemplo), o rdup abre e mostra-as na sua janela.
+
+**Modo residente:** `rdup --tray` arranca escondido na área de notificação. Voltar
+a arrancar o rdup (com ou sem pastas) ou clicar no ícone mostra a janela de
+imediato e procura lá as pastas; fechar a janela só a esconde, e uma procura
+continua. Para sair, usa o menu do ícone ou Ficheiro › Sair. `--new-window` abre
+uma janela à parte mesmo com o rdup residente. Para o arrancar com o Windows,
+coloca um atalho para `rdup.exe --tray` em `shell:startup`.
+
+**Integração com o Explorador** (Windows): Ficheiro › Integração com o Windows ›
+Menu de contexto do Explorador, ou `--register`, acrescenta "Procurar duplicados
+com o rdup" ao menu do botão direito das pastas e dos discos, e do espaço vazio
+dentro de uma pasta; procura nessa pasta (no rdup residente, se houver). É escrito
+só para o utilizador atual, a apontar para o `rdup.exe` de onde foi ligado;
+desmarcá-lo, ou `--unregister`, tira-o.
 
 Sem pastas, o rdup mostra os discos e as pastas acrescentadas antes, cada um com
 uma caixa para marcar: as pastas ficam na lista, marcadas ou não, até o seu ×

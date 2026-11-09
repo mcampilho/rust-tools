@@ -41,7 +41,11 @@ Controls 6, a consciência de DPI por monitor v2 e os caminhos longos.
 
 ```
 rpad [--tray] [--new-window] [ficheiros...]
+rpad --register | --associate | --unregister
 ```
+
+`rpad --help` escreve as opções na consola onde foi escrito; arrancado sem
+consola (do Executar, por exemplo), o rpad abre e mostra-as na sua janela.
 
 - Os ficheiros indicados na linha de comandos abrem em separadores. Um ficheiro
   que ainda não exista abre como separador vazio e só é criado ao guardar.
@@ -67,7 +71,28 @@ imediato:
 - Escondido, o rpad usa cerca de 20-30 MB e nenhum CPU.
 
 Para o arrancar com o Windows, coloca um atalho para `rpad.exe --tray` na pasta
-Arranque (`shell:startup`); o rpad não se acrescenta sozinho.
+Arranque (`shell:startup`); o rpad não se acrescenta sozinho. Fica escondido mesmo
+quando a janela ficou maximizada da última vez.
+
+### Integração com o Explorador
+
+Ficheiro › Integração com o Windows, ou a linha de comandos. Tudo é escrito só
+para o utilizador atual (sem direitos de administrador) e aponta para o
+`rpad.exe` de onde o corres:
+
+- *Menu de contexto do Explorador* / `--register`: acrescenta "Editar com o rpad"
+  ao menu do botão direito dos ficheiros de texto, Markdown, configuração (`.ini`,
+  `.toml`, `.json`, `.yaml`...), XML e código (`.rs`, `.py`, `.js`, `.c`, `.cs`,
+  `.ps1`, `.sh`...), e o rpad à lista "Abrir com". Desmarcá-lo (ou `--unregister`)
+  tira tudo o que o rpad acrescentou, incluindo as predefinições, e repõe as
+  anteriores.
+- *Definir como editor predefinido* / `--associate`: regista também o rpad nas
+  Aplicações predefinidas do Windows e torna-o a predefinição dos tipos onde não
+  escolheste nenhuma. As que escolheste ficam como estão: abrem-se as Definições ›
+  Aplicações predefinidas, com a lista desses tipos, para escolheres lá o rpad.
+
+Se moveres o `rpad.exe`, o item do menu aparece desmarcado; marca-o de novo para
+as entradas apontarem para o novo local.
 
 ### Idioma da interface
 
@@ -83,7 +108,8 @@ As definições, a sessão, os ficheiros de recuperação após falha, o histór
 e os excertos ficam em `%APPDATA%\rpad`. Para manter tudo ao lado do executável
 (numa pen USB, por exemplo), cria um ficheiro vazio chamado `rpad.portable` ao lado
 do `rpad.exe`. Não são precisos direitos de administrador nem escritas no registo.
-O registo só é lido, para a lista de tipos de letra, o tema e a cor de destaque.
+O registo só é lido, para a lista de tipos de letra, o tema e a cor de destaque, a
+não ser que ligues a integração com o Explorador.
 
 Se o `settings.ini` estiver danificado, os valores inválidos voltam aos valores por
 omissão. Se a pasta de dados não puder ser escrita, o rpad funciona na mesma e

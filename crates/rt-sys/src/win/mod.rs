@@ -6,6 +6,7 @@
 //! `unsafe` is confined to these modules: every block calls documented Win32
 //! APIs with buffers whose sizes and lifetimes are checked locally.
 
+pub mod assoc;
 pub mod clipboard;
 pub mod darkmode;
 pub mod dialogs;
@@ -199,13 +200,72 @@ mod reveal_tests {
 /// Prints `text` to the console the app was started from, or shows it in a
 /// message box when there is none (started from Explorer or a shortcut).
 pub fn report(title: &str, text: &str) {
-    use windows_sys::Win32::System::Console::{AttachConsole, ATTACH_PARENT_PROCESS};
-    // SAFETY: attaching to the parent's console has no other effect.
-    if unsafe { AttachConsole(ATTACH_PARENT_PROCESS) } != 0 {
-        println!("\n{text}");
-    } else {
+    if !print_to_console(text) {
         dialogs::message(std::ptr::null_mut(), title, text, dialogs::Buttons::Ok, dialogs::Icon::Info);
     }
+}
+
+/// Writes `text` to the console the app was started from, and gives the
+/// prompt back. False when there is no such console (started from Explorer,
+/// a shortcut or Run).
+///
+/// A program with a window does not hold the console it was started from:
+/// the shell has already shown its prompt when the text comes, and seems to
+/// wait until Enter is pressed. So Enter is pressed for the user, and the
+/// shell shows its prompt again below the text.
+pub fn print_to_console(text: &str) -> bool {
+    use windows_sys::Win32::Foundation::{CloseHandle, GENERIC_READ, GENERIC_WRITE, INVALID_HANDLE_VALUE};
+    use windows_sys::Win32::Storage::FileSystem::{CreateFileW, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING};
+    use windows_sys::Win32::System::Console::{
+        AttachConsole, FreeConsole, WriteConsoleInputW, WriteConsoleW, ATTACH_PARENT_PROCESS, INPUT_RECORD, INPUT_RECORD_0, KEY_EVENT, KEY_EVENT_RECORD,
+        KEY_EVENT_RECORD_0,
+    };
+    // SAFETY: attaching to the parent's console has no other effect.
+    if unsafe { AttachConsole(ATTACH_PARENT_PROCESS) } == 0 {
+        return false;
+    }
+    let open = |name: &str| {
+        let n = wide(name);
+        // SAFETY: a NUL-terminated name of the attached console's buffer.
+        unsafe { CreateFileW(n.as_ptr(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, std::ptr::null(), OPEN_EXISTING, 0, std::ptr::null_mut()) }
+    };
+    let out = open("CONOUT$");
+    if out != INVALID_HANDLE_VALUE {
+        let units: Vec<u16> = format!("\r\n{}\r\n", text.replace("\r\n", "\n").replace('\n', "\r\n")).encode_utf16().collect();
+        let mut written = 0;
+        // SAFETY: `units` outlives the call; the handle is open.
+        unsafe {
+            WriteConsoleW(out, units.as_ptr().cast(), units.len() as u32, &mut written, std::ptr::null());
+            CloseHandle(out);
+        }
+    }
+    let input = open("CONIN$");
+    if input != INVALID_HANDLE_VALUE {
+        const VK_RETURN: u16 = 0x0D;
+        let key = |down: bool| INPUT_RECORD {
+            EventType: KEY_EVENT as u16,
+            Event: INPUT_RECORD_0 {
+                KeyEvent: KEY_EVENT_RECORD {
+                    bKeyDown: down as i32,
+                    wRepeatCount: 1,
+                    wVirtualKeyCode: VK_RETURN,
+                    wVirtualScanCode: 0x1C,
+                    uChar: KEY_EVENT_RECORD_0 { UnicodeChar: u16::from(b'\r') },
+                    dwControlKeyState: 0,
+                },
+            },
+        };
+        let keys = [key(true), key(false)];
+        let mut n = 0;
+        // SAFETY: two plain records written to the console's input; the handle is open.
+        unsafe {
+            WriteConsoleInputW(input, keys.as_ptr(), keys.len() as u32, &mut n);
+            CloseHandle(input);
+        }
+    }
+    // SAFETY: lets the console go; nothing of it is used after this.
+    unsafe { FreeConsole() };
+    true
 }
 
 #[cfg(test)]

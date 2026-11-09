@@ -15,6 +15,9 @@ pub enum Command {
     /// Starts rsize again with administrator rights, to read NTFS directly.
     #[cfg(windows)]
     RestartAdmin,
+    /// "Analyze with rsize" on the Explorer menu of folders and drives (on or off).
+    #[cfg(windows)]
+    ExplorerMenu,
     /// Writes the folder shown to a CSV file.
     ExportCsv,
     Exit,
@@ -53,6 +56,8 @@ impl Command {
             Stop => "&Stop",
             #[cfg(windows)]
             RestartAdmin => "Restart as &Administrator",
+            #[cfg(windows)]
+            ExplorerMenu => "&Explorer Context Menu",
             ExportCsv => "&Export to CSV...",
             Exit => "E&xit",
             CopyPath => "&Copy Path",
@@ -143,7 +148,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
     langs.extend((1..=Lang::ALL.len()).map(|i| Item(UiLanguage(i as u8))));
     let mut file = vec![Item(ChooseFolder), Item(Drives), Sep, Item(Rescan), Item(Stop), Sep, Item(ExportCsv), Sep];
     #[cfg(windows)]
-    file.extend([Item(RestartAdmin), Sep]);
+    file.extend([Item(RestartAdmin), Sub("Windows &Integration", vec![Item(ExplorerMenu)]), Sep]);
     file.push(Item(Exit));
     vec![
         ("&File", file),

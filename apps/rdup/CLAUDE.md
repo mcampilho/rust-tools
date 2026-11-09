@@ -65,7 +65,11 @@ Correm na raiz do repositório. Saída: `target\release-small\rdup.exe` (perfil 
   resultado), o calendário por cima (`CalLayout`, semanas a começar ao domingo em en-US, ja e pt-BR) e o
   `Layout` usado também para os cliques (`caret_at` para pôr o cursor numa caixa).
 - `main.rs` — janela, menus nativos (Windows) ou desenhados (Linux), rato, teclado, pesquisa em segundo plano
-  (eventos com geração; os de pesquisas antigas são ignorados).
+  (eventos com geração; os de pesquisas antigas são ignorados). Modo residente (`--tray`, como o rview e o
+  rsize: escondido até pedir; outro arranque passa as pastas com `hand_off` e procura-as, `--new-window` não).
+  Menu "Procurar duplicados com o rdup" nas pastas e discos (`rt_sys::win::assoc::register_folders`, só HKCU;
+  Ficheiro › Integração com o Windows, `--register`/`--unregister`; o disco chega como `C:"`, `folder_arg`).
+  `--help` na consola (`print_to_console`) ou, sem ela, no diálogo da janela.
 - `i18n/strings.txt` — traduções (10 idiomas). Os textos da leitura e das unidades estão na tabela comum do
   `rt-core`.
 

@@ -121,6 +121,9 @@ rcalc.exe [--tray] [--new-window]
   --help        show this summary
 ```
 
+`--help` prints the summary in the console it was typed in; started without
+one (from Run, for example), rcalc opens and shows it over the calculator.
+
 **Other.**
 - Copy and paste (Ctrl+C/Ctrl+V). Pasted text is parsed as a full expression,
   e.g. `2(3+4)^2 - sin 30`. In Programmer mode it is read in the current radix.

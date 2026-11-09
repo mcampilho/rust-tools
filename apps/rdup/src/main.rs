@@ -39,6 +39,9 @@ enum UserEvent {
     Volumes(Vec<Volume>),
     #[cfg(windows)]
     Win(rt_sys::win::WinMsg),
+    /// A later launch, or the notification-area icon (Linux).
+    #[cfg(not(windows))]
+    Shell(rt_sys::linux::shell::Msg),
 }
 
 impl From<accesskit_winit::Event> for UserEvent {
@@ -101,6 +104,18 @@ struct Shell {
     elevated: bool,
     #[cfg(not(windows))]
     menu: rdup::ui::menu::Menu,
+    /// Resident mode (`--tray`): closing the window hides it to the
+    /// notification area.
+    tray: bool,
+    hidden: bool,
+    /// The window was last maximized: done when it is first shown.
+    maximize_on_show: bool,
+    /// The notification-area icon and the socket for later launches (Linux).
+    #[cfg(not(windows))]
+    resident: Option<rt_sys::linux::shell::Shell>,
+    /// "Find duplicates with rdup" is on the Explorer menu of folders, for this rdup.exe.
+    #[cfg(windows)]
+    explorer_menu: bool,
 }
 
 impl Shell {
@@ -279,6 +294,8 @@ impl Shell {
                     self.quit(el);
                 }
             }
+            #[cfg(windows)]
+            Command::ExplorerMenu => self.integration(!self.explorer_menu),
             Command::Exit => self.quit(el),
             Command::CopyPath => {
                 if let Some(p) = self.app.selected_path() {
@@ -346,6 +363,8 @@ impl Shell {
             Command::ShowFolders => self.app.view == View::Folders,
             Command::UiLanguage(0) => self.settings.language.is_none(),
             Command::UiLanguage(i) => self.settings.language == i18n::Lang::ALL.get(i as usize - 1).copied(),
+            #[cfg(windows)]
+            Command::ExplorerMenu => self.explorer_menu,
             _ => false,
         }
     }
@@ -384,7 +403,83 @@ impl Shell {
             h.cancel();
         }
         self.save_settings();
+        #[cfg(windows)]
+        if let Some(w) = &self.win {
+            rt_sys::win::tray::remove(w.hwnd);
+        }
+        #[cfg(not(windows))]
+        {
+            self.resident = None;
+        }
         el.exit();
+    }
+
+    /// The close button: hides to the notification area in resident mode.
+    fn close(&mut self, el: &ActiveEventLoop) {
+        if self.tray {
+            self.hide();
+        } else {
+            self.quit(el);
+        }
+    }
+
+    /// Hides the window to the notification area; a search goes on.
+    fn hide(&mut self) {
+        self.save_settings();
+        if cfg!(windows) {
+            if let Some(w) = &self.win {
+                w.window.set_visible(false);
+            }
+        } else {
+            // Wayland cannot hide a window, so it is closed and made again.
+            self.win = None;
+            self.cursor = None;
+        }
+        self.hidden = true;
+        self.dragging = false;
+        self.selecting = false;
+        // Release the frame buffer while hidden.
+        self.gfx.resize(1, 1);
+        self.gfx.trim_cache();
+    }
+
+    fn show(&mut self, el: &ActiveEventLoop) {
+        if self.win.is_none() && !self.open_window(el) {
+            return;
+        }
+        if let Some(w) = &self.win {
+            if std::mem::take(&mut self.maximize_on_show) {
+                w.window.set_maximized(true);
+            }
+            w.window.set_visible(true);
+            w.window.set_minimized(false);
+            w.window.focus_window();
+        }
+        self.hidden = false;
+        self.menu_dirty = true;
+        self.redraw();
+    }
+
+    /// Folders from a later launch (or the Explorer menu): the window shows,
+    /// and searches them.
+    fn open_paths(&mut self, el: &ActiveEventLoop, paths: Vec<PathBuf>) {
+        self.show(el);
+        if !paths.is_empty() && self.acting.is_none() {
+            self.app.chosen = paths.iter().map(|p| rt_scan::normalize(p)).collect();
+            self.start_search();
+        }
+    }
+
+    /// Adds "Find duplicates with rdup" in Explorer, or takes it out, and
+    /// says how it went.
+    #[cfg(windows)]
+    fn integration(&mut self, on: bool) {
+        let text = match integrate(on) {
+            Ok(t) | Err(t) => t,
+        };
+        self.explorer_menu = integrated_here();
+        self.menu_dirty = true;
+        self.info(&tr("Windows Integration"), &text);
     }
 
     // ------------------------------------------------------------ marks and actions
@@ -1182,7 +1277,9 @@ impl Shell {
             .with_title("rdup")
             .with_inner_size(LogicalSize::new(w.max(480.0), h.max(360.0)))
             .with_min_inner_size(LogicalSize::new(480.0, 360.0))
-            .with_maximized(maximized)
+            // Maximizing shows the window on Windows: a resident start, which
+            // stays hidden, maximizes when it is first shown.
+            .with_maximized(maximized && !self.tray)
             .with_window_icon(app_icon())
             .with_theme(Some(if self.dark() { WinTheme::Dark } else { WinTheme::Light }))
             .with_visible(false);
@@ -1216,7 +1313,12 @@ impl Shell {
                     let _ = proxy.send_event(UserEvent::Win(m));
                 }),
             );
+            if self.tray {
+                rt_sys::win::set_resident(hwnd, &IDENT);
+                rt_sys::win::tray::show(hwnd, "rdup");
+            }
         }
+        self.maximize_on_show = maximized && self.tray;
         self.win = Some(Win {
             window,
             surface,
@@ -1277,13 +1379,51 @@ fn hwnd_of(window: &Window) -> rt_sys::win::HWND {
     }
 }
 
+/// Starts resident mode on Linux: without an icon, a hidden window could not
+/// be reached or closed, so rdup then runs as a normal window.
+#[cfg(not(windows))]
+fn start_resident(shell: &mut Shell) {
+    use rt_sys::linux::shell as ls;
+    let proxy = std::sync::Mutex::new(shell.proxy.clone());
+    let labels = ls::TrayLabels { tip: "rdup".into(), open: tr("Open rdup"), exit: tr("Exit") };
+    // Only a resident rdup listens for later launches, as on Windows.
+    let cfg = ls::Config { app: "rdup", icon: rdup::ui::appicon::render, tray: Some(labels), listen_without_icon: false };
+    let resident = ls::Shell::new(
+        cfg,
+        Box::new(move |m| {
+            if let Ok(p) = proxy.lock() {
+                let _ = p.send_event(UserEvent::Shell(m));
+            }
+        }),
+    );
+    shell.tray = resident.has_icon();
+    shell.resident = shell.tray.then_some(resident);
+}
+
 impl ApplicationHandler<UserEvent> for Shell {
     fn resumed(&mut self, el: &ActiveEventLoop) {
-        if self.win.is_some() || !self.open_window(el) {
+        if self.win.is_some() {
+            return;
+        }
+        #[cfg(not(windows))]
+        if self.tray && self.resident.is_none() {
+            start_resident(self);
+        }
+        // A resident start stays in the notification area unless a search
+        // was asked for; Linux has no hidden window, so it is made when first shown.
+        let start_hidden = self.tray && self.app.searching.is_none();
+        if !(cfg!(not(windows)) && start_hidden) && !self.open_window(el) {
             return;
         }
         self.sync_menu();
+        if start_hidden {
+            self.hidden = true;
+            return;
+        }
         if let Some(w) = &self.win {
+            if std::mem::take(&mut self.maximize_on_show) {
+                w.window.set_maximized(true);
+            }
             w.window.set_visible(true);
             w.window.focus_window();
         }
@@ -1321,7 +1461,23 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.redraw();
             }
             #[cfg(windows)]
-            UserEvent::Win(_) => {}
+            UserEvent::Win(rt_sys::win::WinMsg::OpenFiles(paths)) => self.open_paths(el, paths),
+            #[cfg(windows)]
+            UserEvent::Win(rt_sys::win::WinMsg::Tray(rt_sys::win::tray::TrayEvent::Activate)) => self.show(el),
+            #[cfg(windows)]
+            UserEvent::Win(rt_sys::win::WinMsg::Tray(rt_sys::win::tray::TrayEvent::Menu)) => {
+                if let Some(hwnd) = self.win.as_ref().map(|w| w.hwnd) {
+                    match rt_sys::win::tray::menu(hwnd, &tr("Open rdup"), &tr("Exit")) {
+                        Some(1) => self.show(el),
+                        Some(2) => self.quit(el),
+                        _ => {}
+                    }
+                }
+            }
+            #[cfg(not(windows))]
+            UserEvent::Shell(rt_sys::linux::shell::Msg::Open(paths)) => self.open_paths(el, paths),
+            #[cfg(not(windows))]
+            UserEvent::Shell(rt_sys::linux::shell::Msg::Quit) => self.quit(el),
             UserEvent::A11y(ev) => match ev.window_event {
                 accesskit_winit::WindowEvent::ActionRequested(req) if req.action == accesskit::Action::Click => {
                     let id = req.target_node.0;
@@ -1349,7 +1505,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             w.adapter.process_event(&w.window, &event);
         }
         match event {
-            WindowEvent::CloseRequested => self.quit(el),
+            WindowEvent::CloseRequested => self.close(el),
             WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => self.redraw(),
             WindowEvent::ThemeChanged(t) => {
                 self.system_dark = t == WinTheme::Dark;
@@ -1460,7 +1616,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.redraw();
                 self.pointer(x, y);
             }
-            WindowEvent::RedrawRequested => self.render(),
+            WindowEvent::RedrawRequested if !self.hidden => self.render(),
             _ => {}
         }
     }
@@ -1476,14 +1632,48 @@ impl ApplicationHandler<UserEvent> for Shell {
     }
 }
 
-const USAGE: &str = "rdup [folder...]
+/// Whether "Find duplicates with rdup" is on the Explorer menu of folders, for this rdup.exe.
+#[cfg(windows)]
+fn integrated_here() -> bool {
+    let exe = rt_sys::win::assoc::current_exe().unwrap_or_default();
+    rt_sys::win::assoc::folder_status("rdup", &rt_sys::win::assoc::Keys::user("rdup"), &exe) == rt_sys::win::assoc::Status::Here
+}
 
-  Finds files with the same contents on drives and in folders: files of
-  the same size are compared by the first and last bytes, then by a hash
-  of their whole contents (BLAKE3).
+/// Adds "Find duplicates with rdup" to the Explorer menu of folders and
+/// drives (current user only), or takes it out; returns the message to show.
+#[cfg(windows)]
+fn integrate(on: bool) -> Result<String, String> {
+    use rt_sys::win::assoc;
+    let keys = assoc::Keys::user("rdup");
+    let failed = |e: assoc::Error| tf("Cannot change the Windows registry (error {}).", &[&e.to_string()]);
+    if on {
+        let exe = assoc::current_exe()?;
+        assoc::register_folders("rdup", &keys, &exe, &tr("Find duplicates with rdup")).map_err(failed)?;
+        Ok(tr("“Find duplicates with rdup” was added to the Explorer context menu of folders and drives."))
+    } else {
+        assoc::unregister_folders("rdup", &keys).map_err(failed)?;
+        Ok(tr("“Find duplicates with rdup” was removed from the Explorer context menu."))
+    }
+}
 
-  folder   Search these folders (or drives, or network shares) at once.
-           Without them, rdup shows the drives to choose from.
+const USAGE: &str = "rdup [--tray] [--new-window] [folder...]
+
+  Finds files and folders with the same contents on drives and in folders:
+  files of the same size are compared by the first and last bytes, then by
+  a hash of their whole contents (BLAKE3).
+
+  folder        Search these folders (or drives, or network shares) at
+                once. Without them, rdup shows the drives to choose from.
+  --tray        Stay resident in the notification area: closing the window
+                hides it, and launching rdup again (with or without
+                folders) or clicking the tray icon shows it instantly. Exit
+                from the tray icon's menu or File > Exit.
+  --new-window  Open a separate window even when rdup is resident.
+
+Windows only:
+  --register    Add \"Find duplicates with rdup\" to the Explorer context
+                menu of folders and drives (current user only).
+  --unregister  Remove it.
 
 Settings are stored in the user's settings folder (%APPDATA%\\rdup on
 Windows, ~/.config/rdup on Linux), or next to the program when a file named
@@ -1491,12 +1681,30 @@ rdup.portable exists there (portable mode).";
 
 fn main() {
     let raw: Vec<String> = std::env::args().skip(1).collect();
-    if raw.iter().any(|a| a == "--help" || a == "-h" || a == "/?") {
-        #[cfg(windows)]
-        rt_sys::win::report("rdup", USAGE);
-        #[cfg(not(windows))]
+    // The help goes to the console it was asked from; without one, rdup
+    // starts and shows it in its own window, in its theme.
+    let help = raw.iter().any(|a| a == "--help" || a == "-h" || a == "/?");
+    #[cfg(windows)]
+    if help && rt_sys::win::print_to_console(USAGE) {
+        return;
+    }
+    #[cfg(not(windows))]
+    if help {
         println!("{USAGE}");
         return;
+    }
+    #[cfg(windows)]
+    if raw.iter().any(|a| a == "--register" || a == "--unregister") {
+        let mut location = storage::detect();
+        let settings = Settings::load(&location.load());
+        i18n::set_lang(settings.language.unwrap_or_else(i18n::system_lang));
+        let result = integrate(raw.iter().any(|a| a == "--register"));
+        let ok = result.is_ok();
+        let text = match result {
+            Ok(t) | Err(t) => t,
+        };
+        rt_sys::win::report(&tr("Windows Integration"), &text);
+        std::process::exit(if ok { 0 } else { 1 });
     }
     #[cfg(windows)]
     // SAFETY: only changes how this process reports a missing disc or card:
@@ -1505,7 +1713,22 @@ fn main() {
         use windows_sys::Win32::System::Diagnostics::Debug::{SetErrorMode, SEM_FAILCRITICALERRORS};
         SetErrorMode(SEM_FAILCRITICALERRORS);
     }
+    // A drive from the Explorer menu comes as `C:"` (see `folder_arg`).
+    #[cfg(windows)]
+    let args: Vec<PathBuf> = raw.iter().filter(|a| !a.starts_with("--")).map(|a| PathBuf::from(rt_sys::win::assoc::folder_arg(a))).collect();
+    #[cfg(not(windows))]
     let args: Vec<PathBuf> = raw.iter().filter(|a| !a.starts_with("--")).map(PathBuf::from).collect();
+    let tray = raw.iter().any(|a| a == "--tray" || a == "/tray") && !help;
+    let new_window = raw.iter().any(|a| a == "--new-window") || help;
+    // A resident rdup shows itself (and searches the folders) instantly.
+    #[cfg(windows)]
+    if !new_window && rt_sys::win::hand_off(&IDENT, &args, false, false) {
+        return;
+    }
+    #[cfg(not(windows))]
+    if !new_window && rt_sys::linux::shell::hand_off("rdup", &args, false) {
+        return;
+    }
     let mut location = storage::detect();
     let store = location.load();
     let settings = Settings::load(&store);
@@ -1552,11 +1775,18 @@ fn main() {
         acting: None,
         handle: None,
         generation: 0,
-        dialog: None,
+        dialog: help.then(|| Dialog { title: "rdup".into(), text: USAGE.into(), panel: Rect::default(), ok: Rect::default() }),
         #[cfg(windows)]
         elevated: rt_sys::win::elevated(),
         #[cfg(not(windows))]
         menu: rdup::ui::menu::Menu::default(),
+        tray,
+        hidden: false,
+        maximize_on_show: false,
+        #[cfg(not(windows))]
+        resident: None,
+        #[cfg(windows)]
+        explorer_menu: integrated_here(),
     };
     shell.apply_language();
     shell.load_volumes();

@@ -9,7 +9,7 @@
 pub mod assoc;
 pub mod clipboard;
 
-pub use rt_sys::win::{darkmode, report, reveal_in_explorer, set_mnemonics, system_dark, tray, wide, from_wide, WinMsg, HWND};
+pub use rt_sys::win::{darkmode, print_to_console, report, reveal_in_explorer, set_mnemonics, system_dark, tray, WinMsg, HWND};
 use rt_sys::win::Ident;
 use std::path::PathBuf;
 
@@ -38,7 +38,7 @@ pub fn open_url(url: &str) -> bool {
     rt_sys::open_url(url)
 }
 
-/// The Open dialog and message boxes.
+/// The Open dialog.
 pub mod dialogs {
     use rt_sys::win::dialogs as d;
     use rt_sys::win::HWND;
@@ -47,10 +47,6 @@ pub mod dialogs {
     /// Shows the Open dialog. `filter` is `(label, patterns)` pairs.
     pub fn open_file(hwnd: HWND, dir: Option<&Path>, filter: &[(String, &str)]) -> Option<PathBuf> {
         d::open_file(hwnd, dir, &d::filter(filter))
-    }
-
-    pub fn message(hwnd: HWND, title: &str, text: &str) {
-        d::message(hwnd, title, text, d::Buttons::Ok, d::Icon::Info);
     }
 }
 

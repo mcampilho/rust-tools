@@ -65,6 +65,8 @@ impl From<accesskit_winit::Event> for UserEvent {
 struct WinHost {
     #[cfg(windows)]
     hwnd: windows_sys::Win32::Foundation::HWND,
+    /// A message (title, text) to show in the window, in its theme.
+    message: std::cell::RefCell<Option<(String, String)>>,
 }
 
 #[cfg(windows)]
@@ -82,8 +84,7 @@ impl Host for WinHost {
         matches!(message(self.hwnd, title, text, Buttons::OkCancel, Icon::Question), A::Ok | A::Yes)
     }
     fn info(&self, title: &str, text: &str) {
-        use win::dialogs::{message, Buttons, Icon};
-        message(self.hwnd, title, text, Buttons::Ok, Icon::Info);
+        *self.message.borrow_mut() = Some((title.to_string(), text.to_string()));
     }
     fn error(&self, title: &str, text: &str) {
         use win::dialogs::{message, Buttons, Icon};
@@ -121,7 +122,7 @@ impl Host for WinHost {
         linux::dialogs::confirm(title, text)
     }
     fn info(&self, title: &str, text: &str) {
-        linux::dialogs::info(title, text);
+        *self.message.borrow_mut() = Some((title.to_string(), text.to_string()));
     }
     fn error(&self, title: &str, text: &str) {
         linux::dialogs::error(title, text);
@@ -192,10 +193,15 @@ struct Shell {
     /// Resident mode: closing the window hides it to the notification area.
     tray: bool,
     hidden: bool,
+    /// The window was last maximized: done when it is first shown.
+    maximize_on_show: bool,
     /// Theme the native menus were last drawn with (dark or not).
     menu_dark: Option<bool>,
     #[cfg(not(windows))]
     shell: Option<linux::shell::Shell>,
+    /// The message shown over the window (About, the help...), and where
+    /// its panel and OK button were drawn.
+    dialog: Option<(String, String, Rect, Rect)>,
 }
 
 fn theme_for(pref: ThemePref) -> Option<WinTheme> {
@@ -253,6 +259,24 @@ impl Shell {
 
     /// Runs a command and applies its window-level side effects.
     fn command(&mut self, el: &ActiveEventLoop, cmd: Command) {
+        #[cfg(windows)]
+        {
+            let action = match cmd {
+                Command::ExplorerMenu if self.app.explorer_menu => Some(Integration::Unregister),
+                Command::ExplorerMenu => Some(Integration::Register),
+                Command::DefaultEditor => Some(Integration::Associate),
+                _ => None,
+            };
+            if let Some(a) = action {
+                let text = match integrate(a) {
+                    Ok(t) | Err(t) => t,
+                };
+                self.app.explorer_menu = integrated_here();
+                self.app.menu_dirty = true;
+                self.host.info(&i18n::tr("Windows Integration"), &text);
+                return self.after_action(el);
+            }
+        }
         self.app.dispatch(cmd, &self.host);
         self.after_action(el);
     }
@@ -324,6 +348,9 @@ impl Shell {
             return;
         }
         if let Some(w) = &self.win {
+            if std::mem::take(&mut self.maximize_on_show) {
+                w.window.set_maximized(true);
+            }
             w.window.set_visible(true);
             w.window.set_minimized(false);
             w.window.focus_window();
@@ -640,6 +667,13 @@ impl Shell {
     // ------------------------------------------------------------ keyboard
 
     fn key(&mut self, el: &ActiveEventLoop, event: &winit::event::KeyEvent) {
+        if self.dialog.is_some() {
+            if matches!(event.logical_key, WKey::Named(NamedKey::Escape | NamedKey::Enter | NamedKey::Space)) {
+                self.dialog = None;
+                self.redraw();
+            }
+            return;
+        }
         let ctrl = self.mods.control_key();
         let alt = self.mods.alt_key();
         let shift = self.mods.shift_key();
@@ -711,6 +745,14 @@ impl Shell {
 
     fn mouse_press(&mut self, el: &ActiveEventLoop, button: MouseButton) {
         let Some((x, y)) = self.cursor else { return };
+        // The OK button, or a click outside the message, closes it.
+        if let Some((_, _, panel, ok)) = &self.dialog {
+            if ok.contains(x, y) || !panel.contains(x, y) {
+                self.dialog = None;
+                self.redraw();
+            }
+            return;
+        }
         self.input.tooltip = None;
         self.update_hot();
         let hit = self.hit(x, y).cloned();
@@ -872,6 +914,14 @@ impl Shell {
         let ime = ui::view::build(&mut self.app, &mut u, mouse);
         self.widgets = std::mem::take(&mut u.widgets);
         drop(u);
+        if let Some(m) = self.host.message.borrow_mut().take() {
+            self.dialog = Some((m.0, m.1, Rect::default(), Rect::default()));
+        }
+        if let Some((title, text, panel, ok)) = &mut self.dialog {
+            let style = rt_gfx::dialog::DialogStyle { dark: theme.dark, text: theme.text, dim: theme.text_dim, border: theme.border };
+            let full = Rect::new(0.0, 0.0, w.get() as f32, h.get() as f32);
+            (*panel, *ok) = rt_gfx::dialog::draw_message(&mut self.gfx, full, &style, scale, title, text);
+        }
         if let Ok(mut buf) = win.surface.buffer_mut() {
             self.gfx.copy_to(&mut buf);
             let _ = buf.present();
@@ -1166,7 +1216,9 @@ impl Shell {
             .with_title("rpad")
             .with_inner_size(LogicalSize::new(w.max(420.0), h.max(260.0)))
             .with_min_inner_size(LogicalSize::new(420.0, 260.0))
-            .with_maximized(maximized)
+            // Maximizing shows the window on Windows: a resident start, which
+            // stays hidden, maximizes when it is first shown.
+            .with_maximized(maximized && !self.tray)
             .with_window_icon(app_icon())
             .with_theme(theme_for(self.app.settings.theme))
             .with_visible(false);
@@ -1202,6 +1254,7 @@ impl Shell {
                 }),
             );
         }
+        self.maximize_on_show = maximized && self.tray;
         self.theme_pref = Some(self.app.settings.theme);
         self.win = Some(Win {
             window,
@@ -1252,6 +1305,9 @@ impl ApplicationHandler<UserEvent> for Shell {
             return;
         }
         if let Some(w) = &self.win {
+            if std::mem::take(&mut self.maximize_on_show) {
+                w.window.set_maximized(true);
+            }
             w.window.set_visible(true);
             w.window.focus_window();
         }
@@ -1414,6 +1470,60 @@ impl ApplicationHandler<UserEvent> for Shell {
     }
 }
 
+#[cfg(windows)]
+#[derive(Clone, Copy)]
+enum Integration {
+    Register,
+    Associate,
+    Unregister,
+}
+
+/// Whether "Edit with rpad" is on the Explorer context menu, for this rpad.exe.
+#[cfg(windows)]
+fn integrated_here() -> bool {
+    let exe = rt_sys::win::assoc::current_exe().unwrap_or_default();
+    win::assoc::status(&exe) == win::assoc::Status::Here
+}
+
+/// Adds or removes rpad in Explorer (current user only); returns the
+/// message to show, or an error message.
+#[cfg(windows)]
+fn integrate(action: Integration) -> Result<String, String> {
+    use i18n::{tf, tr};
+    use win::assoc;
+    let exe = rt_sys::win::assoc::current_exe()?;
+    let failed = |e: assoc::Error| tf("Cannot change the Windows registry (error {}).", &[&e.to_string()]);
+    let verb = tr("Edit with rpad");
+    match action {
+        Integration::Register => {
+            assoc::register(&exe, &verb).map_err(failed)?;
+            Ok(tf("rpad was added to the Explorer context menu and to the “Open with” list for: {}", &[&assoc::list(&assoc::extensions())]))
+        }
+        Integration::Unregister => {
+            assoc::unregister().map_err(failed)?;
+            Ok(tr("rpad was removed from Explorer and from the file associations."))
+        }
+        Integration::Associate => {
+            let d = assoc::associate(&exe, &verb).map_err(failed)?;
+            let mut parts = Vec::new();
+            if !d.set.is_empty() {
+                parts.push(tf("rpad is now the default editor for: {}", &[&assoc::list(&d.set)]));
+            }
+            if !d.already.is_empty() {
+                parts.push(tf("rpad was already the default editor for: {}", &[&assoc::list(&d.already)]));
+            }
+            if !d.user_choice.is_empty() {
+                assoc::open_default_apps();
+                parts.push(tf(
+                    "Windows asks you to choose the default app yourself for: {}\nIn the Settings window that opened, use “Choose default apps by file type” and pick rpad.",
+                    &[&assoc::list(&d.user_choice)],
+                ));
+            }
+            Ok(parts.join("\n\n"))
+        }
+    }
+}
+
 const USAGE: &str = "rpad [options] [files...]
 
   files          Files to open. A file that does not exist yet opens as an
@@ -1426,20 +1536,61 @@ const USAGE: &str = "rpad [options] [files...]
                  the running rpad window.
   --help         Show this help.
 
+Windows only:
+  --register     Add \"Edit with rpad\" to the Explorer context menu of text,
+                 configuration and source files, and rpad to their \"Open
+                 with\" list.
+  --associate    Also make rpad the default editor for those types where
+                 Windows allows it; for types whose default you chose
+                 yourself, Windows Settings > Default apps opens.
+  --unregister   Remove everything --register and --associate added and
+                 restore the previous defaults.
+  These change only the current user's settings (no administrator rights).
+
 Settings are stored in %APPDATA%\\rpad (~/.config/rpad on Linux), or next
 to the program when a file named rpad.portable exists there (portable mode).";
 
 fn main() {
     let raw: Vec<String> = std::env::args().skip(1).collect();
-    if raw.iter().any(|a| a == "--help" || a == "-h" || a == "/?") {
-        #[cfg(windows)]
-        win::dialogs::message(std::ptr::null_mut(), "rpad", USAGE, win::dialogs::Buttons::Ok, win::dialogs::Icon::Info);
-        #[cfg(not(windows))]
+    // The help goes to the console it was asked from; without one, rpad
+    // starts and shows it in its own window, in its theme.
+    let help = raw.iter().any(|a| a == "--help" || a == "-h" || a == "/?");
+    #[cfg(windows)]
+    if help && rt_sys::win::print_to_console(USAGE) {
+        return;
+    }
+    #[cfg(not(windows))]
+    if help {
         println!("{USAGE}");
         return;
     }
-    let new_window = raw.iter().any(|a| a == "--new-window");
-    let tray = raw.iter().any(|a| a == "--tray" || a == "/tray");
+    #[cfg(windows)]
+    {
+        let flag = |f: &str| raw.iter().any(|a| a == f);
+        let action = if flag("--unregister") {
+            Some(Integration::Unregister)
+        } else if flag("--associate") {
+            Some(Integration::Associate)
+        } else if flag("--register") {
+            Some(Integration::Register)
+        } else {
+            None
+        };
+        if let Some(action) = action {
+            let mut location = storage::detect();
+            let settings = Settings::load(&location.load());
+            i18n::set_lang(settings.language.unwrap_or_else(i18n::system_lang));
+            let result = integrate(action);
+            let ok = result.is_ok();
+            let text = match result {
+                Ok(t) | Err(t) => t,
+            };
+            rt_sys::win::report(&i18n::tr("Windows Integration"), &text);
+            std::process::exit(if ok { 0 } else { 1 });
+        }
+    }
+    let new_window = raw.iter().any(|a| a == "--new-window") || help;
+    let tray = raw.iter().any(|a| a == "--tray" || a == "/tray") && !help;
     let files: Vec<PathBuf> = raw.iter().filter(|a| !a.starts_with("--")).map(PathBuf::from).collect();
 
     let mut location = storage::detect();
@@ -1488,6 +1639,10 @@ fn main() {
     event_loop.set_control_flow(ControlFlow::Wait);
     let mut app = App::new(location, settings);
     app.apply_language();
+    #[cfg(windows)]
+    {
+        app.explorer_menu = integrated_here();
+    }
     let proxy = Arc::new(Mutex::new(event_loop.create_proxy()));
     app.waker = Some(Arc::new(move || {
         if let Ok(p) = proxy.lock() {
@@ -1509,6 +1664,7 @@ fn main() {
         host: WinHost {
             #[cfg(windows)]
             hwnd: std::ptr::null_mut(),
+            message: std::cell::RefCell::new(help.then(|| ("rpad".to_string(), USAGE.to_string()))),
         },
         proxy: event_loop.create_proxy(),
         mods: ModifiersState::empty(),
@@ -1531,9 +1687,11 @@ fn main() {
         args: files,
         tray,
         hidden: false,
+        maximize_on_show: false,
         menu_dark: None,
         #[cfg(not(windows))]
         shell: None,
+        dialog: None,
     };
     if let Err(e) = event_loop.run_app(&mut shell) {
         eprintln!("rpad: {e}");

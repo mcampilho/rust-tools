@@ -134,7 +134,8 @@ rights) and points to the `rview.exe` you run it from:
 If you move `rview.exe`, the menu item shows unchecked; check it again to
 point the entries at the new location. From a console, the command-line
 options print the result; otherwise it is shown in a message box. The
-exit code is 0 on success.
+exit code is 0 on success. `--help` prints to the console too; without one,
+rview opens and shows it in its window, in its theme.
 
 | Action | Keys |
 | --- | --- |

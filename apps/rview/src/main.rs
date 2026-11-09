@@ -1295,8 +1295,8 @@ enum Integration {
 
 #[cfg(windows)]
 fn integrated_here() -> bool {
-    let exe = std::env::current_exe().map(|p| p.display().to_string()).unwrap_or_default();
-    win::assoc::status(&win::assoc::Keys::user(), &exe) == win::assoc::Status::Here
+    let exe = rt_sys::win::assoc::current_exe().unwrap_or_default();
+    win::assoc::status(&exe) == win::assoc::Status::Here
 }
 
 /// Adds or removes rview in Explorer (current user only); returns the
@@ -1304,22 +1304,20 @@ fn integrated_here() -> bool {
 #[cfg(windows)]
 fn integrate(action: Integration) -> Result<String, String> {
     use win::assoc;
-    let keys = assoc::Keys::user();
-    let exe = std::env::current_exe().map_err(|e| e.to_string())?.display().to_string();
+    let exe = rt_sys::win::assoc::current_exe()?;
     let failed = |e: assoc::Error| tf("Cannot change the Windows registry (error {}).", &[&e.to_string()]);
     let verb = tr("Open with rview");
     match action {
         Integration::Register => {
-            assoc::register(&keys, &exe, &verb).map_err(failed)?;
-            let all: Vec<&str> = assoc::EXTENSIONS.iter().map(|(e, _)| *e).collect();
-            Ok(tf("rview was added to the Explorer context menu and to the “Open with” list for: {}", &[&assoc::list(&all)]))
+            assoc::register(&exe, &verb).map_err(failed)?;
+            Ok(tf("rview was added to the Explorer context menu and to the “Open with” list for: {}", &[&assoc::list(&assoc::extensions())]))
         }
         Integration::Unregister => {
-            assoc::unregister(&keys).map_err(failed)?;
+            assoc::unregister().map_err(failed)?;
             Ok(tr("rview was removed from Explorer and from the file associations."))
         }
         Integration::Associate => {
-            let d = assoc::associate(&keys, &exe, &verb).map_err(failed)?;
+            let d = assoc::associate(&exe, &verb).map_err(failed)?;
             let mut parts = Vec::new();
             if !d.set.is_empty() {
                 parts.push(tf("rview is now the default viewer for: {}", &[&assoc::list(&d.set)]));
@@ -1381,10 +1379,15 @@ named rview.portable exists there (portable mode).";
 
 fn main() {
     let raw: Vec<String> = std::env::args().skip(1).collect();
-    if raw.iter().any(|a| a == "--help" || a == "-h" || a == "/?") {
-        #[cfg(windows)]
-        win::dialogs::message(std::ptr::null_mut(), "rview", USAGE);
-        #[cfg(not(windows))]
+    // The help goes to the console it was asked from; without one, rview
+    // starts and shows it in its own window, in its theme.
+    let help = raw.iter().any(|a| a == "--help" || a == "-h" || a == "/?");
+    #[cfg(windows)]
+    if help && win::print_to_console(USAGE) {
+        return;
+    }
+    #[cfg(not(windows))]
+    if help {
         println!("{USAGE}");
         return;
     }
@@ -1474,9 +1477,9 @@ fn main() {
         cursor_icon: CursorIcon::Default,
         args,
         status_note: None,
-        tray,
+        tray: tray && !help,
         hidden: false,
-        dialog: None,
+        dialog: help.then(|| Dialog { title: "rview".into(), text: USAGE.into(), panel: Rect::default(), ok: Rect::default() }),
         #[cfg(windows)]
         integrated: integrated_here(),
         last_click: None,

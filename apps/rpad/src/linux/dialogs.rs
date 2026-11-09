@@ -5,7 +5,7 @@ use crate::app::Answer;
 use rt_sys::linux::dialogs as d;
 use std::path::{Path, PathBuf};
 
-pub use d::{available, choose_font, confirm, error, info, pick_folder, save_file};
+pub use d::{available, choose_font, confirm, error, pick_folder, save_file};
 
 pub fn ask_save(text: &str) -> Answer {
     match d::ask_save("rpad", text) {
