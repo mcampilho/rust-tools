@@ -2457,7 +2457,7 @@ checksum = "20675572f6f24e9e76ef639bc5552774ed45f1c30e2951e1e99c59888861c539"
 
 [[package]]
 name = "rcalc"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "accesskit",
  "accesskit_winit",
@@ -2476,7 +2476,7 @@ dependencies = [
 
 [[package]]
 name = "rdup"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "accesskit",
  "accesskit_winit",
@@ -2585,7 +2585,7 @@ dependencies = [
 
 [[package]]
 name = "rpad"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "accesskit",
  "accesskit_winit",
@@ -2607,7 +2607,7 @@ dependencies = [
 
 [[package]]
 name = "rsize"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "accesskit",
  "accesskit_winit",
@@ -2718,7 +2718,7 @@ checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
 name = "rview"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "accesskit",
  "accesskit_winit",
