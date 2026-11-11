@@ -2742,6 +2742,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "rwall"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "rt-build",
+ "rt-core",
+ "rt-gfx",
+ "rt-sys",
+ "softbuffer",
+ "tiny-skia",
+ "windows-sys 0.59.0",
+ "winit",
+]
+
+[[package]]
 name = "same-file"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"

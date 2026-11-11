@@ -1,11 +1,11 @@
 # Builds one tool when its version tag is pushed (rcalc-v1.1.0, rpad-v1.0.0,
-# rview-v1.1.0, rsize-v0.1.0, rdup-v0.1.0) and publishes it as a GitHub release, with SHA-256
+# rview-v1.1.0, rsize-v0.1.0, rdup-v0.1.0, rwall-v0.1.0) and publishes it as a GitHub release, with SHA-256
 # sums and build provenance, for Windows and Linux.
 name: release
 
 on:
   push:
-    tags: ["rcalc-v*", "rpad-v*", "rview-v*", "rsize-v*", "rdup-v*"]
+    tags: ["rcalc-v*", "rpad-v*", "rview-v*", "rsize-v*", "rdup-v*", "rwall-v*"]
   workflow_dispatch:
     inputs:
       tag:
@@ -45,9 +45,9 @@ jobs:
             echo "::error::apps/$app/Cargo.toml has version $declared but the tag is $TAG"
             exit 1
           fi
-          # See the profiles in Cargo.toml: rview needs panics to unwind.
+          # See the profiles in Cargo.toml: rview and rwall need panics to unwind.
           case "$app" in
-            rview) profile=release ;;
+            rview | rwall) profile=release ;;
             *) profile=release-small ;;
           esac
           {
@@ -115,7 +115,7 @@ jobs:
         run: |
           app="${TAG%%-v*}"
           case "$app" in
-            rview) profile=release ;;
+            rview | rwall) profile=release ;;
             *) profile=release-small ;;
           esac
           {

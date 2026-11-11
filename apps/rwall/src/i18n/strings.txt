@@ -1,0 +1,60 @@
+# rwall UI translations. One string per line, columns separated by TAB:
+# en-US (key)	en-GB	de-DE	es-ES	fr-FR	it-IT	ja-JP	pt-BR	pt-PT	zh-CN
+# An empty cell falls back to en-US (en-GB) or pt-BR (pt-PT). "{}" is a placeholder.
+# Menu labels carry their own "&" access key, different within each menu.
+
+&Next picture		&Nächstes Bild	&Siguiente imagen	Image &suivante	Immagine &successiva	次の画像(&N)	&Próxima imagem	Imagem &seguinte	下一张图片(&N)
+&About this picture		&Über dieses Bild	&Acerca de esta imagen	À &propos de cette image	&Informazioni sull’immagine	この画像について(&A)	&Sobre esta imagem	Sobre &esta imagem	关于此图片(&A)
+&Settings…		&Einstellungen…	&Configuración…	Pa&ramètres…	I&mpostazioni…	設定(&S)…	&Configurações…	&Definições…	设置(&S)…
+Show the picture &file		Bild&datei anzeigen	&Mostrar el archivo	Afficher le &fichier	Mostra il &file	画像ファイルを表示(&F)	Mostrar o &arquivo	Mostrar o &ficheiro	显示图片文件(&F)
+E&xit		&Beenden	Sa&lir	&Quitter	&Esci	終了(&X)	Sai&r	Sa&ir	退出(&X)
+
+On the desktop now		Jetzt auf dem Desktop	Ahora en el escritorio	Actuellement sur le bureau	Ora sul desktop	現在のデスクトップ	Na área de trabalho agora	Agora no ambiente de trabalho	当前桌面
+No picture yet		Noch kein Bild	Aún no hay imagen	Pas encore d’image	Ancora nessuna immagine	まだ画像がありません	Nenhuma imagem ainda	Ainda sem imagem	尚无图片
+rwall has not changed the wallpaper yet.		rwall hat das Hintergrundbild noch nicht gewechselt.	rwall aún no ha cambiado el fondo de pantalla.	rwall n’a pas encore changé le fond d’écran.	rwall non ha ancora cambiato lo sfondo.	rwall はまだ壁紙を変更していません。	O rwall ainda não trocou o papel de parede.	O rwall ainda não mudou o fundo do ambiente de trabalho.	rwall 尚未更换壁纸。
+Next picture		Nächstes Bild	Siguiente imagen	Image suivante	Immagine successiva	次の画像	Próxima imagem	Imagem seguinte	下一张图片
+About this picture		Über dieses Bild	Acerca de esta imagen	À propos de cette image	Informazioni sull’immagine	この画像について	Sobre esta imagem		关于此图片
+Show the file		Datei anzeigen	Mostrar el archivo	Afficher le fichier	Mostra il file	ファイルを表示	Mostrar o arquivo	Mostrar o ficheiro	显示文件
+Changing…		Wird gewechselt…	Cambiando…	Changement…	Cambio in corso…	変更中…	Trocando…	A mudar…	正在更换…
+Looking for a picture…		Bild wird gesucht…	Buscando una imagen…	Recherche d’une image…	Ricerca di un’immagine…	画像を探しています…	Procurando uma imagem…	A procurar uma imagem…	正在查找图片…
+Next change: {}		Nächster Wechsel: {}	Próximo cambio: {}	Prochain changement : {}	Prossimo cambio: {}	次の変更: {}	Próxima troca: {}	Próxima mudança: {}	下次更换：{}
+The picture could not be changed: {}		Das Bild konnte nicht gewechselt werden: {}	No se pudo cambiar la imagen: {}	Impossible de changer l’image : {}	Impossibile cambiare l’immagine: {}	画像を変更できませんでした: {}	Não foi possível trocar a imagem: {}	Não foi possível mudar a imagem: {}	无法更换图片：{}
+Turn on at least one source of pictures.		Mindestens eine Bildquelle einschalten.	Activa al menos una fuente de imágenes.	Activez au moins une source d’images.	Attiva almeno una fonte di immagini.	画像の取得元を 1 つ以上オンにしてください。	Ative pelo menos uma fonte de imagens.	Ative pelo menos uma fonte de imagens.	请至少开启一个图片来源。
+
+Change the picture		Bild wechseln	Cambiar la imagen	Changer l’image	Cambia l’immagine	画像を変更する頻度	Trocar a imagem	Mudar a imagem	更换图片
+Every day		Jeden Tag	Cada día	Tous les jours	Ogni giorno	毎日	Todo dia	Todos os dias	每天
+Twice a day (00:00, 12:00)		Zweimal täglich (00:00, 12:00)	Dos veces al día (00:00, 12:00)	Deux fois par jour (00:00, 12:00)	Due volte al giorno (00:00, 12:00)	1 日 2 回 (00:00、12:00)	Duas vezes por dia (00:00, 12:00)		每天两次 (00:00、12:00)
+Four times a day (00:00, 06:00, 12:00, 18:00)		Viermal täglich (00:00, 06:00, 12:00, 18:00)	Cuatro veces al día (00:00, 06:00, 12:00, 18:00)	Quatre fois par jour (00:00, 06:00, 12:00, 18:00)	Quattro volte al giorno (00:00, 06:00, 12:00, 18:00)	1 日 4 回 (00:00、06:00、12:00、18:00)	Quatro vezes por dia (00:00, 06:00, 12:00, 18:00)		每天四次 (00:00、06:00、12:00、18:00)
+Every week (on Monday)		Jede Woche (montags)	Cada semana (los lunes)	Toutes les semaines (le lundi)	Ogni settimana (il lunedì)	毎週 (月曜日)	Toda semana (às segundas)	Todas as semanas (à segunda-feira)	每周 (周一)
+Every month (on the 1st)		Jeden Monat (am 1.)	Cada mes (el día 1)	Tous les mois (le 1er)	Ogni mese (il giorno 1)	毎月 (1 日)	Todo mês (no dia 1)	Todos os meses (no dia 1)	每月 (1 日)
+Every		Alle	Cada	Toutes les	Ogni	間隔	A cada		每隔
+{} min		{} Min.	{} min	{} min	{} min	{} 分	{} min		{} 分钟
+
+Take pictures from		Bilder von	Imágenes de	Images depuis	Immagini da	画像の取得元	Imagens de		图片来源
+Bing – picture of the day		Bing – Bild des Tages	Bing – imagen del día	Bing – image du jour	Bing – immagine del giorno	Bing – 今日の画像	Bing – imagem do dia		Bing – 每日图片
+NASA – Astronomy Picture of the Day		NASA – Astronomiebild des Tages	NASA – imagen astronómica del día	NASA – image astronomique du jour	NASA – immagine astronomica del giorno	NASA – 今日の天体写真	NASA – imagem astronômica do dia	NASA – imagem astronómica do dia	NASA – 每日天文图
+Wallhaven – search		Wallhaven – Suche	Wallhaven – búsqueda	Wallhaven – recherche	Wallhaven – ricerca	Wallhaven – 検索	Wallhaven – pesquisa		Wallhaven – 搜索
+Picsum – random photo		Picsum – zufälliges Foto	Picsum – foto al azar	Picsum – photo au hasard	Picsum – foto casuale	Picsum – ランダムな写真	Picsum – foto aleatória	Picsum – fotografia aleatória	Picsum – 随机照片
+My folders		Meine Ordner	Mis carpetas	Mes dossiers	Le mie cartelle	自分のフォルダー	Minhas pastas	As minhas pastas	我的文件夹
+any subject		beliebiges Thema	cualquier tema	n’importe quel sujet	qualsiasi soggetto	すべてのテーマ	qualquer assunto	qualquer tema	任意主题
+Region:		Region:	Región:	Région :	Regione:	地域:	Região:		地区:
+API key:		API-Schlüssel:	Clave de API:	Clé d’API :	Chiave API:	API キー:	Chave de API:	Chave da API:	API 密钥:
+Search:		Suche:	Buscar:	Recherche :	Cerca:	検索:	Pesquisar:		搜索:
+No folder chosen.		Kein Ordner ausgewählt.	No se ha elegido ninguna carpeta.	Aucun dossier choisi.	Nessuna cartella scelta.	フォルダーが選択されていません。	Nenhuma pasta escolhida.		未选择文件夹。
+Add a folder…		Ordner hinzufügen…	Añadir una carpeta…	Ajouter un dossier…	Aggiungi una cartella…	フォルダーを追加…	Adicionar uma pasta…	Acrescentar uma pasta…	添加文件夹…
+Include subfolders		Unterordner einbeziehen	Incluir subcarpetas	Inclure les sous-dossiers	Includi sottocartelle	サブフォルダーを含める	Incluir subpastas		包括子文件夹
+Choose a folder of pictures		Bilderordner auswählen	Elige una carpeta de imágenes	Choisir un dossier d’images	Scegli una cartella di immagini	画像フォルダーを選択	Escolha uma pasta de imagens		选择图片文件夹
+
+Picture position		Bildposition	Posición de la imagen	Position de l’image	Posizione dell’immagine	画像の配置	Posição da imagem		图片位置
+Fill		Füllen	Rellenar	Remplir	Riempi	ページ幅に合わせる	Preencher		填充
+Fit		Anpassen	Ajustar	Ajuster	Adatta	ページ縦幅に合わせる	Ajustar		适应
+Stretch		Strecken	Expandir	Étirer	Estendi	拡大して表示	Ampliar	Esticar	拉伸
+Center	Centre	Zentriert	Centro	Centrer	Al centro	中央に表示	Centralizar	Centrar	居中
+Span		Übergreifend	Distribuir	Étendre	Su più schermi	スパン	Estender	Expandir	跨区
+
+Other		Sonstiges	Otros	Autres	Altro	その他	Outros		其他
+Downloaded pictures to keep:		Heruntergeladene Bilder behalten:	Imágenes descargadas que conservar:	Images téléchargées à garder :	Immagini scaricate da conservare:	保持するダウンロード画像:	Imagens baixadas a manter:	Imagens descarregadas a guardar:	保留的已下载图片:
+Start with Windows		Mit Windows starten	Iniciar con Windows	Démarrer avec Windows	Avvia con Windows	Windows と同時に起動	Iniciar com o Windows		随 Windows 启动
+Start when I log in		Beim Anmelden starten	Iniciar al iniciar sesión	Démarrer à l’ouverture de session	Avvia all’accesso	ログイン時に起動	Iniciar ao entrar	Iniciar ao entrar na sessão	登录时启动
+Cannot change how rwall starts: {}		Der Start von rwall kann nicht geändert werden: {}	No se puede cambiar cómo se inicia rwall: {}	Impossible de modifier le démarrage de rwall : {}	Impossibile modificare l’avvio di rwall: {}	rwall の起動方法を変更できません: {}	Não é possível alterar como o rwall inicia: {}	Não é possível alterar o arranque do rwall: {}	无法更改 rwall 的启动方式：{}
+The picture changes on its own only while rwall runs in the notification area (rwall --tray).		Das Bild wechselt nur von selbst, solange rwall im Infobereich läuft (rwall --tray).	La imagen solo cambia sola mientras rwall está en el área de notificación (rwall --tray).	L’image ne change d’elle-même que si rwall tourne dans la zone de notification (rwall --tray).	L’immagine cambia da sola solo mentre rwall è nell’area di notifica (rwall --tray).	rwall が通知領域で実行中 (rwall --tray) の場合のみ、画像は自動で変わります。	A imagem só muda sozinha enquanto o rwall roda na área de notificação (rwall --tray).	A imagem só muda sozinha enquanto o rwall estiver na área de notificação (rwall --tray).	仅当 rwall 在通知区域中运行时 (rwall --tray)，图片才会自动更换。

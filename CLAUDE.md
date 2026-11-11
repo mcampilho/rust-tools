@@ -1,6 +1,6 @@
 # rust-tools — ferramentas portáteis em Rust para Windows
 
-Monorepo (workspace Cargo) com cinco aplicações, cada uma um único `.exe`, e os crates que partilham
+Monorepo (workspace Cargo) com seis aplicações, cada uma um único `.exe`, e os crates que partilham
 (`crates/`):
 
 - `apps/rcalc` — calculadora.
@@ -8,6 +8,7 @@ Monorepo (workspace Cargo) com cinco aplicações, cada uma um único `.exe`, e 
 - `apps/rview` — visualizador de documentos.
 - `apps/rsize` — analisador de espaço em disco.
 - `apps/rdup` — procurador de ficheiros duplicados (lê os discos com o `rt-scan`, como o rsize).
+- `apps/rwall` — muda o wallpaper a partir da área de notificação (Bing, NASA, Wallhaven, Picsum, pastas locais).
 
 Cada aplicação tem o seu `CLAUDE.md` com arquitetura e regras próprias.
 
@@ -26,11 +27,12 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
 
 - "Pronto" = sem avisos, clippy limpo, testes a passar.
 - Perfis só na raiz do `Cargo.toml`. rcalc, rpad, rsize e rdup usam `release-small` (`panic = "abort"`);
-  o rview usa sempre `release`, porque precisa de `catch_unwind`.
+  o rview e o rwall usam sempre `release`, porque precisam de `catch_unwind`.
 - Compilar para distribuição com `./dev.ps1 dist`, que escolhe o perfil de cada aplicação.
 - `README.md` e `README.pt.md` são atualizados em conjunto, na raiz e em cada aplicação.
 - Textos visíveis ficam no `strings.txt` de cada aplicação, nunca no código de desenho.
-- Sem rede, sem telemetria, sem biblioteca de interface.
+- Sem rede, sem telemetria, sem biblioteca de interface. Exceção aprovada em 2026-11-11: o rwall descarrega
+  imagens (só GET às fontes que o utilizador liga; WinHTTP no Windows, `curl` no Linux). Nenhuma outra.
 - `rustfmt.toml`: `max_width = 140`.
 
 ## Releases

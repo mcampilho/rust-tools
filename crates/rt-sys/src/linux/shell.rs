@@ -120,11 +120,17 @@ fn listen(listener: UnixListener, greeting: u8, sink: Sink) {
     });
 }
 
+/// Called with the id of a tray menu item made with [`Shell::with_items`].
+type ItemSink = Arc<dyn Fn(u32) + Send + Sync>;
+
 struct Tray {
     app: &'static str,
     icon: fn(u32) -> Vec<u8>,
     sink: Sink,
     labels: TrayLabels,
+    /// The app's own menu (id 0 = separator); empty: Open and Exit.
+    items: Vec<(u32, String)>,
+    on_item: Option<ItemSink>,
 }
 
 impl ksni::Tray for Tray {
@@ -154,6 +160,28 @@ impl ksni::Tray for Tray {
 
     fn menu(&self) -> Vec<ksni::MenuItem<Self>> {
         use ksni::menu::StandardItem;
+        if !self.items.is_empty() {
+            return self
+                .items
+                .iter()
+                .map(|(id, label)| {
+                    if *id == 0 {
+                        return ksni::MenuItem::Separator;
+                    }
+                    let id = *id;
+                    StandardItem {
+                        label: label.clone(),
+                        activate: Box::new(move |t: &mut Self| {
+                            if let Some(f) = &t.on_item {
+                                f(id);
+                            }
+                        }),
+                        ..StandardItem::default()
+                    }
+                    .into()
+                })
+                .collect();
+        }
         vec![
             StandardItem {
                 label: self.labels.open.clone(),
@@ -192,14 +220,23 @@ pub struct Shell {
 impl Shell {
     /// Starts listening for later launches and, if asked, adds the icon.
     pub fn new(cfg: Config, sink: Box<dyn Fn(Msg) + Send + Sync>) -> Shell {
+        Shell::with_items(cfg, Vec::new(), None, sink)
+    }
+
+    /// Like [`Shell::new`], with the app's own tray menu: `items` are (id,
+    /// text), id 0 a separator; choosing one calls `on_item` with its id.
+    pub fn with_items(cfg: Config, items: Vec<(u32, String)>, on_item: Option<Box<dyn Fn(u32) + Send + Sync>>, sink: Box<dyn Fn(Msg) + Send + Sync>) -> Shell {
         use ksni::blocking::TrayMethods;
         let sink: Sink = Arc::from(sink);
+        let on_item: Option<ItemSink> = on_item.map(Arc::from);
         let tray = cfg.tray.and_then(|labels| {
             Tray {
                 app: cfg.app,
                 icon: cfg.icon,
                 sink: sink.clone(),
                 labels,
+                items,
+                on_item,
             }
             .spawn()
             .ok()
@@ -224,6 +261,13 @@ impl Shell {
     pub fn set_labels(&self, labels: TrayLabels) {
         if let Some(h) = &self.tray {
             h.update(|t| t.labels = labels);
+        }
+    }
+
+    /// Replaces the app's own tray menu (after a language change).
+    pub fn set_items(&self, items: Vec<(u32, String)>) {
+        if let Some(h) = &self.tray {
+            h.update(|t| t.items = items);
         }
     }
 }

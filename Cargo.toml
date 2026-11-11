@@ -5,7 +5,8 @@ resolver = "2"
 # Profiles apply to the whole workspace: Cargo ignores them in member crates.
 # `panic` cannot be set per package, hence two release profiles:
 # - release: unwinds. rview must use it, as catch_unwind contains a lopdf panic
-#   on a malformed PDF. It is the default so that a plain build is always safe.
+#   on a malformed PDF; rwall too, for a malformed picture from the web. It is
+#   the default so that a plain build is always safe.
 # - release-small: aborts, for rcalc and rpad, which come out about 20% smaller.
 # `./dev.ps1 dist` builds each app with the right one.
 [profile.release]

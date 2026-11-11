@@ -1,7 +1,8 @@
 # rust-tools
 
 Pequenas ferramentas portáteis para Windows e Linux, escritas em Rust. Cada uma é
-um único executável: sem instalador, sem runtime e sem telemetria.
+um único executável: sem instalador, sem runtime e sem telemetria. Só o rwall usa
+a rede, para descarregar as imagens que põe no ambiente de trabalho.
 
 [English version](README.md)
 
@@ -12,11 +13,12 @@ um único executável: sem instalador, sem runtime e sem telemetria.
 | [rview](apps/rview/README.pt.md) | Visualizador de PDF, Markdown, HTML, texto e CSV, com seleção e cópia | 4,4 MB | 16,6 MB |
 | [rsize](apps/rsize/README.pt.md) | Analisador de espaço em disco: pastas por tamanho com treemap, tarte ou anéis, tipos de ficheiro, exportação CSV; lê o NTFS diretamente ou o índice do Everything | 1,9 MB | 5,5 MB |
 | [rdup](apps/rdup/README.pt.md) | Procurador de ficheiros duplicados: ficheiros com o mesmo conteúdo em vários discos e pastas de uma vez, por tamanho e hashes BLAKE3; lê os discos como o rsize | 1,9 MB | 5,6 MB |
+| [rwall](apps/rwall/README.pt.md) | Muda o fundo do ambiente de trabalho: todos os dias, duas ou quatro vezes por dia, todas as semanas, todos os meses ou a cada tantos minutos, com imagens do Bing, da NASA, do Wallhaven, do Picsum ou das suas pastas | 2,9 MB | 6,8 MB |
 
 Todas desenham a sua própria interface no CPU (winit, softbuffer, tiny-skia e
 ab_glyph), sem GPU nem biblioteca de interface. Têm 10 idiomas e seguem o tema
-claro ou escuro do sistema. O rcalc, o rpad e o rview podem também ficar
-residentes na área de notificação com `--tray`.
+claro ou escuro do sistema. Podem também ficar residentes na área de notificação
+com `--tray`.
 
 ## Compilar
 
@@ -41,11 +43,13 @@ Tools, se existir: o de `$env:RUST_TOOLS_MSVC_ENV`, ou o de
 | rview | `cargo build --release -p rview` | `target\release\rview.exe` |
 | rsize | `cargo build --profile release-small -p rsize` | `target\release-small\rsize.exe` |
 | rdup | `cargo build --profile release-small -p rdup` | `target\release-small\rdup.exe` |
+| rwall | `cargo build --release -p rwall` | `target\release\rwall.exe` |
 
 Há dois perfis porque, num workspace, o `panic` não se pode definir por pacote.
 O `release-small` aborta em pânicos, o que torna o rcalc, o rpad, o rsize e o rdup
 cerca de 20% mais pequenos. O rview precisa do `release`: apanha os pânicos da biblioteca de
-PDF, para que um PDF malformado não feche o programa. O `./dev.ps1 dist` escolhe
+PDF, para que um PDF malformado não feche o programa. O rwall também o usa, pela
+mesma razão, com as imagens que vêm da internet. O `./dev.ps1 dist` escolhe
 o perfil certo para cada ferramenta.
 
 ## Transferir
@@ -63,9 +67,9 @@ compila essa ferramenta e publica-a com a soma SHA-256 e a proveniência da comp
 Os pacotes para Linux precisam da glibc 2.35 ou mais recente (2.34 no rcalc e no
 rpad) e funcionam em X11 e Wayland. O que muda face ao Windows está em cada README:
 [rcalc](apps/rcalc/README.pt.md#linux), [rpad](apps/rpad/README.pt.md#linux),
-[rview](apps/rview/README.pt.md#linux), [rsize](apps/rsize/README.pt.md#linux) e
-[rdup](apps/rdup/README.pt.md#linux). Foram verificados no WSL2, não num ambiente de
-trabalho Linux real.
+[rview](apps/rview/README.pt.md#linux), [rsize](apps/rsize/README.pt.md#linux),
+[rdup](apps/rdup/README.pt.md#linux) e [rwall](apps/rwall/README.pt.md#linux). Foram
+verificados no WSL2, não num ambiente de trabalho Linux real.
 
 No WSLg, a barra de título que estas ferramentas desenham em Wayland pode fazer cair
 o compositor, e elas podem fechar com o erro "Broken pipe". Executá-las com
@@ -83,7 +87,8 @@ rust-tools/
 │  ├─ rdup/
 │  ├─ rpad/
 │  ├─ rsize/
-│  └─ rview/
+│  ├─ rview/
+│  └─ rwall/
 └─ crates/         código partilhado pelas aplicações
    ├─ rt-core/     traduções, definições, árvore de menus
    ├─ rt-gfx/      desenho, disposição de texto, menus desenhados, painel de mensagens

@@ -95,6 +95,31 @@ pub fn event(lp: isize) -> Option<TrayEvent> {
 
 /// Shows the tray menu at the cursor. Returns 1 for `open`, 2 for `exit`.
 pub fn menu(hwnd: HWND, open: &str, exit: &str) -> Option<u8> {
+    let items = [Item::new(1, open), Item::SEPARATOR, Item::new(2, exit)];
+    popup(hwnd, &items, 1).map(|id| id as u8)
+}
+
+/// An entry of a tray menu made with [`popup`].
+#[derive(Clone, Copy, Debug)]
+pub struct Item<'a> {
+    /// What [`popup`] returns for it (not 0).
+    pub id: u32,
+    /// The text, with its `&` access key.
+    pub text: &'a str,
+    pub enabled: bool,
+}
+
+impl<'a> Item<'a> {
+    pub const SEPARATOR: Item<'static> = Item { id: 0, text: "", enabled: false };
+
+    pub fn new(id: u32, text: &'a str) -> Item<'a> {
+        Item { id, text, enabled: true }
+    }
+}
+
+/// Shows a tray menu of `items` at the cursor (id 0 is a separator; the
+/// item `default` is shown in bold). Returns the id chosen.
+pub fn popup(hwnd: HWND, items: &[Item], default: u32) -> Option<u32> {
     // SAFETY: a temporary popup menu, destroyed before returning; strings
     // outlive the calls that use them.
     unsafe {
@@ -102,11 +127,17 @@ pub fn menu(hwnd: HWND, open: &str, exit: &str) -> Option<u8> {
         if menu.is_null() {
             return None;
         }
-        let (o, e) = (wide(open), wide(exit));
-        AppendMenuW(menu, MF_STRING, 1, o.as_ptr());
-        AppendMenuW(menu, MF_SEPARATOR, 0, std::ptr::null());
-        AppendMenuW(menu, MF_STRING, 2, e.as_ptr());
-        SetMenuDefaultItem(menu, 1, 0);
+        let texts: Vec<Vec<u16>> = items.iter().map(|i| wide(i.text)).collect();
+        for (i, t) in items.iter().zip(&texts) {
+            if i.id == 0 {
+                AppendMenuW(menu, MF_SEPARATOR, 0, std::ptr::null());
+            } else {
+                AppendMenuW(menu, MF_STRING | if i.enabled { 0 } else { MF_GRAYED }, i.id as usize, t.as_ptr());
+            }
+        }
+        if default != 0 {
+            SetMenuDefaultItem(menu, default, 0);
+        }
         let mut pt = POINT { x: 0, y: 0 };
         GetCursorPos(&mut pt);
         // Required so the menu closes when the user clicks elsewhere.
@@ -122,10 +153,6 @@ pub fn menu(hwnd: HWND, open: &str, exit: &str) -> Option<u8> {
         );
         PostMessageW(hwnd, WM_NULL, 0, 0);
         DestroyMenu(menu);
-        match cmd {
-            1 => Some(1),
-            2 => Some(2),
-            _ => None,
-        }
+        (cmd > 0).then_some(cmd as u32)
     }
 }
