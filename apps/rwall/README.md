@@ -4,14 +4,16 @@ A portable wallpaper changer for Windows and [Linux](#linux), written in Rust.
 It puts a new picture on the desktop every day, twice or four times a day,
 every week, every month or every so many minutes. The pictures come from
 Bing's picture of the day, NASA's Astronomy Picture of the Day, Wallhaven,
-Lorem Picsum or your own folders.
+Lorem Picsum or your own folders. On Windows it can also play a **dynamic
+wallpaper** behind the desktop icons: a video, an animated GIF or WebP, or a
+scene drawn by rwall.
 
 [Versão portuguesa](README.pt.md)
 
 rwall is part of [rust-tools](../../README.md). Commands below run from the
 repository root.
 
-`rwall.exe` is a single 2.9 MB executable: no installer, no runtime, no DLLs
+`rwall.exe` is a single 3.2 MB executable: no installer, no runtime, no DLLs
 beyond those that ship with Windows. It is the only tool of rust-tools that uses
 the network: it downloads pictures from the services you turn on, and nothing
 else. No account, no cookies, no telemetry.
@@ -97,6 +99,38 @@ pictures are checked: anything that is not a picture, or is smaller than
   unticking it removes it. On Linux it is **Start when I log in**, a file in
   `~/.config/autostart`.
 
+## Dynamic wallpaper (Windows)
+
+The **Dynamic wallpaper** tab of the settings plays something behind the
+desktop icons, in place of the still picture:
+
+| Choice | What plays |
+| --- | --- |
+| A video | One video file (MP4, MOV, WMV, AVI, MKV, WebM…: what Windows can play), in a loop, without sound |
+| Videos from a folder | A video at random from a folder (and its subfolders, if ticked); with `--tray`, another one at each change chosen on the Static wallpaper tab. **Next video** changes it any time |
+| An animated picture | A GIF or an animated WebP, at its own speed |
+| A scene drawn by rwall | **Northern lights**, **Starry sky** (it turns slowly, with a shooting star now and then), **Sunset sea** or **Color flow**: no file needed |
+
+Icons, files, notifications, widgets and the taskbar stay over it, as always:
+only the picture behind them moves. **Turn on** and **Turn off** start and
+stop it; when it stops, the still picture comes back. While it plays, the
+still picture does not change on its own.
+
+- **Position on each screen**: Fill (covers each screen, cutting what sticks
+  out) or Fit (all of it, with black bars). With several screens, each shows
+  the whole video.
+- **Pause when** (all ticked by default): a program or a game is in full
+  screen; maximized windows cover every screen; the computer is locked or the
+  screen is off; the computer runs on battery. Paused, the last frame stays.
+  The menu of the icon also has **Pause the dynamic wallpaper**.
+- It plays while rwall runs: with `--tray` all the time (and from the start
+  with **Start with Windows**), without it while the settings window is open.
+  `--auto` does not touch it.
+
+It costs little: a video is decoded by the graphics card (about 1–2 % of one
+processor core for a 1080p video), and the frames of a scene or an animation
+are made small and stretched by the graphics card (under 10 % of one core).
+
 ## How it works
 
 - **Downloads**: WinHTTP, the system's HTTPS with its proxy settings (the
@@ -107,13 +141,26 @@ pictures are checked: anything that is not a picture, or is smaller than
   position in `HKCU\Control Panel\Desktop` (`WallpaperStyle`), as Windows'
   own settings do. The same picture goes on every screen. WebP pictures, which
   Windows may not read without an extra codec, are converted to PNG first.
+- **Behind the icons**: Windows has no public way to draw there. Like every
+  live wallpaper program, rwall sends the desktop window (`Progman`) the
+  undocumented message `0x052C`, which makes Explorer put a `WorkerW` window
+  behind the icon layer (`SHELLDLL_DefView`); rwall's windows (one per screen)
+  become its children. Since Windows 11 24H2 the icon layer stays inside
+  `Progman`: there rwall's windows go just below it. When Explorer restarts
+  or the screens change, rwall puts them back. If rwall is ended by force,
+  the last frame stays until the wallpaper is painted again (by rwall or by
+  Windows).
+- **Playing**: Media Foundation's media engine plays the video into a
+  Direct3D 11 swap chain per screen. Scenes and animations are drawn on the
+  processor at 960×540 (or smaller) and stretched by the swap chain.
 - **Files**: settings in `settings.ini` and downloaded pictures in `images\`,
   both in `%APPDATA%\rwall` (Windows) or `~/.config/rwall` (Linux), or next to
   `rwall.exe` when a file named `rwall.portable` is there (portable mode).
 
 ## Linux
 
-The same settings window and, with `--tray`, the same menu through a
+The same settings window (without the dynamic wallpaper, Windows only for
+now) and, with `--tray`, the same menu through a
 StatusNotifierItem icon. Without a host for it (plain GNOME), a resident rwall
 keeps its window, minimized when closed. The picture is set with `gsettings`
 (GNOME, Cinnamon and their relatives), `plasma-apply-wallpaperimage` (KDE
@@ -129,6 +176,8 @@ not yet run on a Linux desktop.
 ./dev.ps1 clippy -p rwall --all-targets
 ./dev.ps1 test -p rwall --lib screenshots '--' --ignored        # apps\rwall\target\screens\*.png
 ./dev.ps1 test -p rwall --lib live_services '--' --ignored --nocapture   # needs the network
+./dev.ps1 test -p rwall --lib scene_pictures '--' --ignored      # a frame of each scene, flow.gif
+./dev.ps1 test -p rwall --release --lib scene_speed '--' --ignored --nocapture
 ```
 
 rwall uses the `release` profile (not `release-small`): a malformed picture

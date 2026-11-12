@@ -4,7 +4,7 @@
 //! and what is known about it. A picture shown lately (its id is in the
 //! history) is passed over while there are others.
 
-mod folders;
+pub mod folders;
 mod online;
 
 use std::path::PathBuf;
@@ -102,7 +102,7 @@ fn fresh<'a, T>(items: &'a [T], id: impl Fn(&T) -> String, history: &[String]) -
 }
 
 /// A number that changes from call to call (for random choices).
-fn seed() -> u64 {
+pub fn seed() -> u64 {
     let t = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
     let mut x = t.as_nanos() as u64 ^ u64::from(std::process::id()).rotate_left(32) | 1;
     // xorshift64*

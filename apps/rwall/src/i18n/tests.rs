@@ -103,6 +103,12 @@ fn labels_have_translations() {
     keys.extend(crate::sources::Source::ALL.iter().map(|s| s.label()));
     keys.extend(crate::settings::Fit::ALL.iter().map(|f| f.label()));
     keys.extend(TrayCmd::ALL.iter().map(|c| c.key()));
+    keys.push(crate::commands::RESUME);
+    keys.extend(crate::live::Kind::ALL.iter().map(|k| k.label()));
+    keys.extend(crate::live::Scene::ALL.iter().map(|s| s.label()));
+    keys.extend(crate::live::LiveFit::ALL.iter().map(|f| f.label()));
+    keys.extend(crate::live::PauseWhen::ALL.iter().map(|p| p.label()));
+    keys.extend(crate::ui::view::Tab::ALL.iter().map(|t| t.label()));
     let missing: Vec<&str> = keys.into_iter().filter(|k| !has_key(k)).collect();
     assert!(missing.is_empty(), "untranslated labels: {missing:?}");
 }
@@ -123,17 +129,21 @@ fn window_renders_fully_translated() {
     use crate::sources::Source;
     use crate::ui::gfx::{Gfx, Rect};
     use crate::ui::theme::Theme;
-    use crate::ui::view::{draw, Field, Model};
+    use crate::ui::view::{draw, Field, LiveModel, Model, Tab};
     let Ok(mut g) = Gfx::new() else { return };
     g.resize(640, 900);
     let mut st = Settings { sources: Source::ALL.to_vec(), folders: vec!["C:\\Pictures".into()], ..Settings::default() };
     for l in Lang::ALL {
         set_lang(l);
         take_misses();
-        for current in [None, Some(Current { title: "T".into(), credit: "C".into(), source: "bing".into(), link: "https://x".into(), ..Current::default() })] {
+        let currents = [None, Some(Current { title: "T".into(), credit: "C".into(), source: "bing".into(), link: "https://x".into(), ..Current::default() })];
+        for (current, tab) in currents.into_iter().zip([Tab::Static, Tab::Dynamic]).chain([(None, Tab::Dynamic)]) {
             st.current = current;
+            st.live.kind = if tab == Tab::Dynamic && st.current.is_none() { crate::live::Kind::Folder } else { crate::live::Kind::Scene };
             let m = Model {
                 settings: &st,
+                tab,
+                live: LiveModel { available: st.current.is_some() || st.live.kind == crate::live::Kind::Folder, title: "T".into(), state: "S".into(), note: "N".into(), ..LiveModel::default() },
                 thumb: None,
                 busy: false,
                 status: tf("Next change: {}", &["2026-11-12 00:00"]),
@@ -146,7 +156,7 @@ fn window_renders_fully_translated() {
             draw(&mut g, &m, &Theme::new(false, None), 1.0, Rect::new(0.0, 0.0, 640.0, 900.0));
         }
         let _ = (tr("Changing…"), tr("Looking for a picture…"));
-        let misses: Vec<String> = take_misses().into_iter().filter(|m| m.chars().any(|c| c.is_alphabetic()) && m != "T" && m != "C").collect();
+        let misses: Vec<String> = take_misses().into_iter().filter(|m| m.chars().any(|c| c.is_alphabetic()) && !["T", "C", "S", "N"].contains(&m.as_str())).collect();
         assert!(misses.is_empty() || l == Lang::EnUS, "untranslated in {}: {misses:#?}", l.tag());
     }
     set_lang(Lang::EnUS);
@@ -161,7 +171,7 @@ fn screenshots() {
     use crate::sources::Source;
     use crate::ui::gfx::{Gfx, Rect};
     use crate::ui::theme::Theme;
-    use crate::ui::view::{draw, Hit, Model};
+    use crate::ui::view::{draw, Hit, LiveModel, Model, Tab};
     let out = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target").join("screens");
     std::fs::create_dir_all(&out).unwrap();
     let mut g = Gfx::new().unwrap();
@@ -190,17 +200,40 @@ fn screenshots() {
         }),
         ..Settings::default()
     };
-    for (l, dark, name) in [(Lang::EnUS, false, "en-light"), (Lang::PtPT, true, "pt-dark"), (Lang::EsES, false, "es-light")] {
+    let mut st = st;
+    st.live.on = true;
+    st.live.kind = crate::live::Kind::Folder;
+    st.live.folder = "D:\\Vídeos\\Fundos".into();
+    st.live.playing = "D:\\Vídeos\\Fundos\\aurora boreal.mp4".into();
+    let shots = [
+        (Lang::EnUS, false, "en-light", Tab::Static),
+        (Lang::PtPT, true, "pt-dark", Tab::Static),
+        (Lang::EsES, false, "es-light", Tab::Static),
+        (Lang::EnUS, false, "en-dynamic", Tab::Dynamic),
+        (Lang::PtPT, true, "pt-dynamic-dark", Tab::Dynamic),
+        (Lang::DeDE, false, "de-dynamic", Tab::Dynamic),
+    ];
+    for (l, dark, name, tab) in shots {
         set_lang(l);
         let m = Model {
             settings: &st,
+            tab,
+            live: LiveModel {
+                available: true,
+                thumb: Some(&thumb),
+                title: "aurora boreal.mp4".into(),
+                state: tr("Playing behind the desktop icons"),
+                note: tr("Icons, files, notifications and widgets stay over it, as always."),
+                error: None,
+                can_show_file: true,
+            },
             thumb: Some(&thumb),
             busy: false,
             status: tf("Next change: {}", &["2026-11-12 00:00"]),
             error: None,
             autostart: true,
             focus: None,
-            hot: Some(Hit::Next),
+            hot: Some(if tab == Tab::Static { Hit::Next } else { Hit::LiveNext }),
             scroll: 0.0,
         };
         draw(&mut g, &m, &Theme::new(dark, None), 1.0, Rect::new(0.0, 0.0, w as f32, h as f32));

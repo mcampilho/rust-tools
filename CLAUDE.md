@@ -8,7 +8,8 @@ Monorepo (workspace Cargo) com seis aplicações, cada uma um único `.exe`, e o
 - `apps/rview` — visualizador de documentos.
 - `apps/rsize` — analisador de espaço em disco.
 - `apps/rdup` — procurador de ficheiros duplicados (lê os discos com o `rt-scan`, como o rsize).
-- `apps/rwall` — muda o wallpaper a partir da área de notificação (Bing, NASA, Wallhaven, Picsum, pastas locais).
+- `apps/rwall` — muda o wallpaper a partir da área de notificação (Bing, NASA, Wallhaven, Picsum, pastas locais) e,
+  no Windows, põe um fundo dinâmico atrás dos ícones (vídeo, GIF/WebP animado, cenas próprias).
 
 Cada aplicação tem o seu `CLAUDE.md` com arquitetura e regras próprias.
 

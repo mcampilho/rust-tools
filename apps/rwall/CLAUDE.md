@@ -5,6 +5,14 @@ com a frequência escolhida (diária, 00h/12h, 00h/06h/12h/18h, semanal à segun
 minutos). Origem: o capítulo "DAILY WALLPAPER" de `E:\Projects\Git\dynamic_wallpapers.md`. Funcionalidades e
 limitações no `README.md`.
 
+Desde 2026-11-12 tem também um **fundo dinâmico** (capítulo "DYNAMIC WALLPAPERS" do mesmo documento), só no
+Windows, num segundo separador da janela: vídeo, pasta de vídeos (roda com a frequência do separador estático),
+GIF/WebP animado ou cena desenhada pelo rwall (auroras, céu estrelado, mar ao pôr do sol, fluxo de cores). Escolhas
+do utilizador: os quatro tipos; o mesmo vídeo em cada ecrã (Preencher/Ajustar); pausa em ecrã inteiro, janelas
+maximizadas em todos os ecrãs, PC bloqueado/ecrã apagado e bateria (todas ligadas por omissão); Linux fica para
+depois (o separador diz que não está disponível). Requisito: tudo o que está no ambiente de trabalho (ícones,
+ficheiros, notificações, widgets) fica por cima.
+
 Três modos (pedido do utilizador, 2026-11-11, como as outras aplicações):
 - `rwall` — só a janela de definições; fechar termina; sem mudanças automáticas (a linha de estado diz que é
   preciso o `--tray`). "Imagem seguinte", posição, fontes e o resto funcionam.
@@ -15,12 +23,14 @@ Três modos (pedido do utilizador, 2026-11-11, como as outras aplicações):
 ## Comandos
 
 ```powershell
-./dev.ps1 build --release -p rwall          # perfil release (com unwind): target\release\rwall.exe, ~2,9 MB
-./dev.ps1 test -p rwall                     # 34 testes no Windows
+./dev.ps1 build --release -p rwall          # perfil release (com unwind): target\release\rwall.exe, ~3,2 MB
+./dev.ps1 test -p rwall                     # 44 testes no Windows
 ./dev.ps1 clippy -p rwall --all-targets
 ./dev.ps1 test -p rwall --lib screenshots '--' --ignored          # apps/rwall/target/screens/*.png
 ./dev.ps1 test -p rwall --lib live_services '--' --ignored --nocapture   # rede: uma imagem de cada serviço
 ./dev.ps1 test -p rwall --lib on_and_off '--' --ignored           # escreve e apaga o valor em HKCU\…\Run
+./dev.ps1 test -p rwall --lib scene_pictures '--' --ignored       # target/screens/scene-*.png e flow.gif (GIF de teste)
+./dev.ps1 test -p rwall --release --lib scene_speed '--' --ignored --nocapture   # ms por imagem de cada cena
 ```
 
 ## Exceção à regra "sem rede"
@@ -64,7 +74,24 @@ conta, cookies nem telemetria. Windows: WinHTTP (`net.rs`, `windows-sys`, proxy 
   `keep`, `last_period`, `next_source`, `current.*`, `shown=` (histórico, 200).
 - `ui/view.rs` — a janela de definições numa só função `draw`, que devolve os retângulos clicáveis (`Hit`) e a
   altura do conteúdo (roda do rato). Caixas de texto simples (`Field`: escrever, Backspace, Ctrl+V, Enter/Esc).
-- `commands.rs` — menu do ícone (`TrayCmd`, `tray_menu`), com teclas de acesso verificadas por teste.
+- `commands.rs` — menu do ícone (`TrayCmd`, `tray_menu`), com teclas de acesso verificadas por teste. `LivePause`
+  (só Windows) troca o texto para `RESUME` quando em pausa.
+- `live/` — fundo dinâmico. `mod.rs`: `LiveSettings` (`live.*` no `settings.ini`), `Kind`, `LiveFit`, `PauseWhen`,
+  `Show`/`Spec`/`State`/`Reason`, `pick_video`, `place` (recorte normalizado e destino por ecrã), `composed_size` e
+  `compose` (imagem por ecrã à escala da imagem original, cortada ou com barras), `preview` (miniatura).
+  `scene.rs`: `Scene` e `Painter` (CPU, `0x00RRGGBB`, fundo fixo pré-desenhado em `base`; 960×540, o fluxo 320×180;
+  0,4–2,8 ms por imagem). `anim.rs`: GIF/WebP para memória (≤ 384 MB, reduz se preciso). Só Windows:
+  `desktop.rs` (truque `0x052C` → `WorkerW`; 24H2: filho do `Progman` logo abaixo do `SHELLDLL_DefView`; senão
+  `HWND_TOP` dentro do `WorkerW`, por cima de outras apps de fundos como o Bing Wallpaper; verificações de pausa;
+  `repaint_wallpaper` volta a pôr o fundo estático com `SPI_SETDESKWALLPAPER`), `player.rs` (fio próprio com
+  ciclo de mensagens: uma janela por ecrã, cada uma com swap chain D3D11 `DXGI_SCALING_STRETCH`; vídeo pelo
+  `IMFMediaEngine` em modo frame-server com `TransferVideoFrame`; cenas/GIF por `UpdateSubresource` na swap chain
+  pequena, que a placa estica — o GDI `StretchDIBits` HALFTONE gastava ~50 % de um núcleo; janela de controlo
+  escondida para `TaskbarCreated`, `WM_DISPLAYCHANGE` e `GUID_CONSOLE_DISPLAY_STATE`; verifica a cada segundo se
+  continua ligado e se deve pausar), `thumb.rs` (miniatura de vídeo pelo `IShellItemImageFactory`).
+- `main.rs` (fundo dinâmico) — `apply_live`/`live_changed`/`next_video`; o `Player` nasce na primeira vez e é largado
+  em `quit` (pára e repõe o fundo). Com o dinâmico ligado, o `tick` não muda a imagem estática (só roda o vídeo da
+  pasta). Erro do leitor → `live.on = false` e mensagem.
 - `i18n/strings.txt` — 10 línguas, como nas outras aplicações.
 
 ## Verificado (2026-11-11, Windows 10)
@@ -77,6 +104,14 @@ mudou nada sozinha e fechar terminou o processo; "Iniciar com o Windows" escreve
 foi vista em capturas. Não verificado: o menu do ícone (não se abriu, havia um jogo no ecrã) e o Linux a correr
 (compila, os testes passam no WSL, binário de 6,8 MB).
 
+Fundo dinâmico (2026-11-12, Windows 10 22H2, um ecrã 1920×1080, com a app Bing Wallpaper também na mesma camada):
+cena das auroras, `dynamic_boreal.mp4` (vídeo, ~1,4 % de um núcleo, 81 MB) e um GIF animado passaram atrás dos
+ícones, com ícones e barra de tarefas por cima (capturas do ecrã); auroras a ~9 % de um núcleo depois de passar o
+esticar para a placa. Fechar a janela sem `--tray` parou o vídeo e repôs o fundo estático (saída 0). Morto à força,
+a última imagem fica até o fundo voltar a ser pintado. Não verificado: Windows 11 24H2 (outra camada), vários ecrãs,
+reinício do Explorador, as pausas a acontecer de verdade (só a lógica), a rotação da pasta de vídeos e o separador
+dinâmico na janela real (só nas capturas do teste `screenshots`).
+
 ## Regras
 
 - Nunca mexer nas imagens das pastas do utilizador; só apagar o que está em `images/` (descarregadas e convertidas).
@@ -84,7 +119,10 @@ foi vista em capturas. Não verificado: o menu do ícone (não se abriu, havia u
   `WallpaperStyle`) e repô-lo no fim; usar modo portátil (`rwall.portable` ao lado do `.exe`) e apagá-lo depois;
   preferir a compilação `release` (a de depuração abre uma consola) e não roubar o foco ao utilizador.
 - Qualquer texto visível novo precisa de linha completa em `strings.txt`.
-- `unsafe` só em `net.rs`, `wallpaper.rs`, `autostart.rs` e `screen_size` no `main.rs` (chamadas Win32), com `SAFETY`.
+- `unsafe` só em `net.rs`, `wallpaper.rs`, `autostart.rs`, `live/desktop.rs`, `live/player.rs`, `live/thumb.rs` e
+  `screen_size` no `main.rs` (chamadas Win32/COM), com `SAFETY`.
+- Fundo dinâmico: nunca pôr a janela acima da camada dos ícones; ao parar (e ao sair) repor sempre o fundo estático.
+  Caminhos escritos à mão no `settings.ini` levam `\\` (o ficheiro usa escapes).
 - `README.md` e `README.pt.md` são atualizados em conjunto.
 
 ## Git

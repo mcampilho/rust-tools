@@ -11,10 +11,15 @@ pub enum TrayCmd {
     Settings,
     ShowFile,
     Exit,
+    /// Pauses or resumes the dynamic wallpaper (Windows).
+    LivePause,
 }
 
+/// The text of [`TrayCmd::LivePause`] while paused.
+pub const RESUME: &str = "&Resume the dynamic wallpaper";
+
 impl TrayCmd {
-    pub const ALL: [TrayCmd; 5] = [TrayCmd::Next, TrayCmd::About, TrayCmd::Settings, TrayCmd::ShowFile, TrayCmd::Exit];
+    pub const ALL: [TrayCmd; 6] = [TrayCmd::Next, TrayCmd::About, TrayCmd::Settings, TrayCmd::ShowFile, TrayCmd::Exit, TrayCmd::LivePause];
 
     /// The untranslated label, with its `&` access key.
     pub fn key(self) -> &'static str {
@@ -24,6 +29,7 @@ impl TrayCmd {
             TrayCmd::Settings => "&Settings…",
             TrayCmd::ShowFile => "Show the picture &file",
             TrayCmd::Exit => "E&xit",
+            TrayCmd::LivePause => "&Pause the dynamic wallpaper",
         }
     }
 
@@ -46,9 +52,14 @@ impl MenuCommand for TrayCmd {
     }
 }
 
-/// The tray menu, top to bottom.
+/// The tray menu, top to bottom. The dynamic wallpaper plays on Windows only.
 pub fn tray_menu() -> Vec<M<TrayCmd>> {
-    vec![M::Item(TrayCmd::Next), M::Item(TrayCmd::About), M::Item(TrayCmd::Settings), M::Item(TrayCmd::ShowFile), M::Sep, M::Item(TrayCmd::Exit)]
+    let mut m = vec![M::Item(TrayCmd::Next), M::Item(TrayCmd::About)];
+    if cfg!(windows) {
+        m.push(M::Item(TrayCmd::LivePause));
+    }
+    m.extend([M::Item(TrayCmd::Settings), M::Item(TrayCmd::ShowFile), M::Sep, M::Item(TrayCmd::Exit)]);
+    m
 }
 
 #[cfg(test)]
@@ -63,6 +74,6 @@ mod tests {
         assert_eq!(TrayCmd::from_id(0), None);
         let mut n = 0;
         M::each_command(&tray_menu(), &mut |_| n += 1);
-        assert_eq!(n, TrayCmd::ALL.len());
+        assert_eq!(n, if cfg!(windows) { TrayCmd::ALL.len() } else { TrayCmd::ALL.len() - 1 });
     }
 }

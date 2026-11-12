@@ -7,6 +7,7 @@ pub mod changer;
 pub mod commands;
 pub mod i18n;
 pub mod json;
+pub mod live;
 pub mod net;
 pub mod picture;
 pub mod schedule;

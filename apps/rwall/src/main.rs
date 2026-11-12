@@ -10,20 +10,23 @@
 //!   (handed to the rwall already running, if there is one).
 //!
 //! A change (download, conversion, setting the wallpaper) runs on a background
-//! thread and reports to the window through the event loop.
+//! thread and reports to the window through the event loop. The dynamic
+//! wallpaper (Windows) plays on a thread of its own (`live::player`) while
+//! rwall runs: with `--tray` all the time, without it while the window is open.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use rwall::changer::{self, Done};
 use rwall::commands::{tray_menu, TrayCmd, M};
 use rwall::i18n::{self, tf, tr};
+use rwall::live::{self, Kind, PauseWhen, Reason, Show, State};
 use rwall::schedule;
 use rwall::settings::{Settings, KEEP_MAX, KEEP_MIN};
 use rwall::sources::Source;
 use rwall::storage;
 use rwall::ui::gfx::{Color, Gfx, Rect};
 use rwall::ui::theme::Theme;
-use rwall::ui::view::{self, Drawn, Field, Hit, Model};
+use rwall::ui::view::{self, Drawn, Field, Hit, LiveModel, Model, Tab};
 use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -41,6 +44,11 @@ enum UserEvent {
     /// The current picture was set again (a new position).
     Applied(Result<(), String>),
     Thumb(Option<tiny_skia::Pixmap>),
+    /// The dynamic wallpaper's player changed state.
+    #[cfg(windows)]
+    Live(State),
+    /// A still of the dynamic wallpaper.
+    LiveThumb(Option<tiny_skia::Pixmap>),
     #[cfg(windows)]
     Win(rt_sys::win::WinMsg),
     /// A later launch, or the notification-area icon (Linux).
@@ -100,6 +108,16 @@ struct Shell {
     show_on_start: bool,
     /// Size of the main screen, in pixels.
     screen: (u32, u32),
+    tab: Tab,
+    /// Plays the dynamic wallpaper (started when first needed).
+    #[cfg(windows)]
+    player: Option<live::player::Player>,
+    /// What the player said last (None: starting).
+    live_state: Option<State>,
+    live_thumb: Option<tiny_skia::Pixmap>,
+    live_error: Option<String>,
+    /// Paused from the menu of the icon.
+    live_paused: bool,
     /// The notification-area icon and the socket for later launches (Linux).
     #[cfg(not(windows))]
     resident: Option<rt_sys::linux::shell::Shell>,
@@ -163,11 +181,24 @@ impl Shell {
     }
 
     /// Changes the wallpaper when a new period started (resident only).
+    /// While the dynamic wallpaper plays, the still picture waits; a folder
+    /// of videos gets its next video instead.
     fn tick(&mut self) {
-        if !self.tray || self.busy || self.settings.sources.is_empty() || self.retry_at.is_some_and(|r| Instant::now() < r) {
+        if !self.tray {
             return;
         }
         let now = rt_sys::local_time();
+        if self.live_on() {
+            let period = schedule::period(self.settings.frequency, &now, self.settings.custom_minutes);
+            if self.settings.live.kind == Kind::Folder && period != self.settings.last_period {
+                self.settings.last_period = period;
+                self.next_video();
+            }
+            return;
+        }
+        if self.busy || self.settings.sources.is_empty() || self.retry_at.is_some_and(|r| Instant::now() < r) {
+            return;
+        }
         if schedule::period(self.settings.frequency, &now, self.settings.custom_minutes) != self.settings.last_period {
             self.change();
         }
@@ -244,11 +275,209 @@ impl Shell {
         if self.settings.sources.is_empty() {
             return tr("Turn on at least one source of pictures.");
         }
+        if self.live_on() {
+            return tr("The dynamic wallpaper is on: the picture changes on its own again once it is turned off.");
+        }
         if !self.tray {
             return tr("The picture changes on its own only while rwall runs in the notification area (rwall --tray).");
         }
         let next = schedule::next_change(self.settings.frequency, &rt_sys::local_time(), self.settings.custom_minutes);
         tf("Next change: {}", &[&schedule::format(&next)])
+    }
+
+    // ------------------------------------------------------------ dynamic wallpaper
+
+    /// The dynamic wallpaper is turned on (and can play here).
+    fn live_on(&self) -> bool {
+        cfg!(windows) && self.settings.live.on
+    }
+
+    /// Plays what the settings say, or stops when it is turned off.
+    fn apply_live(&mut self) {
+        #[cfg(windows)]
+        {
+            if !self.settings.live.on {
+                if let Some(p) = &self.player {
+                    p.stop();
+                }
+                self.live_state = Some(State::Off);
+                return;
+            }
+            let l = &mut self.settings.live;
+            if l.kind == Kind::Folder && l.show().is_none() {
+                match live::pick_video(&l.folder, l.subfolders, &l.playing) {
+                    Some(v) => {
+                        l.playing = v;
+                        self.load_live_thumb();
+                    }
+                    None => return self.live_failed(tr("There are no videos in the chosen folder.")),
+                }
+            }
+            let Some(spec) = self.settings.live.spec() else { return self.live_failed(tr("Nothing chosen to play.")) };
+            if self.player.is_none() {
+                let proxy = std::sync::Mutex::new(self.proxy.clone());
+                self.player = live::player::Player::start(Box::new(move |s| {
+                    if let Ok(p) = proxy.lock() {
+                        let _ = p.send_event(UserEvent::Live(s));
+                    }
+                }));
+            }
+            let Some(player) = &self.player else { return self.live_failed("the player could not start".into()) };
+            self.live_error = None;
+            self.live_state = None;
+            player.play(spec);
+            player.pause(self.live_paused);
+            self.save();
+        }
+    }
+
+    /// Turns the dynamic wallpaper off, saying why.
+    #[cfg(windows)]
+    fn live_failed(&mut self, why: String) {
+        self.settings.live.on = false;
+        self.live_error = Some(tf("The dynamic wallpaper cannot play: {}", &[&why]));
+        self.live_state = Some(State::Off);
+        if let Some(p) = &self.player {
+            p.stop();
+        }
+        self.save();
+        self.redraw();
+    }
+
+    #[cfg(windows)]
+    fn live_event(&mut self, s: State) {
+        if let State::Failed(e) = &s {
+            let e = e.clone();
+            self.live_failed(e);
+            return;
+        }
+        self.live_state = Some(s);
+        self.redraw();
+    }
+
+    /// Another video from the folder.
+    fn next_video(&mut self) {
+        let l = &mut self.settings.live;
+        if let Some(v) = live::pick_video(&l.folder, l.subfolders, &l.playing) {
+            l.playing = v;
+            self.save();
+            self.load_live_thumb();
+            if self.live_on() {
+                self.apply_live();
+            }
+        }
+        self.redraw();
+    }
+
+    fn load_live_thumb(&mut self) {
+        self.live_thumb = None;
+        let Some(show) = self.settings.live.show() else { return };
+        let proxy = self.proxy.clone();
+        std::thread::spawn(move || {
+            let thumb = std::panic::catch_unwind(|| live::preview(&show, THUMB.0, THUMB.1)).ok().flatten();
+            let _ = proxy.send_event(UserEvent::LiveThumb(thumb));
+        });
+    }
+
+    /// Asks for the file (or folder) of `kind`; true when one was chosen.
+    fn choose_live(&mut self, kind: Kind) -> bool {
+        let l = &self.settings.live;
+        let current = l.file(kind);
+        let dir = if current.is_dir() { Some(current.to_path_buf()) } else { current.parent().map(|p| p.to_path_buf()) };
+        let chosen = match kind {
+            Kind::Scene => None,
+            Kind::Folder => {
+                let title = tr("Choose a folder of videos");
+                #[cfg(windows)]
+                let f = rt_sys::win::dialogs::pick_folder(self.win.as_ref().map_or(std::ptr::null_mut(), |w| w.hwnd), &title);
+                #[cfg(not(windows))]
+                let f = rt_sys::linux::dialogs::pick_folder(&title);
+                f
+            }
+            Kind::Video | Kind::Anim => {
+                let (label, exts) = if kind == Kind::Video { (tr("Videos"), &live::VIDEO_EXTENSIONS[..]) } else { (tr("Animated pictures"), &live::ANIM_EXTENSIONS[..]) };
+                let pattern: String = exts.iter().map(|e| format!("*.{e}")).collect::<Vec<_>>().join(";");
+                #[cfg(windows)]
+                let f = {
+                    let filter = rt_sys::win::dialogs::filter(&[(label, &pattern)]);
+                    rt_sys::win::dialogs::open_file(self.win.as_ref().map_or(std::ptr::null_mut(), |w| w.hwnd), dir.as_deref(), &filter)
+                };
+                #[cfg(not(windows))]
+                let f = rt_sys::linux::dialogs::open_files(dir.as_deref(), &[(label, &pattern)], false).into_iter().next();
+                f
+            }
+        };
+        let Some(path) = chosen else { return false };
+        let l = &mut self.settings.live;
+        match kind {
+            Kind::Video => l.video = path,
+            Kind::Anim => l.anim = path,
+            Kind::Folder => {
+                l.folder = path;
+                l.playing = std::path::PathBuf::new();
+            }
+            Kind::Scene => {}
+        }
+        l.kind = kind;
+        true
+    }
+
+    /// After a change to what plays: a new still, and play it if on.
+    fn live_changed(&mut self) {
+        self.live_error = None;
+        let l = &mut self.settings.live;
+        if l.kind == Kind::Folder && l.show().is_none() {
+            if let Some(v) = live::pick_video(&l.folder, l.subfolders, &l.playing) {
+                l.playing = v;
+            }
+        }
+        self.load_live_thumb();
+        if self.live_on() {
+            self.apply_live();
+        }
+        self.save();
+    }
+
+    fn live_model(&self) -> (String, String, String, bool) {
+        let l = &self.settings.live;
+        let title = match l.show() {
+            Some(Show::Scene(s)) => tr(s.label()),
+            Some(s) => s.file().and_then(|f| f.file_name()).map(|n| n.to_string_lossy().to_string()).unwrap_or_default(),
+            None if l.kind == Kind::Folder => l.folder.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(),
+            None => String::new(),
+        };
+        let state = if !l.on {
+            tr("Off")
+        } else {
+            match &self.live_state {
+                None => tr("Starting…"),
+                Some(State::Playing) => tr("Playing behind the desktop icons"),
+                Some(State::Paused(Reason::User)) => tr("Paused from the menu of the icon"),
+                Some(State::Paused(Reason::When(p))) => tr(match p {
+                    PauseWhen::FullScreen => "Paused: a program or a game is in full screen",
+                    PauseWhen::Maximized => "Paused: maximized windows cover every screen",
+                    PauseWhen::Locked => "Paused: the computer is locked or the screen is off",
+                    PauseWhen::Battery => "Paused: the computer runs on battery",
+                }),
+                Some(State::Off | State::Failed(_)) => tr("Off"),
+            }
+        };
+        let note = if self.tray {
+            tr("Icons, files, notifications and widgets stay over it, as always.")
+        } else {
+            tr("The dynamic wallpaper stops when this window closes; with rwall --tray it keeps playing.")
+        };
+        let can_show = l.show().and_then(|s| s.file().map(|f| f.exists())).unwrap_or(false);
+        (title, state, note, can_show)
+    }
+
+    fn toggle_live_pause(&mut self) {
+        self.live_paused = !self.live_paused;
+        #[cfg(windows)]
+        if let Some(p) = &self.player {
+            p.pause(self.live_paused);
+        }
+        self.redraw();
     }
 
     // ------------------------------------------------------------ commands
@@ -284,6 +513,7 @@ impl Shell {
             TrayCmd::Settings => self.show(),
             TrayCmd::ShowFile => self.show_file(),
             TrayCmd::Exit => self.quit(el),
+            TrayCmd::LivePause => self.toggle_live_pause(),
         }
     }
 
@@ -299,6 +529,59 @@ impl Shell {
         let st = &mut self.settings;
         let now = rt_sys::local_time();
         match h {
+            Hit::Tab(t) => {
+                if self.tab != t {
+                    self.tab = t;
+                    self.scroll = 0.0;
+                    self.focus = None;
+                }
+            }
+            Hit::LiveOn => {
+                st.live.on = !st.live.on;
+                self.live_error = None;
+                self.apply_live();
+                self.save();
+            }
+            Hit::LiveKind(k) => {
+                let empty = k != Kind::Scene && self.settings.live.file(k).as_os_str().is_empty();
+                if empty {
+                    if !self.choose_live(k) {
+                        self.redraw();
+                        return;
+                    }
+                } else {
+                    self.settings.live.kind = k;
+                }
+                self.live_changed();
+            }
+            Hit::LiveChoose(k) => {
+                if self.choose_live(k) {
+                    self.live_changed();
+                }
+            }
+            Hit::LiveNext => self.next_video(),
+            Hit::LiveShowFile => {
+                if let Some(f) = self.settings.live.show().and_then(|s| s.file().map(|f| f.to_path_buf())) {
+                    rt_sys::reveal(&f);
+                }
+            }
+            Hit::LiveScene(s) => {
+                st.live.scene = s;
+                st.live.kind = Kind::Scene;
+                self.live_changed();
+            }
+            Hit::LiveFit(f) => {
+                st.live.fit = f;
+                self.live_changed();
+            }
+            Hit::LivePause(p) => {
+                st.live.toggle_pause(p);
+                self.live_changed();
+            }
+            Hit::LiveSubfolders => {
+                st.live.subfolders = !st.live.subfolders;
+                self.save();
+            }
             Hit::Next => self.change(),
             Hit::About => self.about(),
             Hit::OpenFolder => self.show_file(),
@@ -464,6 +747,11 @@ impl Shell {
     fn quit(&mut self, el: &ActiveEventLoop) {
         self.unfocus();
         self.save();
+        // Stops the dynamic wallpaper and shows the still one again.
+        #[cfg(windows)]
+        {
+            self.player = None;
+        }
         #[cfg(windows)]
         if let Some(w) = &self.win {
             rt_sys::win::tray::remove(w.hwnd);
@@ -480,6 +768,7 @@ impl Shell {
         let theme = Theme::new(self.dark(), self.accent);
         let s = self.scale();
         let status = self.status();
+        let (live_title, live_state, live_note, can_show_file) = self.live_model();
         let Some(w) = &mut self.win else { return };
         let size = w.window.inner_size();
         let (Some(wd), Some(ht)) = (NonZeroU32::new(size.width), NonZeroU32::new(size.height)) else { return };
@@ -490,6 +779,16 @@ impl Shell {
         let full = Rect::new(0.0, 0.0, size.width as f32, size.height as f32);
         let model = Model {
             settings: &self.settings,
+            tab: self.tab,
+            live: LiveModel {
+                available: cfg!(windows),
+                thumb: self.live_thumb.as_ref(),
+                title: live_title,
+                state: live_state,
+                note: live_note,
+                error: self.live_error.as_deref(),
+                can_show_file,
+            },
             thumb: self.thumb.as_ref(),
             busy: self.busy,
             status,
@@ -607,7 +906,14 @@ fn show_tray_menu(shell: &mut Shell, el: &ActiveEventLoop) {
     let Some(hwnd) = shell.win.as_ref().map(|w| w.hwnd) else { return };
     let link = shell.settings.current.as_ref().is_some_and(|c| !c.link.is_empty());
     let menu = tray_menu();
-    let texts: Vec<String> = menu.iter().map(|m| if let M::Item(c) = m { tr(c.key()) } else { String::new() }).collect();
+    let texts: Vec<String> = menu
+        .iter()
+        .map(|m| match m {
+            M::Item(TrayCmd::LivePause) if shell.live_paused => tr(rwall::commands::RESUME),
+            M::Item(c) => tr(c.key()),
+            _ => String::new(),
+        })
+        .collect();
     let items: Vec<Item> = menu
         .iter()
         .zip(&texts)
@@ -618,6 +924,7 @@ fn show_tray_menu(shell: &mut Shell, el: &ActiveEventLoop) {
                 enabled: match c {
                     TrayCmd::Next => !shell.busy && !shell.settings.sources.is_empty(),
                     TrayCmd::About => link,
+                    TrayCmd::LivePause => shell.live_on(),
                     _ => true,
                 },
             },
@@ -706,6 +1013,10 @@ impl ApplicationHandler<UserEvent> for Shell {
         if self.thumb.is_none() {
             self.load_thumb();
         }
+        self.load_live_thumb();
+        if self.live_on() {
+            self.apply_live();
+        }
         self.tick();
         if self.show_on_start {
             self.show();
@@ -719,6 +1030,12 @@ impl ApplicationHandler<UserEvent> for Shell {
                 if let Err(e) = r {
                     self.error = Some(tf("The picture could not be changed: {}", &[&e]));
                 }
+                self.redraw();
+            }
+            #[cfg(windows)]
+            UserEvent::Live(s) => self.live_event(s),
+            UserEvent::LiveThumb(t) => {
+                self.live_thumb = t;
                 self.redraw();
             }
             UserEvent::Thumb(t) => {
@@ -845,6 +1162,12 @@ const USAGE: &str = "rwall [--tray | --auto]
 
   A later launch shows the settings of the rwall already running.
 
+  Dynamic wallpaper (Windows): a video, an animated GIF or WebP, or a scene
+  drawn by rwall plays behind the desktop icons while rwall runs (with
+  --tray, all the time; without it, while the window is open). Icons, files,
+  notifications and widgets stay over it. It pauses on its own in full
+  screen, when the computer is locked, and as chosen in its tab.
+
 Settings and downloaded pictures are kept in the user's settings folder
 (%APPDATA%\\rwall on Windows, ~/.config/rwall on Linux), or next to the
 program when a file named rwall.portable exists there (portable mode).";
@@ -959,6 +1282,13 @@ fn main() {
         tray,
         show_on_start: !tray || first_run,
         screen: (1920, 1080),
+        tab: Tab::Static,
+        #[cfg(windows)]
+        player: None,
+        live_state: None,
+        live_thumb: None,
+        live_error: None,
+        live_paused: false,
         #[cfg(not(windows))]
         resident: None,
         #[cfg(not(windows))]

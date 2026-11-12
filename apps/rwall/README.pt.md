@@ -4,14 +4,16 @@ Muda o fundo do ambiente de trabalho no Windows e no [Linux](#linux); portátil,
 escrito em Rust. Põe uma imagem nova no ambiente de trabalho todos os dias,
 duas ou quatro vezes por dia, todas as semanas, todos os meses ou a cada tantos
 minutos. As imagens vêm da imagem do dia do Bing, da Astronomy Picture of the
-Day da NASA, do Wallhaven, do Lorem Picsum ou das suas pastas.
+Day da NASA, do Wallhaven, do Lorem Picsum ou das suas pastas. No Windows pode
+também pôr um **fundo dinâmico** atrás dos ícones do ambiente de trabalho: um
+vídeo, um GIF ou WebP animado, ou uma cena desenhada pelo rwall.
 
 [English version](README.md)
 
 O rwall faz parte do [rust-tools](../../README.pt.md). Os comandos abaixo correm
 na raiz do repositório.
 
-O `rwall.exe` é um único executável de 2,9 MB: sem instalador, sem runtime, sem
+O `rwall.exe` é um único executável de 3,2 MB: sem instalador, sem runtime, sem
 DLLs além das que vêm com o Windows. É a única ferramenta do rust-tools que usa
 a rede: descarrega imagens dos serviços que ligar, e mais nada. Sem conta, sem
 cookies, sem telemetria.
@@ -99,6 +101,38 @@ descarregadas são verificadas: o que não for uma imagem, ou for menor do que
   desmarcar tira-o. No Linux é **Iniciar ao entrar na sessão**, um ficheiro em
   `~/.config/autostart`.
 
+## Fundo dinâmico (Windows)
+
+O separador **Fundo dinâmico** das definições põe algo a mexer atrás dos ícones
+do ambiente de trabalho, no lugar da imagem parada:
+
+| Escolha | O que passa |
+| --- | --- |
+| Um vídeo | Um ficheiro de vídeo (MP4, MOV, WMV, AVI, MKV, WebM…: o que o Windows conseguir reproduzir), em ciclo, sem som |
+| Vídeos de uma pasta | Um vídeo ao acaso de uma pasta (e das subpastas, se marcado); com `--tray`, outro a cada mudança escolhida no separador Fundo estático. **Vídeo seguinte** muda-o quando quiser |
+| Uma imagem animada | Um GIF ou um WebP animado, à sua velocidade |
+| Uma cena desenhada pelo rwall | **Aurora boreal**, **Céu estrelado** (roda devagar, com uma estrela cadente de vez em quando), **Mar ao pôr do sol** ou **Fluxo de cores**: sem ficheiro |
+
+Ícones, ficheiros, notificações, widgets e a barra de tarefas continuam por
+cima, como sempre: só se mexe a imagem por trás deles. **Ligar** e **Desligar**
+começam e param o fundo dinâmico; quando para, a imagem parada volta. Enquanto
+passa, a imagem parada não muda sozinha.
+
+- **Posição em cada ecrã**: Preencher (cobre cada ecrã, cortando o que sobra)
+  ou Ajustar (toda, com barras pretas). Com vários ecrãs, cada um mostra o
+  vídeo inteiro.
+- **Pausar quando** (tudo marcado por predefinição): um programa ou jogo está
+  em ecrã inteiro; janelas maximizadas tapam todos os ecrãs; o computador está
+  bloqueado ou o ecrã desligado; o computador está na bateria. Em pausa, fica a
+  última imagem. O menu do ícone tem também **Pausar o fundo dinâmico**.
+- Passa enquanto o rwall corre: com `--tray` sempre (e logo ao entrar, com
+  **Iniciar com o Windows**), sem ele enquanto a janela das definições estiver
+  aberta. O `--auto` não lhe mexe.
+
+Gasta pouco: um vídeo é descodificado pela placa gráfica (cerca de 1–2 % de um
+núcleo para um vídeo 1080p), e as imagens de uma cena ou de uma animação são
+feitas pequenas e esticadas pela placa gráfica (menos de 10 % de um núcleo).
+
 ## Como funciona
 
 - **Transferências**: WinHTTP, o HTTPS do sistema com as definições de proxy
@@ -110,6 +144,19 @@ descarregadas são verificadas: o que não for uma imagem, ou for menor do que
   definições do próprio Windows. A mesma imagem vai para todos os ecrãs. As
   imagens WebP, que o Windows pode não ler sem um codec extra, são primeiro
   convertidas para PNG.
+- **Atrás dos ícones**: o Windows não tem uma maneira pública de desenhar aí.
+  Como todos os programas de fundos animados, o rwall manda à janela do ambiente
+  de trabalho (`Progman`) a mensagem não documentada `0x052C`, que faz o
+  Explorador pôr uma janela `WorkerW` atrás da camada dos ícones
+  (`SHELLDLL_DefView`); as janelas do rwall (uma por ecrã) passam a ser filhas
+  dela. Desde o Windows 11 24H2 a camada dos ícones fica dentro do `Progman`:
+  aí as janelas do rwall ficam logo abaixo dela. Quando o Explorador reinicia
+  ou os ecrãs mudam, o rwall volta a pô-las no sítio. Se o rwall for terminado
+  à força, a última imagem fica até o fundo voltar a ser pintado (pelo rwall
+  ou pelo Windows).
+- **Reprodução**: o motor de multimédia do Media Foundation reproduz o vídeo
+  numa swap chain do Direct3D 11 por ecrã. As cenas e as animações são
+  desenhadas no processador a 960×540 (ou menos) e esticadas pela swap chain.
 - **Ficheiros**: as definições em `settings.ini` e as imagens descarregadas em
   `images\`, ambas em `%APPDATA%\rwall` (Windows) ou `~/.config/rwall` (Linux),
   ou ao lado do `rwall.exe` quando lá existe um ficheiro `rwall.portable` (modo
@@ -117,7 +164,8 @@ descarregadas são verificadas: o que não for uma imagem, ou for menor do que
 
 ## Linux
 
-A mesma janela de definições e, com `--tray`, o mesmo menu num ícone
+A mesma janela de definições (sem o fundo dinâmico, por agora só no Windows)
+e, com `--tray`, o mesmo menu num ícone
 StatusNotifierItem. Sem um anfitrião para ele (GNOME simples), o rwall
 residente mantém a janela, minimizada quando se fecha. A imagem é posta com o
 `gsettings` (GNOME, Cinnamon e afins), o `plasma-apply-wallpaperimage` (KDE
@@ -133,6 +181,8 @@ testado no WSL2, ainda não corrido num ambiente de trabalho Linux.
 ./dev.ps1 clippy -p rwall --all-targets
 ./dev.ps1 test -p rwall --lib screenshots '--' --ignored        # apps\rwall\target\screens\*.png
 ./dev.ps1 test -p rwall --lib live_services '--' --ignored --nocapture   # precisa de rede
+./dev.ps1 test -p rwall --lib scene_pictures '--' --ignored      # uma imagem de cada cena, flow.gif
+./dev.ps1 test -p rwall --release --lib scene_speed '--' --ignored --nocapture
 ```
 
 O rwall usa o perfil `release` (não o `release-small`): uma imagem malformada

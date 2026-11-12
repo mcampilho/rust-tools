@@ -1,6 +1,7 @@
 //! What rwall remembers, in `settings.ini` (see `storage`).
 
 use crate::i18n::Lang;
+use crate::live::LiveSettings;
 use crate::schedule::Frequency;
 use crate::sources::Source;
 use crate::storage::Store;
@@ -95,6 +96,8 @@ pub struct Settings {
     pub language: Option<Lang>,
     /// 0 = system, 1 = light, 2 = dark.
     pub theme: u8,
+    /// The dynamic wallpaper.
+    pub live: LiveSettings,
 }
 
 impl Default for Settings {
@@ -115,6 +118,7 @@ impl Default for Settings {
             current: None,
             language: None,
             theme: 0,
+            live: LiveSettings::default(),
         }
     }
 }
@@ -150,6 +154,7 @@ impl Settings {
             current,
             language: s.get("language").and_then(Lang::from_tag),
             theme: s.get("theme").and_then(|v| v.parse().ok()).filter(|t| *t <= 2).unwrap_or(0),
+            live: LiveSettings::load(s),
         }
     }
 
@@ -180,6 +185,7 @@ impl Settings {
             s.set("language", l.tag());
         }
         s.set("theme", self.theme.to_string());
+        self.live.save(&mut s);
         for h in &self.history {
             s.push("shown", h.as_str());
         }
@@ -238,6 +244,7 @@ mod tests {
             current: Some(Current { file: "x.jpg".into(), source: "bing".into(), title: "T\tx".into(), ..Current::default() }),
             language: Some(Lang::PtPT),
             theme: 2,
+            live: crate::live::LiveSettings { on: true, scene: crate::live::Scene::Stars, ..Default::default() },
             ..Settings::default()
         };
         s.shown("a");

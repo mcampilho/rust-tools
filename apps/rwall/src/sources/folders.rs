@@ -12,6 +12,11 @@ const MAX_DEPTH: usize = 16;
 
 /// The pictures under `folders`.
 pub fn list(folders: &[PathBuf], subfolders: bool) -> Vec<PathBuf> {
+    list_with(folders, subfolders, has_picture_ext)
+}
+
+/// The files under `folders` that `accept` takes, sorted.
+pub fn list_with(folders: &[PathBuf], subfolders: bool, accept: fn(&Path) -> bool) -> Vec<PathBuf> {
     let mut out = Vec::new();
     let mut stack: Vec<(PathBuf, usize)> = folders.iter().map(|f| (f.clone(), 0)).collect();
     while let Some((dir, depth)) = stack.pop() {
@@ -23,7 +28,7 @@ pub fn list(folders: &[PathBuf], subfolders: bool) -> Vec<PathBuf> {
                 if subfolders && depth < MAX_DEPTH && !hidden(&p) {
                     stack.push((p, depth + 1));
                 }
-            } else if t.is_file() && has_picture_ext(&p) {
+            } else if t.is_file() && accept(&p) {
                 out.push(p);
                 if out.len() >= MAX_FILES {
                     return out;
