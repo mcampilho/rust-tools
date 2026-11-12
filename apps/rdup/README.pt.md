@@ -192,6 +192,18 @@ mecânico serve várias por uma ordem melhor (numa pasta com 60 000 ficheiros
 pequenos de compilação, cinco vezes mais rápido do que um de cada vez). Os
 ficheiros inteiros são lidos um de cada vez, para a cabeça não saltar entre eles.
 
+**A primeira pesquisa e o antivírus.** A maior parte do tempo do passo 3, da
+primeira vez, não é do rdup: um antivírus analisa cada ficheiro da primeira vez
+que um programa o abre para ler, e alguns (o Bitdefender, medido) leem o
+ficheiro inteiro para isso, embora o rdup só peça 8 KB dele. Num disco mecânico
+isso dá 15 a 30 ficheiros de 1 MB ou mais por segundo, a velocidade do próprio
+disco; abertos só para o nome e o tamanho, os mesmos ficheiros levam 20 a 100
+vezes menos. As pesquisas seguintes são rápidas: o antivírus lembra-se dos
+ficheiros que analisou, e o rdup dos hashes. Para uma primeira pesquisa de vários
+discos grandes, pôr o `rdup.exe` nas exceções do antivírus durante a pesquisa
+(no Bitdefender, nas definições do antivírus, uma exceção para um programa)
+torna o passo 3 muitas vezes mais rápido; tirá-lo outra vez depois.
+
 ### Leitura dos discos
 
 As mesmas três formas do [rsize](../rsize/README.pt.md), partilhadas pelo crate
@@ -254,8 +266,11 @@ vez. Foi verificado no WSL2, não num ambiente de trabalho Linux real.
 
 ## A seguir
 
-Primeiras pesquisas mais rápidas em muitos discos grandes, e filtros de pastas
-(datas, número de ficheiros).
+Filtros de pastas (datas, número de ficheiros). Uma primeira pesquisa de muitos
+discos grandes é lenta sobretudo por causa do antivírus (ver "A primeira
+pesquisa e o antivírus"); ler os primeiros e últimos bytes sem abrir cada
+ficheiro (a partir da tabela do NTFS, como administrador) é o caminho que falta
+experimentar.
 
 ## Licença
 

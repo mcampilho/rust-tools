@@ -594,6 +594,15 @@ fn volume_key(root: &Path) -> String {
 /// few at once, a hard disk serves them in a better order and an antivirus
 /// checks them side by side. Whole files are long reads, one at a time so the
 /// head does not jump between them. `RDUP_WORKERS` overrides it (to measure).
+///
+/// Measured on 2026-11-12 (test `edges_rate`, files of 1 MB or more, never
+/// opened before): on an NVMe SSD 95 files/s with 1 thread, 389 with 4, 295
+/// with 16; on two hard disks 14–20 files/s whatever the threads. What costs
+/// is the antivirus (Bitdefender): it reads the whole file the first time it
+/// is opened for reading (~85 MB/s on a hard disk, the disk's own speed),
+/// though only 8 KB are asked; opened for its attributes only, a file takes
+/// 1/20 to 1/100 of the time. A second search is fast: the antivirus and the
+/// hash cache remember the files.
 fn workers_per_volume(whole: bool) -> usize {
     let env = std::env::var("RDUP_WORKERS").ok().and_then(|v| v.parse::<usize>().ok()).filter(|&n| (1..=64).contains(&n));
     if whole {
@@ -1009,6 +1018,59 @@ pub(crate) mod tests {
             for g in groups.iter().take(3) {
                 println!("    {} x {} bytes ({}): {}", g.folders.len(), g.same_bytes, g.permille, f.folders[g.folders[0]].path.display());
             }
+        }
+    }
+
+    /// How fast the second step goes on `RDUP_BENCH_DIR` (one folder) with 1,
+    /// 4 and 16 threads, each on `RDUP_N` files (default 600) of at least
+    /// `RDUP_MIN` bytes that share a size. Each run takes other files, never
+    /// opened before (an antivirus remembers the files it checked), dealt in
+    /// turn so the runs get alike files:
+    /// `cargo test -p rdup --release --lib edges_rate -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn edges_rate() {
+        let Some(dir) = std::env::var_os("RDUP_BENCH_DIR") else { return };
+        let min: u64 = std::env::var("RDUP_MIN").ok().and_then(|v| v.parse().ok()).unwrap_or(1 << 20);
+        let n: usize = std::env::var("RDUP_N").ok().and_then(|v| v.parse().ok()).unwrap_or(600);
+        let t0 = Instant::now();
+        let s = rt_scan::scan(Path::new(&dir), &AtomicBool::new(false), &|_| {}).unwrap();
+        println!("{:?}: {:?} in {:.2?}", dir, s.method, t0.elapsed());
+        let mut files = Vec::new();
+        collect(&s.tree, 0, &Filter::min(min), &mut files);
+        files.sort_unstable_by_key(|c| c.size);
+        let mut shared = Vec::new();
+        for run in files.chunk_by(|a, b| a.size == b.size) {
+            if run.len() > 1 {
+                shared.extend_from_slice(run);
+            }
+        }
+        // In the order of the tree, as the search reads them.
+        shared.sort_unstable_by_key(|c| c.id);
+        println!("{} files >= {min} B, {} share a size", files.len(), shared.len());
+        // RDUP_SKIP: files left out first (those a run before opened). The
+        // files after it are dealt in turn to the runs, so each run gets
+        // alike files (sizes, folders) that no run opened before.
+        let skip: usize = std::env::var("RDUP_SKIP").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+        let runs = [("edges", 1usize), ("edges", 4), ("edges", 16)];
+        let pool: Vec<&Cand> = shared.iter().skip(skip).take(n * runs.len()).collect();
+        for (k, (label, threads)) in runs.into_iter().enumerate() {
+            let batch: Vec<(PathBuf, u64)> = pool.iter().skip(k).step_by(runs.len()).map(|c| (s.tree.path(c.id), c.size)).collect();
+            let mb = batch.iter().map(|b| b.1).sum::<u64>() >> 20;
+            let at = AtomicUsize::new(0);
+            let t = Instant::now();
+            std::thread::scope(|sc| {
+                for _ in 0..threads {
+                    sc.spawn(|| {
+                        let mut buf = vec![0u8; BUF];
+                        while let Some((p, size)) = batch.get(at.fetch_add(1, Ordering::Relaxed)) {
+                            let _ = edges(p, *size, &mut buf);
+                        }
+                    });
+                }
+            });
+            let secs = t.elapsed().as_secs_f64();
+            println!("  {label} {threads:2} threads: {} files ({mb} MB) in {secs:.2} s = {:.0} files/s", batch.len(), batch.len() as f64 / secs);
         }
     }
 

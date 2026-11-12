@@ -27,7 +27,12 @@ use winit::dpi::LogicalSize;
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
 use winit::keyboard::{Key as WKey, ModifiersState, NamedKey};
-use winit::window::{CursorIcon, Icon as WinIcon, Theme as WinTheme, Window, WindowId};
+use rt_ui::Message;
+use winit::window::{CursorIcon, Theme as WinTheme, Window, WindowId};
+
+mod input;
+mod menus;
+mod render;
 
 enum UserEvent {
     A11y(accesskit_winit::Event),
@@ -63,13 +68,6 @@ struct Win {
     menu: Option<rt_sys::win::menu::MenuBar<Command>>,
 }
 
-/// An in-app message (About, Keyboard shortcuts).
-struct Dialog {
-    title: String,
-    text: String,
-    panel: Rect,
-    ok: Rect,
-}
 
 struct Shell {
     app: App,
@@ -96,7 +94,8 @@ struct Shell {
     cursor_icon: CursorIcon,
     handle: Option<search::Handle>,
     generation: u64,
-    dialog: Option<Dialog>,
+    /// An in-app message (About, Keyboard shortcuts, the help).
+    dialog: Option<Message>,
     /// Marked copies being moved: (done, of how many).
     acting: Option<(usize, usize)>,
     /// Running with administrator rights (NTFS can be read directly).
@@ -146,13 +145,7 @@ impl Shell {
 
     fn save_settings(&mut self) {
         if let Some(w) = &self.win {
-            let max = w.window.is_maximized();
-            if !max && !w.window.is_minimized().unwrap_or(false) {
-                let s: LogicalSize<f64> = w.window.inner_size().to_logical(w.window.scale_factor());
-                self.settings.window = Some((s.width, s.height, false));
-            } else if let Some((ww, hh, _)) = self.settings.window {
-                self.settings.window = Some((ww, hh, max));
-            }
+            rt_ui::window::remember_size(&w.window, &mut self.settings.window);
         }
         self.settings.roots = self.app.chosen.clone();
         if self.app.volumes.is_some() {
@@ -393,7 +386,7 @@ impl Shell {
     }
 
     fn info(&mut self, title: &str, text: &str) {
-        self.dialog = Some(Dialog { title: title.to_string(), text: text.to_string(), panel: Rect::default(), ok: Rect::default() });
+        self.dialog = Some(Message::new(title, text));
         self.dragging = false;
         self.redraw();
     }
@@ -592,684 +585,11 @@ impl Shell {
         self.redraw();
     }
 
-    /// The rules to mark copies, under their button.
-    #[cfg(windows)]
-    fn rule_menu(&mut self, el: &ActiveEventLoop) {
-        let Some(hwnd) = self.win.as_ref().map(|w| w.hwnd) else { return };
-        let items: Vec<_> = commands::rule_menu()
-            .into_iter()
-            .map(|m| match m {
-                rt_core::menu::M::Item(c) => Some((c, self.enabled(c))),
-                _ => None,
-            })
-            .collect();
-        if let Some(c) = rt_sys::win::menu::popup_at_cursor(hwnd, &items) {
-            self.command(el, c);
-        }
-    }
-
-    #[cfg(not(windows))]
-    fn rule_menu(&mut self, _el: &ActiveEventLoop) {
-        let me = &*self;
-        let items = rdup::ui::menu::build(commands::rule_menu(), &|c| me.checked(c), &|c| me.enabled(c));
-        let r = self.layout.rules;
-        self.menu.open(None, items, (r.x, r.bottom() + 2.0), false);
-        self.redraw();
-    }
-
     // ------------------------------------------------------------ menus
-
-    /// The context menu of the selected file, at the pointer.
-    #[cfg(windows)]
-    fn context_menu(&mut self, el: &ActiveEventLoop) {
-        let Some(hwnd) = self.win.as_ref().map(|w| w.hwnd) else { return };
-        let items: Vec<_> = commands::item_menu()
-            .into_iter()
-            .map(|m| match m {
-                rt_core::menu::M::Item(c) => Some((c, self.enabled(c))),
-                _ => None,
-            })
-            .collect();
-        if let Some(c) = rt_sys::win::menu::popup_at_cursor(hwnd, &items) {
-            self.command(el, c);
-        }
-    }
-
-    #[cfg(not(windows))]
-    fn context_menu(&mut self, _el: &ActiveEventLoop) {
-        let me = &*self;
-        let items = rdup::ui::menu::build(commands::item_menu(), &|c| me.checked(c), &|c| me.enabled(c));
-        let at = self.cursor.unwrap_or((0.0, 0.0));
-        self.menu.open(None, items, at, false);
-        self.redraw();
-    }
-
-    #[cfg(not(windows))]
-    fn open_menu(&mut self, i: usize, keyboard: bool) {
-        let Some((_, tree)) = commands::menu_tree().into_iter().nth(i) else { return };
-        let me = &*self;
-        let items = rdup::ui::menu::build(tree, &|c| me.checked(c), &|c| me.enabled(c));
-        let Some(rect) = self.menu.titles.get(i).map(|t| t.rect) else { return };
-        self.menu.open(Some(i), items, (rect.x, rect.bottom() + 2.0), keyboard);
-        self.redraw();
-    }
-
-    #[cfg(not(windows))]
-    fn menu_act(&mut self, el: &ActiveEventLoop, act: rdup::ui::menu::Act) {
-        use rdup::ui::menu::Act;
-        match act {
-            Act::Run(c) => {
-                self.menu.close();
-                self.command(el, c);
-            }
-            Act::Switch(dir) => {
-                let n = self.menu.titles.len() as isize;
-                if let Some(top) = self.menu.top {
-                    self.open_menu((top as isize + dir).rem_euclid(n) as usize, true);
-                }
-            }
-            Act::None => self.redraw(),
-        }
-    }
-
-    /// Keyboard for the menus. Returns true when it used the key.
-    #[cfg(not(windows))]
-    fn menu_key(&mut self, el: &ActiveEventLoop, event: &winit::event::KeyEvent) -> bool {
-        use rdup::ui::menu::Act;
-        use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
-        let key = event.key_without_modifiers();
-        if !self.menu.is_open() {
-            let found = match &key {
-                WKey::Named(NamedKey::F10) => Some(0),
-                WKey::Character(c) if self.mods.alt_key() && !self.mods.control_key() => {
-                    let k = c.chars().next().and_then(|c| c.to_lowercase().next());
-                    self.menu.titles.iter().position(|t| t.mnemonic == k)
-                }
-                _ => None,
-            };
-            if let Some(i) = found {
-                self.open_menu(i, true);
-            }
-            return found.is_some();
-        }
-        let act = match &key {
-            WKey::Named(NamedKey::ArrowUp) => {
-                self.menu.up_down(-1);
-                Act::None
-            }
-            WKey::Named(NamedKey::ArrowDown) => {
-                self.menu.up_down(1);
-                Act::None
-            }
-            WKey::Named(NamedKey::ArrowLeft) => self.menu.left(),
-            WKey::Named(NamedKey::ArrowRight) => self.menu.right(),
-            WKey::Named(NamedKey::Enter | NamedKey::Space) => self.menu.enter(),
-            WKey::Named(NamedKey::Escape) => {
-                self.menu.back();
-                Act::None
-            }
-            WKey::Character(c) => c.chars().next().map_or(Act::None, |c| self.menu.mnemonic(c)),
-            _ => Act::None,
-        };
-        self.menu_act(el, act);
-        true
-    }
-
-    #[cfg(not(windows))]
-    fn menu_pointer(&mut self, x: f32, y: f32) -> bool {
-        let title = self.menu.title_at(x, y);
-        if title != self.menu.hot {
-            self.menu.hot = title;
-            self.redraw();
-        }
-        if !self.menu.is_open() {
-            return false;
-        }
-        if let Some((l, i)) = self.menu.row_at(x, y) {
-            self.menu.hover(l, i);
-            self.redraw();
-        } else if let Some(i) = title.filter(|i| self.menu.top.is_some_and(|t| t != *i)) {
-            self.open_menu(i, false);
-        }
-        true
-    }
-
-    #[cfg(not(windows))]
-    fn menu_press(&mut self, el: &ActiveEventLoop, x: f32, y: f32) -> bool {
-        if let Some(i) = self.menu.title_at(x, y) {
-            if self.menu.top == Some(i) {
-                self.menu.close();
-                self.redraw();
-            } else {
-                self.open_menu(i, false);
-            }
-            return true;
-        }
-        if !self.menu.is_open() {
-            return false;
-        }
-        if let Some((l, i)) = self.menu.row_at(x, y) {
-            let act = self.menu.click(l, i);
-            self.menu_act(el, act);
-        } else if !self.menu.contains(x, y) {
-            self.menu.close();
-            self.redraw();
-        }
-        true
-    }
-
-    #[cfg(windows)]
-    fn sync_menu(&mut self) {
-        let Some(win) = &mut self.win else { return };
-        if !self.menu_dirty && win.menu.is_some() {
-            return;
-        }
-        self.menu_dirty = false;
-        if win.menu.is_none() || self.menu_rebuild {
-            self.menu_rebuild = false;
-            let tree = commands::menu_tree();
-            rt_sys::win::set_mnemonics(&mnemonics_of(&tree));
-            win.menu = Some(rt_sys::win::menu::MenuBar::install(win.hwnd, tree));
-        }
-        let me = &*self;
-        if let Some(m) = me.win.as_ref().and_then(|w| w.menu.as_ref()) {
-            m.sync(|c| me.checked(c), |c| me.enabled(c));
-        }
-    }
-
-    #[cfg(not(windows))]
-    fn sync_menu(&mut self) {
-        self.menu_dirty = false;
-        if !self.menu.titles.is_empty() && !self.menu_rebuild {
-            return;
-        }
-        self.menu_rebuild = false;
-        self.menu.titles = commands::menu_tree().iter().map(|(title, _)| rdup::ui::menu::Title::new(&tr(title))).collect();
-        self.redraw();
-    }
-
-    fn apply_window_theme(&self) {
-        if let Some(w) = &self.win {
-            w.window.set_theme(Some(if self.dark() { WinTheme::Dark } else { WinTheme::Light }));
-            #[cfg(windows)]
-            rt_sys::win::darkmode::refresh_caption(w.hwnd);
-        }
-    }
-
-    fn sync_menu_theme(&mut self, dark: bool) {
-        if self.menu_dark == Some(dark) {
-            return;
-        }
-        self.menu_dark = Some(dark);
-        #[cfg(windows)]
-        if let Some(w) = &self.win {
-            let colors = dark.then_some(rt_sys::win::darkmode::MenuColors { bar: 0x202020, text: 0xE4E4E4, text_disabled: 0x7A7A7A, hot: 0x3D3D3D });
-            rt_sys::win::darkmode::apply(w.hwnd, colors);
-        }
-    }
 
     // ------------------------------------------------------------ input
 
-    fn key(&mut self, el: &ActiveEventLoop, event: &winit::event::KeyEvent) {
-        if self.dialog.is_some() {
-            if matches!(event.logical_key, WKey::Named(NamedKey::Escape | NamedKey::Enter | NamedKey::Space)) {
-                self.dialog = None;
-                self.redraw();
-            }
-            return;
-        }
-        let start = view::page(&self.app) == Page::Start;
-        if let (Some(cal), true) = (&mut self.app.calendar, start) {
-            match event.logical_key {
-                WKey::Named(NamedKey::Escape) => self.app.calendar = None,
-                WKey::Named(NamedKey::PageUp) => cal.shift(-1),
-                WKey::Named(NamedKey::PageDown) => cal.shift(1),
-                _ => return,
-            }
-            self.redraw();
-            return;
-        }
-        #[cfg(not(windows))]
-        if self.menu_key(el, event) {
-            return;
-        }
-        if self.field_key(el, event) {
-            return;
-        }
-        let ctrl = self.mods.control_key();
-        let shift = self.mods.shift_key();
-        let alt = self.mods.alt_key();
-        let logical = if ctrl || alt {
-            use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
-            event.key_without_modifiers()
-        } else {
-            event.logical_key.clone()
-        };
-        let name = match &logical {
-            WKey::Character(c) => c.to_lowercase(),
-            WKey::Named(n) => match n {
-                NamedKey::F1 => "f1".into(),
-                NamedKey::F5 => "f5".into(),
-                NamedKey::Enter => "enter".into(),
-                NamedKey::Escape => "esc".into(),
-                NamedKey::Space => "space".into(),
-                NamedKey::Delete => "delete".into(),
-                _ => String::new(),
-            },
-            _ => String::new(),
-        };
-        if !name.is_empty() {
-            if let Some(cmd) = commands::lookup(ctrl, shift, alt, &name) {
-                return self.command(el, cmd);
-            }
-        }
-        if view::page(&self.app) != Page::Result {
-            return;
-        }
-        let page = self.layout.page_rows() as isize;
-        match logical {
-            WKey::Named(NamedKey::ArrowDown) => self.app.move_sel(1),
-            WKey::Named(NamedKey::ArrowUp) => self.app.move_sel(-1),
-            WKey::Named(NamedKey::PageDown) => self.app.move_sel(page),
-            WKey::Named(NamedKey::PageUp) => self.app.move_sel(-page),
-            WKey::Named(NamedKey::Home) => self.app.move_sel(isize::MIN / 2),
-            WKey::Named(NamedKey::End) => self.app.move_sel(isize::MAX / 2),
-            _ => return,
-        }
-        self.menu_dirty = true;
-        self.redraw();
-    }
-
-    /// Typing in a filter box, and Tab to reach them. Returns true when it used the key.
-    fn field_key(&mut self, el: &ActiveEventLoop, event: &winit::event::KeyEvent) -> bool {
-        use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
-        if view::page(&self.app) != Page::Start {
-            return false;
-        }
-        let (ctrl, alt, shift) = (self.mods.control_key(), self.mods.alt_key(), self.mods.shift_key());
-        let tab = matches!(event.logical_key, WKey::Named(NamedKey::Tab)) && !ctrl && !alt;
-        if self.app.focus.is_none() {
-            if tab {
-                self.app.focus_next(shift);
-                self.redraw();
-            }
-            return tab;
-        }
-        let key = if ctrl { event.key_without_modifiers() } else { event.logical_key.clone() };
-        match &key {
-            WKey::Named(NamedKey::Backspace) => self.app.delete(false, ctrl),
-            WKey::Named(NamedKey::Delete) => self.app.delete(true, ctrl),
-            WKey::Named(NamedKey::ArrowLeft) => self.app.move_caret(-1, false, ctrl, shift),
-            WKey::Named(NamedKey::ArrowRight) => self.app.move_caret(1, false, ctrl, shift),
-            WKey::Named(NamedKey::Home) => self.app.move_caret(-1, true, false, shift),
-            WKey::Named(NamedKey::End) => self.app.move_caret(1, true, false, shift),
-            WKey::Named(NamedKey::Tab) if tab => self.app.focus_next(shift),
-            WKey::Named(NamedKey::Escape) => self.app.focus = None,
-            WKey::Named(NamedKey::Enter) if !ctrl && !alt => {
-                self.app.focus = None;
-                self.command(el, Command::Search);
-            }
-            // Ctrl alone: editing shortcuts (Ctrl with Alt is AltGr, which types).
-            WKey::Character(c) if ctrl && !alt => {
-                let text = self.app.selected_text();
-                match c.to_lowercase().as_str() {
-                    "a" => self.app.select_all(),
-                    "c" if !text.is_empty() => {
-                        rt_sys::set_clipboard_text(&text);
-                    }
-                    "x" if !text.is_empty() => {
-                        rt_sys::set_clipboard_text(&text);
-                        self.app.delete(false, false);
-                    }
-                    "c" | "x" => {}
-                    "v" => {
-                        if let Some(t) = rt_sys::clipboard_text() {
-                            self.app.type_text(&t.replace(['\r', '\n', '\t'], " "));
-                        }
-                    }
-                    _ => return false,
-                }
-            }
-            _ => match &event.text {
-                Some(t) if !(alt && !ctrl) && !t.chars().all(char::is_control) => self.app.type_text(t),
-                _ => return false,
-            },
-        }
-        self.redraw();
-        true
-    }
-
-    /// Updates what the pointer is on.
-    fn pointer(&mut self, x: f32, y: f32) {
-        let l = &self.layout;
-        let hot = match view::page(&self.app) {
-            _ if self.dialog.is_some() => Hot::None,
-            Page::Start if self.app.calendar.is_some() => l.cal.as_ref().and_then(|c| c.hot_at(x, y)).unwrap_or(Hot::None),
-            Page::Start if l.body.contains(x, y) && !l.actions.contains(x, y) => {
-                if let Some(i) = l.cards.iter().position(|r| r.contains(x, y)) {
-                    Hot::Card(i)
-                } else if let Some(i) = l.removes.iter().position(|r| r.contains(x, y)) {
-                    Hot::Remove(i)
-                } else if let Some(i) = l.folders.iter().position(|r| r.contains(x, y)) {
-                    Hot::Folder(i)
-                } else if let Some(i) = l.sizes.iter().position(|r| r.contains(x, y)) {
-                    Hot::MinSize(i)
-                } else if let Some(i) = l.fields.iter().position(|r| r.contains(x, y)) {
-                    let f = rdup::filter::Field::ALL[i];
-                    if matches!(f, rdup::filter::Field::From | rdup::filter::Field::To) && view::pick_button(l.fields[i], self.scale()).contains(x, y) {
-                        Hot::Pick(f)
-                    } else {
-                        Hot::Field(f)
-                    }
-                } else if let Some(i) = l.kinds.iter().position(|r| r.contains(x, y)) {
-                    Hot::Kind(i)
-                } else if let Some(i) = l.compare.iter().position(|r| r.contains(x, y)) {
-                    Hot::Compare(i)
-                } else if l.clear.contains(x, y) && self.app.choice.narrows() {
-                    Hot::Clear
-                } else {
-                    Hot::None
-                }
-            }
-            Page::Start => {
-                if l.add.contains(x, y) {
-                    Hot::Add
-                } else if l.find.contains(x, y) && self.enabled(Command::Search) {
-                    Hot::Find
-                } else {
-                    Hot::None
-                }
-            }
-            Page::Searching => {
-                if l.stop.contains(x, y) {
-                    Hot::Stop
-                } else {
-                    Hot::None
-                }
-            }
-            Page::Result => {
-                if let Some(i) = l.tabs.iter().position(|r| r.contains(x, y)) {
-                    Hot::Tab(i)
-                } else if let Some(i) = l.shares.iter().position(|r| r.contains(x, y)) {
-                    Hot::Share(i)
-                } else if l.rules.contains(x, y) && self.enabled(Command::KeepNewest) {
-                    Hot::Rules
-                } else if l.unmark.contains(x, y) && self.enabled(Command::UnmarkAll) {
-                    Hot::Unmark
-                } else if l.move_to.contains(x, y) && self.enabled(Command::MoveTo) {
-                    Hot::MoveTo
-                } else if l.recycle.contains(x, y) && self.enabled(Command::Recycle) {
-                    Hot::Recycle
-                } else if l.actions.contains(x, y) {
-                    Hot::None
-                } else {
-                    l.row_at(&self.app, x, y).map_or(Hot::None, Hot::Row)
-                }
-            }
-        };
-        if hot != self.hot {
-            self.hot = hot;
-            self.redraw();
-        }
-        let icon = match hot {
-            Hot::Card(_)
-            | Hot::Remove(_)
-            | Hot::Folder(_)
-            | Hot::MinSize(_)
-            | Hot::Kind(_)
-            | Hot::Compare(_)
-            | Hot::Clear
-            | Hot::Pick(_)
-            | Hot::CalPrev
-            | Hot::CalNext
-            | Hot::CalDay(_)
-            | Hot::CalToday
-            | Hot::CalClear
-            | Hot::Add
-            | Hot::Find
-            | Hot::Tab(_)
-            | Hot::Share(_)
-            | Hot::Rules
-            | Hot::Unmark
-            | Hot::MoveTo
-            | Hot::Recycle
-            | Hot::Stop => CursorIcon::Pointer,
-            Hot::Field(_) => CursorIcon::Text,
-            _ => CursorIcon::Default,
-        };
-        if icon != self.cursor_icon {
-            self.cursor_icon = icon;
-            if let Some(w) = &self.win {
-                w.window.set_cursor(icon);
-            }
-        }
-    }
-
-    fn press(&mut self, el: &ActiveEventLoop, x: f32, y: f32) {
-        if let Some(d) = &self.dialog {
-            if d.ok.contains(x, y) || !d.panel.contains(x, y) {
-                self.dialog = None;
-                self.redraw();
-            }
-            return;
-        }
-        #[cfg(not(windows))]
-        if self.menu_press(el, x, y) {
-            return;
-        }
-        if !matches!(self.hot, Hot::Field(_)) {
-            self.app.focus = None;
-        }
-        // A click outside an open calendar only closes it.
-        if self.app.calendar.is_some() && !matches!(self.hot, Hot::CalPrev | Hot::CalNext | Hot::CalDay(_) | Hot::CalToday | Hot::CalClear | Hot::CalPanel) {
-            self.app.calendar = None;
-            self.redraw();
-            return;
-        }
-        match self.hot {
-            Hot::Field(f) => {
-                let s = self.scale();
-                let caret = view::caret_at(&mut self.gfx, &self.app, &self.layout, f, x, s);
-                let double = self.last_click.is_some_and(|(t, cx, cy)| t.elapsed() < Duration::from_millis(500) && (cx - x).abs() < 4.0 * s && (cy - y).abs() < 4.0 * s);
-                if double && self.app.focus == Some(f) {
-                    self.app.select_word(caret);
-                    self.last_click = None;
-                } else {
-                    if self.mods.shift_key() && self.app.focus == Some(f) {
-                        self.app.drag_caret(caret);
-                    } else {
-                        self.app.focus_field(f, Some(caret));
-                    }
-                    self.selecting = true;
-                    self.last_click = Some((Instant::now(), x, y));
-                }
-            }
-            Hot::Pick(f) => self.app.calendar = Some(rdup::app::Calendar::open(f, self.app.choice.text(f))),
-            Hot::CalPrev | Hot::CalNext => {
-                if let Some(c) = &mut self.app.calendar {
-                    c.shift(if self.hot == Hot::CalPrev { -1 } else { 1 });
-                }
-            }
-            Hot::CalDay(i) => {
-                let day = self.layout.cal.as_ref().and_then(|c| c.days.get(i)).map(|d| d.1);
-                if let (Some((y, m, d)), Some(c)) = (day, self.app.calendar.take()) {
-                    self.app.choice.texts[c.field.index()] = format!("{y:04}-{m:02}-{d:02}");
-                }
-            }
-            Hot::CalToday => {
-                if let Some(c) = self.app.calendar.take() {
-                    let t = rt_sys::local_time();
-                    self.app.choice.texts[c.field.index()] = format!("{:04}-{:02}-{:02}", t.year, t.month, t.day);
-                }
-            }
-            Hot::CalClear => {
-                if let Some(c) = self.app.calendar.take() {
-                    self.app.choice.texts[c.field.index()].clear();
-                }
-            }
-            Hot::CalPanel => {}
-            Hot::Kind(i) => self.app.choice.toggle_kind(i),
-            Hot::Compare(i) => self.app.compare[i] = !self.app.compare[i],
-            Hot::Clear => self.app.choice.clear(),
-            Hot::Card(i) => {
-                if let Some(p) = self.app.volumes.as_ref().and_then(|v| v.get(i)).map(|v| v.path.clone()) {
-                    self.app.toggle_root(&p);
-                    self.app.error = None;
-                }
-            }
-            Hot::Remove(i) => {
-                if let Some(p) = self.app.folders().get(i) {
-                    self.app.remove_folder(p);
-                }
-            }
-            Hot::Folder(i) => {
-                if let Some(p) = self.app.folders().get(i) {
-                    self.app.toggle_folder(p);
-                    self.app.error = None;
-                }
-            }
-            Hot::MinSize(i) => {
-                if let Some(&size) = rdup::settings::MIN_SIZES.get(i) {
-                    self.app.choice.set_min(if size <= 1 { String::new() } else { view::size_label(size) });
-                }
-            }
-            Hot::Add => self.command(el, Command::AddFolder),
-            Hot::Find => self.command(el, Command::Search),
-            Hot::Stop => self.command(el, Command::Stop),
-            Hot::Row(i) => {
-                self.app.select(i);
-                // The box at the start of the row.
-                if x < self.layout.cols.name.0 + 32.0 * self.scale() && self.app.markable(i) && self.acting.is_none() {
-                    self.toggle_mark(i);
-                }
-            }
-            Hot::Rules => self.rule_menu(el),
-            Hot::Unmark => self.command(el, Command::UnmarkAll),
-            Hot::MoveTo => self.command(el, Command::MoveTo),
-            Hot::Recycle => self.command(el, Command::Recycle),
-            Hot::Tab(i) => self.app.set_view(if i == 1 { View::Folders } else { View::Files }),
-            Hot::Share(i) => {
-                if let Some(&share) = rdup::folders::SHARES.get(i) {
-                    self.app.set_share(share);
-                }
-            }
-            Hot::None => {
-                let l = &self.layout;
-                if view::page(&self.app) == Page::Result && l.track.contains(x, y) && self.app.rows.len() > l.page_rows() {
-                    self.dragging = true;
-                    self.drag_to(y);
-                }
-            }
-        }
-        self.menu_dirty = true;
-        self.redraw();
-    }
-
-    fn drag_to(&mut self, y: f32) {
-        let page = self.layout.page_rows();
-        self.app.scroll = view::scroll_for(&self.layout, self.app.rows.len(), page, y);
-        self.redraw();
-    }
-
     // ------------------------------------------------------------ frame
-
-    fn render(&mut self) {
-        let dark = self.dark();
-        let theme = Theme::new(dark, self.accent);
-        let s = self.scale();
-        let Some(win) = &mut self.win else { return };
-        let size = win.window.inner_size();
-        let (Some(w), Some(h)) = (NonZeroU32::new(size.width), NonZeroU32::new(size.height)) else { return };
-        if win.surface.resize(w, h).is_err() {
-            return;
-        }
-        self.gfx.resize(w.get(), h.get());
-        let full = Rect::new(0.0, 0.0, w.get() as f32, h.get() as f32);
-        self.layout = view::layout(&self.app, full, s, cfg!(not(windows)));
-        self.app.page = self.layout.page_rows();
-        view::draw(&mut self.gfx, &self.app, &self.layout, &theme, s, self.hot);
-        #[cfg(not(windows))]
-        {
-            let g = &mut self.gfx;
-            self.menu.draw_bar(g, self.layout.bar, &theme.menu_style(), s);
-            self.menu.draw_popups(g, full, &theme.menu_style(), s);
-        }
-        if let Some(d) = &mut self.dialog {
-            let (panel, ok) = rt_gfx::dialog::draw_message(&mut self.gfx, full, &theme.dialog_style(), s, &d.title, &d.text);
-            d.panel = panel;
-            d.ok = ok;
-        }
-        let Some(win) = &mut self.win else { return };
-        if let Ok(mut buf) = win.surface.buffer_mut() {
-            self.gfx.copy_to(&mut buf);
-            let _ = buf.present();
-        }
-        self.gfx.trim_cache();
-        self.sync_menu();
-        self.sync_menu_theme(dark);
-        self.update_title();
-        let tree = self.tree();
-        if let Some(win) = &mut self.win {
-            win.adapter.update_if_active(|| tree);
-        }
-    }
-
-    fn tree(&self) -> accesskit::TreeUpdate {
-        use accesskit::{Node, NodeId, Role, TreeId, TreeInfo, TreeUpdate};
-        let root = NodeId(0);
-        let mut nodes = Vec::new();
-        let mut children = Vec::new();
-        let mut focus = root;
-        if let (Page::Result, Some(found)) = (view::page(&self.app), &self.app.found) {
-            let mut list = Node::new(Role::List);
-            list.set_label(tr("Duplicates"));
-            let mut rows = Vec::new();
-            let end = (self.app.scroll + self.layout.page_rows()).min(self.app.rows.len());
-            for (i, row) in self.app.rows.iter().enumerate().take(end).skip(self.app.scroll) {
-                let nid = NodeId(100 + i as u64);
-                let mut n = Node::new(Role::ListItem);
-                n.set_label(match *row {
-                    Row::Group(g) => view::group_text(found, g),
-                    Row::File(g, f) => found.groups[g].files[f].path.display().to_string(),
-                    Row::FolderGroup(g) => view::folder_group_text(&self.app, g),
-                    Row::Folder(..) => self.app.path_of(i).map_or(String::new(), |p| p.display().to_string()),
-                });
-                n.set_selected(self.app.sel == Some(i));
-                n.add_action(accesskit::Action::Click);
-                if self.app.sel == Some(i) {
-                    focus = nid;
-                }
-                rows.push(nid);
-                nodes.push((nid, n));
-            }
-            list.set_children(rows);
-            nodes.push((NodeId(1), list));
-            children.push(NodeId(1));
-        }
-        let (left, right) = view::status_text(&self.app, None);
-        let mut st = Node::new(Role::Label);
-        st.set_value(format!("{left} {right}"));
-        nodes.push((NodeId(3), st));
-        children.push(NodeId(3));
-        if let Some(dl) = &self.dialog {
-            let mut dn = Node::new(Role::Dialog);
-            dn.set_label(dl.title.clone());
-            dn.set_children(vec![NodeId(5), NodeId(6)]);
-            let mut tn = Node::new(Role::Label);
-            tn.set_value(dl.text.replace('\t', "  "));
-            let mut ok = Node::new(Role::Button);
-            ok.set_label("OK");
-            ok.add_action(accesskit::Action::Click);
-            nodes.extend([(NodeId(4), dn), (NodeId(5), tn), (NodeId(6), ok)]);
-            children.push(NodeId(4));
-            focus = NodeId(6);
-        }
-        let mut r = Node::new(Role::Window);
-        r.set_label("rdup");
-        r.set_children(children);
-        nodes.push((root, r));
-        TreeUpdate { nodes, tree: Some(TreeInfo::new(root)), tree_id: TreeId::ROOT, focus }
-    }
 
     fn open_window(&mut self, el: &ActiveEventLoop) -> bool {
         let (w, h, maximized) = self.settings.window.unwrap_or((1100.0, 780.0, false));
@@ -1280,35 +600,20 @@ impl Shell {
             // Maximizing shows the window on Windows: a resident start, which
             // stays hidden, maximizes when it is first shown.
             .with_maximized(maximized && !self.tray)
-            .with_window_icon(app_icon())
-            .with_theme(Some(if self.dark() { WinTheme::Dark } else { WinTheme::Light }))
+            .with_window_icon(rt_ui::window::icon(rdup::ui::appicon::render))
+            .with_theme(Some(rt_ui::window::theme(self.dark())))
             .with_visible(false);
-        let window = match el.create_window(attrs) {
-            Ok(w) => Rc::new(w),
-            Err(e) => {
-                eprintln!("rdup: cannot create window: {e}");
-                el.exit();
-                return false;
-            }
-        };
+        let Some((window, surface)) = rt_ui::window::create(el, attrs, "rdup") else { return false };
         let adapter = accesskit_winit::Adapter::with_event_loop_proxy(el, &window, self.proxy.clone());
-        let surface = match softbuffer::Context::new(window.clone()).and_then(|ctx| softbuffer::Surface::new(&ctx, window.clone())) {
-            Ok(s) => s,
-            Err(e) => {
-                eprintln!("rdup: cannot create drawing surface: {e}");
-                el.exit();
-                return false;
-            }
-        };
         #[cfg(windows)]
-        let hwnd = hwnd_of(&window);
+        let hwnd = rt_ui::window::hwnd_of(&window);
         #[cfg(windows)]
         {
             let proxy = self.proxy.clone();
             rt_sys::win::subclass(
                 hwnd,
                 &IDENT,
-                &mnemonics_of(&commands::menu_tree()),
+                &rt_ui::window::mnemonics_of(&commands::menu_tree()),
                 Box::new(move |m| {
                     let _ = proxy.send_event(UserEvent::Win(m));
                 }),
@@ -1360,44 +665,18 @@ fn shortcuts_text() -> String {
     rows.iter().map(|(k, v)| format!("{k}\t{v}")).collect::<Vec<_>>().join("\n")
 }
 
-fn app_icon() -> Option<WinIcon> {
-    let n = 32;
-    WinIcon::from_rgba(rdup::ui::appicon::render(n), n, n).ok()
-}
-
-#[cfg(windows)]
-fn mnemonics_of(tree: &[(&'static str, Vec<commands::M>)]) -> String {
-    tree.iter().filter_map(|(t, _)| tr(t).split('&').nth(1).and_then(|s| s.chars().next())).collect()
-}
-
-#[cfg(windows)]
-fn hwnd_of(window: &Window) -> rt_sys::win::HWND {
-    use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
-    match window.window_handle().map(|h| h.as_raw()) {
-        Ok(RawWindowHandle::Win32(h)) => h.hwnd.get() as _,
-        _ => std::ptr::null_mut(),
-    }
-}
-
 /// Starts resident mode on Linux: without an icon, a hidden window could not
 /// be reached or closed, so rdup then runs as a normal window.
 #[cfg(not(windows))]
 fn start_resident(shell: &mut Shell) {
-    use rt_sys::linux::shell as ls;
     let proxy = std::sync::Mutex::new(shell.proxy.clone());
-    let labels = ls::TrayLabels { tip: "rdup".into(), open: tr("Open rdup"), exit: tr("Exit") };
-    // Only a resident rdup listens for later launches, as on Windows.
-    let cfg = ls::Config { app: "rdup", icon: rdup::ui::appicon::render, tray: Some(labels), listen_without_icon: false };
-    let resident = ls::Shell::new(
-        cfg,
-        Box::new(move |m| {
-            if let Ok(p) = proxy.lock() {
-                let _ = p.send_event(UserEvent::Shell(m));
-            }
-        }),
-    );
-    shell.tray = resident.has_icon();
-    shell.resident = shell.tray.then_some(resident);
+    let send = Box::new(move |m| {
+        if let Ok(p) = proxy.lock() {
+            let _ = p.send_event(UserEvent::Shell(m));
+        }
+    });
+    shell.resident = rt_ui::resident::start("rdup", rdup::ui::appicon::render, tr("Open rdup"), tr("Exit"), send);
+    shell.tray = shell.resident.is_some();
 }
 
 impl ApplicationHandler<UserEvent> for Shell {
@@ -1527,7 +806,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 let (x, y) = (position.x as f32, position.y as f32);
                 self.cursor = Some((x, y));
                 #[cfg(not(windows))]
-                if self.menu_pointer(x, y) {
+                if self.menu_pointer(el, x, y) {
                     return;
                 }
                 if self.dragging {
@@ -1578,16 +857,15 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
             WindowEvent::MouseWheel { delta, .. } if self.dialog.is_none() => {
                 #[cfg(not(windows))]
-                if self.menu.is_open() {
-                    if let Some((l, _)) = self.cursor.and_then(|(x, y)| self.menu.row_at(x, y)) {
-                        let down = match delta {
-                            MouseScrollDelta::LineDelta(_, y) => y < 0.0,
-                            MouseScrollDelta::PixelDelta(p) => p.y < 0.0,
-                        };
-                        self.menu.wheel(l, if down { 2 } else { -2 });
-                        self.redraw();
+                {
+                    let down = match delta {
+                        MouseScrollDelta::LineDelta(_, y) => y < 0.0,
+                        MouseScrollDelta::PixelDelta(p) => p.y < 0.0,
+                    };
+                    let step = rt_ui::menus::wheel(&mut self.menu, self.cursor, down);
+                    if self.menu_step(el, step) {
+                        return;
                     }
-                    return;
                 }
                 let Some((x, y)) = self.cursor else { return };
                 let rows = match delta {
@@ -1635,25 +913,20 @@ impl ApplicationHandler<UserEvent> for Shell {
 /// Whether "Find duplicates with rdup" is on the Explorer menu of folders, for this rdup.exe.
 #[cfg(windows)]
 fn integrated_here() -> bool {
-    let exe = rt_sys::win::assoc::current_exe().unwrap_or_default();
-    rt_sys::win::assoc::folder_status("rdup", &rt_sys::win::assoc::Keys::user("rdup"), &exe) == rt_sys::win::assoc::Status::Here
+    rt_ui::explorer::folders_here("rdup")
 }
 
 /// Adds "Find duplicates with rdup" to the Explorer menu of folders and
 /// drives (current user only), or takes it out; returns the message to show.
 #[cfg(windows)]
 fn integrate(on: bool) -> Result<String, String> {
-    use rt_sys::win::assoc;
-    let keys = assoc::Keys::user("rdup");
-    let failed = |e: assoc::Error| tf("Cannot change the Windows registry (error {}).", &[&e.to_string()]);
-    if on {
-        let exe = assoc::current_exe()?;
-        assoc::register_folders("rdup", &keys, &exe, &tr("Find duplicates with rdup")).map_err(failed)?;
-        Ok(tr("“Find duplicates with rdup” was added to the Explorer context menu of folders and drives."))
-    } else {
-        assoc::unregister_folders("rdup", &keys).map_err(failed)?;
-        Ok(tr("“Find duplicates with rdup” was removed from the Explorer context menu."))
-    }
+    let texts = rt_ui::explorer::FolderTexts {
+        verb: tr("Find duplicates with rdup"),
+        added: tr("“Find duplicates with rdup” was added to the Explorer context menu of folders and drives."),
+        removed: tr("“Find duplicates with rdup” was removed from the Explorer context menu."),
+        failed: tr("Cannot change the Windows registry (error {})."),
+    };
+    rt_ui::explorer::set_folders("rdup", on, &texts)
 }
 
 const USAGE: &str = "rdup [--tray] [--new-window] [folder...]
@@ -1775,7 +1048,7 @@ fn main() {
         acting: None,
         handle: None,
         generation: 0,
-        dialog: help.then(|| Dialog { title: "rdup".into(), text: USAGE.into(), panel: Rect::default(), ok: Rect::default() }),
+        dialog: help.then(|| Message::new("rdup", USAGE)),
         #[cfg(windows)]
         elevated: rt_sys::win::elevated(),
         #[cfg(not(windows))]

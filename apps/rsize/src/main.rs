@@ -29,7 +29,12 @@ use winit::dpi::LogicalSize;
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
 use winit::keyboard::{Key as WKey, ModifiersState, NamedKey};
-use winit::window::{CursorIcon, Icon as WinIcon, Theme as WinTheme, Window, WindowId};
+use rt_ui::Message;
+use winit::window::{CursorIcon, Theme as WinTheme, Window, WindowId};
+
+mod input;
+mod menus;
+mod render;
 
 enum UserEvent {
     A11y(accesskit_winit::Event),
@@ -65,13 +70,6 @@ struct Win {
     menu: Option<rt_sys::win::menu::MenuBar<Command>>,
 }
 
-/// An in-app message (About, Keyboard shortcuts).
-struct Dialog {
-    title: String,
-    text: String,
-    panel: Rect,
-    ok: Rect,
-}
 
 #[derive(Clone, Copy)]
 enum Drag {
@@ -132,7 +130,8 @@ struct Shell {
     generation: u64,
     /// Which tree the treemap was made from (changes with each scan).
     tree_gen: u64,
-    dialog: Option<Dialog>,
+    /// An in-app message (About, Keyboard shortcuts, the help).
+    dialog: Option<Message>,
     last_click: Option<(Instant, f32, f32, u32)>,
     args: Vec<PathBuf>,
     /// Running with administrator rights (NTFS can be read directly).
@@ -182,13 +181,7 @@ impl Shell {
 
     fn save_settings(&mut self) {
         if let Some(w) = &self.win {
-            let max = w.window.is_maximized();
-            if !max && !w.window.is_minimized().unwrap_or(false) {
-                let s: LogicalSize<f64> = w.window.inner_size().to_logical(w.window.scale_factor());
-                self.settings.window = Some((s.width, s.height, false));
-            } else if let Some((ww, hh, _)) = self.settings.window {
-                self.settings.window = Some((ww, hh, max));
-            }
+            rt_ui::window::remember_size(&w.window, &mut self.settings.window);
         }
         let store = self.settings.to_store();
         self.location.save(&store);
@@ -520,7 +513,7 @@ impl Shell {
     }
 
     fn info(&mut self, title: &str, text: &str) {
-        self.dialog = Some(Dialog { title: title.to_string(), text: text.to_string(), panel: Rect::default(), ok: Rect::default() });
+        self.dialog = Some(Message::new(title, text));
         self.drag = None;
         self.redraw();
     }
@@ -610,659 +603,11 @@ impl Shell {
         self.info(&tr("Windows Integration"), &text);
     }
 
-    fn count_click(&mut self, x: f32, y: f32) -> u32 {
-        let now = Instant::now();
-        let n = match self.last_click {
-            Some((t, cx, cy, n)) if now - t < DOUBLE_CLICK && (cx - x).abs() < DOUBLE_CLICK_SLOP && (cy - y).abs() < DOUBLE_CLICK_SLOP => n % 2 + 1,
-            _ => 1,
-        };
-        self.last_click = Some((now, x, y, n));
-        n
-    }
-
     // ------------------------------------------------------------ menus
-
-    /// The context menu of the selection, at the pointer.
-    #[cfg(windows)]
-    fn context_menu(&mut self, el: &ActiveEventLoop) {
-        let Some(hwnd) = self.win.as_ref().map(|w| w.hwnd) else { return };
-        let mut items = Vec::new();
-        for m in commands::item_menu() {
-            items.push(match m {
-                rt_core::menu::M::Item(c) => Some((c, self.enabled(c))),
-                _ => None,
-            });
-        }
-        if let Some(c) = rt_sys::win::menu::popup_at_cursor(hwnd, &items) {
-            self.command(el, c);
-        }
-    }
-
-    #[cfg(not(windows))]
-    fn context_menu(&mut self, _el: &ActiveEventLoop) {
-        let me = &*self;
-        let items = rsize::ui::menu::build(commands::item_menu(), &|c| me.checked(c), &|c| me.enabled(c));
-        let at = self.cursor.unwrap_or((0.0, 0.0));
-        self.menu.open(None, items, at, false);
-        self.redraw();
-    }
-
-    #[cfg(not(windows))]
-    fn open_menu(&mut self, i: usize, keyboard: bool) {
-        let Some((_, tree)) = commands::menu_tree().into_iter().nth(i) else { return };
-        let me = &*self;
-        let items = rsize::ui::menu::build(tree, &|c| me.checked(c), &|c| me.enabled(c));
-        let Some(rect) = self.menu.titles.get(i).map(|t| t.rect) else { return };
-        self.menu.open(Some(i), items, (rect.x, rect.bottom() + 2.0), keyboard);
-        self.redraw();
-    }
-
-    #[cfg(not(windows))]
-    fn menu_act(&mut self, el: &ActiveEventLoop, act: rsize::ui::menu::Act) {
-        use rsize::ui::menu::Act;
-        match act {
-            Act::Run(c) => {
-                self.menu.close();
-                self.command(el, c);
-            }
-            Act::Switch(dir) => {
-                let n = self.menu.titles.len() as isize;
-                if let Some(top) = self.menu.top {
-                    self.open_menu((top as isize + dir).rem_euclid(n) as usize, true);
-                }
-            }
-            Act::None => self.redraw(),
-        }
-    }
-
-    /// Keyboard for the menus. Returns true when it used the key.
-    #[cfg(not(windows))]
-    fn menu_key(&mut self, el: &ActiveEventLoop, event: &winit::event::KeyEvent) -> bool {
-        use rsize::ui::menu::Act;
-        use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
-        let key = event.key_without_modifiers();
-        if !self.menu.is_open() {
-            let found = match &key {
-                WKey::Named(NamedKey::F10) => Some(0),
-                WKey::Character(c) if self.mods.alt_key() && !self.mods.control_key() => {
-                    let k = c.chars().next().and_then(|c| c.to_lowercase().next());
-                    self.menu.titles.iter().position(|t| t.mnemonic == k)
-                }
-                _ => None,
-            };
-            if let Some(i) = found {
-                self.open_menu(i, true);
-            }
-            return found.is_some();
-        }
-        let act = match &key {
-            WKey::Named(NamedKey::ArrowUp) => {
-                self.menu.up_down(-1);
-                Act::None
-            }
-            WKey::Named(NamedKey::ArrowDown) => {
-                self.menu.up_down(1);
-                Act::None
-            }
-            WKey::Named(NamedKey::ArrowLeft) => self.menu.left(),
-            WKey::Named(NamedKey::ArrowRight) => self.menu.right(),
-            WKey::Named(NamedKey::Enter | NamedKey::Space) => self.menu.enter(),
-            WKey::Named(NamedKey::Escape) => {
-                self.menu.back();
-                Act::None
-            }
-            WKey::Character(c) => c.chars().next().map_or(Act::None, |c| self.menu.mnemonic(c)),
-            _ => Act::None,
-        };
-        self.menu_act(el, act);
-        true
-    }
-
-    #[cfg(not(windows))]
-    fn menu_pointer(&mut self, x: f32, y: f32) -> bool {
-        let title = self.menu.title_at(x, y);
-        if title != self.menu.hot {
-            self.menu.hot = title;
-            self.redraw();
-        }
-        if !self.menu.is_open() {
-            return false;
-        }
-        if let Some((l, i)) = self.menu.row_at(x, y) {
-            self.menu.hover(l, i);
-            self.redraw();
-        } else if let Some(i) = title.filter(|i| self.menu.top.is_some_and(|t| t != *i)) {
-            self.open_menu(i, false);
-        }
-        true
-    }
-
-    #[cfg(not(windows))]
-    fn menu_press(&mut self, el: &ActiveEventLoop, x: f32, y: f32) -> bool {
-        if let Some(i) = self.menu.title_at(x, y) {
-            if self.menu.top == Some(i) {
-                self.menu.close();
-                self.redraw();
-            } else {
-                self.open_menu(i, false);
-            }
-            return true;
-        }
-        if !self.menu.is_open() {
-            return false;
-        }
-        if let Some((l, i)) = self.menu.row_at(x, y) {
-            let act = self.menu.click(l, i);
-            self.menu_act(el, act);
-        } else if !self.menu.contains(x, y) {
-            self.menu.close();
-            self.redraw();
-        }
-        true
-    }
-
-    #[cfg(windows)]
-    fn sync_menu(&mut self) {
-        let Some(win) = &mut self.win else { return };
-        if !self.menu_dirty && win.menu.is_some() {
-            return;
-        }
-        self.menu_dirty = false;
-        if win.menu.is_none() || self.menu_rebuild {
-            self.menu_rebuild = false;
-            let tree = commands::menu_tree();
-            rt_sys::win::set_mnemonics(&mnemonics_of(&tree));
-            win.menu = Some(rt_sys::win::menu::MenuBar::install(win.hwnd, tree));
-        }
-        let me = &*self;
-        if let Some(m) = me.win.as_ref().and_then(|w| w.menu.as_ref()) {
-            m.sync(|c| me.checked(c), |c| me.enabled(c));
-        }
-    }
-
-    #[cfg(not(windows))]
-    fn sync_menu(&mut self) {
-        self.menu_dirty = false;
-        if !self.menu.titles.is_empty() && !self.menu_rebuild {
-            return;
-        }
-        self.menu_rebuild = false;
-        self.menu.titles = commands::menu_tree().iter().map(|(title, _)| rsize::ui::menu::Title::new(&tr(title))).collect();
-        self.redraw();
-    }
-
-    fn apply_window_theme(&self) {
-        if let Some(w) = &self.win {
-            w.window.set_theme(Some(if self.dark() { WinTheme::Dark } else { WinTheme::Light }));
-            #[cfg(windows)]
-            rt_sys::win::darkmode::refresh_caption(w.hwnd);
-        }
-    }
-
-    fn sync_menu_theme(&mut self, dark: bool) {
-        if self.menu_dark == Some(dark) {
-            return;
-        }
-        self.menu_dark = Some(dark);
-        #[cfg(windows)]
-        if let Some(w) = &self.win {
-            let colors = dark.then_some(rt_sys::win::darkmode::MenuColors { bar: 0x202020, text: 0xE4E4E4, text_disabled: 0x7A7A7A, hot: 0x3D3D3D });
-            rt_sys::win::darkmode::apply(w.hwnd, colors);
-        }
-    }
 
     // ------------------------------------------------------------ input
 
-    fn key(&mut self, el: &ActiveEventLoop, event: &winit::event::KeyEvent) {
-        if self.dialog.is_some() {
-            if matches!(event.logical_key, WKey::Named(NamedKey::Escape | NamedKey::Enter | NamedKey::Space)) {
-                self.dialog = None;
-                self.redraw();
-            }
-            return;
-        }
-        #[cfg(not(windows))]
-        if self.menu_key(el, event) {
-            return;
-        }
-        let ctrl = self.mods.control_key();
-        let shift = self.mods.shift_key();
-        let alt = self.mods.alt_key();
-        let logical = if ctrl || alt {
-            use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
-            event.key_without_modifiers()
-        } else {
-            event.logical_key.clone()
-        };
-        let name = match &logical {
-            WKey::Character(c) => c.to_lowercase(),
-            WKey::Named(n) => match n {
-                NamedKey::F1 => "f1".into(),
-                NamedKey::F5 => "f5".into(),
-                NamedKey::F6 => "f6".into(),
-                NamedKey::F7 => "f7".into(),
-                NamedKey::F8 => "f8".into(),
-                NamedKey::F9 => "f9".into(),
-                NamedKey::Delete => "delete".into(),
-                NamedKey::Enter => "enter".into(),
-                NamedKey::Backspace => "backspace".into(),
-                NamedKey::Escape => "esc".into(),
-                _ => String::new(),
-            },
-            _ => String::new(),
-        };
-        if !name.is_empty() {
-            if let Some(cmd) = commands::lookup(ctrl, shift, alt, &name) {
-                return self.command(el, cmd);
-            }
-        }
-        if view::page(&self.app) != Page::Result {
-            return;
-        }
-        let page = self.layout.page_rows() as isize;
-        match logical {
-            WKey::Named(NamedKey::ArrowDown) => self.app.move_sel(1),
-            WKey::Named(NamedKey::ArrowUp) => self.app.move_sel(-1),
-            WKey::Named(NamedKey::PageDown) => self.app.move_sel(page),
-            WKey::Named(NamedKey::PageUp) => self.app.move_sel(-page),
-            WKey::Named(NamedKey::Home) => self.app.move_sel(isize::MIN / 2),
-            WKey::Named(NamedKey::End) => self.app.move_sel(isize::MAX / 2),
-            WKey::Named(NamedKey::ArrowLeft) => self.app.left(),
-            WKey::Named(NamedKey::ArrowRight) => self.app.right(),
-            WKey::Named(NamedKey::Space) => {
-                if let Some(id) = self.app.sel {
-                    self.app.toggle(id);
-                }
-            }
-            _ => return,
-        }
-        self.menu_dirty = true;
-        self.redraw();
-    }
-
-    /// Updates what the pointer is on.
-    fn pointer(&mut self, x: f32, y: f32) {
-        let l = &self.layout;
-        let mut seg = None;
-        let (hot, hover) = match view::page(&self.app) {
-            Page::Start if !l.body.contains(x, y) => (Hot::None, None),
-            Page::Start => {
-                let card = l.cards.iter().position(|r| r.contains(x, y));
-                (card.map_or(if l.choose.contains(x, y) { Hot::Choose } else { Hot::None }, Hot::Card), None)
-            }
-            Page::Scanning => (if l.stop.contains(x, y) { Hot::Stop } else { Hot::None }, None),
-            Page::Result => {
-                if l.splitter.contains(x, y) {
-                    (Hot::Splitter, None)
-                } else if l.vsplit.contains(x, y) {
-                    (Hot::VSplitter, None)
-                } else if let Some(&(kind, _)) = l.tabs.iter().find(|(_, r)| r.contains(x, y)) {
-                    (Hot::Tab(kind), None)
-                } else if let Some(&(mode, _)) = l.modes.iter().find(|(_, r)| r.contains(x, y)) {
-                    (Hot::Mode(mode), None)
-                } else if let Some(c) = l.head_at(x, y) {
-                    (Hot::Head(c), None)
-                } else if let Some(c) = l.ext_head_at(x, y) {
-                    (Hot::ExtHead(c), None)
-                } else if let Some(i) = l.row_at(&self.app, x, y) {
-                    (Hot::Row(i), Some(self.app.rows[i].0))
-                } else if let Some(i) = l.ext_row_at(&self.app, x, y) {
-                    (Hot::ExtRow(i), None)
-                } else if let (Some(c), true) = (&self.chart, self.settings.chart_shown() != ChartType::Treemap && l.map.contains(x, y)) {
-                    seg = c.hit(x - l.map.x, y - l.map.y);
-                    let node = match seg {
-                        Some(Hit::Segment(i)) => c.segments[i].node,
-                        Some(Hit::Center) => Some(c.root),
-                        None => None,
-                    };
-                    (Hot::None, node)
-                } else if let Some((mx, my)) = self.map_point(x, y) {
-                    (Hot::None, self.map.as_ref().and_then(|m| m.hit(mx, my)))
-                } else {
-                    (Hot::None, None)
-                }
-            }
-        };
-        let hot = if self.dialog.is_some() { Hot::None } else { hot };
-        if hot != self.hot || hover != self.hover || seg != self.hover_seg {
-            self.hot = hot;
-            self.hover = hover;
-            self.hover_seg = seg;
-            self.redraw();
-        }
-        let icon = match (self.drag, hot) {
-            (Some(Drag::Splitter), _) | (_, Hot::Splitter) => CursorIcon::NsResize,
-            (Some(Drag::VSplitter), _) | (_, Hot::VSplitter) => CursorIcon::EwResize,
-            (_, Hot::Card(_) | Hot::Choose | Hot::Stop | Hot::Tab(_) | Hot::Mode(_) | Hot::Head(_) | Hot::ExtHead(_)) => CursorIcon::Pointer,
-            _ if seg == Some(Hit::Center) => CursorIcon::Pointer,
-            _ => CursorIcon::Default,
-        };
-        if icon != self.cursor_icon {
-            self.cursor_icon = icon;
-            if let Some(w) = &self.win {
-                w.window.set_cursor(icon);
-            }
-        }
-    }
-
-    fn press(&mut self, el: &ActiveEventLoop, x: f32, y: f32) {
-        if let Some(d) = &self.dialog {
-            if d.ok.contains(x, y) || !d.panel.contains(x, y) {
-                self.dialog = None;
-                self.redraw();
-            }
-            return;
-        }
-        #[cfg(not(windows))]
-        if self.menu_press(el, x, y) {
-            return;
-        }
-        let clicks = self.count_click(x, y);
-        match self.hot {
-            Hot::Card(i) => {
-                if let Some(p) = self.app.volumes.as_ref().and_then(|v| v.get(i)).map(|v| v.path.clone()) {
-                    self.start_scan(&p);
-                }
-            }
-            Hot::Choose => self.command(el, Command::ChooseFolder),
-            Hot::Stop => self.command(el, Command::Stop),
-            Hot::Splitter => self.drag = Some(Drag::Splitter),
-            Hot::VSplitter => self.drag = Some(Drag::VSplitter),
-            Hot::Tab(kind) => self.command(el, Command::Chart(kind)),
-            Hot::Mode(mode) => self.command(el, Command::View(mode)),
-            Hot::Head(c) => self.app.sort_by(c),
-            Hot::ExtHead(c) => self.app.sort_exts_by(c),
-            Hot::ExtRow(i) => {
-                let ext = self.app.exts.get(i).map(|e| e.0);
-                self.app.ext_sel = if self.app.ext_sel == ext { None } else { ext };
-            }
-            Hot::Row(i) => {
-                let (id, depth) = self.app.rows[i];
-                if self.layout.on_arrow(x, depth) || clicks == 2 {
-                    self.app.toggle(id);
-                }
-                self.app.select(id);
-            }
-            Hot::None => {
-                let l = &self.layout;
-                if l.track.contains(x, y) && self.app.rows.len() > l.page_rows() {
-                    self.drag = Some(Drag::Thumb);
-                    self.drag_to(x, y);
-                } else if l.ext_track.contains(x, y) && self.app.exts.len() > l.ext_rows() {
-                    self.drag = Some(Drag::ExtThumb);
-                    self.drag_to(x, y);
-                } else if self.settings.chart_shown() != ChartType::Treemap && l.map.contains(x, y) {
-                    self.chart_press(clicks);
-                } else if let Some((mx, my)) = self.map_point(x, y) {
-                    if let Some(id) = self.map.as_ref().and_then(|m| m.hit(mx, my)) {
-                        self.app.select(id);
-                        if clicks == 2 {
-                            let t = &self.app.scan.as_ref().expect("a treemap has a tree").tree;
-                            // A folder's header shows that folder; a file, one folder down toward it.
-                            if t.node(id).is_dir() && !t.children(id).is_empty() && id != self.app.zoom {
-                                self.app.zoom = id;
-                            } else {
-                                self.zoom_toward(id);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        self.menu_dirty = true;
-        self.redraw();
-    }
-
-    /// A click on the pie or the rings selects; a double click on a folder
-    /// shows it; a click in the middle of the rings goes up.
-    fn chart_press(&mut self, clicks: u32) {
-        match self.hover_seg {
-            Some(Hit::Center) => self.app.zoom_out(),
-            Some(Hit::Segment(i)) => {
-                let Some(id) = self.chart.as_ref().and_then(|c| c.segments.get(i)).and_then(|s| s.node) else { return };
-                self.app.select(id);
-                let t = &self.app.scan.as_ref().expect("a chart has a tree").tree;
-                if clicks == 2 && t.node(id).is_dir() && !t.children(id).is_empty() {
-                    self.app.zoom = id;
-                }
-            }
-            None => {}
-        }
-    }
-
-    /// A double click in the treemap shows the folder one level down
-    /// toward `id`.
-    fn zoom_toward(&mut self, id: Id) {
-        let Some(t) = self.app.scan.as_ref().map(|s| &s.tree) else { return };
-        let mut cur = id;
-        while let Some(p) = t.parent(cur) {
-            if p == self.app.zoom {
-                if t.node(cur).is_dir() && !t.children(cur).is_empty() {
-                    self.app.zoom = cur;
-                    self.app.select(cur);
-                }
-                return;
-            }
-            cur = p;
-        }
-    }
-
-    fn drag_to(&mut self, x: f32, y: f32) {
-        match self.drag {
-            Some(Drag::Splitter) => {
-                // A share of the height below the block on top.
-                let (top, h) = (self.layout.info.bottom(), self.layout.body.bottom() - self.layout.info.bottom());
-                if h > 0.0 {
-                    self.settings.panes_mut().split = ((y - top) / h).clamp(SPLIT_MIN, SPLIT_MAX);
-                }
-            }
-            Some(Drag::VSplitter) => {
-                let body = self.layout.body;
-                if body.w > 0.0 {
-                    self.settings.panes_mut().split_x = ((x - body.x) / body.w).clamp(SPLIT_X_MIN, SPLIT_X_MAX);
-                }
-            }
-            Some(Drag::Thumb) => {
-                let page = self.layout.page_rows();
-                self.app.scroll = view::scroll_for(self.layout.track, self.app.rows.len(), page, y);
-            }
-            Some(Drag::ExtThumb) => {
-                let page = self.layout.ext_rows();
-                self.app.types_scroll = view::scroll_for(self.layout.ext_track, self.app.exts.len(), page, y);
-            }
-            None => return,
-        }
-        self.redraw();
-    }
-
     // ------------------------------------------------------------ frame
-
-    fn render(&mut self) {
-        let dark = self.dark();
-        let theme = Theme::new(dark, self.accent);
-        let s = self.scale();
-        let Some(win) = &mut self.win else { return };
-        let size = win.window.inner_size();
-        let (Some(w), Some(h)) = (NonZeroU32::new(size.width), NonZeroU32::new(size.height)) else { return };
-        if win.surface.resize(w, h).is_err() {
-            return;
-        }
-        self.gfx.resize(w.get(), h.get());
-        let full = Rect::new(0.0, 0.0, w.get() as f32, h.get() as f32);
-        self.layout = view::layout(&self.app, self.settings.view, self.settings.panes(), full, s, cfg!(not(windows)));
-        self.app.page = self.layout.page_rows();
-        self.app.types_page = self.layout.ext_rows();
-        self.ensure_map(theme.bg);
-        self.ensure_lit();
-        let frame = view::Frame {
-            mode: self.settings.size_mode,
-            kind: self.settings.chart_shown(),
-            map: self.map.as_ref(),
-            lit: self.lit.as_ref().map(|l| &l.1),
-            chart: self.chart.as_ref(),
-            hover_seg: self.hover_seg,
-            hot: self.hot,
-            hover: self.hover,
-        };
-        view::draw(&mut self.gfx, &self.app, &self.layout, &theme, s, &frame);
-        #[cfg(not(windows))]
-        {
-            let g = &mut self.gfx;
-            self.menu.draw_bar(g, self.layout.bar, &theme.menu_style(), s);
-            self.menu.draw_popups(g, full, &theme.menu_style(), s);
-        }
-        if let Some(d) = &mut self.dialog {
-            let (panel, ok) = rt_gfx::dialog::draw_message(&mut self.gfx, full, &theme.dialog_style(), s, &d.title, &d.text);
-            d.panel = panel;
-            d.ok = ok;
-        }
-        let Some(win) = &mut self.win else { return };
-        if let Ok(mut buf) = win.surface.buffer_mut() {
-            self.gfx.copy_to(&mut buf);
-            let _ = buf.present();
-        }
-        self.gfx.trim_cache();
-        self.sync_menu();
-        self.sync_menu_theme(dark);
-        self.update_title();
-        let tree = self.tree();
-        if let Some(win) = &mut self.win {
-            win.adapter.update_if_active(|| tree);
-        }
-    }
-
-    /// Makes the treemap again when the folder, the size or the order
-    /// changed. While the window is being resized, the old one is stretched
-    /// and the new one waits until the size has stayed the same for a moment:
-    /// a large tree takes a fraction of a second to lay out.
-    fn ensure_map(&mut self, bg: Color) {
-        if view::page(&self.app) != Page::Result {
-            return;
-        }
-        let r = self.layout.map;
-        let (w, h) = (r.w.max(1.0) as u32, r.h.max(1.0) as u32);
-        let key = (self.app.zoom, w, h, self.settings.size_mode, self.tree_gen);
-        // The table of file types follows the folder the chart shows.
-        let ekey = (self.app.zoom, self.settings.size_mode, self.tree_gen);
-        if self.exts_key != Some(ekey) {
-            self.exts_key = Some(ekey);
-            self.app.refresh_exts();
-        }
-        let Some(scan) = &self.app.scan else { return };
-        if self.settings.chart_shown() != ChartType::Treemap {
-            // A few thousand segments at most: quick enough to redo at once.
-            let s = self.scale();
-            let bg = (bg.r as u32) << 16 | (bg.g as u32) << 8 | bg.b as u32;
-            let ckey = (self.settings.chart_shown(), key, bg, s.to_bits());
-            if self.chart_key != Some(ckey) || self.chart.is_none() {
-                let t = &scan.tree;
-                self.chart = Some(match self.settings.chart_shown() {
-                    ChartType::Pie => Chart::pie(t, self.app.zoom, w, h, s, bg),
-                    _ => Chart::rings(t, self.app.zoom, w, h, s, bg),
-                });
-                self.chart_key = Some(ckey);
-                self.hover_seg = None;
-            }
-            return;
-        }
-        if self.map_key == Some(key) && self.map.is_some() {
-            self.map_due = None;
-            return;
-        }
-        let only_size = self.map_key.is_some_and(|k| (k.0, k.3, k.4) == (key.0, key.3, key.4)) && self.map.is_some();
-        if only_size && self.resized.elapsed() < RESIZE_PAUSE {
-            self.map_due = Some(self.resized + RESIZE_PAUSE);
-            return;
-        }
-        let head = (16.0 * self.scale()).round();
-        self.map = Some(Map::new(&scan.tree, self.app.zoom, w, h, head));
-        self.map_key = Some(key);
-        self.map_due = None;
-    }
-
-    /// Makes the treemap with the files of the picked type standing out,
-    /// when a type is picked and the treemap or the type changed.
-    fn ensure_lit(&mut self) {
-        let want = match (self.app.ext_sel, &self.map, self.map_key, &self.app.scan) {
-            (Some(e), Some(m), Some(k), Some(scan)) if self.settings.chart_shown() == ChartType::Treemap => Some((k, e, m, &scan.tree)),
-            _ => None,
-        };
-        match want {
-            Some((k, e, m, t)) => {
-                if self.lit.as_ref().map(|l| l.0) != Some((k, e)) {
-                    self.lit = Some(((k, e), m.highlighted(t, e)));
-                }
-            }
-            None => self.lit = None,
-        }
-    }
-
-    /// A point of the window in the treemap's own pixels (it may be
-    /// stretched while the window is resized).
-    fn map_point(&self, x: f32, y: f32) -> Option<(f32, f32)> {
-        let (m, r) = (self.map.as_ref()?, self.layout.map);
-        (r.contains(x, y) && r.w > 0.0 && r.h > 0.0).then(|| ((x - r.x) * m.w as f32 / r.w, (y - r.y) * m.h as f32 / r.h))
-    }
-
-    fn tree(&self) -> accesskit::TreeUpdate {
-        use accesskit::{Node, NodeId, Role, TreeId, TreeInfo, TreeUpdate};
-        let root = NodeId(0);
-        let mut nodes = Vec::new();
-        let mut children = Vec::new();
-        let mut focus = root;
-        if let (Page::Result, Some(scan)) = (view::page(&self.app), &self.app.scan) {
-            let t = &scan.tree;
-            let mut list = Node::new(Role::Tree);
-            list.set_label(tr("Folders"));
-            let mut rows = Vec::new();
-            let end = (self.app.scroll + self.layout.page_rows()).min(self.app.rows.len());
-            for (i, &(id, depth)) in self.app.rows.iter().enumerate().take(end).skip(self.app.scroll) {
-                let nid = NodeId(100 + i as u64);
-                let mut n = Node::new(Role::TreeItem);
-                n.set_label(format!("{}, {}", t.name(id), rsize::format::size(t.size(id))));
-                n.set_level(depth as usize + 1);
-                if !t.children(id).is_empty() {
-                    n.set_expanded(self.app.expanded.contains(&id));
-                }
-                n.set_selected(self.app.sel == Some(id));
-                n.add_action(accesskit::Action::Click);
-                if self.app.sel == Some(id) {
-                    focus = nid;
-                }
-                rows.push(nid);
-                nodes.push((nid, n));
-            }
-            list.set_children(rows);
-            nodes.push((NodeId(1), list));
-            let mut map = Node::new(Role::Image);
-            map.set_label(view::chart_name(self.settings.chart_shown()));
-            nodes.push((NodeId(2), map));
-            children.extend([NodeId(1), NodeId(2)]);
-        }
-        let (left, right) = view::status_text(&self.app, None);
-        let mut st = Node::new(Role::Label);
-        st.set_value(format!("{left} {right}"));
-        nodes.push((NodeId(3), st));
-        children.push(NodeId(3));
-        if let Some(dl) = &self.dialog {
-            let mut dn = Node::new(Role::Dialog);
-            dn.set_label(dl.title.clone());
-            dn.set_children(vec![NodeId(5), NodeId(6)]);
-            let mut tn = Node::new(Role::Label);
-            tn.set_value(dl.text.replace('\t', "  "));
-            let mut ok = Node::new(Role::Button);
-            ok.set_label("OK");
-            ok.add_action(accesskit::Action::Click);
-            nodes.extend([(NodeId(4), dn), (NodeId(5), tn), (NodeId(6), ok)]);
-            children.push(NodeId(4));
-            focus = NodeId(6);
-        }
-        let mut r = Node::new(Role::Window);
-        r.set_label("rsize");
-        r.set_children(children);
-        nodes.push((root, r));
-        TreeUpdate { nodes, tree: Some(TreeInfo::new(root)), tree_id: TreeId::ROOT, focus }
-    }
 
     fn open_window(&mut self, el: &ActiveEventLoop) -> bool {
         let (w, h, maximized) = self.settings.window.unwrap_or((1100.0, 780.0, false));
@@ -1273,35 +618,20 @@ impl Shell {
             // Maximizing shows the window on Windows: a resident start, which
             // stays hidden, maximizes when it is first shown.
             .with_maximized(maximized && !self.tray)
-            .with_window_icon(app_icon())
-            .with_theme(Some(if self.dark() { WinTheme::Dark } else { WinTheme::Light }))
+            .with_window_icon(rt_ui::window::icon(rsize::ui::appicon::render))
+            .with_theme(Some(rt_ui::window::theme(self.dark())))
             .with_visible(false);
-        let window = match el.create_window(attrs) {
-            Ok(w) => Rc::new(w),
-            Err(e) => {
-                eprintln!("rsize: cannot create window: {e}");
-                el.exit();
-                return false;
-            }
-        };
+        let Some((window, surface)) = rt_ui::window::create(el, attrs, "rsize") else { return false };
         let adapter = accesskit_winit::Adapter::with_event_loop_proxy(el, &window, self.proxy.clone());
-        let surface = match softbuffer::Context::new(window.clone()).and_then(|ctx| softbuffer::Surface::new(&ctx, window.clone())) {
-            Ok(s) => s,
-            Err(e) => {
-                eprintln!("rsize: cannot create drawing surface: {e}");
-                el.exit();
-                return false;
-            }
-        };
         #[cfg(windows)]
-        let hwnd = hwnd_of(&window);
+        let hwnd = rt_ui::window::hwnd_of(&window);
         #[cfg(windows)]
         {
             let proxy = self.proxy.clone();
             rt_sys::win::subclass(
                 hwnd,
                 &IDENT,
-                &mnemonics_of(&commands::menu_tree()),
+                &rt_ui::window::mnemonics_of(&commands::menu_tree()),
                 Box::new(move |m| {
                     let _ = proxy.send_event(UserEvent::Win(m));
                 }),
@@ -1358,44 +688,18 @@ fn shortcuts_text() -> String {
     rows.iter().map(|(k, v)| format!("{k}\t{v}")).collect::<Vec<_>>().join("\n")
 }
 
-fn app_icon() -> Option<WinIcon> {
-    let n = 32;
-    WinIcon::from_rgba(rsize::ui::appicon::render(n), n, n).ok()
-}
-
-#[cfg(windows)]
-fn mnemonics_of(tree: &[(&'static str, Vec<commands::M>)]) -> String {
-    tree.iter().filter_map(|(t, _)| tr(t).split('&').nth(1).and_then(|s| s.chars().next())).collect()
-}
-
-#[cfg(windows)]
-fn hwnd_of(window: &Window) -> rt_sys::win::HWND {
-    use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
-    match window.window_handle().map(|h| h.as_raw()) {
-        Ok(RawWindowHandle::Win32(h)) => h.hwnd.get() as _,
-        _ => std::ptr::null_mut(),
-    }
-}
-
 /// Starts resident mode on Linux: without an icon, a hidden window could not
 /// be reached or closed, so rsize then runs as a normal window.
 #[cfg(not(windows))]
 fn start_resident(shell: &mut Shell) {
-    use rt_sys::linux::shell as ls;
     let proxy = std::sync::Mutex::new(shell.proxy.clone());
-    let labels = ls::TrayLabels { tip: "rsize".into(), open: tr("Open rsize"), exit: tr("Exit") };
-    // Only a resident rsize listens for later launches, as on Windows.
-    let cfg = ls::Config { app: "rsize", icon: rsize::ui::appicon::render, tray: Some(labels), listen_without_icon: false };
-    let resident = ls::Shell::new(
-        cfg,
-        Box::new(move |m| {
-            if let Ok(p) = proxy.lock() {
-                let _ = p.send_event(UserEvent::Shell(m));
-            }
-        }),
-    );
-    shell.tray = resident.has_icon();
-    shell.resident = shell.tray.then_some(resident);
+    let send = Box::new(move |m| {
+        if let Ok(p) = proxy.lock() {
+            let _ = p.send_event(UserEvent::Shell(m));
+        }
+    });
+    shell.resident = rt_ui::resident::start("rsize", rsize::ui::appicon::render, tr("Open rsize"), tr("Exit"), send);
+    shell.tray = shell.resident.is_some();
 }
 
 impl ApplicationHandler<UserEvent> for Shell {
@@ -1534,7 +838,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 let (x, y) = (position.x as f32, position.y as f32);
                 self.cursor = Some((x, y));
                 #[cfg(not(windows))]
-                if self.menu_pointer(x, y) {
+                if self.menu_pointer(el, x, y) {
                     return;
                 }
                 if self.drag.is_some() {
@@ -1589,16 +893,15 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
             WindowEvent::MouseWheel { delta, .. } if self.dialog.is_none() => {
                 #[cfg(not(windows))]
-                if self.menu.is_open() {
-                    if let Some((l, _)) = self.cursor.and_then(|(x, y)| self.menu.row_at(x, y)) {
-                        let down = match delta {
-                            MouseScrollDelta::LineDelta(_, y) => y < 0.0,
-                            MouseScrollDelta::PixelDelta(p) => p.y < 0.0,
-                        };
-                        self.menu.wheel(l, if down { 2 } else { -2 });
-                        self.redraw();
+                {
+                    let down = match delta {
+                        MouseScrollDelta::LineDelta(_, y) => y < 0.0,
+                        MouseScrollDelta::PixelDelta(p) => p.y < 0.0,
+                    };
+                    let step = rt_ui::menus::wheel(&mut self.menu, self.cursor, down);
+                    if self.menu_step(el, step) {
+                        return;
                     }
-                    return;
                 }
                 let Some((x, y)) = self.cursor else { return };
                 let rows = match delta {
@@ -1645,25 +948,20 @@ impl ApplicationHandler<UserEvent> for Shell {
 /// Whether "Analyze with rsize" is on the Explorer menu of folders, for this rsize.exe.
 #[cfg(windows)]
 fn integrated_here() -> bool {
-    let exe = rt_sys::win::assoc::current_exe().unwrap_or_default();
-    rt_sys::win::assoc::folder_status("rsize", &rt_sys::win::assoc::Keys::user("rsize"), &exe) == rt_sys::win::assoc::Status::Here
+    rt_ui::explorer::folders_here("rsize")
 }
 
 /// Adds "Analyze with rsize" to the Explorer menu of folders and drives
 /// (current user only), or takes it out; returns the message to show.
 #[cfg(windows)]
 fn integrate(on: bool) -> Result<String, String> {
-    use rt_sys::win::assoc;
-    let keys = assoc::Keys::user("rsize");
-    let failed = |e: assoc::Error| tf("Cannot change the Windows registry (error {}).", &[&e.to_string()]);
-    if on {
-        let exe = assoc::current_exe()?;
-        assoc::register_folders("rsize", &keys, &exe, &tr("Analyze with rsize")).map_err(failed)?;
-        Ok(tr("“Analyze with rsize” was added to the Explorer context menu of folders and drives."))
-    } else {
-        assoc::unregister_folders("rsize", &keys).map_err(failed)?;
-        Ok(tr("“Analyze with rsize” was removed from the Explorer context menu."))
-    }
+    let texts = rt_ui::explorer::FolderTexts {
+        verb: tr("Analyze with rsize"),
+        added: tr("“Analyze with rsize” was added to the Explorer context menu of folders and drives."),
+        removed: tr("“Analyze with rsize” was removed from the Explorer context menu."),
+        failed: tr("Cannot change the Windows registry (error {})."),
+    };
+    rt_ui::explorer::set_folders("rsize", on, &texts)
 }
 
 const USAGE: &str = "rsize [--tray] [--new-window] [folder]
@@ -1796,7 +1094,7 @@ fn main() {
         handle: None,
         generation: 0,
         tree_gen: 0,
-        dialog: help.then(|| Dialog { title: "rsize".into(), text: USAGE.into(), panel: Rect::default(), ok: Rect::default() }),
+        dialog: help.then(|| Message::new("rsize", USAGE)),
         last_click: None,
         args,
         #[cfg(windows)]

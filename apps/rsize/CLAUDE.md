@@ -79,7 +79,7 @@ módulos do crate:
   (`splitter`, `settings.split`). As colunas saem de `columns()`: largura fixa e prioridade; com pouco espaço
   saem as de número mais alto, e uma coluna (`Name`, `Type`) fica com o resto;
   `ui/theme.rs`, `ui/appicon.rs`, `ui/menu.rs` (menus desenhados, só fora do Windows).
-- `main.rs` — janela, menus nativos (Windows) ou desenhados (Linux), rato, teclado, leitura em segundo plano
+- `main.rs` (com `input.rs`, `menus.rs` e `render.rs`: o mesmo `impl Shell` repartido por assunto; a base da janela, os menus desenhados e o painel de mensagem vêm do `rt-ui`) — janela, menus nativos (Windows) ou desenhados (Linux), rato, teclado, leitura em segundo plano
   (eventos `Scan(geração, …)`; os de leituras antigas são ignorados). O treemap é refeito quando muda a pasta,
   o tamanho ou a ordem; durante o redimensionamento é esticado e refeito 150 ms depois. A tarte e os anéis
   são refeitos logo (poucos milhares de segmentos), porque esticados ficariam ovais. Modo residente (`--tray`,

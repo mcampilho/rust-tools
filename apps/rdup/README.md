@@ -188,6 +188,18 @@ a better order (on a folder of 60 000 small build files, five times faster
 than one at a time). Whole files are read one at a time, so that the head does
 not jump between them.
 
+**The first search and the antivirus.** Most of the time of step 3, the first
+time, is not rdup's: an antivirus checks each file the first time a program
+opens it to read, and some (Bitdefender, measured) read the whole file to do
+so, though rdup asks for only 8 KB of it. On a hard disk that is 15 to 30
+files of 1 MB or more a second, the disk's own speed; opened for their name and
+size only, the same files take 20 to 100 times less. The next searches are
+fast: the antivirus remembers the files it checked, and rdup the hashes. For a
+first search of several large drives, adding `rdup.exe` to the antivirus's
+exceptions for the time of the search (in Bitdefender, among the antivirus
+settings, an exception for a program) makes step 3 many times faster; take it
+out again afterwards.
+
 ### Reading the drives
 
 The same three ways as [rsize](../rsize/README.md), shared through the
@@ -251,8 +263,10 @@ WSL2, not on a real Linux desktop.
 
 ## Next
 
-Faster first searches on many large drives, and filters for folders (dates,
-number of files).
+Filters for folders (dates, number of files). A first search of many large
+drives is slow mostly through the antivirus (see "The first search and the
+antivirus"); reading the first and last bytes without opening each file (from
+the NTFS table, as administrator) is the way left to try.
 
 ## License
 

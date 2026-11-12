@@ -27,6 +27,7 @@ Correm na raiz do repositório. Saída: `target\release-small\rpad.exe`. Rust 1.
 - `app` — estado, comandos, sessão, recuperação, definições, input. Fala com o SO através
   do trait `Host` (diálogos, clipboard), o que permite testes de fluxo completos sem janela.
 - `ui` — widgets, vista do editor, preview Markdown; o desenho no CPU vem de `rt-gfx`.
+- `main.rs` — a janela e o ciclo de eventos; o `impl Shell` está repartido por `input.rs` (teclado, rato, cursor), `menus.rs` (menus e o seu tema) e `render.rs` (desenho e árvore para leitores de ecrã). A criação da janela, o ícone e as teclas de acesso vêm do `rt-ui`.
 - `win` — Win32 de `rt-sys` (menus com dark mode via `WM_UAHDRAWMENU`, diálogos, tray, instância única),
   com a identidade do rpad e os seus tipos de ficheiro; `win/assoc.rs`: os tipos para "Editar com o rpad" e
   editor predefinido (`rt_sys::win::assoc`, só HKCU), pelo menu Ficheiro › Integração com o Windows ou

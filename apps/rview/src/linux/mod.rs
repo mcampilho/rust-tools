@@ -43,7 +43,7 @@ pub fn open_file(dir: Option<&Path>, filter: &[(String, &str)]) -> Option<PathBu
 
 /// Resident mode: the socket for later launches and the tray icon.
 pub mod shell {
-    pub use rt_sys::linux::shell::{Config, Msg, Shell, TrayLabels};
+    pub use rt_sys::linux::shell::{Msg, Shell};
     use std::path::PathBuf;
 
     pub const APP: &str = "rview";

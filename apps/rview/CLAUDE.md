@@ -27,7 +27,7 @@ Correm na raiz do repositório. Saída: `target\release\rview.exe`. Rust 1.88+, 
 - `syntax/` — cache de estados por linha para o realce; linguagens, lexer e cores vêm de `rt-syntax`.
 - `media.rs` — PDF via `Windows.Data.Pdf` e imagens via codecs do Windows; em Linux, hayro e image
   (threads em fundo, cache de 256 MB). Os tamanhos das páginas são em DIPs nos dois sistemas.
-- `view.rs`, `main.rs` — vista, janela, input, modo `--tray`.
+- `view.rs`, `main.rs` — vista, janela, input, modo `--tray`. O `impl Shell` está repartido por `input.rs`, `menus.rs` e `render.rs`; a base da janela, os menus desenhados e o painel de mensagem vêm do `rt-ui`.
 - `win/` — Win32 de `rt-sys` (menus escuros, diálogos, tray) com a identidade do rview, mais `clipboard.rs`
   (o `Payload` em vários formatos) e `assoc.rs` (os tipos de ficheiro do rview para `rt_sys::win::assoc`, que
   escreve as associações só em HKCU e tem os testes).

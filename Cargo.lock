@@ -2468,6 +2468,7 @@ dependencies = [
  "rt-core",
  "rt-gfx",
  "rt-sys",
+ "rt-ui",
  "softbuffer",
  "tiny-skia",
  "windows-sys 0.59.0",
@@ -2486,6 +2487,7 @@ dependencies = [
  "rt-gfx",
  "rt-scan",
  "rt-sys",
+ "rt-ui",
  "softbuffer",
  "tiny-skia",
  "windows-sys 0.59.0",
@@ -2599,6 +2601,7 @@ dependencies = [
  "rt-gfx",
  "rt-syntax",
  "rt-sys",
+ "rt-ui",
  "softbuffer",
  "tiny-skia",
  "windows-sys 0.59.0",
@@ -2617,6 +2620,7 @@ dependencies = [
  "rt-gfx",
  "rt-scan",
  "rt-sys",
+ "rt-ui",
  "softbuffer",
  "tiny-skia",
  "windows-sys 0.59.0",
@@ -2667,6 +2671,17 @@ dependencies = [
  "libc",
  "rt-core",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "rt-ui"
+version = "0.1.0"
+dependencies = [
+ "rt-core",
+ "rt-gfx",
+ "rt-sys",
+ "softbuffer",
+ "winit",
 ]
 
 [[package]]
@@ -2734,6 +2749,7 @@ dependencies = [
  "rt-gfx",
  "rt-syntax",
  "rt-sys",
+ "rt-ui",
  "softbuffer",
  "tiny-skia",
  "windows",
@@ -2750,6 +2766,7 @@ dependencies = [
  "rt-core",
  "rt-gfx",
  "rt-sys",
+ "rt-ui",
  "softbuffer",
  "tiny-skia",
  "windows",

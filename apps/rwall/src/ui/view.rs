@@ -10,7 +10,7 @@
 //! [`draw`] paints the window and returns where each control is, so the
 //! clicks are tested against exactly what was drawn.
 
-use super::gfx::{Align, Color, FontId, Gfx, Rect};
+use super::gfx::{Align, FontId, Gfx, Rect};
 use super::theme::Theme;
 use crate::i18n::{tf, tr};
 use crate::live::{Kind, LiveFit, PauseWhen, Scene};
@@ -170,234 +170,77 @@ pub fn frequency_label(f: Frequency) -> &'static str {
     }
 }
 
-struct Painter<'a> {
-    g: &'a mut Gfx,
-    t: &'a Theme,
-    s: f32,
-    hot: Option<Hit>,
-    hits: Vec<(Rect, Hit)>,
-    /// Clicks count only inside this.
-    full: Rect,
-}
+type Painter<'a> = rt_ui::controls::Painter<'a, Hit>;
 
 /// A button: text, what it does, enabled, primary.
-type Button = (String, Hit, bool, bool);
+type Button = rt_ui::controls::Button<Hit>;
 
-impl Painter<'_> {
-    fn px(&self, v: f32) -> f32 {
-        v * self.s
+/// The card at the top of each tab: a preview, a title, two lines of
+/// detail and one more line, with buttons along the bottom. Returns its
+/// height.
+#[allow(clippy::too_many_arguments)]
+fn card(p: &mut Painter, x: f32, y: f32, w: f32, thumb: Option<&tiny_skia::Pixmap>, title: Option<&str>, empty: &str, detail: &str, last: &str, buttons: &[Button]) -> f32 {
+    let t = *p.t;
+    let tw = p.px(192.0).min(w * 0.4);
+    let th = tw * 9.0 / 16.0;
+    let card_h = p.px(12.0) + th + p.px(12.0) + p.px(28.0) + p.px(12.0);
+    let card = Rect::new(x, y, w, card_h);
+    p.g.fill_rrect(card, p.px(6.0), t.panel);
+    p.g.stroke_rrect(card.inset(0.5), p.px(6.0), 1.0, t.border);
+    let thumb_box = Rect::new(x + p.px(12.0), y + p.px(12.0), tw, th);
+    p.g.fill_rect(thumb_box, t.field);
+    if let Some(img) = thumb {
+        // Fitted into the box, centred.
+        let k = (thumb_box.w / img.width() as f32).min(thumb_box.h / img.height() as f32);
+        let (iw, ih) = (img.width() as f32 * k, img.height() as f32 * k);
+        let dest = Rect::new(thumb_box.x + (thumb_box.w - iw) / 2.0, thumb_box.y + (thumb_box.h - ih) / 2.0, iw, ih);
+        p.g.draw_image(img, dest);
+    } else {
+        p.g.text_in(&tr("No picture yet"), thumb_box, p.px(11.5), FontId::Italic, t.dim, Align::Center);
     }
-
-    fn hit(&mut self, r: Rect, h: Hit) {
-        let vis = r.intersect(&self.full);
-        if vis.w > 0.0 && vis.h > 0.0 {
-            self.hits.push((vis, h));
-        }
-    }
-
-    fn label(&mut self, text: &str, r: Rect, px: f32, font: FontId, c: Color) -> f32 {
-        let s = ellipsize(self.g, text, r.w, self.px(px), font);
-        self.g.text_in(&s, r, self.px(px), font, c, Align::Left)
-    }
-
-    fn heading(&mut self, text: &str, x: f32, y: f32, w: f32) {
-        let r = Rect::new(x, y, w, self.px(24.0));
-        let c = self.t.text;
-        self.label(text, r, 13.5, FontId::Semibold, c);
-    }
-
-    /// Lines of dim (or warning) text, wrapped; returns the new `y`.
-    fn note(&mut self, text: &str, x: f32, mut y: f32, w: f32, warn: bool) -> f32 {
-        let c = if warn { self.t.warn } else { self.t.dim };
-        let px = self.px(11.5);
-        for l in wrap_words(self.g, text, w, px, FontId::Regular).iter().take(3) {
-            self.label(l, Rect::new(x, y, w, self.px(18.0)), 11.5, FontId::Regular, c);
-            y += self.px(18.0);
-        }
-        y
-    }
-
-    fn button(&mut self, r: Rect, text: &str, h: Hit, enabled: bool, primary: bool) {
-        let t = *self.t;
-        let rad = self.px(4.0);
-        let hot = enabled && self.hot == Some(h);
-        if primary && enabled {
-            let bg = if hot { t.accent.mix(t.bg, 0.15) } else { t.accent };
-            self.g.fill_rrect(r, rad, bg);
-        } else {
-            self.g.fill_rrect(r, rad, t.panel);
-            if hot {
-                self.g.fill_rrect(r, rad, t.hover);
+    let ix = thumb_box.right() + p.px(14.0);
+    let iw = card.right() - ix - p.px(12.0);
+    let mut ty = y + p.px(10.0);
+    match title {
+        Some(title) => {
+            p.label(title, Rect::new(ix, ty, iw, p.px(22.0)), 14.0, FontId::Semibold, t.text);
+            ty += p.px(22.0);
+            let px = p.px(11.5);
+            let mut lines = wrap_words(p.g, detail, iw, px, FontId::Regular);
+            if lines.len() > 2 {
+                lines.truncate(2);
+                let more = format!("{}…", lines[1]);
+                lines[1] = ellipsize(p.g, &more, iw, px, FontId::Regular);
             }
-            self.g.stroke_rrect(r.inset(0.5), rad, 1.0, t.border);
-        }
-        let c = if !enabled {
-            t.dim
-        } else if primary {
-            t.on_accent
-        } else {
-            t.text
-        };
-        let px = self.px(12.5);
-        let label = ellipsize(self.g, text, r.w - self.px(12.0), px, FontId::Regular);
-        self.g.text_in(&label, r, px, FontId::Regular, c, Align::Center);
-        if enabled {
-            self.hit(r, h);
-        }
-    }
-
-    /// A button as wide as its text (at least `min`).
-    fn text_width(&mut self, text: &str, min: f32) -> f32 {
-        (self.g.measure(text, self.px(12.5), FontId::Regular) + self.px(24.0)).max(self.px(min))
-    }
-
-    /// A check box or a radio button with its text; returns the row's width.
-    #[allow(clippy::too_many_arguments)]
-    fn choice(&mut self, x: f32, y: f32, w: f32, text: &str, on: bool, radio: bool, h: Hit) -> f32 {
-        let t = *self.t;
-        let row = Rect::new(x, y, w, self.px(26.0));
-        let b = self.px(16.0);
-        let bx = Rect::new(x + self.px(2.0), row.center_y() - b / 2.0, b, b);
-        if self.hot == Some(h) {
-            self.g.fill_rrect(Rect::new(x - self.px(4.0), y, w + self.px(8.0), row.h), self.px(4.0), t.hover);
-        }
-        if radio {
-            let (cx, cy) = (bx.x + b / 2.0, bx.y + b / 2.0);
-            self.g.fill_circle(cx, cy, b / 2.0, if on { t.accent } else { t.border });
-            self.g.fill_circle(cx, cy, b / 2.0 - self.px(1.2), t.field);
-            if on {
-                self.g.fill_circle(cx, cy, b / 2.0 - self.px(4.5), t.accent);
+            for l in &lines {
+                p.label(l, Rect::new(ix, ty, iw, p.px(17.0)), 11.5, FontId::Regular, t.dim);
+                ty += p.px(17.0);
             }
-        } else if on {
-            self.g.fill_rrect(bx, self.px(3.0), t.accent);
-            let (x0, y0) = (bx.x, bx.y);
-            let pts = [(x0 + b * 0.22, y0 + b * 0.52), (x0 + b * 0.42, y0 + b * 0.72), (x0 + b * 0.78, y0 + b * 0.3)];
-            self.g.polyline(&pts, self.px(1.8), t.on_accent, false);
-        } else {
-            self.g.fill_rrect(bx, self.px(3.0), t.field);
-            self.g.stroke_rrect(bx.inset(0.5), self.px(3.0), 1.0, t.dim);
+            p.label(last, Rect::new(ix, ty, iw, p.px(17.0)), 11.5, FontId::Regular, t.dim);
         }
-        let tx = bx.right() + self.px(8.0);
-        let tw = self.label(text, Rect::new(tx, y, w - (tx - x), row.h), 12.5, FontId::Regular, t.text);
-        let used = tx - x + tw + self.px(6.0);
-        self.hit(Rect::new(x, y, used.min(w), row.h), h);
-        used
-    }
-
-    fn field(&mut self, r: Rect, value: &str, placeholder: &str, f: Field, focus: bool) {
-        let t = *self.t;
-        let rad = self.px(4.0);
-        self.g.fill_rrect(r, rad, t.field);
-        self.g.stroke_rrect(r.inset(0.5), rad, if focus { 1.5 } else { 1.0 }, if focus { t.accent } else { t.border });
-        let inner = Rect::new(r.x + self.px(7.0), r.y, r.w - self.px(14.0), r.h);
-        let px = self.px(12.5);
-        if value.is_empty() && !focus {
-            self.label(placeholder, inner, 12.5, FontId::Italic, t.dim);
-        } else {
-            // The end of the text stays in view while typing.
-            let mut shown = value.to_string();
-            while !shown.is_empty() && self.g.measure(&shown, px, FontId::Regular) > inner.w - self.px(4.0) {
-                shown.remove(0);
-            }
-            let w = self.g.text_in(&shown, inner, px, FontId::Regular, t.text, Align::Left);
-            if focus {
-                let cx = (inner.x + w + self.px(1.0)).round();
-                self.g.fill_rect(Rect::new(cx, r.y + self.px(5.0), self.px(1.0).max(1.0), r.h - self.px(10.0)), t.text);
-            }
-        }
-        self.hit(r, Hit::Field(f));
-    }
-
-    /// "[−] value [+]".
-    fn stepper(&mut self, x: f32, y: f32, value: &str, less: Hit, more: Hit) -> f32 {
-        let b = self.px(26.0);
-        self.button(Rect::new(x, y, b, b), "−", less, true, false);
-        let vw = self.g.measure(value, self.px(12.5), FontId::Semibold).max(self.px(28.0)) + self.px(12.0);
-        let t = self.t.text;
-        self.g.text_in(value, Rect::new(x + b, y, vw, b), self.px(12.5), FontId::Semibold, t, Align::Center);
-        self.button(Rect::new(x + b + vw, y, b, b), "+", more, true, false);
-        2.0 * b + vw
-    }
-
-    /// Buttons side by side, as wide as their texts when they fit, else in
-    /// equal shares.
-    fn segments(&mut self, x: f32, y: f32, w: f32, buttons: &[Button], max_each: f32) {
-        let n = buttons.len() as f32;
-        let gap = self.px(6.0);
-        let seg_w = ((w - (n - 1.0) * gap) / n).min(self.px(max_each));
-        for (i, (text, h, enabled, primary)) in buttons.iter().enumerate() {
-            let r = Rect::new(x + i as f32 * (seg_w + gap), y, seg_w, self.px(28.0));
-            self.button(r, text, *h, *enabled, *primary);
+        None => {
+            p.label(empty, Rect::new(ix, ty, iw, p.px(22.0)), 12.5, FontId::Regular, t.dim);
         }
     }
-
-    /// The card at the top of each tab: a preview, a title, two lines of
-    /// detail and one more line, with buttons along the bottom. Returns its
-    /// height.
-    #[allow(clippy::too_many_arguments)]
-    fn card(&mut self, x: f32, y: f32, w: f32, thumb: Option<&tiny_skia::Pixmap>, title: Option<&str>, empty: &str, detail: &str, last: &str, buttons: &[Button]) -> f32 {
-        let t = *self.t;
-        let tw = self.px(192.0).min(w * 0.4);
-        let th = tw * 9.0 / 16.0;
-        let card_h = self.px(12.0) + th + self.px(12.0) + self.px(28.0) + self.px(12.0);
-        let card = Rect::new(x, y, w, card_h);
-        self.g.fill_rrect(card, self.px(6.0), t.panel);
-        self.g.stroke_rrect(card.inset(0.5), self.px(6.0), 1.0, t.border);
-        let thumb_box = Rect::new(x + self.px(12.0), y + self.px(12.0), tw, th);
-        self.g.fill_rect(thumb_box, t.field);
-        if let Some(img) = thumb {
-            // Fitted into the box, centred.
-            let k = (thumb_box.w / img.width() as f32).min(thumb_box.h / img.height() as f32);
-            let (iw, ih) = (img.width() as f32 * k, img.height() as f32 * k);
-            let dest = Rect::new(thumb_box.x + (thumb_box.w - iw) / 2.0, thumb_box.y + (thumb_box.h - ih) / 2.0, iw, ih);
-            self.g.draw_image(img, dest);
-        } else {
-            self.g.text_in(&tr("No picture yet"), thumb_box, self.px(11.5), FontId::Italic, t.dim, Align::Center);
-        }
-        let ix = thumb_box.right() + self.px(14.0);
-        let iw = card.right() - ix - self.px(12.0);
-        let mut ty = y + self.px(10.0);
-        match title {
-            Some(title) => {
-                self.label(title, Rect::new(ix, ty, iw, self.px(22.0)), 14.0, FontId::Semibold, t.text);
-                ty += self.px(22.0);
-                let px = self.px(11.5);
-                let mut lines = wrap_words(self.g, detail, iw, px, FontId::Regular);
-                if lines.len() > 2 {
-                    lines.truncate(2);
-                    let more = format!("{}…", lines[1]);
-                    lines[1] = ellipsize(self.g, &more, iw, px, FontId::Regular);
-                }
-                for l in &lines {
-                    self.label(l, Rect::new(ix, ty, iw, self.px(17.0)), 11.5, FontId::Regular, t.dim);
-                    ty += self.px(17.0);
-                }
-                self.label(last, Rect::new(ix, ty, iw, self.px(17.0)), 11.5, FontId::Regular, t.dim);
-            }
-            None => {
-                self.label(empty, Rect::new(ix, ty, iw, self.px(22.0)), 12.5, FontId::Regular, t.dim);
-            }
-        }
-        // Buttons along the bottom of the card.
-        let by = card.bottom() - self.px(12.0) - self.px(28.0);
-        let (bx0, bw) = (x + self.px(12.0), w - self.px(24.0));
-        let n = buttons.len().max(1) as f32;
-        let mut widths: Vec<f32> = buttons.iter().map(|b| self.text_width(&b.0, 0.0)).collect();
-        let total: f32 = widths.iter().sum::<f32>() + self.px(8.0) * (n - 1.0);
-        if total <= bw {
-            let extra = (bw - total) / n;
-            widths.iter_mut().for_each(|w| *w += extra.min(self.px(24.0)));
-        } else {
-            widths.fill(((bw - self.px(8.0) * (n - 1.0)) / n).max(self.px(60.0)));
-        }
-        let mut bx = bx0;
-        for (i, (text, h, enabled, primary)) in buttons.iter().enumerate() {
-            let r = Rect::new(bx, by, widths[i], self.px(28.0));
-            bx += widths[i] + self.px(8.0);
-            self.button(r, text, *h, *enabled, *primary);
-        }
-        card_h
+    // Buttons along the bottom of the card.
+    let by = card.bottom() - p.px(12.0) - p.px(28.0);
+    let (bx0, bw) = (x + p.px(12.0), w - p.px(24.0));
+    let n = buttons.len().max(1) as f32;
+    let mut widths: Vec<f32> = buttons.iter().map(|b| p.text_width(&b.0, 0.0)).collect();
+    let total: f32 = widths.iter().sum::<f32>() + p.px(8.0) * (n - 1.0);
+    if total <= bw {
+        let extra = (bw - total) / n;
+        widths.iter_mut().for_each(|w| *w += extra.min(p.px(24.0)));
+    } else {
+        widths.fill(((bw - p.px(8.0) * (n - 1.0)) / n).max(p.px(60.0)));
     }
+    let mut bx = bx0;
+    for (i, (text, h, enabled, primary)) in buttons.iter().enumerate() {
+        let r = Rect::new(bx, by, widths[i], p.px(28.0));
+        bx += widths[i] + p.px(8.0);
+        p.button(r, text, *h, *enabled, *primary);
+    }
+    card_h
 }
 
 /// Height of the row of tabs.
@@ -409,7 +252,8 @@ pub fn draw(g: &mut Gfx, m: &Model, t: &Theme, s: f32, full: Rect) -> Drawn {
     let bar = Rect::new(full.x, full.y, full.w, TABS_H * s);
     let content = Rect::new(full.x, bar.bottom(), full.w, (full.h - bar.h).max(0.0));
     g.set_clip(Some(content));
-    let mut p = Painter { g, t, s, hot: m.hot, hits: Vec::new(), full: content };
+    let pal = t.palette();
+    let mut p = Painter::new(g, &pal, s, m.hot, content);
     let pad = p.px(20.0);
     let x = full.x + pad;
     let w = (full.w - 2.0 * pad).max(p.px(200.0));
@@ -482,7 +326,7 @@ fn static_tab(p: &mut Painter, m: &Model, x: f32, mut y: f32, w: f32) -> f32 {
         (tr("Show the file"), Hit::OpenFolder, true, false),
     ];
     let empty = tr("rwall has not changed the wallpaper yet.");
-    y += p.card(x, y, w, m.thumb, title.as_deref(), &empty, &detail, &last, &buttons) + p.px(6.0);
+    y += card(p, x, y, w, m.thumb, title.as_deref(), &empty, &detail, &last, &buttons) + p.px(6.0);
     let (status, warn) = match m.error {
         Some(e) => (e.to_string(), true),
         None => (m.status.clone(), false),
@@ -530,7 +374,7 @@ fn static_tab(p: &mut Painter, m: &Model, x: f32, mut y: f32, w: f32) -> f32 {
             let cw = p.px(100.0);
             let cap = ellipsize(p.g, &caption, cw, p.px(12.0), FontId::Regular);
             p.g.text_in(&cap, Rect::new(fx - cw - p.px(8.0), y, cw, field_h), p.px(12.0), FontId::Regular, t.dim, Align::Right);
-            p.field(Rect::new(fx, y, fw, field_h), value, &placeholder, f, m.focus == Some(f));
+            p.field(Rect::new(fx, y, fw, field_h), value, &placeholder, Hit::Field(f), m.focus == Some(f));
         }
         y += row + p.px(2.0);
     }
@@ -607,7 +451,7 @@ fn dynamic_tab(p: &mut Painter, m: &Model, x: f32, mut y: f32, w: f32) -> f32 {
     }
     let title = (!lv.title.is_empty()).then_some(lv.title.as_str());
     let empty = tr("Nothing chosen to play.");
-    y += p.card(x, y, w, lv.thumb, title, &empty, &tr(l.kind.label()), &lv.state, &buttons) + p.px(6.0);
+    y += card(p, x, y, w, lv.thumb, title, &empty, &tr(l.kind.label()), &lv.state, &buttons) + p.px(6.0);
     y = match lv.error {
         Some(e) => p.note(e, x, y, w, true),
         None => p.note(&lv.note, x, y, w, false),
@@ -793,7 +637,7 @@ fn widget_row(p: &mut Painter, m: &Model, wd: &Widget, x: f32, y: f32, w: f32) -
             let uw = p.px(104.0);
             let fw = (iw - cw - uw - p.px(12.0)).max(p.px(80.0));
             let f = Field::City(wd.id);
-            p.field(Rect::new(ix + cw, ry, fw, p.px(26.0)), &wd.city, &tr("e.g. Lisbon"), f, m.focus == Some(f));
+            p.field(Rect::new(ix + cw, ry, fw, p.px(26.0)), &wd.city, &tr("e.g. Lisbon"), Hit::Field(f), m.focus == Some(f));
             p.segments(ix + iw - uw, ry - p.px(1.0), uw, &units, 50.0);
             ry += row + p.px(2.0);
             let status = m.widgets.status.iter().find(|(id, _)| *id == wd.id).map(|(_, s)| s.clone());

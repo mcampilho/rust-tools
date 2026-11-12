@@ -1,0 +1,55 @@
+# Checks every push to master and every pull request: clippy without
+# warnings and all the tests of the workspace, on Windows and Linux.
+# Releases are built by release.yml.
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch cancels the run still going.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        # The Linux runner is the one the releases are built on.
+        os: [windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      # build.rs needs rc.exe for the icon and version info. The runner has
+      # it, but not on PATH.
+      - name: Put rc.exe on PATH
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $rc = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin\*\x64\rc.exe' |
+            Sort-Object FullName | Select-Object -Last 1
+          if (-not $rc) { throw 'rc.exe not found' }
+          $rc.DirectoryName | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace --locked

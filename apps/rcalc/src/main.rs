@@ -19,7 +19,7 @@ use winit::dpi::{LogicalSize, PhysicalPosition};
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
 use winit::keyboard::{Key as WKey, ModifiersState, NamedKey};
-use winit::window::{Icon as WinIcon, Theme as WinTheme, Window, WindowId, WindowLevel};
+use winit::window::{Theme as WinTheme, Window, WindowId, WindowLevel};
 
 enum UserEvent {
     A11y(accesskit_winit::Event),
@@ -492,12 +492,6 @@ impl Shell {
     }
 }
 
-/// Window icon (same artwork as the embedded .exe icon).
-fn app_icon() -> Option<WinIcon> {
-    let n = 32;
-    WinIcon::from_rgba(ui::appicon::render(n), n, n).ok()
-}
-
 fn tray_labels() -> (&'static str, &'static str, &'static str) {
     use rcalc::i18n::tr;
     (tr("Calculator"), tr("Open Calculator"), tr("Exit"))
@@ -532,34 +526,18 @@ impl Shell {
             .with_title(rcalc::i18n::tr("Calculator"))
             .with_inner_size(LogicalSize::new(w.max(ui::view::MIN_WIDTH), h.max(ui::view::MIN_HEIGHT)))
             .with_min_inner_size(LogicalSize::new(ui::view::MIN_WIDTH, ui::view::MIN_HEIGHT))
-            .with_window_icon(app_icon())
+            .with_window_icon(rt_ui::window::icon(ui::appicon::render))
             .with_theme(match self.app.theme_pref {
                 ThemePref::Dark => Some(WinTheme::Dark),
                 ThemePref::Light => Some(WinTheme::Light),
                 ThemePref::System => None,
             })
             .with_visible(false);
-        let window = match el.create_window(attrs) {
-            Ok(w) => Rc::new(w),
-            Err(e) => {
-                eprintln!("rcalc: cannot create window: {e}");
-                el.exit();
-                return;
-            }
-        };
+        let Some((window, surface)) = rt_ui::window::create(el, attrs, "rcalc") else { return };
         let adapter = accesskit_winit::Adapter::with_event_loop_proxy(el, &window, self.proxy.clone());
         if let Some(t) = window.theme() {
             self.system_dark = t == WinTheme::Dark;
         }
-        let surface = softbuffer::Context::new(window.clone()).and_then(|ctx| softbuffer::Surface::new(&ctx, window.clone()));
-        let surface = match surface {
-            Ok(s) => s,
-            Err(e) => {
-                eprintln!("rcalc: cannot create drawing surface: {e}");
-                el.exit();
-                return;
-            }
-        };
         if visible {
             window.set_visible(true);
         }

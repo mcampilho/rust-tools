@@ -10,6 +10,7 @@ license = "MIT"
 rt-core = { path = "../../crates/rt-core" }
 rt-gfx = { path = "../../crates/rt-gfx" }
 rt-sys = { path = "../../crates/rt-sys" }
+rt-ui = { path = "../../crates/rt-ui" }
 winit = { version = "0.30", default-features = false, features = ["rwh_06"] }
 softbuffer = { version = "0.4", default-features = false }
 tiny-skia = { version = "0.11", default-features = false, features = ["std", "simd"] }

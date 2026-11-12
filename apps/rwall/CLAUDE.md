@@ -52,7 +52,7 @@ Open-Meteo (geocodificação e previsão) para o widget de meteorologia, escolhi
 
 ## Arquitetura (`src/`)
 
-- `main.rs` — janela winit (escondida desde o arranque; mostrada logo sem `--tray`), desenhada só quando visível.
+- `main.rs` (com `input.rs`, `live_tab.rs` e `widgets_tab.rs`: o mesmo `impl Shell` repartido por assunto; a janela e os controlos do `ui/view.rs` vêm do `rt-ui`) — janela winit (escondida desde o arranque; mostrada logo sem `--tray`), desenhada só quando visível.
   Com `--tray` é a dona do ícone (`rt_sys::win::set_resident`, `tray::show`/`tray::popup`); `close` esconde com
   `--tray` e termina sem ele. Temporizador: `about_to_wait` com `ControlFlow::WaitUntil` a cada 30 s → `tick()`
   (só com `--tray`) compara `schedule::period(agora)` com `settings.last_period`. Uma mudança corre num fio
@@ -100,7 +100,7 @@ Open-Meteo (geocodificação e previsão) para o widget de meteorologia, escolhi
   pequena, que a placa estica — o GDI `StretchDIBits` HALFTONE gastava ~50 % de um núcleo; janela de controlo
   escondida para `TaskbarCreated`, `WM_DISPLAYCHANGE` e `GUID_CONSOLE_DISPLAY_STATE`; verifica a cada segundo se
   continua ligado e se deve pausar), `thumb.rs` (miniatura de vídeo pelo `IShellItemImageFactory`).
-- `main.rs` (fundo dinâmico) — `apply_live`/`live_changed`/`next_video`; o `Player` nasce na primeira vez e é largado
+- `live_tab.rs` (fundo dinâmico) — `apply_live`/`live_changed`/`next_video`; o `Player` nasce na primeira vez e é largado
   em `quit` (pára e repõe o fundo). Com o dinâmico ligado, o `tick` não muda a imagem estática (só roda o vídeo da
   pasta). Erro do leitor → `live.on = false` e mensagem.
 - `widgets/` — widgets do ambiente de trabalho. `mod.rs`: `WKind` (9 tipos, tamanhos por omissão e mínimos),
@@ -117,7 +117,7 @@ Open-Meteo (geocodificação e previsão) para o widget de meteorologia, escolhi
   um widget numa imagem transparente (tiny-skia + `Gfx`) e devolve as zonas (`Zone`; `Zone::Day` nos feriados, para
   os nomear por baixo do mês); testável em qualquer sistema. Um widget novo vai para o primeiro sítio livre a partir
   do canto superior direito (`Host2::place`).
-  `host.rs` (Windows): fio próprio com OLE, uma janela `WS_EX_LAYERED | WS_EX_TOOLWINDOW` por widget
+  `host/` (Windows; `mod.rs` o fio e as janelas, `input.rs` rato, teclado e menu, `timers.rs` o tempo e o desenho, `fence.rs` arrastar e largar): fio próprio com OLE, uma janela `WS_EX_LAYERED | WS_EX_TOOLWINDOW` por widget
   (`UpdateLayeredWindow`); presas = donas (`GWLP` owner) da janela que tem os ícones (`desktop::icons_window`, depois
   do `0x052C`) e `HWND_BOTTOM` → logo acima dos ícones; `WM_WINDOWPOSCHANGING` com `SWP_NOZORDER` segura o lugar
   (mesmo ao escrever numa nota, que se ativa; as outras têm `WS_EX_NOACTIVATE`). O procedimento só põe eventos numa
@@ -126,7 +126,7 @@ Open-Meteo (geocodificação e previsão) para o widget de meteorologia, escolhi
   outro; a um mover responde `DROPEFFECT_NONE` para a origem não apagar) e `DoDragDrop` com o `IDataObject` do
   Explorador; ícones por `thumb::shell_image` num fio. Verifica a cada 2 s o dono, se as janelas existem e as pastas
   das fences; `TaskbarCreated` recria. Eventos para a janela: `Changed`, `Remove`, `NewNote`, `Settings`, `Status`.
-- `main.rs` (widgets) — `apply_widgets` arranca/para o `Host` e manda a lista e o estilo (tema, acento, língua: a
+- `widgets_tab.rs` (widgets) — `apply_widgets` arranca/para o `Host` e manda a lista e o estilo (tema, acento, língua: a
   língua é por fio). `widget_event` guarda o que os widgets mudam (sem pisar a cidade a ser escrita). Cidade nova →
   `place` vazio → o anfitrião procura-a outra vez.
 - `i18n/strings.txt` — 10 línguas, como nas outras aplicações.

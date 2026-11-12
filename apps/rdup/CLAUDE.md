@@ -12,6 +12,7 @@ marca e confirma (Reciclagem ou uma pasta), nunca todas as cópias de um grupo. 
 ./dev.ps1 clippy -p rdup --all-targets
 ./dev.ps1 test -p rdup --release --lib screenshots '--' --ignored   # páginas e ícone em apps/rdup/target/screens/*.png
 $env:RDUP_BENCH_DIR = 'C:\|D:\'; ./dev.ps1 test -p rdup --release --lib bench '--' --ignored --nocapture   # RDUP_MIN, RDUP_CACHE
+$env:RDUP_BENCH_DIR = 'E:\'; ./dev.ps1 test -p rdup --release --lib edges_rate '--' --ignored --nocapture   # passo 2 com 1/4/16 fios; RDUP_N, RDUP_SKIP, RDUP_MIN
 ```
 
 Correm na raiz do repositório. Saída: `target\release-small\rdup.exe` (perfil `release-small`).
@@ -64,7 +65,7 @@ Correm na raiz do repositório. Saída: `target\release-small\rdup.exe` (perfil 
 - `ui/view.rs` — as três páginas (discos, pastas e filtros com a barra dos botões fixa em baixo; pesquisa;
   resultado), o calendário por cima (`CalLayout`, semanas a começar ao domingo em en-US, ja e pt-BR) e o
   `Layout` usado também para os cliques (`caret_at` para pôr o cursor numa caixa).
-- `main.rs` — janela, menus nativos (Windows) ou desenhados (Linux), rato, teclado, pesquisa em segundo plano
+- `main.rs` (com `input.rs`, `menus.rs` e `render.rs`: o mesmo `impl Shell` repartido por assunto; a base da janela, os menus desenhados e o painel de mensagem vêm do `rt-ui`) — janela, menus nativos (Windows) ou desenhados (Linux), rato, teclado, pesquisa em segundo plano
   (eventos com geração; os de pesquisas antigas são ignorados). Modo residente (`--tray`, como o rview e o
   rsize: escondido até pedir; outro arranque passa as pastas com `hand_off` e procura-as, `--new-window` não).
   Menu "Procurar duplicados com o rdup" nas pastas e discos (`rt_sys::win::assoc::register_folders`, só HKCU;
@@ -90,8 +91,13 @@ Correm na raiz do repositório. Saída: `target\release-small\rdup.exe` (perfil 
    (Ctrl+1/Ctrl+2).
 4. Feito (2026-11-08): marcar (caixa, Espaço), regras (mais recente, mais antiga, caminho mais curto, numa pasta),
    Reciclagem (Delete) e Mover para (Ctrl+M) num fio à parte depois de confirmar, CSV (Ctrl+S); escolha de
-   procurar ficheiros, pastas ou ambos. Cache de hashes feita depois (2026-11-08). Por fazer: a primeira pesquisa em
-   muitos discos grandes (o utilizador viu-a demorada, e o passo 2 por vezes lento).
+   procurar ficheiros, pastas ou ambos. Cache de hashes feita depois (2026-11-08). Analisado em 2026-11-12 (teste `edges_rate`, ficheiros nunca abertos repartidos
+   pelos casos): a primeira pesquisa demora no passo 2 por causa do antivírus. O Bitdefender lê o ficheiro inteiro na
+   primeira abertura para leitura (~85 MB/s num disco mecânico); abrir só os atributos é 20 a 100 vezes mais rápido.
+   O número de fios quase não conta (discos mecânicos: 14–27 ficheiros/s com 1, 4 ou 16; SSD: 95/389/295 com
+   1/4/16, por isso ficam 4). A segunda pesquisa é rápida (cache do antivírus e `hashes.bin`). README: pôr o
+   `rdup.exe` nas exceções do antivírus durante uma primeira pesquisa grande. Por experimentar: ler as pontas pela
+   MFT (administrador) sem abrir os ficheiros.
 
 ## Regras
 

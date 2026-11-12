@@ -9,7 +9,7 @@
 pub mod assoc;
 pub mod clipboard;
 
-pub use rt_sys::win::{darkmode, print_to_console, report, reveal_in_explorer, set_mnemonics, system_dark, tray, WinMsg, HWND};
+pub use rt_sys::win::{print_to_console, report, reveal_in_explorer, set_mnemonics, system_dark, tray, WinMsg, HWND};
 use rt_sys::win::Ident;
 use std::path::PathBuf;
 

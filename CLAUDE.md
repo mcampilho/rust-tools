@@ -38,6 +38,10 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
   meteorologia da Open-Meteo para o widget de meteorologia. Nenhuma outra.
 - `rustfmt.toml`: `max_width = 140`.
 
+## Verificação automática
+
+`.github/workflows/ci.yml` corre `cargo clippy --workspace --all-targets -- -D warnings` e `cargo test --workspace`, com `--locked`, em Windows e Linux (ubuntu-22.04, o mesmo das releases), a cada push ao `master` e em cada pull request. Um aviso do clippy falha o CI: é a regra `Pronto` desta página.
+
 ## Releases
 
 `.github/workflows/release.yml` corre com tags `<app>-v<versão>` (ex.: `rview-v1.1.0`). A versão da
@@ -63,7 +67,7 @@ chamadas). A `libxkbcommon-x11` e a `libxcb-xkb1` estão extraídas sem sudo em 
 O código comum está em `crates/` (ver `crates/README.pt.md`): `rt-core` (traduções, definições, árvore de
 menus), `rt-gfx` (desenho, texto, menus desenhados), `rt-sys` (Windows e Linux), `rt-scan` (leitura dos
 discos: Everything, MFT do NTFS, pasta a pasta; a árvore `model`, `volumes` e `format`; usado pelo rsize e
-pelo rdup), `rt-syntax` (realce) e `rt-build` (recursos do `.exe`). As aplicações guardam módulos pequenos com o mesmo nome de antes
+pelo rdup), `rt-ui` (base da janela: criar a janela, tema, menus desenhados, painel de mensagem, modo residente em Linux, menu do Explorador, controlos das páginas de definições), `rt-syntax` (realce) e `rt-build` (recursos do `.exe`). As aplicações guardam módulos pequenos com o mesmo nome de antes
 (`ui/gfx.rs`, `storage.rs`, `win/mod.rs`, `linux/mod.rs`...) que reexportam dos crates e lhes dão a
 identidade da aplicação. Uma correção num destes assuntos faz-se no crate, uma vez.
 

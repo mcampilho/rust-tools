@@ -11,6 +11,9 @@
 
 mod clip;
 mod commands;
+mod input;
+mod menus;
+mod render;
 mod doc;
 mod i18n;
 mod io;
@@ -27,8 +30,6 @@ mod win;
 mod linux;
 
 use commands::Command;
-#[cfg(windows)]
-use commands::M;
 use i18n::{tf, tr};
 use settings::Settings;
 use std::num::NonZeroU32;
@@ -43,7 +44,8 @@ use winit::dpi::LogicalSize;
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
 use winit::keyboard::{Key as WKey, ModifiersState, NamedKey};
-use winit::window::{CursorIcon, Fullscreen, Icon as WinIcon, Theme as WinTheme, Window, WindowId};
+use rt_ui::Message;
+use winit::window::{CursorIcon, Fullscreen, Theme as WinTheme, Window, WindowId};
 
 enum UserEvent {
     A11y(accesskit_winit::Event),
@@ -70,16 +72,6 @@ struct Win {
     hwnd: windows_sys::Win32::Foundation::HWND,
     #[cfg(windows)]
     menu: Option<win::menu::MenuBar>,
-}
-
-/// An in-app message (About, Keyboard shortcuts), drawn in the current
-/// theme. Lines containing a tab are shown as two aligned columns.
-struct Dialog {
-    title: String,
-    text: String,
-    /// Panel and OK button from the last frame (for clicks).
-    panel: Rect,
-    ok: Rect,
 }
 
 enum Drag {
@@ -116,7 +108,8 @@ struct Shell {
     /// Resident mode: closing the window hides it to the notification area.
     tray: bool,
     hidden: bool,
-    dialog: Option<Dialog>,
+    /// An in-app message (About, Keyboard shortcuts, the help).
+    dialog: Option<Message>,
     /// "Open with rview" is registered for this rview.exe.
     #[cfg(windows)]
     integrated: bool,
@@ -156,13 +149,7 @@ impl Shell {
 
     fn save_settings(&mut self) {
         if let Some(w) = &self.win {
-            let max = w.window.is_maximized();
-            if !max && w.window.fullscreen().is_none() && !w.window.is_minimized().unwrap_or(false) {
-                let s: LogicalSize<f64> = w.window.inner_size().to_logical(w.window.scale_factor());
-                self.settings.window = Some((s.width, s.height, false));
-            } else if let Some((ww, hh, _)) = self.settings.window {
-                self.settings.window = Some((ww, hh, max));
-            }
+            rt_ui::window::remember_size(&w.window, &mut self.settings.window);
         }
         let store = self.settings.to_store();
         self.location.save(&store);
@@ -343,145 +330,6 @@ impl Shell {
         n
     }
 
-    /// The context menu of the document.
-    #[cfg(windows)]
-    fn context_menu(&mut self, el: &ActiveEventLoop) {
-        let Some(hwnd) = self.win.as_ref().map(|w| w.hwnd) else { return };
-        let on = |s: &Shell, c: Command| Some((c, s.enabled(c)));
-        let items = [on(self, Command::Copy), on(self, Command::CopyPlain), None, on(self, Command::SelectAll)];
-        if let Some(c) = win::menu::popup(hwnd, &items) {
-            self.command(el, c);
-        }
-    }
-
-    /// The context menu of the document, at the pointer.
-    #[cfg(not(windows))]
-    fn context_menu(&mut self, _el: &ActiveEventLoop) {
-        use rt_core::menu::M::{Item, Sep};
-        let tree = vec![Item(Command::Copy), Item(Command::CopyPlain), Sep, Item(Command::SelectAll)];
-        let me = &*self;
-        let items = ui::menu::build(tree, &|c| me.checked(c), &|c| me.enabled(c));
-        let at = self.cursor.unwrap_or((0.0, 0.0));
-        self.menu.open(None, items, at, false);
-        self.redraw();
-    }
-
-    /// Opens the top-level menu `i` under its title.
-    #[cfg(not(windows))]
-    fn open_menu(&mut self, i: usize, keyboard: bool) {
-        let Some((_, tree)) = commands::menu_tree().into_iter().nth(i) else { return };
-        let me = &*self;
-        let items = ui::menu::build(tree, &|c| me.checked(c), &|c| me.enabled(c));
-        let Some(rect) = self.menu.titles.get(i).map(|t| t.rect) else { return };
-        self.menu.open(Some(i), items, (rect.x, rect.bottom() + 2.0), keyboard);
-        self.redraw();
-    }
-
-    #[cfg(not(windows))]
-    fn menu_act(&mut self, el: &ActiveEventLoop, act: ui::menu::Act) {
-        use ui::menu::Act;
-        match act {
-            Act::Run(c) => {
-                self.menu.close();
-                self.command(el, c);
-            }
-            Act::Switch(dir) => {
-                let n = self.menu.titles.len() as isize;
-                if let Some(top) = self.menu.top {
-                    self.open_menu((top as isize + dir).rem_euclid(n) as usize, true);
-                }
-            }
-            Act::None => self.redraw(),
-        }
-    }
-
-    /// Keyboard for the menus. Returns true when it used the key.
-    #[cfg(not(windows))]
-    fn menu_key(&mut self, el: &ActiveEventLoop, event: &winit::event::KeyEvent) -> bool {
-        use ui::menu::Act;
-        use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
-        let key = event.key_without_modifiers();
-        if !self.menu.is_open() {
-            let found = match &key {
-                WKey::Named(NamedKey::F10) => Some(0),
-                WKey::Character(c) if self.mods.alt_key() && !self.mods.control_key() => {
-                    let k = c.chars().next().and_then(|c| c.to_lowercase().next());
-                    self.menu.titles.iter().position(|t| t.mnemonic == k)
-                }
-                _ => None,
-            };
-            if let Some(i) = found {
-                self.open_menu(i, true);
-            }
-            return found.is_some();
-        }
-        let act = match &key {
-            WKey::Named(NamedKey::ArrowUp) => {
-                self.menu.up_down(-1);
-                Act::None
-            }
-            WKey::Named(NamedKey::ArrowDown) => {
-                self.menu.up_down(1);
-                Act::None
-            }
-            WKey::Named(NamedKey::ArrowLeft) => self.menu.left(),
-            WKey::Named(NamedKey::ArrowRight) => self.menu.right(),
-            WKey::Named(NamedKey::Enter | NamedKey::Space) => self.menu.enter(),
-            WKey::Named(NamedKey::Escape) => {
-                self.menu.back();
-                Act::None
-            }
-            WKey::Character(c) => c.chars().next().map_or(Act::None, |c| self.menu.mnemonic(c)),
-            _ => Act::None,
-        };
-        self.menu_act(el, act);
-        true
-    }
-
-    /// The pointer follows the menus.
-    #[cfg(not(windows))]
-    fn menu_pointer(&mut self, x: f32, y: f32) {
-        let title = self.menu.title_at(x, y);
-        if title != self.menu.hot {
-            self.menu.hot = title;
-            self.redraw();
-        }
-        if !self.menu.is_open() {
-            return;
-        }
-        if let Some((l, i)) = self.menu.row_at(x, y) {
-            self.menu.hover(l, i);
-            self.redraw();
-        } else if let Some(i) = title.filter(|i| self.menu.top.is_some_and(|t| t != *i)) {
-            self.open_menu(i, false);
-        }
-    }
-
-    /// A left press on the menus. Returns true when they took it.
-    #[cfg(not(windows))]
-    fn menu_press(&mut self, el: &ActiveEventLoop, x: f32, y: f32) -> bool {
-        if let Some(i) = self.menu.title_at(x, y) {
-            if self.menu.top == Some(i) {
-                self.menu.close();
-                self.redraw();
-            } else {
-                self.open_menu(i, false);
-            }
-            return true;
-        }
-        if !self.menu.is_open() {
-            return false;
-        }
-        if let Some((l, i)) = self.menu.row_at(x, y) {
-            let act = self.menu.click(l, i);
-            self.menu_act(el, act);
-        } else if !self.menu.contains(x, y) {
-            self.menu.close();
-            self.redraw();
-        }
-        true
-    }
-
     /// The close button: hides to the tray in resident mode.
     fn close(&mut self, el: &ActiveEventLoop) {
         if self.tray {
@@ -536,11 +384,6 @@ impl Shell {
         self.redraw();
     }
 
-    fn start_pan(&mut self, x: f32, y: f32) {
-        let (sx, sy) = self.viewer.scroll;
-        self.drag = Some(Drag::Pan { x, y, sx, sy });
-    }
-
     /// Runs a Windows Integration action from the menu and shows the result.
     #[cfg(windows)]
     fn integration(&mut self, action: Integration) {
@@ -553,7 +396,7 @@ impl Shell {
     }
 
     fn info(&mut self, title: &str, text: &str) {
-        self.dialog = Some(Dialog { title: title.to_string(), text: text.to_string(), panel: Rect::default(), ok: Rect::default() });
+        self.dialog = Some(Message::new(title, text));
         self.drag = None;
         self.redraw();
     }
@@ -587,281 +430,10 @@ impl Shell {
         }
     }
 
-    #[cfg(windows)]
-    fn sync_menu(&mut self) {
-        let Some(win) = &mut self.win else { return };
-        if !self.menu_dirty && win.menu.is_some() {
-            return;
-        }
-        self.menu_dirty = false;
-        if win.menu.is_none() || self.menu_rebuild {
-            self.menu_rebuild = false;
-            let tree = commands::menu_tree();
-            win::set_mnemonics(&mnemonics_of(&tree));
-            win.menu = Some(win::menu::MenuBar::install(win.hwnd, tree));
-        }
-        let me = &*self;
-        if let Some(m) = me.win.as_ref().and_then(|w| w.menu.as_ref()) {
-            m.sync(|c| me.checked(c), |c| me.enabled(c));
-        }
-    }
-
-    /// The titles of the drawn menu bar, in the current language.
-    #[cfg(not(windows))]
-    fn sync_menu(&mut self) {
-        self.menu_dirty = false;
-        if !self.menu.titles.is_empty() && !self.menu_rebuild {
-            return;
-        }
-        self.menu_rebuild = false;
-        self.menu.titles = commands::menu_tree()
-            .iter()
-            .map(|(title, _)| {
-                let (label, mnemonic, mark) = ui::menu::parse_label(&tr(title));
-                ui::menu::Title { label, mnemonic, mark, rect: Rect::default() }
-            })
-            .collect();
-        self.redraw();
-    }
-
     // ------------------------------------------------------------ input
-
-    fn key(&mut self, el: &ActiveEventLoop, event: &winit::event::KeyEvent) {
-        if self.dialog.is_some() {
-            if matches!(event.logical_key, WKey::Named(NamedKey::Escape | NamedKey::Enter | NamedKey::Space)) {
-                self.dialog = None;
-                self.redraw();
-            }
-            return;
-        }
-        #[cfg(not(windows))]
-        if self.menu_key(el, event) {
-            return;
-        }
-        let ctrl = self.mods.control_key();
-        let shift = self.mods.shift_key();
-        let alt = self.mods.alt_key();
-        let logical = if ctrl || alt {
-            use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
-            event.key_without_modifiers()
-        } else {
-            event.logical_key.clone()
-        };
-        let s = self.scale();
-        let line = 48.0 * s;
-        let page = self.viewer.page_height();
-        let name = match &logical {
-            WKey::Character(c) => c.to_lowercase(),
-            WKey::Named(n) => match n {
-                NamedKey::F1 => "f1".into(),
-                NamedKey::F5 => "f5".into(),
-                NamedKey::F11 => "f11".into(),
-                _ => String::new(),
-            },
-            _ => String::new(),
-        };
-        if !name.is_empty() {
-            if let Some(cmd) = commands::lookup(ctrl, shift, alt, &name) {
-                return self.command(el, cmd);
-            }
-        }
-        match logical {
-            WKey::Named(NamedKey::ArrowDown) => self.viewer.scroll_by(0.0, line),
-            WKey::Named(NamedKey::ArrowUp) => self.viewer.scroll_by(0.0, -line),
-            WKey::Named(NamedKey::ArrowRight) => self.viewer.scroll_by(line, 0.0),
-            WKey::Named(NamedKey::ArrowLeft) => self.viewer.scroll_by(-line, 0.0),
-            WKey::Named(NamedKey::PageDown) => {
-                if !(ctrl && self.viewer.pdf_page_step(1)) {
-                    self.viewer.scroll_by(0.0, page)
-                }
-            }
-            WKey::Named(NamedKey::PageUp) => {
-                if !(ctrl && self.viewer.pdf_page_step(-1)) {
-                    self.viewer.scroll_by(0.0, -page)
-                }
-            }
-            WKey::Named(NamedKey::Space) => self.viewer.scroll_by(0.0, if shift { -page } else { page }),
-            WKey::Named(NamedKey::Home) => self.viewer.scroll_to(0.0),
-            WKey::Named(NamedKey::End) => self.viewer.scroll_to(f32::MAX),
-            WKey::Named(NamedKey::Escape) => {
-                if self.viewer.has_selection() {
-                    self.viewer.clear_selection();
-                    self.menu_dirty = true;
-                } else if let Some(w) = &self.win {
-                    if w.window.fullscreen().is_some() {
-                        w.window.set_fullscreen(None);
-                    }
-                }
-            }
-            _ => return,
-        }
-        self.redraw();
-    }
-
-    fn update_hover(&mut self) {
-        let (link, icon) = match (self.cursor.filter(|_| self.dialog.is_none()), &self.drag) {
-            (_, Some(Drag::Pan { .. })) => (None, CursorIcon::Grabbing),
-            (_, Some(Drag::Select)) => (None, self.cursor_icon),
-            (Some((x, y)), _) => match self.viewer.link_at(x, y) {
-                Some(l) => (Some(l), CursorIcon::Pointer),
-                None => (
-                    None,
-                    match self.viewer.hover(x, y, self.mods.alt_key()) {
-                        Hover::Arrow => CursorIcon::Default,
-                        Hover::Text => CursorIcon::Text,
-                        Hover::Cell => CursorIcon::Cell,
-                        Hover::Cross => CursorIcon::Crosshair,
-                    },
-                ),
-            },
-            _ => (None, CursorIcon::Default),
-        };
-        if link != self.viewer.hover_link {
-            self.viewer.hover_link = link;
-            self.redraw();
-        }
-        if icon != self.cursor_icon {
-            self.cursor_icon = icon;
-            if let Some(w) = &self.win {
-                w.window.set_cursor(icon);
-            }
-        }
-    }
-
-    fn follow(&mut self, href: &str) {
-        match self.viewer.follow(href) {
-            LinkAction::Scrolled => {}
-            LinkAction::OpenUrl(u) => {
-                #[cfg(windows)]
-                win::open_url(&u);
-                #[cfg(not(windows))]
-                linux::open_url(&u);
-            }
-            LinkAction::OpenFile(p, anchor) => self.open(&p, false, anchor),
-            LinkAction::Unsupported(h) => self.status_note = Some(tf("This link cannot be opened here: {}", &[&h])),
-        }
-        self.redraw();
-    }
 
     // ------------------------------------------------------------ frame
 
-    fn render(&mut self) {
-        let dark = self.dark();
-        let theme = ui::theme::Theme::new(dark);
-        let s = self.scale();
-        let Some(win) = &mut self.win else { return };
-        let size = win.window.inner_size();
-        let (Some(w), Some(h)) = (NonZeroU32::new(size.width), NonZeroU32::new(size.height)) else { return };
-        if win.surface.resize(w, h).is_err() {
-            return;
-        }
-        self.gfx.resize(w.get(), h.get());
-        let full = Rect::new(0.0, 0.0, w.get() as f32, h.get() as f32);
-        let mut area = full;
-        #[cfg(not(windows))]
-        let bar = area.take_top((28.0 * s).round());
-        let status = area.take_bottom((24.0 * s).round());
-        self.viewer.dark_pages = self.settings.dark_pages;
-        self.viewer.draw(&mut self.gfx, area, &theme, s, &self.media);
-        // Status bar.
-        let g = &mut self.gfx;
-        g.fill_rect(status, theme.status);
-        g.fill_rect(Rect::new(status.x, status.y, status.w, 1.0), theme.border);
-        let px = 12.0 * s;
-        let pad = 10.0 * s;
-        let right = self.viewer.status().join("    ");
-        let rw = g.measure(&right, px, FontId::Regular);
-        g.text_in(&right, Rect::new(status.right() - rw - pad, status.y, rw, status.h), px, FontId::Regular, theme.dim, Align::Left);
-        let left = self.viewer.hover_link.clone().or_else(|| self.status_note.clone()).or_else(|| self.viewer.path.as_ref().map(|p| p.display().to_string())).unwrap_or_default();
-        let lw = (status.w - rw - 3.0 * pad).max(0.0);
-        let left = rt_gfx::dialog::ellipsize(g, &left, lw, px, FontId::Regular);
-        g.text_in(&left, Rect::new(status.x + pad, status.y, lw, status.h), px, FontId::Regular, theme.text, Align::Left);
-        #[cfg(not(windows))]
-        {
-            self.menu.draw_bar(g, bar, &theme.menu_style(), s);
-            self.menu.draw_popups(g, full, &theme.menu_style(), s);
-        }
-        if let Some(d) = &mut self.dialog {
-            let (panel, ok) = rt_gfx::dialog::draw_message(&mut self.gfx, full, &theme.dialog_style(), s, &d.title, &d.text);
-            d.panel = panel;
-            d.ok = ok;
-        }
-        let Some(win) = &mut self.win else { return };
-        if let Ok(mut buf) = win.surface.buffer_mut() {
-            self.gfx.copy_to(&mut buf);
-            let _ = buf.present();
-        }
-        self.gfx.trim_cache();
-        self.sync_menu();
-        self.sync_menu_theme(dark);
-        self.update_title();
-        let tree = self.tree();
-        if let Some(win) = &mut self.win {
-            win.adapter.update_if_active(|| tree);
-        }
-    }
-
-    /// Gives the title bar the resolved light/dark theme. winit is always
-    /// passed an explicit theme: with "follow system" it asks
-    /// `ShouldAppsUseDarkMode`, which reflects the menu mode rview forced
-    /// last, not the Windows setting. System changes arrive as
-    /// `WinMsg::SystemTheme`.
-    fn apply_window_theme(&self) {
-        if let Some(w) = &self.win {
-            w.window.set_theme(win_theme(self.dark()));
-            #[cfg(windows)]
-            win::darkmode::refresh_caption(w.hwnd);
-        }
-    }
-
-    fn sync_menu_theme(&mut self, dark: bool) {
-        if self.menu_dark == Some(dark) {
-            return;
-        }
-        self.menu_dark = Some(dark);
-        #[cfg(windows)]
-        if let Some(w) = &self.win {
-            let colors = dark.then_some(win::darkmode::MenuColors { bar: 0x202020, text: 0xE4E4E4, text_disabled: 0x7A7A7A, hot: 0x3D3D3D });
-            win::darkmode::apply(w.hwnd, colors);
-        }
-    }
-
-    fn tree(&self) -> accesskit::TreeUpdate {
-        use accesskit::{Node, NodeId, Role, TreeId, TreeInfo, TreeUpdate};
-        let root = NodeId(0);
-        let docid = NodeId(1);
-        let statusid = NodeId(2);
-        let mut d = Node::new(Role::Document);
-        d.set_label(self.viewer.path.as_ref().and_then(|p| p.file_name()).map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| "rview".into()));
-        d.set_value(self.viewer.accessible_text());
-        d.add_action(accesskit::Action::Focus);
-        let mut st = Node::new(Role::Label);
-        st.set_value(self.viewer.status().join(", "));
-        let mut r = Node::new(Role::Window);
-        r.set_label("rview");
-        let mut nodes = vec![(docid, d), (statusid, st)];
-        let mut children = vec![docid, statusid];
-        let mut focus = docid;
-        if let Some(dl) = &self.dialog {
-            let dlgid = NodeId(3);
-            let textid = NodeId(4);
-            let okid = NodeId(5);
-            let mut dn = Node::new(Role::Dialog);
-            dn.set_label(dl.title.clone());
-            dn.set_children(vec![textid, okid]);
-            let mut tn = Node::new(Role::Label);
-            tn.set_value(dl.text.replace('\t', "  "));
-            let mut ok = Node::new(Role::Button);
-            ok.set_label("OK");
-            ok.add_action(accesskit::Action::Click);
-            nodes.extend([(dlgid, dn), (textid, tn), (okid, ok)]);
-            children.push(dlgid);
-            focus = okid;
-        }
-        r.set_children(children);
-        nodes.push((root, r));
-        TreeUpdate { nodes, tree: Some(TreeInfo::new(root)), tree_id: TreeId::ROOT, focus }
-    }
 }
 
 fn shortcuts_text() -> String {
@@ -892,47 +464,18 @@ fn shortcuts_text() -> String {
     rows.iter().map(|(k, v)| format!("{k}\t{v}")).collect::<Vec<_>>().join("\n")
 }
 
-fn win_theme(dark: bool) -> Option<WinTheme> {
-    Some(if dark { WinTheme::Dark } else { WinTheme::Light })
-}
-
-fn app_icon() -> Option<WinIcon> {
-    let n = 32;
-    WinIcon::from_rgba(ui::appicon::render(n), n, n).ok()
-}
-
-#[cfg(windows)]
-fn mnemonics_of(tree: &[(&'static str, Vec<M>)]) -> String {
-    tree.iter().filter_map(|(t, _)| tr(t).split('&').nth(1).and_then(|s| s.chars().next())).collect()
-}
-
 /// Starts resident mode: without an icon, a hidden window could not be
 /// reached or closed, so rview then runs as a normal window.
 #[cfg(not(windows))]
 fn start_resident(shell: &mut Shell) {
     let proxy = Mutex::new(shell.proxy.clone());
-    let labels = linux::shell::TrayLabels { tip: "rview".into(), open: tr("Open rview"), exit: tr("Exit") };
-    // Only a resident rview listens for later launches, as on Windows.
-    let cfg = linux::shell::Config { app: linux::shell::APP, icon: ui::appicon::render, tray: Some(labels), listen_without_icon: false };
-    let resident = linux::shell::Shell::new(
-        cfg,
-        Box::new(move |m| {
-            if let Ok(p) = proxy.lock() {
-                let _ = p.send_event(UserEvent::Shell(m));
-            }
-        }),
-    );
-    shell.tray = resident.has_icon();
-    shell.shell = shell.tray.then_some(resident);
-}
-
-#[cfg(windows)]
-fn hwnd_of(window: &Window) -> windows_sys::Win32::Foundation::HWND {
-    use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
-    match window.window_handle().map(|h| h.as_raw()) {
-        Ok(RawWindowHandle::Win32(h)) => h.hwnd.get() as _,
-        _ => std::ptr::null_mut(),
-    }
+    let send = Box::new(move |m| {
+        if let Ok(p) = proxy.lock() {
+            let _ = p.send_event(UserEvent::Shell(m));
+        }
+    });
+    shell.shell = rt_ui::resident::start(linux::shell::APP, ui::appicon::render, tr("Open rview"), tr("Exit"), send);
+    shell.tray = shell.shell.is_some();
 }
 
 impl Shell {
@@ -943,34 +486,19 @@ impl Shell {
             .with_inner_size(LogicalSize::new(w.max(360.0), h.max(240.0)))
             .with_min_inner_size(LogicalSize::new(360.0, 240.0))
             .with_maximized(maximized)
-            .with_window_icon(app_icon())
-            .with_theme(win_theme(self.dark()))
+            .with_window_icon(rt_ui::window::icon(ui::appicon::render))
+            .with_theme(Some(rt_ui::window::theme(self.dark())))
             .with_visible(false);
-        let window = match el.create_window(attrs) {
-            Ok(w) => Rc::new(w),
-            Err(e) => {
-                eprintln!("rview: cannot create window: {e}");
-                el.exit();
-                return false;
-            }
-        };
+        let Some((window, surface)) = rt_ui::window::create(el, attrs, "rview") else { return false };
         let adapter = accesskit_winit::Adapter::with_event_loop_proxy(el, &window, self.proxy.clone());
-        let surface = match softbuffer::Context::new(window.clone()).and_then(|ctx| softbuffer::Surface::new(&ctx, window.clone())) {
-            Ok(s) => s,
-            Err(e) => {
-                eprintln!("rview: cannot create drawing surface: {e}");
-                el.exit();
-                return false;
-            }
-        };
         #[cfg(windows)]
-        let hwnd = hwnd_of(&window);
+        let hwnd = rt_ui::window::hwnd_of(&window);
         #[cfg(windows)]
         {
             let proxy = self.proxy.clone();
             win::subclass(
                 hwnd,
-                &mnemonics_of(&commands::menu_tree()),
+                &rt_ui::window::mnemonics_of(&commands::menu_tree()),
                 Box::new(move |m| {
                     let _ = proxy.send_event(UserEvent::Win(m));
                 }),
@@ -1136,7 +664,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 let (x, y) = (position.x as f32, position.y as f32);
                 self.cursor = Some((x, y));
                 #[cfg(not(windows))]
-                self.menu_pointer(x, y);
+                self.menu_pointer(el, x, y);
                 match &mut self.drag {
                     Some(Drag::Pan { x: x0, y: y0, sx, sy }) => {
                         let (dx, dy) = (*x0 - x, *y0 - y);
@@ -1174,7 +702,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 ElementState::Pressed => {
                     let Some((x, y)) = self.cursor else { return };
                     if let Some(d) = &self.dialog {
-                        if d.ok.contains(x, y) || !d.panel.contains(x, y) {
+                        if d.closes_at(x, y) {
                             self.dialog = None;
                             self.redraw();
                         }
@@ -1238,14 +766,12 @@ impl ApplicationHandler<UserEvent> for Shell {
             WindowEvent::MouseWheel { .. } if self.dialog.is_some() => {}
             #[cfg(not(windows))]
             WindowEvent::MouseWheel { delta, .. } if self.menu.is_open() => {
-                if let Some((l, _)) = self.cursor.and_then(|(x, y)| self.menu.row_at(x, y)) {
-                    let down = match delta {
-                        MouseScrollDelta::LineDelta(_, y) => y < 0.0,
-                        MouseScrollDelta::PixelDelta(p) => p.y < 0.0,
-                    };
-                    self.menu.wheel(l, if down { 2 } else { -2 });
-                    self.redraw();
-                }
+                let down = match delta {
+                    MouseScrollDelta::LineDelta(_, y) => y < 0.0,
+                    MouseScrollDelta::PixelDelta(p) => p.y < 0.0,
+                };
+                let step = rt_ui::menus::wheel(&mut self.menu, self.cursor, down);
+                self.menu_step(el, step);
             }
             WindowEvent::MouseWheel { delta, .. } => {
                 let s = self.scale();
@@ -1479,7 +1005,7 @@ fn main() {
         status_note: None,
         tray: tray && !help,
         hidden: false,
-        dialog: help.then(|| Dialog { title: "rview".into(), text: USAGE.into(), panel: Rect::default(), ok: Rect::default() }),
+        dialog: help.then(|| Message::new("rview", USAGE)),
         #[cfg(windows)]
         integrated: integrated_here(),
         last_click: None,

@@ -1,6 +1,8 @@
-//! Colours of the settings window.
+//! Colours of the settings window: the shared controls' palette
+//! (`rt_ui::controls::Palette`), and whether it is dark.
 
 use super::gfx::Color;
+use rt_ui::controls::Palette;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Theme {
@@ -20,37 +22,35 @@ pub struct Theme {
 
 impl Theme {
     pub fn new(dark: bool, accent: Option<Color>) -> Theme {
-        let c = Color::rgb;
-        if dark {
-            let accent = accent.unwrap_or(c(0x4CC2FF));
-            Theme {
-                dark,
-                bg: c(0x1E1E1E),
-                panel: c(0x2A2A2A),
-                text: c(0xE4E4E4),
-                dim: c(0x9A9A9A),
-                border: c(0x404040),
-                hover: Color::rgba(0xFFFFFF, 0x14),
-                accent,
-                on_accent: c(0x101010),
-                field: c(0x161616),
-                warn: c(0xF2B84B),
-            }
-        } else {
-            let accent = accent.unwrap_or(c(0x0067C0));
-            Theme {
-                dark,
-                bg: c(0xF3F3F3),
-                panel: c(0xFFFFFF),
-                text: c(0x1B1B1B),
-                dim: c(0x616161),
-                border: c(0xD6D6D6),
-                hover: Color::rgba(0x000000, 0x0C),
-                accent,
-                on_accent: c(0xFFFFFF),
-                field: c(0xFFFFFF),
-                warn: c(0xB26A00),
-            }
+        let p = Palette::new(dark, accent);
+        Theme {
+            dark,
+            bg: p.bg,
+            panel: p.panel,
+            text: p.text,
+            dim: p.dim,
+            border: p.border,
+            hover: p.hover,
+            accent: p.accent,
+            on_accent: p.on_accent,
+            field: p.field,
+            warn: p.warn,
+        }
+    }
+
+    /// The colours of the shared controls.
+    pub fn palette(&self) -> Palette {
+        Palette {
+            bg: self.bg,
+            panel: self.panel,
+            text: self.text,
+            dim: self.dim,
+            border: self.border,
+            hover: self.hover,
+            accent: self.accent,
+            on_accent: self.on_accent,
+            field: self.field,
+            warn: self.warn,
         }
     }
 }
