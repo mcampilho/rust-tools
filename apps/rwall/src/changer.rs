@@ -46,7 +46,6 @@ pub fn job(st: &Settings, images: PathBuf, screen: (u32, u32), thumb: (u32, u32)
         request: Request {
             screen,
             market: st.market(),
-            nasa_key: st.nasa_key.clone(),
             wallhaven_query: st.wallhaven_query.clone(),
             folders: st.folders.clone(),
             subfolders: st.subfolders,

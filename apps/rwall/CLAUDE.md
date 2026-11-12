@@ -43,9 +43,10 @@ conta, cookies nem telemetria. Windows: WinHTTP (`net.rs`, `windows-sys`, proxy 
   Mudar a frequência grava o período atual: não muda logo.
 - `sources/` — `Source` (bing, nasa, wallhaven, picsum, folders), `Request`, `Pick`, `fetch`. `online.rs`: Bing
   `HPImageArchive.aspx?format=js&n=8` (`urlbase` + `_UHD.jpg`; título e créditos tirados de `copyright`, porque
-  `title` vem "Info" em alguns mercados), NASA APOD (hoje; depois um dia ao acaso; `get_json_patiently` volta a
-  pedir após 5xx — a API dá 500 muitas vezes; `thumbs=false` dá sempre 500, não usar; `count=` demora mais de
-  60 s; tenta `hdurl` e depois `url`), Wallhaven (`sorting=random`, `purity=100`, `atleast=<ecrã>`), Picsum (o
+  `title` vem "Info" em alguns mercados), NASA APOD pela lista WordPress de science.nasa.gov (`wp-json/wp/v2/apod-basic`, desde 2026-11-12, pedido do
+  utilizador: o `api.nasa.gov/planetary/apod` dava 500/429; sem chave; `_fields=` para não trazer o `basic_html`,
+  `per_page`/`page`; os 10 dias mais recentes e depois uma página de 20 ao acaso entre 2 e 501; `hdurl` é a imagem
+  grande; títulos com entidades HTML lidos por `plain_text`), Wallhaven (`sorting=random`, `purity=100`, `atleast=<ecrã>`), Picsum (o
   número da foto sai do URL final depois do redirecionamento; autor em `/id/<n>/info`). `folders.rs`: lista
   recursiva (≤ 100 000 ficheiros, profundidade 16, sem pastas `.`), escolha ao acaso fora do histórico.
 - `changer.rs` — `job` (pedido a partir das definições), `order` (as fontes rodam: `next_source`), `run` (uma a
@@ -68,7 +69,7 @@ conta, cookies nem telemetria. Windows: WinHTTP (`net.rs`, `windows-sys`, proxy 
 
 ## Verificado (2026-11-11, Windows 10)
 
-Bing, Wallhaven e Picsum descarregados (`live_services`); a NASA respondeu 500/429 nesse dia. Corrido de verdade
+Bing, Wallhaven e Picsum descarregados (`live_services`); a NASA pela nova API em 2026-11-12, incluindo uma página do arquivo ao acaso. Corrido de verdade
 em modo portátil: `--tray` no primeiro arranque pôs a imagem do Bing; o pedido de outra instância passou à de
 ontem; pasta local com período vencido mudou ao arrancar com `--tray`; "a cada 5 min" mudou às 23:20 e às 23:25;
 `--auto` sozinho mudou e saiu com 0, e com um residente a correr entregou-lhe o pedido; sem `--tray`, a janela não

@@ -71,13 +71,14 @@ shown lately (the last 200) is not picked again while there are others.
 | Source | What it gives | Settings |
 | --- | --- | --- |
 | Bing – picture of the day | The picture of bing.com in UHD, with its place and credit; one of the last eight days when today's was shown | **Region**: the Bing market, such as `pt-PT` or `en-GB` (empty: rwall's language) |
-| NASA – Astronomy Picture of the Day | Today's picture, or a day of the archive at random (days with a video are passed over) | **API key**: empty uses `DEMO_KEY`, which allows a few requests an hour; a free key comes from [api.nasa.gov](https://api.nasa.gov) |
+| NASA – Astronomy Picture of the Day | The latest day not shown yet, or a day of the archive at random (days with a video are passed over), with its page on science.nasa.gov | – (no key needed) |
 | Wallhaven – search | A wallpaper at random, safe for work, landscape, at least the size of the screen | **Search**: words such as `mountains`; empty: anything |
 | Picsum – random photo | A random photo at the exact size of the screen, with its author | – |
 | My folders | A picture at random from your folders (and their subfolders, if ticked) | **Add a folder…**, × to take one off |
 
-The NASA API is often slow or answers with server errors for a while; rwall
-asks again twice, then moves on to the next source.
+NASA's pictures come from the APOD list of science.nasa.gov
+(`wp-json/wp/v2/apod-basic`), where APOD moved from `api.nasa.gov`. After a
+server error, rwall asks again twice, then moves on to the next source.
 
 Pictures in folders can be JPEG, PNG, BMP, GIF, TIFF or WebP. Downloaded
 pictures are checked: anything that is not a picture, or is smaller than

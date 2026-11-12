@@ -17,7 +17,6 @@ use rt_gfx::dialog::{ellipsize, ellipsize_middle, wrap_words};
 pub enum Field {
     /// Bing market ("pt-PT").
     Market,
-    NasaKey,
     Wallhaven,
 }
 
@@ -338,7 +337,6 @@ pub fn draw(g: &mut Gfx, m: &Model, t: &Theme, s: f32, full: Rect) -> Drawn {
         let on = st.source_on(src);
         let (field, value, placeholder, fw) = match src {
             Source::Bing => (Some(Field::Market), st.bing_market.as_str(), crate::i18n::lang().tag().to_string(), 90.0),
-            Source::Nasa => (Some(Field::NasaKey), st.nasa_key.as_str(), "DEMO_KEY".to_string(), 170.0),
             Source::Wallhaven => (Some(Field::Wallhaven), st.wallhaven_query.as_str(), tr("any subject"), 170.0),
             _ => (None, "", String::new(), 0.0),
         };
@@ -348,7 +346,6 @@ pub fn draw(g: &mut Gfx, m: &Model, t: &Theme, s: f32, full: Rect) -> Drawn {
         if let Some(f) = field {
             let caption = match f {
                 Field::Market => tr("Region:"),
-                Field::NasaKey => tr("API key:"),
                 Field::Wallhaven => tr("Search:"),
             };
             let fx = x + w - fw;

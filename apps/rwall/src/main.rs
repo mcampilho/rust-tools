@@ -377,7 +377,6 @@ impl Shell {
         if self.focus.take().is_some() {
             let st = &mut self.settings;
             st.bing_market = st.bing_market.trim().to_string();
-            st.nasa_key = st.nasa_key.trim().to_string();
             self.save();
             self.redraw();
         }
@@ -386,7 +385,6 @@ impl Shell {
     fn field_text(&mut self, f: Field) -> &mut String {
         match f {
             Field::Market => &mut self.settings.bing_market,
-            Field::NasaKey => &mut self.settings.nasa_key,
             Field::Wallhaven => &mut self.settings.wallhaven_query,
         }
     }

@@ -38,7 +38,6 @@ Picsum – random photo		Picsum – zufälliges Foto	Picsum – foto al azar	Pic
 My folders		Meine Ordner	Mis carpetas	Mes dossiers	Le mie cartelle	自分のフォルダー	Minhas pastas	As minhas pastas	我的文件夹
 any subject		beliebiges Thema	cualquier tema	n’importe quel sujet	qualsiasi soggetto	すべてのテーマ	qualquer assunto	qualquer tema	任意主题
 Region:		Region:	Región:	Région :	Regione:	地域:	Região:		地区:
-API key:		API-Schlüssel:	Clave de API:	Clé d’API :	Chiave API:	API キー:	Chave de API:	Chave da API:	API 密钥:
 Search:		Suche:	Buscar:	Recherche :	Cerca:	検索:	Pesquisar:		搜索:
 No folder chosen.		Kein Ordner ausgewählt.	No se ha elegido ninguna carpeta.	Aucun dossier choisi.	Nessuna cartella scelta.	フォルダーが選択されていません。	Nenhuma pasta escolhida.		未选择文件夹。
 Add a folder…		Ordner hinzufügen…	Añadir una carpeta…	Ajouter un dossier…	Aggiungi una cartella…	フォルダーを追加…	Adicionar uma pasta…	Acrescentar uma pasta…	添加文件夹…

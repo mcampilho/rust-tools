@@ -63,7 +63,6 @@ pub struct Request {
     /// Size of the screen, in pixels.
     pub screen: (u32, u32),
     pub market: String,
-    pub nasa_key: String,
     pub wallhaven_query: String,
     pub folders: Vec<PathBuf>,
     pub subfolders: bool,

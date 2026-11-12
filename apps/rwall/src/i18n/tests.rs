@@ -139,7 +139,7 @@ fn window_renders_fully_translated() {
                 status: tf("Next change: {}", &["2026-11-12 00:00"]),
                 error: None,
                 autostart: true,
-                focus: Some(Field::NasaKey),
+                focus: Some(Field::Wallhaven),
                 hot: None,
                 scroll: 0.0,
             };

@@ -77,8 +77,6 @@ pub struct Settings {
     pub sources: Vec<Source>,
     /// Bing market, such as "pt-PT"; empty: the language of rwall.
     pub bing_market: String,
-    /// NASA API key; empty: DEMO_KEY (a few requests an hour).
-    pub nasa_key: String,
     /// Wallhaven search words; empty: anything.
     pub wallhaven_query: String,
     pub folders: Vec<PathBuf>,
@@ -106,7 +104,6 @@ impl Default for Settings {
             custom_minutes: 60,
             sources: vec![Source::Bing],
             bing_market: String::new(),
-            nasa_key: String::new(),
             wallhaven_query: String::new(),
             folders: Vec::new(),
             subfolders: true,
@@ -142,7 +139,6 @@ impl Settings {
             custom_minutes: s.get("custom_minutes").and_then(|v| v.parse().ok()).unwrap_or(d.custom_minutes).clamp(1, 7 * 1440),
             sources,
             bing_market: s.get("bing_market").unwrap_or("").trim().to_string(),
-            nasa_key: s.get("nasa_key").unwrap_or("").trim().to_string(),
             wallhaven_query: s.get("wallhaven_query").unwrap_or("").to_string(),
             folders: s.get_all("folder").filter(|f| !f.is_empty()).map(PathBuf::from).collect(),
             subfolders: s.get("subfolders").map_or(d.subfolders, |v| v != "0"),
@@ -163,7 +159,6 @@ impl Settings {
         s.set("custom_minutes", self.custom_minutes.to_string());
         s.set("sources", self.sources.iter().map(|x| x.key()).collect::<Vec<_>>().join(","));
         s.set("bing_market", self.bing_market.as_str());
-        s.set("nasa_key", self.nasa_key.as_str());
         s.set("wallhaven_query", self.wallhaven_query.as_str());
         for f in &self.folders {
             s.push("folder", f.to_string_lossy());

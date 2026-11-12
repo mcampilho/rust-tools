@@ -17,8 +17,8 @@ fn get_json(url: &str) -> Result<Json, String> {
     json::parse(&String::from_utf8_lossy(&r.body))
 }
 
-/// `get_json`, asking again after a server error (the NASA API often
-/// answers 500 or 503 for a while).
+/// `get_json`, asking again after a server error (a busy service may
+/// answer 500 or 503 for a while).
 fn get_json_patiently(url: &str) -> Result<Json, String> {
     let mut last = String::new();
     for wait in [0, 3, 10] {
@@ -98,74 +98,99 @@ pub fn bing(req: &Request) -> Result<Pick, String> {
 
 // ------------------------------------------------------------------ NASA
 
+/// The APOD list of science.nasa.gov (WordPress REST), newest first, with
+/// only the fields rwall reads. No key is needed.
+const APOD_LIST: &str = "https://science.nasa.gov/wp-json/wp/v2/apod-basic?_fields=date,title,media_type,hdurl,credit,copyright,permalink";
+/// Pages of 20 entries reached at random: the archive holds more than
+/// 11 000 days, so 500 pages stay inside it.
+const APOD_PAGES: u64 = 500;
+
 pub struct Apod {
     pub date: String,
-    /// The large picture first, then the one shown on the page.
-    pub urls: Vec<String>,
+    pub url: String,
     pub title: String,
     pub credit: String,
+    /// The page of the day on science.nasa.gov.
+    pub page: String,
 }
 
-/// An APOD entry, when it is a picture (some days are videos).
-pub fn apod(j: &Json) -> Option<Apod> {
-    if j.get("media_type").str() != "image" {
-        return None;
-    }
-    let urls: Vec<String> = [j.get("hdurl").str(), j.get("url").str()].into_iter().filter(|u| u.starts_with("https://")).map(str::to_string).collect();
-    if urls.is_empty() {
-        return None;
-    }
-    let credit = j.get("copyright").str().split_whitespace().collect::<Vec<_>>().join(" ");
-    Some(Apod {
-        date: j.get("date").str().to_string(),
-        urls,
-        title: j.get("title").str().to_string(),
-        credit: if credit.is_empty() { "NASA".to_string() } else { format!("© {credit}") },
-    })
+/// The entries of an apod-basic answer that are pictures (some days are
+/// videos).
+pub fn apod_list(j: &Json) -> Vec<Apod> {
+    j.items()
+        .iter()
+        .filter(|i| i.get("media_type").str() == "image" && i.get("hdurl").str().starts_with("https://"))
+        .map(|i| {
+            let credit = [i.get("credit").str(), i.get("copyright").str()].into_iter().map(plain_text).find(|c| !c.is_empty()).unwrap_or_default();
+            let page = i.get("permalink").str();
+            Apod {
+                date: i.get("date").str().to_string(),
+                url: i.get("hdurl").str().to_string(),
+                title: plain_text(i.get("title").str()),
+                credit: if credit.is_empty() { "NASA".to_string() } else { format!("© {credit}") },
+                page: if page.starts_with("https://") { page.to_string() } else { "https://science.nasa.gov/apod/".to_string() },
+            }
+        })
+        .collect()
 }
 
-/// The APOD page of a date: "2026-11-11" → …/ap261111.html.
-pub fn apod_page(date: &str) -> String {
-    let d: String = date.chars().filter(char::is_ascii_digit).collect();
-    if d.len() == 8 {
-        format!("https://apod.nasa.gov/apod/ap{}.html", &d[2..])
-    } else {
-        "https://apod.nasa.gov/apod/".to_string()
+/// Text of a WordPress field: tags taken out, the usual entities read,
+/// spaces collapsed.
+pub fn plain_text(s: &str) -> String {
+    let mut out = String::new();
+    let mut rest = s;
+    while let Some(i) = rest.find(['<', '&']) {
+        out.push_str(&rest[..i]);
+        rest = &rest[i..];
+        if rest.starts_with('<') {
+            rest = rest.find('>').map_or("", |j| &rest[j + 1..]);
+            continue;
+        }
+        let end = rest.find(';').filter(|j| *j <= 10);
+        let entity = end.map(|j| &rest[1..j]);
+        let ch = match entity {
+            Some("amp") => Some('&'),
+            Some("lt") => Some('<'),
+            Some("gt") => Some('>'),
+            Some("quot") => Some('"'),
+            Some("apos") => Some('\''),
+            Some("nbsp") => Some(' '),
+            Some(e) if e.starts_with("#x") || e.starts_with("#X") => u32::from_str_radix(&e[2..], 16).ok().and_then(char::from_u32),
+            Some(e) if e.starts_with('#') => e[1..].parse().ok().and_then(char::from_u32),
+            _ => None,
+        };
+        match (ch, end) {
+            (Some(c), Some(j)) => {
+                out.push(c);
+                rest = &rest[j + 1..];
+            }
+            _ => {
+                out.push('&');
+                rest = &rest[1..];
+            }
+        }
     }
-}
-
-/// A day of the APOD archive at random, from 2000 to yesterday.
-fn random_apod_day() -> String {
-    use crate::schedule::{civil_from_days, days_from_civil};
-    let t = rt_sys::local_time();
-    let (first, last) = (days_from_civil(2000, 1, 1), days_from_civil(t.year, t.month, t.day) - 1);
-    let (y, m, d) = civil_from_days(first + (seed() % (last - first) as u64) as i64);
-    format!("{y:04}-{m:02}-{d:02}")
+    out.push_str(rest);
+    out.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 pub fn nasa(req: &Request) -> Result<Pick, String> {
-    let key = if req.nasa_key.is_empty() { "DEMO_KEY" } else { &req.nasa_key };
-    let base = format!("https://api.nasa.gov/planetary/apod?api_key={}", encode(key));
     let id = |a: &Apod| format!("nasa:{}", a.date);
-    // Today's picture first; when it was shown (or is a video), a day of
-    // the archive at random.
-    let mut found = apod(&get_json_patiently(&base)?).filter(|a| !req.history.contains(&id(a)));
-    for _ in 0..4 {
-        if found.is_some() {
+    // The latest days first; when they were all shown, a page of the
+    // archive at random.
+    let mut list = apod_list(&get_json_patiently(&format!("{APOD_LIST}&per_page=10"))?);
+    let mut pos = list.iter().position(|a| !req.history.contains(&id(a)));
+    for _ in 0..3 {
+        if pos.is_some() {
             break;
         }
-        found = apod(&get_json_patiently(&format!("{base}&date={}", random_apod_day()))?).filter(|a| !req.history.contains(&id(a)));
+        let page = 2 + seed() % APOD_PAGES;
+        list = apod_list(&get_json_patiently(&format!("{APOD_LIST}&per_page=20&page={page}"))?);
+        pos = list.iter().position(|a| !req.history.contains(&id(a)));
     }
-    let a = found.ok_or("NASA: no picture found")?;
-    let mut result = Err("NASA: no picture address".to_string());
-    for url in &a.urls {
-        result = download(req, Source::Nasa, &a.date, url);
-        if result.is_ok() {
-            break;
-        }
-    }
-    let file = result?;
-    Ok(Pick { source: Source::Nasa, id: id(&a), title: a.title, credit: a.credit, link: apod_page(&a.date), file })
+    let a = pos.map(|p| list.swap_remove(p)).ok_or("NASA: no picture found")?;
+    let file = download(req, Source::Nasa, &a.date, &a.url)?;
+    Ok(Pick { source: Source::Nasa, id: id(&a), title: a.title, credit: a.credit, link: a.page, file })
 }
 // ------------------------------------------------------------- Wallhaven
 
@@ -268,13 +293,21 @@ mod tests {
 
     #[test]
     fn apod_answers() {
-        let pic = json::parse(r#"{"date":"2026-11-11","media_type":"image","hdurl":"https://apod.nasa.gov/a.jpg","title":"M31","copyright":"\nAnn\n Smith "}"#).unwrap();
-        let a = apod(&pic).unwrap();
-        assert_eq!((a.urls[0].as_str(), a.credit.as_str()), ("https://apod.nasa.gov/a.jpg", "© Ann Smith"));
-        assert!(apod(&json::parse(r#"{"media_type":"video","url":"https://youtube.com/x"}"#).unwrap()).is_none());
-        assert_eq!(apod_page("2026-11-11"), "https://apod.nasa.gov/apod/ap261111.html");
+        let j = json::parse(
+            r#"[{"date":"2026-11-11","title":"NGC 4449: Small Galaxy, Big&#8217;s &amp; More","media_type":"image",
+            "hdurl":"https://assets.science.nasa.gov/a.jpg?w=2048&h=1320","credit":"NASA, <a href=\"x\">ESA</a>\n and  Hubble","permalink":"https://science.nasa.gov/image-article/apod-2026-november-11/"},
+            {"date":"2026-11-10","media_type":"video","hdurl":"https://assets.science.nasa.gov/t.png"},
+            {"date":"2026-11-09","media_type":"image","hdurl":"https://assets.science.nasa.gov/b.jpg","credit":"","copyright":""}]"#,
+        )
+        .unwrap();
+        let l = apod_list(&j);
+        assert_eq!(l.len(), 2);
+        assert_eq!(l[0].title, "NGC 4449: Small Galaxy, Big’s & More");
+        assert_eq!(l[0].credit, "© NASA, ESA and Hubble");
+        assert_eq!(l[0].url, "https://assets.science.nasa.gov/a.jpg?w=2048&h=1320");
+        assert_eq!((l[1].credit.as_str(), l[1].page.as_str()), ("NASA", "https://science.nasa.gov/apod/"));
+        assert_eq!(plain_text("R&D &unknown; 5 &lt; 6 &#x263A;"), "R&D &unknown; 5 < 6 ☺");
     }
-
     #[test]
     fn wallhaven_and_picsum_answers() {
         let j = json::parse(r#"{"data":[{"id":"abc","url":"https://wallhaven.cc/w/abc","path":"https://w.wallhaven.cc/full/ab/wallhaven-abc.jpg","resolution":"3840x2160"}],"meta":{}}"#).unwrap();
@@ -295,6 +328,12 @@ mod tests {
                 Ok(p) => println!("{s:?}: {} | {} | {} | {}", p.title, p.credit, p.link, p.file.display()),
                 Err(e) => println!("{s:?}: ERROR {e}"),
             }
+        }
+        // With the latest days shown, NASA takes a page of the archive at random.
+        let recent: Vec<String> = (1..=30).map(|d| format!("nasa:2026-10-{d:02}")).chain((1..=30).map(|d| format!("nasa:2026-11-{d:02}"))).collect();
+        match super::super::fetch(Source::Nasa, &Request { history: recent, ..req }) {
+            Ok(p) => println!("Nasa (archive): {} | {} | {}", p.id, p.title, p.link),
+            Err(e) => println!("Nasa (archive): ERROR {e}"),
         }
         let _ = std::fs::remove_dir_all(images);
     }

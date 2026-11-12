@@ -72,13 +72,15 @@ outras.
 | Fonte | O que dá | Definições |
 | --- | --- | --- |
 | Bing – imagem do dia | A imagem do bing.com em UHD, com o local e os créditos; uma dos últimos oito dias quando a de hoje já foi mostrada | **Região**: o mercado do Bing, como `pt-PT` ou `en-GB` (vazio: a língua do rwall) |
-| NASA – imagem astronómica do dia | A imagem de hoje, ou um dia do arquivo ao acaso (os dias com vídeo são saltados) | **Chave da API**: vazia usa a `DEMO_KEY`, que permite poucos pedidos por hora; uma chave gratuita obtém-se em [api.nasa.gov](https://api.nasa.gov) |
+| NASA – imagem astronómica do dia | O dia mais recente ainda não mostrado, ou um dia do arquivo ao acaso (os dias com vídeo são saltados), com a sua página em science.nasa.gov | – (sem chave) |
 | Wallhaven – pesquisa | Um wallpaper ao acaso, próprio para o trabalho, horizontal, pelo menos do tamanho do ecrã | **Pesquisar**: palavras como `mountains`; vazio: qualquer tema |
 | Picsum – fotografia aleatória | Uma fotografia ao acaso no tamanho exato do ecrã, com o autor | – |
 | As minhas pastas | Uma imagem ao acaso das suas pastas (e subpastas, se marcado) | **Acrescentar uma pasta…**, × para tirar uma |
 
-A API da NASA está muitas vezes lenta ou responde com erros do servidor durante
-algum tempo; o rwall pergunta mais duas vezes e depois passa à fonte seguinte.
+As imagens da NASA vêm da lista do APOD em science.nasa.gov
+(`wp-json/wp/v2/apod-basic`), para onde o APOD passou do `api.nasa.gov`. Depois
+de um erro do servidor, o rwall pergunta mais duas vezes e depois passa à fonte
+seguinte.
 
 As imagens das pastas podem ser JPEG, PNG, BMP, GIF, TIFF ou WebP. As imagens
 descarregadas são verificadas: o que não for uma imagem, ou for menor do que
