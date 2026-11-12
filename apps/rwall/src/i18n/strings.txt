@@ -101,3 +101,167 @@ Paused: the computer is locked or the screen is off		Angehalten: Der Computer is
 Paused: the computer runs on battery		Angehalten: Der Computer läuft mit Akku	En pausa: el equipo funciona con batería	En pause : l’ordinateur est sur batterie	In pausa: il computer è alimentato a batteria	一時停止中: バッテリーで動作しています	Pausado: o computador está na bateria	Em pausa: o computador está na bateria	已暂停：电脑正在使用电池
 Icons, files, notifications and widgets stay over it, as always.		Symbole, Dateien, Benachrichtigungen und Widgets bleiben wie immer darüber.	Iconos, archivos, notificaciones y widgets siguen encima, como siempre.	Icônes, fichiers, notifications et widgets restent au-dessus, comme toujours.	Icone, file, notifiche e widget restano sopra, come sempre.	アイコン、ファイル、通知、ウィジェットはいつもどおり手前に表示されます。	Ícones, arquivos, notificações e widgets continuam por cima, como sempre.	Ícones, ficheiros, notificações e widgets continuam por cima, como sempre.	图标、文件、通知和小组件照常显示在其上方。
 The dynamic wallpaper stops when this window closes; with rwall --tray it keeps playing.		Der dynamische Hintergrund endet, wenn dieses Fenster geschlossen wird; mit rwall --tray läuft er weiter.	El fondo dinámico se detiene al cerrar esta ventana; con rwall --tray sigue reproduciéndose.	Le fond d’écran animé s’arrête à la fermeture de cette fenêtre ; avec rwall --tray, il continue.	Lo sfondo dinamico si ferma alla chiusura di questa finestra; con rwall --tray continua.	このウィンドウを閉じると動く壁紙は止まります。rwall --tray なら再生し続けます。	O papel de parede dinâmico para quando esta janela fecha; com rwall --tray continua a reproduzir.	O fundo dinâmico para quando esta janela fecha; com rwall --tray continua a reproduzir.	关闭此窗口时动态壁纸会停止；使用 rwall --tray 则会继续播放。
+Widgets		Widgets	Widgets	Widgets	Widget	ウィジェット	Widgets		小组件
+Analog clock	Analogue clock	Analoguhr	Reloj analógico	Horloge analogique	Orologio analogico	アナログ時計	Relógio analógico		模拟时钟
+Digital clock		Digitaluhr	Reloj digital	Horloge numérique	Orologio digitale	デジタル時計	Relógio digital		数字时钟
+Calendar		Kalender	Calendario	Calendrier	Calendario	カレンダー	Calendário		日历
+Clock and calendar		Uhr und Kalender	Reloj y calendario	Horloge et calendrier	Orologio e calendario	時計とカレンダー	Relógio e calendário		时钟和日历
+Sticky note		Haftnotiz	Nota adhesiva	Pense-bête	Nota adesiva	付箋	Nota adesiva		便笺
+Annotation		Anmerkung	Anotación	Annotation	Annotazione	書き込み	Anotação		批注
+Weather		Wetter	Tiempo	Météo	Meteo	天気	Clima	Meteorologia	天气
+Fence		Ordnerbox	Caja de carpeta	Boîte de dossier	Riquadro cartella	フォルダー ボックス	Fence		文件夹框
+Photos		Fotos	Fotos	Photos	Foto	写真	Fotos		照片
+Yellow		Gelb	Amarillo	Jaune	Giallo	黄	Amarelo		黄色
+Green		Grün	Verde	Vert	Verde	緑	Verde		绿色
+Pink		Rosa	Rosa	Rose	Rosa	ピンク	Rosa	Cor-de-rosa	粉色
+Blue		Blau	Azul	Bleu	Blu	青	Azul		蓝色
+Purple		Lila	Morado	Violet	Viola	紫	Roxo		紫色
+Gray	Grey	Grau	Gris	Gris	Grigio	グレー	Cinza	Cinzento	灰色
+White		Weiß	Blanco	Blanc	Bianco	白	Branco		白色
+Black		Schwarz	Negro	Noir	Nero	黒	Preto		黑色
+Red		Rot	Rojo	Rouge	Rosso	赤	Vermelho		红色
+Small		Klein	Pequeño	Petit	Piccolo	小	Pequeno		小
+Medium		Mittel	Mediano	Moyen	Medio	中	Médio		中
+Large		Groß	Grande	Grand	Grande	大	Grande		大
+January		Januar	enero	janvier	gennaio	1月	janeiro		1月
+February		Februar	febrero	février	febbraio	2月	fevereiro		2月
+March		März	marzo	mars	marzo	3月	março		3月
+April		April	abril	avril	aprile	4月	abril		4月
+May		Mai	mayo	mai	maggio	5月	maio		5月
+June		Juni	junio	juin	giugno	6月	junho		6月
+July		Juli	julio	juillet	luglio	7月	julho		7月
+August		August	agosto	août	agosto	8月	agosto		8月
+September		September	septiembre	septembre	settembre	9月	setembro		9月
+October		Oktober	octubre	octobre	ottobre	10月	outubro		10月
+November		November	noviembre	novembre	novembre	11月	novembro		11月
+December		Dezember	diciembre	décembre	dicembre	12月	dezembro		12月
+Sunday		Sonntag	domingo	dimanche	domenica	日曜日	domingo		星期日
+Monday		Montag	lunes	lundi	lunedì	月曜日	segunda-feira		星期一
+Tuesday		Dienstag	martes	mardi	martedì	火曜日	terça-feira		星期二
+Wednesday		Mittwoch	miércoles	mercredi	mercoledì	水曜日	quarta-feira		星期三
+Thursday		Donnerstag	jueves	jeudi	giovedì	木曜日	quinta-feira		星期四
+Friday		Freitag	viernes	vendredi	venerdì	金曜日	sexta-feira		星期五
+Saturday		Samstag	sábado	samedi	sabato	土曜日	sábado		星期六
+Sun		So	dom	dim	dom	日	dom		日
+Mon		Mo	lun	lun	lun	月	seg		一
+Tue		Di	mar	mar	mar	火	ter		二
+Wed		Mi	mié	mer	mer	水	qua		三
+Thu		Do	jue	jeu	gio	木	qui		四
+Fri		Fr	vie	ven	ven	金	sex		五
+Sat		Sa	sáb	sam	sab	土	sáb		六
+%W, %M %D	%W %D %M	%W, %D. %M	%W, %D de %M	%W %D %M	%W %D %M	%M%D日(%W)	%W, %D de %M		%M%D日 %W
+%M %Y		%M %Y	%M de %Y	%M %Y	%M %Y	%Y年%M	%M de %Y		%Y年%M
+Clear sky		Klar	Despejado	Ciel dégagé	Sereno	快晴	Céu limpo		晴
+Mostly clear		Überwiegend klar	Mayormente despejado	Plutôt dégagé	Prevalentemente sereno	晴れ	Predominantemente limpo	Pouco nublado	大部晴朗
+Partly cloudy		Teilweise bewölkt	Parcialmente nublado	Partiellement nuageux	Parzialmente nuvoloso	晴れ時々曇り	Parcialmente nublado		局部多云
+Cloudy		Bewölkt	Nublado	Nuageux	Nuvoloso	曇り	Nublado		阴
+Fog		Nebel	Niebla	Brouillard	Nebbia	霧	Neblina	Nevoeiro	雾
+Drizzle		Nieselregen	Llovizna	Bruine	Pioggerella	霧雨	Garoa	Chuvisco	毛毛雨
+Rain		Regen	Lluvia	Pluie	Pioggia	雨	Chuva		雨
+Snow		Schnee	Nieve	Neige	Neve	雪	Neve		雪
+Showers		Schauer	Chubascos	Averses	Rovesci	にわか雨	Pancadas de chuva	Aguaceiros	阵雨
+Thunderstorm		Gewitter	Tormenta	Orage	Temporale	雷雨	Tempestade	Trovoada	雷暴
+Write a note…		Notiz schreiben…	Escribe una nota…	Écrivez une note…	Scrivi una nota…	メモを入力…	Escreva uma nota…		写便笺…
+Write here		Hier schreiben	Escribe aquí	Écrivez ici	Scrivi qui	ここに入力	Escreva aqui		在此书写
+Type a city in the Widgets tab of rwall.		Geben Sie im Reiter „Widgets“ von rwall eine Stadt ein.	Escribe una ciudad en la pestaña Widgets de rwall.	Saisissez une ville dans l’onglet Widgets de rwall.	Digita una città nella scheda Widget di rwall.	rwall の「ウィジェット」タブで都市名を入力してください。	Digite uma cidade na aba Widgets do rwall.	Escreva uma cidade no separador Widgets do rwall.	请在 rwall 的“小组件”选项卡中输入城市。
+Choose a folder in the Widgets tab of rwall.		Wählen Sie im Reiter „Widgets“ von rwall einen Ordner.	Elige una carpeta en la pestaña Widgets de rwall.	Choisissez un dossier dans l’onglet Widgets de rwall.	Scegli una cartella nella scheda Widget di rwall.	rwall の「ウィジェット」タブでフォルダーを選んでください。	Escolha uma pasta na aba Widgets do rwall.	Escolha uma pasta no separador Widgets do rwall.	请在 rwall 的“小组件”选项卡中选择文件夹。
+Drag files here.		Dateien hierher ziehen.	Arrastra archivos aquí.	Glissez des fichiers ici.	Trascina qui i file.	ここにファイルをドラッグしてください。	Arraste arquivos para cá.	Arraste ficheiros para aqui.	将文件拖到此处。
+Widgets on the desktop		Widgets auf dem Desktop	Widgets en el escritorio	Widgets sur le bureau	Widget sul desktop	デスクトップのウィジェット	Widgets na área de trabalho	Widgets no ambiente de trabalho	桌面上的小组件
+Show the widgets on the desktop		Widgets auf dem Desktop anzeigen	Mostrar los widgets en el escritorio	Afficher les widgets sur le bureau	Mostra i widget sul desktop	デスクトップにウィジェットを表示	Mostrar os widgets na área de trabalho	Mostrar os widgets no ambiente de trabalho	在桌面上显示小组件
+Drag a widget to move it, or its bottom right corner to resize it; right-click it for more options.		Ziehen Sie ein Widget, um es zu verschieben, oder an seiner unteren rechten Ecke, um die Größe zu ändern; ein Rechtsklick zeigt weitere Optionen.	Arrastra un widget para moverlo, o su esquina inferior derecha para cambiar su tamaño; haz clic derecho para ver más opciones.	Faites glisser un widget pour le déplacer, ou son coin inférieur droit pour le redimensionner ; clic droit pour plus d’options.	Trascina un widget per spostarlo, o il suo angolo in basso a destra per ridimensionarlo; fai clic destro per altre opzioni.	ウィジェットはドラッグで移動、右下の角で大きさを変更、右クリックでその他のオプションを表示します。	Arraste um widget para movê-lo, ou o canto inferior direito para redimensioná-lo; clique com o botão direito para mais opções.	Arraste um widget para o mover, ou o canto inferior direito para lhe mudar o tamanho; clique com o botão direito para mais opções.	拖动小组件可移动它，拖动右下角可调整大小；右键单击可查看更多选项。
+The widgets close with this window; with rwall --tray they stay on the desktop.		Die Widgets schließen sich mit diesem Fenster; mit rwall --tray bleiben sie auf dem Desktop.	Los widgets se cierran con esta ventana; con rwall --tray permanecen en el escritorio.	Les widgets se ferment avec cette fenêtre ; avec rwall --tray, ils restent sur le bureau.	I widget si chiudono con questa finestra; con rwall --tray restano sul desktop.	ウィジェットはこのウィンドウと一緒に閉じます。rwall --tray なら表示されたままです。	Os widgets fecham com esta janela; com rwall --tray continuam na área de trabalho.	Os widgets fecham com esta janela; com rwall --tray continuam no ambiente de trabalho.	小组件会随此窗口关闭；使用 rwall --tray 则会留在桌面上。
+The widgets are available only on Windows for now.		Die Widgets sind vorerst nur unter Windows verfügbar.	Por ahora, los widgets solo están disponibles en Windows.	Pour l’instant, les widgets n’existent que sous Windows.	Per ora i widget sono disponibili solo su Windows.	ウィジェットは現在 Windows でのみ利用できます。	Por enquanto, os widgets só estão disponíveis no Windows.	Por agora, os widgets só estão disponíveis no Windows.	小组件目前仅适用于 Windows。
+Add a widget		Widget hinzufügen	Añadir un widget	Ajouter un widget	Aggiungi un widget	ウィジェットを追加	Adicionar um widget		添加小组件
+Your widgets		Ihre Widgets	Tus widgets	Vos widgets	I tuoi widget	追加したウィジェット	Seus widgets	Os seus widgets	你的小组件
+No widgets yet.		Noch keine Widgets.	Aún no hay widgets.	Aucun widget pour l’instant.	Ancora nessun widget.	ウィジェットはまだありません。	Ainda não há widgets.		还没有小组件。
+Always on top		Immer im Vordergrund	Siempre visible	Toujours au premier plan	Sempre in primo piano	常に手前に表示	Sempre visível		始终置顶
+Seconds		Sekunden	Segundos	Secondes	Secondi	秒	Segundos		秒
+24-hour clock		24-Stunden-Uhr	Reloj de 24 horas	Format 24 heures	Formato 24 ore	24 時間表示	Relógio de 24 horas		24 小时制
+City:		Stadt:	Ciudad:	Ville :	Città:	都市:	Cidade:		城市：
+e.g. Lisbon		z. B. Berlin	p. ej., Madrid	p. ex. Paris	es. Roma	例: 東京	ex.: São Paulo	ex.: Lisboa	例如：北京
+Change every		Wechseln alle	Cambiar cada	Changer toutes les	Cambia ogni	切り替え間隔	Trocar a cada	Mudar a cada	更换间隔
+Remove		Entfernen	Quitar	Retirer	Rimuovi	削除	Remover		移除
+Choose a folder for the fence		Ordner für die Ordnerbox auswählen	Elige una carpeta para la caja	Choisir un dossier pour la boîte	Scegli una cartella per il riquadro	フォルダー ボックスのフォルダーを選択	Escolha uma pasta para a fence		为文件夹框选择文件夹
+Choose a folder of photos		Fotoordner auswählen	Elige una carpeta de fotos	Choisir un dossier de photos	Scegli una cartella di foto	写真フォルダーを選択	Escolha uma pasta de fotos		选择照片文件夹
+New note		Neue Notiz	Nueva nota	Nouvelle note	Nuova nota	新しい付箋	Nova nota		新建便笺
+Color	Colour	Farbe	Color	Couleur	Colore	色	Cor		颜色
+Size		Größe	Tamaño	Taille	Dimensione	サイズ	Tamanho		大小
+Edit the text		Text bearbeiten	Editar el texto	Modifier le texte	Modifica il testo	テキストを編集	Editar o texto		编辑文本
+Refresh		Aktualisieren	Actualizar	Actualiser	Aggiorna	更新	Atualizar		刷新
+Fahrenheit (°F)		Fahrenheit (°F)	Fahrenheit (°F)	Fahrenheit (°F)	Fahrenheit (°F)	華氏 (°F)	Fahrenheit (°F)		华氏度 (°F)
+Open the folder		Ordner öffnen	Abrir la carpeta	Ouvrir le dossier	Apri la cartella	フォルダーを開く	Abrir a pasta		打开文件夹
+Open		Öffnen	Abrir	Ouvrir	Apri	開く	Abrir		打开
+Next photo		Nächstes Foto	Siguiente foto	Photo suivante	Foto successiva	次の写真	Próxima foto	Foto seguinte	下一张照片
+Lock position		Position sperren	Bloquear posición	Verrouiller la position	Blocca posizione	位置をロック	Travar posição	Bloquear posição	锁定位置
+Widget settings…		Widget-Einstellungen…	Configuración del widget…	Paramètres du widget…	Impostazioni del widget…	ウィジェットの設定…	Configurações do widget…	Definições do widget…	小组件设置…
+Remove the widget		Widget entfernen	Quitar el widget	Retirer le widget	Rimuovi il widget	ウィジェットを削除	Remover o widget		移除小组件
+Remove this widget? What is written in it is lost.		Dieses Widget entfernen? Was darin steht, geht verloren.	¿Quitar este widget? Lo que tiene escrito se perderá.	Retirer ce widget ? Ce qui y est écrit sera perdu.	Rimuovere questo widget? Ciò che contiene andrà perso.	このウィジェットを削除しますか? 書かれている内容は失われます。	Remover este widget? O que está escrito nele será perdido.	Remover este widget? O que está escrito nele perde-se.	要移除此小组件吗？其中的内容将会丢失。
+Looking for the weather…		Wetter wird abgerufen…	Buscando el tiempo…	Recherche de la météo…	Ricerca del meteo…	天気を取得しています…	Buscando o clima…	A obter a meteorologia…	正在获取天气…
+City not found: {}		Stadt nicht gefunden: {}	Ciudad no encontrada: {}	Ville introuvable : {}	Città non trovata: {}	都市が見つかりません: {}	Cidade não encontrada: {}		未找到城市：{}
+The weather could not be read: {}		Das Wetter konnte nicht abgerufen werden: {}	No se pudo obtener el tiempo: {}	Impossible d’obtenir la météo : {}	Impossibile ottenere il meteo: {}	天気を取得できませんでした: {}	Não foi possível obter o clima: {}	Não foi possível obter a meteorologia: {}	无法获取天气：{}
+The folder cannot be read.		Der Ordner kann nicht gelesen werden.	No se puede leer la carpeta.	Le dossier est illisible.	Impossibile leggere la cartella.	フォルダーを読み取れません。	Não é possível ler a pasta.		无法读取该文件夹。
+There are no pictures in the folder.		Im Ordner sind keine Bilder.	No hay imágenes en la carpeta.	Le dossier ne contient aucune image.	Nella cartella non ci sono immagini.	フォルダーに画像がありません。	Não há imagens na pasta.		该文件夹中没有图片。
+Weather data by Open-Meteo.com		Wetterdaten von Open-Meteo.com	Datos meteorológicos de Open-Meteo.com	Données météo d’Open-Meteo.com	Dati meteo di Open-Meteo.com	気象データ: Open-Meteo.com	Dados do clima: Open-Meteo.com	Dados meteorológicos: Open-Meteo.com	天气数据来自 Open-Meteo.com
+Holidays ({})		Feiertage ({})	Festivos ({})	Jours fériés ({})	Festività ({})	祝日 ({})	Feriados ({})		节假日 ({})
+No holidays known for this region.		Für diese Region sind keine Feiertage bekannt.	No se conocen festivos para esta región.	Aucun jour férié connu pour cette région.	Nessuna festività nota per questa regione.	この地域の祝日は登録されていません。	Nenhum feriado conhecido para esta região.		未知此地区的节假日。
+One clock, calendar and weather of each kind; up to {} widgets in all.		Je eine Uhr, ein Kalender und ein Wetter jeder Art; insgesamt bis zu {} Widgets.	Un reloj, calendario y tiempo de cada tipo; hasta {} widgets en total.	Une horloge, un calendrier et une météo de chaque type ; jusqu’à {} widgets en tout.	Un orologio, un calendario e un meteo per tipo; fino a {} widget in tutto.	時計・カレンダー・天気は種類ごとに 1 つ、合計 {} 個まで。	Um relógio, calendário e clima de cada tipo; até {} widgets no total.	Um relógio, calendário e meteorologia de cada tipo; até {} widgets no total.	时钟、日历和天气每种一个；总共最多 {} 个小组件。
+That is the most: {} widgets. Remove one to add another.		Das ist das Maximum: {} Widgets. Entfernen Sie eines, um ein weiteres hinzuzufügen.	Es el máximo: {} widgets. Quite uno para añadir otro.	C’est le maximum : {} widgets. Retirez-en un pour en ajouter un autre.	È il massimo: {} widget. Rimuovine uno per aggiungerne un altro.	これが上限です ({} 個)。追加するにはどれかを削除してください。	Esse é o máximo: {} widgets. Remova um para adicionar outro.	É o máximo: {} widgets. Remova um para acrescentar outro.	已达上限：{} 个小组件。请先移除一个再添加。
+%M %D	%D %M	%D. %M	%D de %M	%D %M	%D %M	%M%D日	%D de %M		%M%D日
+Portugal		Portugal	Portugal	Portugal	Portogallo	ポルトガル	Portugal		葡萄牙
+Brazil		Brasilien	Brasil	Brésil	Brasile	ブラジル	Brasil		巴西
+Spain		Spanien	España	Espagne	Spagna	スペイン	Espanha		西班牙
+Mexico		Mexiko	México	Mexique	Messico	メキシコ	México		墨西哥
+United States		Vereinigte Staaten	Estados Unidos	États-Unis	Stati Uniti	アメリカ合衆国	Estados Unidos		美国
+United Kingdom		Vereinigtes Königreich	Reino Unido	Royaume-Uni	Regno Unito	イギリス	Reino Unido		英国
+France		Frankreich	Francia	France	Francia	フランス	França		法国
+Germany		Deutschland	Alemania	Allemagne	Germania	ドイツ	Alemanha		德国
+Italy		Italien	Italia	Italie	Italia	イタリア	Itália		意大利
+New Year's Day		Neujahr	Año Nuevo	Jour de l’An	Capodanno	元日	Ano-Novo	Ano Novo	元旦
+Epiphany		Heilige Drei Könige	Epifanía del Señor	Épiphanie	Epifania	公現祭	Dia de Reis		主显节
+Carnival		Karneval	Carnaval	Carnaval	Carnevale	カーニバル	Carnaval		狂欢节
+Good Friday		Karfreitag	Viernes Santo	Vendredi saint	Venerdì santo	聖金曜日	Sexta-feira Santa		耶稣受难日
+Easter Sunday		Ostersonntag	Domingo de Resurrección	Dimanche de Pâques	Pasqua	復活祭	Páscoa		复活节
+Easter Monday		Ostermontag	Lunes de Pascua	Lundi de Pâques	Lunedì dell’Angelo	イースターマンデー	Segunda-feira de Páscoa		复活节星期一
+Workers' Day	Labour Day	Tag der Arbeit	Día del Trabajador	Fête du Travail	Festa dei lavoratori	メーデー	Dia do Trabalhador		劳动节
+Ascension Day		Christi Himmelfahrt	Ascensión	Ascension	Ascensione	昇天祭	Ascensão		耶稣升天节
+Whit Monday		Pfingstmontag	Lunes de Pentecostés	Lundi de Pentecôte	Lunedì di Pentecoste	聖霊降臨祭の月曜日	Segunda-feira de Pentecostes		圣灵降临节星期一
+Corpus Christi		Fronleichnam	Corpus Christi	Fête-Dieu	Corpus Domini	聖体の祝日	Corpus Christi		基督圣体节
+Assumption of Mary		Mariä Himmelfahrt	Asunción de la Virgen	Assomption	Ferragosto	聖母被昇天	Assunção de Nossa Senhora		圣母升天节
+All Saints' Day		Allerheiligen	Todos los Santos	Toussaint	Ognissanti	諸聖人の日	Dia de Todos os Santos		诸圣节
+All Souls' Day		Allerseelen	Día de los Difuntos	Jour des défunts	Commemorazione dei defunti	死者の日	Finados	Dia dos Fiéis Defuntos	万灵节
+Immaculate Conception		Mariä Empfängnis	Inmaculada Concepción	Immaculée Conception	Immacolata Concezione	無原罪の御宿り	Imaculada Conceição		圣母无原罪瞻礼
+Christmas Day		Weihnachten	Navidad	Noël	Natale	クリスマス	Natal		圣诞节
+Boxing Day		Boxing Day	Boxing Day	Boxing Day	Boxing Day	ボクシング・デー	Boxing Day		节礼日
+St. Stephen's Day		Stephanstag	San Esteban	Saint-Étienne	Santo Stefano	聖ステファノの日	Dia de Santo Estêvão		圣斯德望日
+Second Day of Christmas		Zweiter Weihnachtsfeiertag	Segundo día de Navidad	Deuxième jour de Noël	Secondo giorno di Natale	クリスマス第二日	Segundo dia de Natal		圣诞节第二天
+Freedom Day		Tag der Freiheit	Día de la Libertad	Jour de la Liberté	Festa della Libertà	自由の日	Dia da Liberdade		自由日
+Portugal Day		Tag Portugals	Día de Portugal	Jour du Portugal	Festa del Portogallo	ポルトガルの日	Dia de Portugal		葡萄牙日
+Implantation of the Republic		Ausrufung der Republik	Implantación de la República	Proclamation de la République	Proclamazione della Repubblica	共和制樹立記念日	Implantação da República		共和国成立日
+Restoration of Independence		Wiederherstellung der Unabhängigkeit	Restauración de la Independencia	Restauration de l’indépendance	Restaurazione dell’indipendenza	独立回復記念日	Restauração da Independência		恢复独立日
+National Day of Spain		Spanischer Nationalfeiertag	Fiesta Nacional de España	Fête nationale espagnole	Festa nazionale spagnola	スペイン建国記念日	Festa Nacional da Espanha	Festa Nacional de Espanha	西班牙国庆日
+Constitution Day		Tag der Verfassung	Día de la Constitución	Jour de la Constitution	Festa della Costituzione	憲法記念日	Dia da Constituição		宪法日
+Tiradentes		Tiradentes	Tiradentes	Tiradentes	Tiradentes	ティラデンテスの日	Tiradentes		蒂拉登特斯日
+Independence Day		Unabhängigkeitstag	Día de la Independencia	Fête de l’indépendance	Festa dell’indipendenza	独立記念日	Dia da Independência		独立日
+Our Lady of Aparecida		Unsere Liebe Frau von Aparecida	Nuestra Señora Aparecida	Notre-Dame d’Aparecida	Nostra Signora di Aparecida	アパレシーダの聖母の日	Nossa Senhora Aparecida		阿帕雷西达圣母节
+Proclamation of the Republic		Ausrufung der Republik	Proclamación de la República	Proclamation de la République	Proclamazione della Repubblica	共和制宣言記念日	Proclamação da República		共和国宣告日
+Black Consciousness Day		Tag des schwarzen Bewusstseins	Día de la Conciencia Negra	Journée de la conscience noire	Giornata della coscienza nera	黒人意識の日	Dia da Consciência Negra		黑人意识日
+Martin Luther King Jr. Day		Martin-Luther-King-Tag	Día de Martin Luther King Jr.	Jour de Martin Luther King	Giorno di Martin Luther King	キング牧師記念日	Dia de Martin Luther King		马丁·路德·金纪念日
+Presidents' Day		Presidents’ Day	Día de los Presidentes	Jour des présidents	Giorno dei presidenti	大統領の日	Dia dos Presidentes		总统日
+Memorial Day		Memorial Day	Día de los Caídos	Memorial Day	Memorial Day	戦没将兵追悼記念日	Memorial Day		阵亡将士纪念日
+Juneteenth		Juneteenth	Juneteenth	Juneteenth	Juneteenth	ジューンティーンス	Juneteenth		六月节
+Labor Day		Labor Day	Día del Trabajo (EE. UU.)	Labor Day	Labor Day	レイバー・デー	Dia do Trabalho (EUA)		劳工节
+Columbus Day		Columbus Day	Día de Colón	Jour de Christophe Colomb	Giorno di Colombo	コロンブス・デー	Dia de Colombo		哥伦布日
+Veterans Day		Veterans Day	Día de los Veteranos	Jour des anciens combattants	Giorno dei veterani	復員軍人の日	Dia dos Veteranos		退伍军人节
+Thanksgiving		Thanksgiving	Día de Acción de Gracias	Thanksgiving	Giorno del Ringraziamento	感謝祭	Dia de Ação de Graças		感恩节
+Early May Bank Holiday		Bankfeiertag Anfang Mai	Festivo de principios de mayo	Jour férié de début mai	Festività di inizio maggio	5月初旬のバンク・ホリデー	Feriado bancário do início de maio		五月初银行假日
+Spring Bank Holiday		Bankfeiertag im Frühling	Festivo de primavera	Jour férié de printemps	Festività di primavera	春のバンク・ホリデー	Feriado bancário da primavera		春季银行假日
+Summer Bank Holiday		Bankfeiertag im Sommer	Festivo de verano	Jour férié d’été	Festività d’estate	夏のバンク・ホリデー	Feriado bancário do verão		夏季银行假日
+Victory in Europe Day		Tag der Befreiung	Día de la Victoria en Europa	Victoire 1945	Giorno della vittoria in Europa	ヨーロッパ戦勝記念日	Dia da Vitória na Europa		欧洲胜利日
+Bastille Day		Französischer Nationalfeiertag	Fiesta Nacional de Francia	Fête nationale	Presa della Bastiglia	フランス革命記念日	Queda da Bastilha		法国国庆日
+Armistice Day		Waffenstillstandstag	Día del Armisticio	Armistice 1918	Giorno dell’armistizio	休戦記念日	Dia do Armistício		停战纪念日
+German Unity Day		Tag der Deutschen Einheit	Día de la Unidad Alemana	Jour de l’unité allemande	Giorno dell’unità tedesca	ドイツ統一の日	Dia da Unidade Alemã		德国统一日
+Liberation Day		Tag der Befreiung	Día de la Liberación	Fête de la Libération	Festa della Liberazione	解放記念日	Dia da Libertação		解放日
+Republic Day		Tag der Republik	Fiesta de la República	Fête de la République	Festa della Repubblica	共和国記念日	Festa da República		共和国日
+Benito Juárez Day		Geburtstag von Benito Juárez	Natalicio de Benito Juárez	Anniversaire de Benito Juárez	Anniversario di Benito Juárez	ベニート・フアレス生誕記念日	Dia de Benito Juárez		贝尼托·华雷斯诞辰
+Revolution Day		Tag der Revolution	Día de la Revolución	Jour de la Révolution	Giorno della Rivoluzione	革命記念日	Dia da Revolução		革命日
+Today		Heute	Hoy	Aujourd’hui	Oggi	今日	Hoje		今天

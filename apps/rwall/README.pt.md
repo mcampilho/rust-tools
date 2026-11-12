@@ -5,18 +5,20 @@ escrito em Rust. Põe uma imagem nova no ambiente de trabalho todos os dias,
 duas ou quatro vezes por dia, todas as semanas, todos os meses ou a cada tantos
 minutos. As imagens vêm da imagem do dia do Bing, da Astronomy Picture of the
 Day da NASA, do Wallhaven, do Lorem Picsum ou das suas pastas. No Windows pode
-também pôr um **fundo dinâmico** atrás dos ícones do ambiente de trabalho: um
-vídeo, um GIF ou WebP animado, ou uma cena desenhada pelo rwall.
+também pôr um **fundo dinâmico** atrás dos ícones do ambiente de trabalho (um
+vídeo, um GIF ou WebP animado, ou uma cena desenhada pelo rwall) e **widgets**
+no ambiente de trabalho: relógios, calendário, notas adesivas, anotações,
+meteorologia, fences e fotos.
 
 [English version](README.md)
 
 O rwall faz parte do [rust-tools](../../README.pt.md). Os comandos abaixo correm
 na raiz do repositório.
 
-O `rwall.exe` é um único executável de 3,2 MB: sem instalador, sem runtime, sem
+O `rwall.exe` é um único executável de 3,7 MB: sem instalador, sem runtime, sem
 DLLs além das que vêm com o Windows. É a única ferramenta do rust-tools que usa
-a rede: descarrega imagens dos serviços que ligar, e mais nada. Sem conta, sem
-cookies, sem telemetria.
+a rede: descarrega imagens dos serviços que ligar, e a meteorologia para um
+widget de meteorologia, e mais nada. Sem conta, sem cookies, sem telemetria.
 
 ## Utilização
 
@@ -39,8 +41,8 @@ as definições; o menu (clique direito) tem **Imagem seguinte**, **Sobre esta
 imagem** (a página sobre ela, no navegador), **Definições…**, **Mostrar o
 ficheiro** e **Sair**. Fechar as definições só as esconde (o Esc também). Da
 primeira vez que arranca assim, o rwall mostra as definições e põe a imagem do
-dia do Bing no ambiente de trabalho. **Iniciar com o Windows**, nas definições,
-arranca-o desta maneira.
+dia do Bing no ambiente de trabalho. **Iniciar com o Windows**, no canto
+superior direito das definições, ao lado dos separadores, arranca-o desta maneira.
 
 Na janela das definições, o Esc fecha-a e o F5 é **Imagem seguinte**.
 
@@ -96,7 +98,7 @@ descarregadas são verificadas: o que não for uma imagem, ou for menor do que
 - **Imagens descarregadas a guardar**: as 30 mais recentes por predefinição (de
   1 a 500); as mais antigas são apagadas depois de cada mudança. As imagens das
   suas pastas nunca são mexidas.
-- **Iniciar com o Windows** acrescenta `"rwall.exe" --tray` a
+- **Iniciar com o Windows** (ao lado dos separadores, para todo o rwall) acrescenta `"rwall.exe" --tray` a
   `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` (só o utilizador atual);
   desmarcar tira-o. No Linux é **Iniciar ao entrar na sessão**, um ficheiro em
   `~/.config/autostart`.
@@ -133,6 +135,65 @@ Gasta pouco: um vídeo é descodificado pela placa gráfica (cerca de 1–2 % de
 núcleo para um vídeo 1080p), e as imagens de uma cena ou de uma animação são
 feitas pequenas e esticadas pela placa gráfica (menos de 10 % de um núcleo).
 
+## Widgets (Windows)
+
+O separador **Widgets** das definições acrescenta widgets ao ambiente de
+trabalho e mostra-os numa lista. Ficam por cima do fundo e dos ícones e por
+baixo de todas as janelas, como se fizessem parte do ambiente de trabalho. Cada
+um pode, em vez disso, ficar **Sempre visível**, por cima de todas as janelas.
+
+| Widget | O que mostra |
+| --- | --- |
+| Relógio analógico | Um mostrador redondo, com o dia; o ponteiro dos segundos pode ser desligado |
+| Relógio digital | As horas em grande (24 horas ou AM/PM, com ou sem segundos) e a data |
+| Calendário | O mês, com o dia de hoje marcado e os feriados nacionais do país das definições regionais do Windows a vermelho (o próximo, ou o que está debaixo do ponteiro, com o nome por baixo do mês); ‹ › para os meses antes e depois, um clique no título volta a hoje |
+| Relógio e calendário | Os dois lado a lado |
+| Nota adesiva | Uma nota colorida para escrever (seis cores); o texto fica guardado tal como é escrito |
+| Anotação | Texto diretamente sobre o fundo, sem caixa, em três tamanhos e quatro cores: etiquetas e lembretes |
+| Meteorologia | O tempo agora e nos três dias seguintes, para uma cidade escrita no separador (`Porto` ou `Porto, Portugal`; ao início, a cidade do fuso horário do computador), em °C ou °F |
+| Fence | Uma caixa com os ficheiros e pastas de uma pasta, com os ícones e miniaturas do Explorador |
+| Fotos | As fotos de uma pasta (e das subpastas), umas atrás das outras, de 1 a 240 minutos |
+
+- **Mover** um widget: arrastá-lo (uma nota pela barra de cima); encosta-se
+  às margens do ecrã. **Mudar o tamanho**: arrastar o canto inferior direito.
+  **Bloquear posição** (no menu dele) evita movê-lo sem querer.
+- **Clique direito** num widget para as opções: cores e tamanhos, segundos e
+  relógio de 24 horas, Atualizar e °F na meteorologia, Foto seguinte, Sempre
+  visível, Bloquear posição, Definições do widget… e Remover o widget.
+- **Notas e anotações**: um clique numa nota para escrever (duplo clique numa
+  anotação); setas, Home/End, Ctrl+A, Ctrl+C/X/V e Ctrl+Backspace funcionam
+  como de costume; o Esc ou um clique noutro sítio termina a escrita. O texto
+  é guardado à medida que se escreve.
+- **Fences**: um duplo clique abre um ficheiro ou pasta; os ficheiros podem ser
+  arrastados para fora de uma fence (para o ambiente de trabalho, uma pasta, um
+  programa) e largados numa. Um ficheiro largado a partir do mesmo disco é
+  movido para lá, de outro disco é copiado (Ctrl copia, Shift move), com o
+  progresso, as perguntas e o anular do próprio Explorador. Os ficheiros
+  ocultos e de sistema continuam escondidos.
+- **Meteorologia**: dados de [Open-Meteo.com](https://open-meteo.com/) (grátis,
+  sem chave, sem conta), pedidos outra vez de meia em meia hora. A cidade é
+  procurada uma vez; fica o lugar mais populoso com esse nome, a não ser que
+  se escreva uma região ou um país depois de uma vírgula.
+- **Definições regionais**: um relógio novo usa 24 horas ou AM/PM, e uma
+  meteorologia nova °C ou °F, conforme o formato regional do Windows; os
+  calendários começam a semana no primeiro dia dele (sábado, domingo ou
+  segunda). A meteorologia começa com a cidade do fuso horário (`Lisbon, PT`
+  para Europe/Lisbon), que se pode mudar.
+- **Feriados**: os feriados nacionais de Portugal, Brasil, Espanha, México,
+  Estados Unidos, Reino Unido (Inglaterra e País de Gales), França, Alemanha
+  e Itália, calculados para qualquer ano (sem os regionais e municipais).
+  **Feriados**, no separador, desliga-os num calendário.
+- **Quantos**: um relógio, calendário e meteorologia de cada tipo (o botão de
+  acrescentar fica cinzento enquanto houver um), notas, anotações, fences e
+  fotos à vontade, até 16 widgets ao todo. Um widget novo vai para o primeiro
+  sítio livre a partir do canto superior direito do ecrã principal.
+- Os widgets aparecem enquanto o rwall corre: com `--tray` sempre, sem ele
+  enquanto a janela das definições estiver aberta. **Mostrar os widgets no
+  ambiente de trabalho** esconde-os ou mostra-os todos.
+
+Gastam pouco: nove widgets, três deles com segundos, usam menos de 1 % de um
+núcleo e cerca de 36 MB.
+
 ## Como funciona
 
 - **Transferências**: WinHTTP, o HTTPS do sistema com as definições de proxy
@@ -157,6 +218,13 @@ feitas pequenas e esticadas pela placa gráfica (menos de 10 % de um núcleo).
 - **Reprodução**: o motor de multimédia do Media Foundation reproduz o vídeo
   numa swap chain do Direct3D 11 por ecrã. As cenas e as animações são
   desenhadas no processador a 960×540 (ou menos) e esticadas pela swap chain.
+- **Widgets**: cada um é uma janela em camadas (`WS_EX_LAYERED`, transparência
+  por píxel com `UpdateLayeredWindow`), desenhada pelo próprio rwall. Um widget
+  preso ao ambiente de trabalho é *propriedade* da janela que tem os ícones, por
+  isso o Windows mantém-no logo acima deles; o rwall segura o seu lugar entre as
+  janelas, mesmo enquanto se escreve numa nota. As fences usam o arrastar e
+  largar do OLE e as operações de ficheiros do Explorador (`SHFileOperationW`).
+  Quando o Explorador reinicia ou os ecrãs mudam, os widgets voltam ao sítio.
 - **Ficheiros**: as definições em `settings.ini` e as imagens descarregadas em
   `images\`, ambas em `%APPDATA%\rwall` (Windows) ou `~/.config/rwall` (Linux),
   ou ao lado do `rwall.exe` quando lá existe um ficheiro `rwall.portable` (modo
@@ -164,8 +232,8 @@ feitas pequenas e esticadas pela placa gráfica (menos de 10 % de um núcleo).
 
 ## Linux
 
-A mesma janela de definições (sem o fundo dinâmico, por agora só no Windows)
-e, com `--tray`, o mesmo menu num ícone
+A mesma janela de definições (sem o fundo dinâmico e os widgets, por agora só
+no Windows) e, com `--tray`, o mesmo menu num ícone
 StatusNotifierItem. Sem um anfitrião para ele (GNOME simples), o rwall
 residente mantém a janela, minimizada quando se fecha. A imagem é posta com o
 `gsettings` (GNOME, Cinnamon e afins), o `plasma-apply-wallpaperimage` (KDE
@@ -183,6 +251,9 @@ testado no WSL2, ainda não corrido num ambiente de trabalho Linux.
 ./dev.ps1 test -p rwall --lib live_services '--' --ignored --nocapture   # precisa de rede
 ./dev.ps1 test -p rwall --lib scene_pictures '--' --ignored      # uma imagem de cada cena, flow.gif
 ./dev.ps1 test -p rwall --release --lib scene_speed '--' --ignored --nocapture
+./dev.ps1 test -p rwall --lib widget_pictures '--' --ignored     # todos os widgets, claros, escuros e a 150 %
+./dev.ps1 test -p rwall --lib weather_live '--' --ignored --nocapture   # Open-Meteo, precisa de rede
+./dev.ps1 test -p rwall --lib pinned_window_order '--' --ignored --nocapture
 ```
 
 O rwall usa o perfil `release` (não o `release-small`): uma imagem malformada

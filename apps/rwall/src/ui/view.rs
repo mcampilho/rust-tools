@@ -4,6 +4,8 @@
 //!   where pictures come from, how they fill the screen.
 //! - Dynamic wallpaper: a video, an animated picture or a scene playing
 //!   behind the desktop icons, how it fills the screens and when it pauses.
+//! - Widgets: clocks, calendars, notes, the weather, fences and photos on
+//!   the desktop; each one's options.
 //!
 //! [`draw`] paints the window and returns where each control is, so the
 //! clicks are tested against exactly what was drawn.
@@ -15,6 +17,7 @@ use crate::live::{Kind, LiveFit, PauseWhen, Scene};
 use crate::schedule::Frequency;
 use crate::settings::{Fit, Settings};
 use crate::sources::Source;
+use crate::widgets::{WKind, Widget};
 use rt_gfx::dialog::{ellipsize, ellipsize_middle, wrap_words};
 
 /// A text box.
@@ -23,6 +26,8 @@ pub enum Field {
     /// Bing market ("pt-PT").
     Market,
     Wallhaven,
+    /// The city of a weather widget.
+    City(u32),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -30,15 +35,17 @@ pub enum Tab {
     #[default]
     Static,
     Dynamic,
+    Widgets,
 }
 
 impl Tab {
-    pub const ALL: [Tab; 2] = [Tab::Static, Tab::Dynamic];
+    pub const ALL: [Tab; 3] = [Tab::Static, Tab::Dynamic, Tab::Widgets];
 
     pub fn label(self) -> &'static str {
         match self {
             Tab::Static => "Static wallpaper",
             Tab::Dynamic => "Dynamic wallpaper",
+            Tab::Widgets => "Widgets",
         }
     }
 }
@@ -74,6 +81,34 @@ pub enum Hit {
     LiveFit(LiveFit),
     LivePause(PauseWhen),
     LiveSubfolders,
+    /// Shows or hides all the widgets.
+    WidgetsOn,
+    AddWidget(WKind),
+    WidgetTop(u32),
+    WidgetRemove(u32),
+    WidgetSeconds(u32),
+    WidgetH24(u32),
+    WidgetHolidays(u32),
+    /// Choose the folder of a fence or of photos.
+    WidgetFolder(u32),
+    /// Photos change less or more often.
+    WidgetLess(u32),
+    WidgetMore(u32),
+    /// °C (false) or °F (true).
+    WidgetUnits(u32, bool),
+}
+
+/// The widgets, as the window shows them.
+#[derive(Default)]
+pub struct WidgetsModel<'a> {
+    /// Windows only, for now.
+    pub available: bool,
+    /// Resident (`--tray`): they stay when the window closes.
+    pub tray: bool,
+    /// A word about some of them (the weather).
+    pub status: &'a [(u32, String)],
+    /// The country of the regional settings (ISO code), for the holidays.
+    pub country: &'a str,
 }
 
 /// The dynamic wallpaper, as the window shows it.
@@ -107,6 +142,7 @@ pub struct Model<'a> {
     pub hot: Option<Hit>,
     pub scroll: f32,
     pub live: LiveModel<'a>,
+    pub widgets: WidgetsModel<'a>,
 }
 
 /// Where the controls are, and how tall the content is (for scrolling).
@@ -381,6 +417,7 @@ pub fn draw(g: &mut Gfx, m: &Model, t: &Theme, s: f32, full: Rect) -> Drawn {
     let y = match m.tab {
         Tab::Static => static_tab(&mut p, m, x, y0, w),
         Tab::Dynamic => dynamic_tab(&mut p, m, x, y0, w),
+        Tab::Widgets => widgets_tab(&mut p, m, x, y0, w),
     };
     let content_h = y + m.scroll - full.y;
 
@@ -405,6 +442,14 @@ pub fn draw(g: &mut Gfx, m: &Model, t: &Theme, s: f32, full: Rect) -> Drawn {
         }
         p.hit(r, Hit::Tab(tab));
         tx += tw + p.px(4.0);
+    }
+    // For all of rwall, not one tab: at the right of the tabs.
+    let text = autostart_label();
+    let room = x + w - tx - p.px(8.0);
+    let want = p.g.measure(&text, p.px(12.5), FontId::Regular) + p.px(34.0);
+    let cw = want.min(room);
+    if cw > p.px(60.0) {
+        p.choice(x + w - cw, bar.y + (bar.h - p.px(26.0)) / 2.0 + p.px(2.0), cw, &text, m.autostart, false, Hit::Autostart);
     }
     p.g.set_clip(None);
     Drawn { hits: p.hits, content_h }
@@ -479,7 +524,7 @@ fn static_tab(p: &mut Painter, m: &Model, x: f32, mut y: f32, w: f32) -> f32 {
         if let Some(f) = field {
             let caption = match f {
                 Field::Market => tr("Region:"),
-                Field::Wallhaven => tr("Search:"),
+                Field::Wallhaven | Field::City(_) => tr("Search:"),
             };
             let fx = x + w - fw;
             let cw = p.px(100.0);
@@ -527,14 +572,15 @@ fn static_tab(p: &mut Painter, m: &Model, x: f32, mut y: f32, w: f32) -> f32 {
     let lw = p.g.measure(&keep_label, p.px(12.5), FontId::Regular).min(w * 0.6);
     p.g.text_in(&keep_label, Rect::new(x, y, lw, p.px(26.0)), p.px(12.5), FontId::Regular, t.text, Align::Left);
     p.stepper(x + lw + p.px(10.0), y, &st.keep.to_string(), Hit::KeepLess, Hit::KeepMore);
-    y += row + p.px(4.0);
-    autostart(p, m, x, y, w) + p.px(14.0)
+    y + row + p.px(14.0)
 }
 
-fn autostart(p: &mut Painter, m: &Model, x: f32, y: f32, w: f32) -> f32 {
-    let text = if cfg!(windows) { tr("Start with Windows") } else { tr("Start when I log in") };
-    p.choice(x, y, w, &text, m.autostart, false, Hit::Autostart);
-    y + p.px(28.0)
+fn autostart_label() -> String {
+    if cfg!(windows) {
+        tr("Start with Windows")
+    } else {
+        tr("Start when I log in")
+    }
 }
 
 /// The dynamic wallpaper: returns the `y` under the last control.
@@ -621,12 +667,164 @@ fn dynamic_tab(p: &mut Painter, m: &Model, x: f32, mut y: f32, w: f32) -> f32 {
         p.choice(x, y, w, &tr(pw.label()), l.pause_on(pw), false, Hit::LivePause(pw));
         y += row;
     }
-    y += gap - p.px(4.0);
+    y + p.px(14.0)
+}
 
-    // ---- Other
-    p.heading(&tr("Other"), x, y, w);
+/// The widgets: returns the `y` under the last control.
+fn widgets_tab(p: &mut Painter, m: &Model, x: f32, mut y: f32, w: f32) -> f32 {
+    let t = *p.t;
+    let ws = &m.settings.widgets;
+    let gap = p.px(18.0);
+
+    p.heading(&tr("Widgets on the desktop"), x, y, w);
     y += p.px(30.0);
-    autostart(p, m, x, y, w) + p.px(14.0)
+    if !m.widgets.available {
+        return p.note(&tr("The widgets are available only on Windows for now."), x, y, w, false) + gap;
+    }
+    p.choice(x, y, w, &tr("Show the widgets on the desktop"), ws.on, false, Hit::WidgetsOn);
+    y += p.px(30.0);
+    y = p.note(&tr("Drag a widget to move it, or its bottom right corner to resize it; right-click it for more options."), x, y, w, false);
+    if !m.widgets.tray {
+        y = p.note(&tr("The widgets close with this window; with rwall --tray they stay on the desktop."), x, y, w, false);
+    }
+    y += gap;
+
+    // ---- Add
+    p.heading(&tr("Add a widget"), x, y, w);
+    y += p.px(30.0);
+    for row in WKind::ALL.chunks(3) {
+        let buttons: Vec<Button> = row.iter().map(|k| (tr(k.label()), Hit::AddWidget(*k), ws.can_add(*k), false)).collect();
+        p.segments(x, y, w, &buttons, 400.0);
+        y += p.px(34.0);
+    }
+    let most = crate::widgets::MAX_WIDGETS.to_string();
+    let (text, warn) = if ws.list.len() >= crate::widgets::MAX_WIDGETS {
+        (tf("That is the most: {} widgets. Remove one to add another.", &[&most]), true)
+    } else {
+        (tf("One clock, calendar and weather of each kind; up to {} widgets in all.", &[&most]), false)
+    };
+    y = p.note(&text, x, y, w, warn);
+    y += gap - p.px(6.0);
+
+    // ---- The list
+    p.heading(&tr("Your widgets"), x, y, w);
+    y += p.px(30.0);
+    if ws.list.is_empty() {
+        p.label(&tr("No widgets yet."), Rect::new(x, y, w, p.px(24.0)), 12.0, FontId::Italic, t.dim);
+        y += p.px(28.0);
+    }
+    for wd in &ws.list {
+        y = widget_row(p, m, wd, x, y, w) + p.px(8.0);
+    }
+    if ws.list.iter().any(|wd| wd.kind == WKind::Weather) {
+        y = p.note(&tr("Weather data by Open-Meteo.com"), x, y, w, false);
+    }
+    y + p.px(14.0)
+}
+
+/// One widget of the list, in a box; returns the `y` under it.
+fn widget_row(p: &mut Painter, m: &Model, wd: &Widget, x: f32, y: f32, w: f32) -> f32 {
+    let t = *p.t;
+    let pad = p.px(10.0);
+    let (ix, iw) = (x + pad, w - 2.0 * pad);
+    let row = p.px(28.0);
+    // The box is drawn first and sized after: count the rows.
+    let extra = match wd.kind {
+        WKind::Analog | WKind::Digital | WKind::Calendar | WKind::ClockCalendar | WKind::Fence => 1,
+        WKind::Weather => 2,
+        WKind::Photos => 2,
+        _ => 0,
+    };
+    let h = pad * 2.0 + row * (1 + extra) as f32;
+    let r = Rect::new(x, y, w, h);
+    p.g.fill_rrect(r, p.px(6.0), t.panel);
+    p.g.stroke_rrect(r.inset(0.5), p.px(6.0), 1.0, t.border);
+    let mut ry = y + pad;
+
+    // Its name, a word about it, "Always on top" and ×.
+    let rm = p.px(26.0);
+    p.button(Rect::new(ix + iw - rm, ry + p.px(1.0), rm, rm), "×", Hit::WidgetRemove(wd.id), true, false);
+    let top_label = tr("Always on top");
+    let top_w = (p.g.measure(&top_label, p.px(12.5), FontId::Regular) + p.px(34.0)).min(iw * 0.4);
+    let top_x = ix + iw - rm - p.px(10.0) - top_w;
+    p.choice(top_x, ry, top_w, &top_label, wd.on_top, false, Hit::WidgetTop(wd.id));
+    let name = tr(wd.kind.label());
+    let nw = p.g.measure(&name, p.px(13.0), FontId::Semibold).min(top_x - ix - p.px(8.0));
+    p.label(&name, Rect::new(ix, ry, nw, row), 13.0, FontId::Semibold, t.text);
+    let summary = wd.summary();
+    // The weather, fences and photos say more on the rows below.
+    if !summary.is_empty() && wd.kind.editable() {
+        let sx = ix + nw + p.px(10.0);
+        let sw = (top_x - sx - p.px(8.0)).max(0.0);
+        let px = p.px(12.0);
+        let s = ellipsize(p.g, &summary, sw, px, FontId::Regular);
+        p.g.text_in(&s, Rect::new(sx, ry, sw, row), px, FontId::Regular, t.dim, Align::Left);
+    }
+    ry += row;
+
+    match wd.kind {
+        WKind::Analog | WKind::Digital | WKind::Calendar | WKind::ClockCalendar => {
+            let mut cx = ix;
+            if wd.kind.has_clock() {
+                cx += p.choice(cx, ry, iw / 3.0, &tr("Seconds"), wd.seconds, false, Hit::WidgetSeconds(wd.id)) + p.px(16.0);
+                if wd.kind != WKind::Analog {
+                    cx += p.choice(cx, ry, iw / 3.0, &tr("24-hour clock"), wd.h24, false, Hit::WidgetH24(wd.id)) + p.px(16.0);
+                }
+            }
+            if wd.kind.has_month() {
+                let rw = ix + iw - cx;
+                match crate::widgets::holidays::country_name(m.widgets.country) {
+                    Some(name) => {
+                        p.choice(cx, ry, rw, &tf("Holidays ({})", &[&tr(name)]), wd.holidays, false, Hit::WidgetHolidays(wd.id));
+                    }
+                    None => {
+                        let px = p.px(11.5);
+                        let s = ellipsize(p.g, &tr("No holidays known for this region."), rw, px, FontId::Italic);
+                        p.g.text_in(&s, Rect::new(cx, ry, rw, p.px(26.0)), px, FontId::Italic, t.dim, Align::Left);
+                    }
+                }
+            }
+        }
+        WKind::Weather => {
+            let cap = tr("City:");
+            let cw = p.g.measure(&cap, p.px(12.5), FontId::Regular) + p.px(8.0);
+            p.g.text_in(&cap, Rect::new(ix, ry, cw, p.px(26.0)), p.px(12.5), FontId::Regular, t.text, Align::Left);
+            let units = [("°C".to_string(), Hit::WidgetUnits(wd.id, false), true, !wd.fahrenheit), ("°F".to_string(), Hit::WidgetUnits(wd.id, true), true, wd.fahrenheit)];
+            let uw = p.px(104.0);
+            let fw = (iw - cw - uw - p.px(12.0)).max(p.px(80.0));
+            let f = Field::City(wd.id);
+            p.field(Rect::new(ix + cw, ry, fw, p.px(26.0)), &wd.city, &tr("e.g. Lisbon"), f, m.focus == Some(f));
+            p.segments(ix + iw - uw, ry - p.px(1.0), uw, &units, 50.0);
+            ry += row + p.px(2.0);
+            let status = m.widgets.status.iter().find(|(id, _)| *id == wd.id).map(|(_, s)| s.clone());
+            let (text, warn) = match status {
+                Some(s) => (s, true),
+                None if wd.has_place() => (wd.place.clone(), false),
+                None => (tr("Type a city in the Widgets tab of rwall."), false),
+            };
+            p.label(&text, Rect::new(ix, ry, iw, p.px(22.0)), 11.5, FontId::Regular, if warn { t.warn } else { t.dim });
+        }
+        WKind::Fence | WKind::Photos => {
+            let choose = tr("Choose…");
+            let bw = p.text_width(&choose, 84.0);
+            let px = p.px(12.0);
+            let (text, c, font) = if wd.folder.as_os_str().is_empty() { (tr("Nothing chosen."), t.dim, FontId::Italic) } else { (wd.folder.display().to_string(), t.text, FontId::Regular) };
+            let tw = (iw - bw - p.px(10.0)).max(0.0);
+            let text = ellipsize_middle(p.g, &text, tw, px, font);
+            p.g.text_in(&text, Rect::new(ix, ry, tw, p.px(26.0)), px, font, c, Align::Left);
+            p.button(Rect::new(ix + iw - bw, ry, bw, p.px(26.0)), &choose, Hit::WidgetFolder(wd.id), true, false);
+            if wd.kind == WKind::Photos {
+                ry += row + p.px(2.0);
+                let label = tr("Change every");
+                let lw = p.g.measure(&label, p.px(12.5), FontId::Regular).min(iw * 0.6);
+                p.g.text_in(&label, Rect::new(ix, ry, lw, p.px(26.0)), p.px(12.5), FontId::Regular, t.text, Align::Left);
+                let value = tf("{} min", &[&wd.minutes.to_string()]);
+                p.stepper(ix + lw + p.px(10.0), ry, &value, Hit::WidgetLess(wd.id), Hit::WidgetMore(wd.id));
+            }
+        }
+        _ => {}
+    }
+    y + h
 }
 
 #[cfg(test)]
@@ -646,7 +844,47 @@ mod tests {
             hot: None,
             scroll: 0.0,
             live: LiveModel { available: true, ..LiveModel::default() },
+            widgets: WidgetsModel { available: true, ..WidgetsModel::default() },
         }
+    }
+
+    #[test]
+    fn the_widgets_tab() {
+        let Ok(mut g) = Gfx::new() else { return };
+        g.resize(620, 1400);
+        let mut st = Settings::default();
+        for k in [WKind::Digital, WKind::Weather, WKind::Photos, WKind::Note, WKind::ClockCalendar] {
+            st.widgets.add(k);
+        }
+        let status = [(2, "City not found: Xyz".to_string())];
+        let m = Model { widgets: WidgetsModel { available: true, tray: true, status: &status, country: "PT" }, ..model(&st, Tab::Widgets) };
+        let d = draw(&mut g, &m, &Theme::new(false, None), 1.0, Rect::new(0.0, 0.0, 620.0, 1400.0));
+        for h in [
+            Hit::WidgetsOn,
+            Hit::AddWidget(WKind::Fence),
+            Hit::AddWidget(WKind::Photos),
+            Hit::WidgetSeconds(1),
+            Hit::WidgetH24(1),
+            Hit::Field(Field::City(2)),
+            Hit::WidgetUnits(2, true),
+            Hit::WidgetFolder(3),
+            Hit::WidgetMore(3),
+            Hit::WidgetTop(4),
+            Hit::WidgetRemove(4),
+            Hit::WidgetH24(5),
+            Hit::WidgetHolidays(5),
+            Hit::Autostart,
+        ] {
+            let (r, _) = d.hits.iter().find(|(_, x)| *x == h).unwrap_or_else(|| panic!("{h:?} not drawn"));
+            assert_eq!(d.hit(r.x + r.w / 2.0, r.y + r.h / 2.0), Some(h));
+        }
+        // One digital clock is enough; notes can be many.
+        assert!(!d.hits.iter().any(|(_, h)| *h == Hit::AddWidget(WKind::Digital)));
+        assert!(d.hits.iter().any(|(_, h)| *h == Hit::AddWidget(WKind::Note)));
+        // Elsewhere than Windows, only a word.
+        let m = Model { widgets: WidgetsModel::default(), ..model(&st, Tab::Widgets) };
+        let d = draw(&mut g, &m, &Theme::new(false, None), 1.0, Rect::new(0.0, 0.0, 620.0, 1000.0));
+        assert_eq!(d.hits.iter().filter(|(_, h)| !matches!(h, Hit::Tab(_) | Hit::Autostart)).count(), 0);
     }
 
     #[test]
@@ -713,6 +951,6 @@ mod tests {
         // Elsewhere than Windows, only a word.
         let m = Model { live: LiveModel::default(), ..model(&st, Tab::Dynamic) };
         let d = draw(&mut g, &m, &Theme::new(false, None), 1.0, Rect::new(0.0, 0.0, 620.0, 1000.0));
-        assert_eq!(d.hits.iter().filter(|(_, h)| !matches!(h, Hit::Tab(_))).count(), 0);
+        assert_eq!(d.hits.iter().filter(|(_, h)| !matches!(h, Hit::Tab(_) | Hit::Autostart)).count(), 0);
     }
 }

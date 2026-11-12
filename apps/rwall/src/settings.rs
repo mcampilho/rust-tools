@@ -5,6 +5,7 @@ use crate::live::LiveSettings;
 use crate::schedule::Frequency;
 use crate::sources::Source;
 use crate::storage::Store;
+use crate::widgets::WidgetSettings;
 use std::path::PathBuf;
 
 /// How the picture fills the screen.
@@ -98,6 +99,8 @@ pub struct Settings {
     pub theme: u8,
     /// The dynamic wallpaper.
     pub live: LiveSettings,
+    /// The desktop widgets.
+    pub widgets: WidgetSettings,
 }
 
 impl Default for Settings {
@@ -119,6 +122,7 @@ impl Default for Settings {
             language: None,
             theme: 0,
             live: LiveSettings::default(),
+            widgets: WidgetSettings::default(),
         }
     }
 }
@@ -155,6 +159,7 @@ impl Settings {
             language: s.get("language").and_then(Lang::from_tag),
             theme: s.get("theme").and_then(|v| v.parse().ok()).filter(|t| *t <= 2).unwrap_or(0),
             live: LiveSettings::load(s),
+            widgets: WidgetSettings::load(s),
         }
     }
 
@@ -186,6 +191,7 @@ impl Settings {
         }
         s.set("theme", self.theme.to_string());
         self.live.save(&mut s);
+        self.widgets.save(&mut s);
         for h in &self.history {
             s.push("shown", h.as_str());
         }
@@ -247,6 +253,7 @@ mod tests {
             live: crate::live::LiveSettings { on: true, scene: crate::live::Scene::Stars, ..Default::default() },
             ..Settings::default()
         };
+        s.widgets.add(crate::widgets::WKind::Note).unwrap().text = "uma\nnota".into();
         s.shown("a");
         s.shown("b");
         s.shown("a");

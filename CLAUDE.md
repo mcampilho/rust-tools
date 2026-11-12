@@ -9,7 +9,8 @@ Monorepo (workspace Cargo) com seis aplicações, cada uma um único `.exe`, e o
 - `apps/rsize` — analisador de espaço em disco.
 - `apps/rdup` — procurador de ficheiros duplicados (lê os discos com o `rt-scan`, como o rsize).
 - `apps/rwall` — muda o wallpaper a partir da área de notificação (Bing, NASA, Wallhaven, Picsum, pastas locais) e,
-  no Windows, põe um fundo dinâmico atrás dos ícones (vídeo, GIF/WebP animado, cenas próprias).
+  no Windows, põe um fundo dinâmico atrás dos ícones (vídeo, GIF/WebP animado, cenas próprias) e widgets no ambiente de
+  trabalho (relógios, calendário, notas, anotações, meteorologia da Open-Meteo, fences, fotos).
 
 Cada aplicação tem o seu `CLAUDE.md` com arquitetura e regras próprias.
 
@@ -33,7 +34,8 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
 - `README.md` e `README.pt.md` são atualizados em conjunto, na raiz e em cada aplicação.
 - Textos visíveis ficam no `strings.txt` de cada aplicação, nunca no código de desenho.
 - Sem rede, sem telemetria, sem biblioteca de interface. Exceção aprovada em 2026-11-11: o rwall descarrega
-  imagens (só GET às fontes que o utilizador liga; WinHTTP no Windows, `curl` no Linux). Nenhuma outra.
+  imagens (só GET às fontes que o utilizador liga; WinHTTP no Windows, `curl` no Linux) e, desde 2026-11-12, a
+  meteorologia da Open-Meteo para o widget de meteorologia. Nenhuma outra.
 - `rustfmt.toml`: `max_width = 140`.
 
 ## Releases

@@ -13,7 +13,7 @@ a rede, para descarregar as imagens que põe no ambiente de trabalho.
 | [rview](apps/rview/README.pt.md) | Visualizador de PDF, Markdown, HTML, texto e CSV, com seleção e cópia | 4,4 MB | 16,6 MB |
 | [rsize](apps/rsize/README.pt.md) | Analisador de espaço em disco: pastas por tamanho com treemap, tarte ou anéis, tipos de ficheiro, exportação CSV; lê o NTFS diretamente ou o índice do Everything | 1,9 MB | 5,5 MB |
 | [rdup](apps/rdup/README.pt.md) | Procurador de ficheiros duplicados: ficheiros com o mesmo conteúdo em vários discos e pastas de uma vez, por tamanho e hashes BLAKE3; lê os discos como o rsize | 1,9 MB | 5,6 MB |
-| [rwall](apps/rwall/README.pt.md) | Muda o fundo do ambiente de trabalho: todos os dias, duas ou quatro vezes por dia, todas as semanas, todos os meses ou a cada tantos minutos, com imagens do Bing, da NASA, do Wallhaven, do Picsum ou das suas pastas; no Windows também um fundo dinâmico atrás dos ícones (vídeo, GIF animado ou uma cena desenhada) | 3,2 MB | 6,8 MB |
+| [rwall](apps/rwall/README.pt.md) | Muda o fundo do ambiente de trabalho: todos os dias, duas ou quatro vezes por dia, todas as semanas, todos os meses ou a cada tantos minutos, com imagens do Bing, da NASA, do Wallhaven, do Picsum ou das suas pastas; no Windows também um fundo dinâmico atrás dos ícones (vídeo, GIF animado ou uma cena desenhada) e widgets no ambiente de trabalho (relógios, calendário, notas, meteorologia, fences, fotos) | 3,7 MB | 6,8 MB |
 
 Todas desenham a sua própria interface no CPU (winit, softbuffer, tiny-skia e
 ab_glyph), sem GPU nem biblioteca de interface. Têm 10 idiomas e seguem o tema

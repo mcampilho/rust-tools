@@ -10,7 +10,7 @@ pub mod anim;
 pub mod scene;
 
 #[cfg(windows)]
-mod desktop;
+pub(crate) mod desktop;
 #[cfg(windows)]
 pub mod player;
 #[cfg(windows)]

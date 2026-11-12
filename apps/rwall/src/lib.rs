@@ -16,4 +16,5 @@ pub mod sources;
 pub mod storage;
 pub mod ui;
 pub mod wallpaper;
+pub mod widgets;
 

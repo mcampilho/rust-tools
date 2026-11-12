@@ -109,6 +109,13 @@ fn labels_have_translations() {
     keys.extend(crate::live::LiveFit::ALL.iter().map(|f| f.label()));
     keys.extend(crate::live::PauseWhen::ALL.iter().map(|p| p.label()));
     keys.extend(crate::ui::view::Tab::ALL.iter().map(|t| t.label()));
+    keys.extend(crate::widgets::WKind::ALL.iter().map(|k| k.label()));
+    keys.extend(crate::widgets::NOTE_COLORS.iter().chain(&crate::widgets::TEXT_COLORS).map(|c| c.0));
+    keys.extend(crate::widgets::TEXT_SIZES.iter().map(|s| s.0));
+    keys.extend(crate::widgets::weather::Sky::ALL.iter().map(|s| s.label()));
+    keys.extend(crate::widgets::calendar::MONTHS);
+    keys.extend(crate::widgets::calendar::WEEKDAYS);
+    keys.extend(crate::widgets::calendar::WEEKDAYS_SHORT);
     let missing: Vec<&str> = keys.into_iter().filter(|k| !has_key(k)).collect();
     assert!(missing.is_empty(), "untranslated labels: {missing:?}");
 }
@@ -129,15 +136,19 @@ fn window_renders_fully_translated() {
     use crate::sources::Source;
     use crate::ui::gfx::{Gfx, Rect};
     use crate::ui::theme::Theme;
-    use crate::ui::view::{draw, Field, LiveModel, Model, Tab};
+    use crate::ui::view::{draw, Field, LiveModel, Model, Tab, WidgetsModel};
+    use crate::widgets::WKind;
     let Ok(mut g) = Gfx::new() else { return };
     g.resize(640, 900);
     let mut st = Settings { sources: Source::ALL.to_vec(), folders: vec!["C:\\Pictures".into()], ..Settings::default() };
+    for k in WKind::ALL {
+        st.widgets.add(k);
+    }
     for l in Lang::ALL {
         set_lang(l);
         take_misses();
         let currents = [None, Some(Current { title: "T".into(), credit: "C".into(), source: "bing".into(), link: "https://x".into(), ..Current::default() })];
-        for (current, tab) in currents.into_iter().zip([Tab::Static, Tab::Dynamic]).chain([(None, Tab::Dynamic)]) {
+        for (current, tab) in currents.into_iter().zip([Tab::Static, Tab::Dynamic]).chain([(None, Tab::Dynamic), (None, Tab::Widgets)]) {
             st.current = current;
             st.live.kind = if tab == Tab::Dynamic && st.current.is_none() { crate::live::Kind::Folder } else { crate::live::Kind::Scene };
             let m = Model {
@@ -152,10 +163,31 @@ fn window_renders_fully_translated() {
                 focus: Some(Field::Wallhaven),
                 hot: None,
                 scroll: 0.0,
+                widgets: WidgetsModel { available: true, tray: false, status: &[], country: "PT" },
             };
             draw(&mut g, &m, &Theme::new(false, None), 1.0, Rect::new(0.0, 0.0, 640.0, 900.0));
+            // The widgets themselves.
+            if tab == Tab::Widgets {
+                let mut wg = Gfx::new().unwrap();
+                let fc = crate::widgets::weather::Forecast { temp: 1.0, sky: crate::widgets::weather::Sky::Rain, day: true, days: Vec::new() };
+                for wd in &st.widgets.list {
+                    let (w, h) = wd.kind.default_size();
+                    wg.resize(w as u32, h as u32);
+                    let v = crate::widgets::paint::View { weather: Some(&fc), country: "PT", ..crate::widgets::paint::View::at(rt_sys::local_time()) };
+                    let look = crate::widgets::paint::Look { dark: false, accent: crate::ui::gfx::Color::rgb(0x2F7DE1), s: 1.0 };
+                    crate::widgets::paint::paint(&mut wg, wd, &v, &look);
+                }
+            }
         }
-        let _ = (tr("Changing…"), tr("Looking for a picture…"));
+        let _ = (tr("Changing…"), tr("Looking for a picture…"), crate::widgets::calendar::day_month(12, 8), tr("Today"));
+        // Every holiday and country, and the words for a full list.
+        for (code, name) in crate::widgets::holidays::COUNTRIES {
+            let _ = tr(name);
+            for h in crate::widgets::holidays::of_year(code, 2026) {
+                let _ = tr(h.name);
+            }
+        }
+        let _ = (tr("No holidays known for this region."), tf("That is the most: {} widgets. Remove one to add another.", &["16"]));
         let misses: Vec<String> = take_misses().into_iter().filter(|m| m.chars().any(|c| c.is_alphabetic()) && !["T", "C", "S", "N"].contains(&m.as_str())).collect();
         assert!(misses.is_empty() || l == Lang::EnUS, "untranslated in {}: {misses:#?}", l.tag());
     }
@@ -205,6 +237,14 @@ fn screenshots() {
     st.live.kind = crate::live::Kind::Folder;
     st.live.folder = "D:\\Vídeos\\Fundos".into();
     st.live.playing = "D:\\Vídeos\\Fundos\\aurora boreal.mp4".into();
+    for k in [crate::widgets::WKind::Analog, crate::widgets::WKind::Weather, crate::widgets::WKind::Fence, crate::widgets::WKind::Photos, crate::widgets::WKind::Note, crate::widgets::WKind::Calendar] {
+        let wd = st.widgets.add(k).unwrap();
+        wd.city = "Lisboa".into();
+        wd.place = "Lisboa, Portugal".into();
+        wd.folder = "C:\\Users\\Me\\Desktop\\Trabalho".into();
+        wd.text = "Comprar pão".into();
+    }
+    let status = [(2u32, tf("City not found: {}", &["Lisboa"]))];
     let shots = [
         (Lang::EnUS, false, "en-light", Tab::Static),
         (Lang::PtPT, true, "pt-dark", Tab::Static),
@@ -212,6 +252,8 @@ fn screenshots() {
         (Lang::EnUS, false, "en-dynamic", Tab::Dynamic),
         (Lang::PtPT, true, "pt-dynamic-dark", Tab::Dynamic),
         (Lang::DeDE, false, "de-dynamic", Tab::Dynamic),
+        (Lang::PtPT, false, "pt-widgets", Tab::Widgets),
+        (Lang::EnUS, true, "en-widgets-dark", Tab::Widgets),
     ];
     for (l, dark, name, tab) in shots {
         set_lang(l);
@@ -233,8 +275,13 @@ fn screenshots() {
             error: None,
             autostart: true,
             focus: None,
-            hot: Some(if tab == Tab::Static { Hit::Next } else { Hit::LiveNext }),
+            hot: Some(match tab {
+                Tab::Static => Hit::Next,
+                Tab::Dynamic => Hit::LiveNext,
+                Tab::Widgets => Hit::AddWidget(crate::widgets::WKind::Calendar),
+            }),
             scroll: 0.0,
+            widgets: crate::ui::view::WidgetsModel { available: true, tray: false, status: if name == "pt-widgets" { &status } else { &[] }, country: "PT" },
         };
         draw(&mut g, &m, &Theme::new(dark, None), 1.0, Rect::new(0.0, 0.0, w as f32, h as f32));
         let mut buf = vec![0u32; (w * h) as usize];

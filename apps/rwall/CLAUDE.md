@@ -13,6 +13,13 @@ maximizadas em todos os ecrãs, PC bloqueado/ecrã apagado e bateria (todas liga
 depois (o separador diz que não está disponível). Requisito: tudo o que está no ambiente de trabalho (ícones,
 ficheiros, notificações, widgets) fica por cima.
 
+Desde 2026-11-12 tem também **widgets** (capítulo "DESKTOP WIDGETS"), só no Windows, num terceiro separador:
+relógio analógico, relógio digital, calendário, relógio + calendário, nota adesiva, anotação, meteorologia, fence e
+fotos. Escolhas do utilizador: presos ao ambiente de trabalho por omissão (por cima do fundo e dos ícones, por baixo
+das janelas) com a opção "Sempre visível" por widget; meteorologia da Open-Meteo (sem chave; é a segunda fonte de rede
+aprovada, só GET); fence = caixa que mostra uma pasta (duplo clique abre, arrastar para fora e para dentro); anotação =
+texto solto sobre o fundo (as notas adesivas são papelinhos coloridos).
+
 Três modos (pedido do utilizador, 2026-11-11, como as outras aplicações):
 - `rwall` — só a janela de definições; fechar termina; sem mudanças automáticas (a linha de estado diz que é
   preciso o `--tray`). "Imagem seguinte", posição, fontes e o resto funcionam.
@@ -23,21 +30,25 @@ Três modos (pedido do utilizador, 2026-11-11, como as outras aplicações):
 ## Comandos
 
 ```powershell
-./dev.ps1 build --release -p rwall          # perfil release (com unwind): target\release\rwall.exe, ~3,2 MB
-./dev.ps1 test -p rwall                     # 44 testes no Windows
+./dev.ps1 build --release -p rwall          # perfil release (com unwind): target\release\rwall.exe, ~3,7 MB
+./dev.ps1 test -p rwall                     # 54 testes no Windows
 ./dev.ps1 clippy -p rwall --all-targets
 ./dev.ps1 test -p rwall --lib screenshots '--' --ignored          # apps/rwall/target/screens/*.png
 ./dev.ps1 test -p rwall --lib live_services '--' --ignored --nocapture   # rede: uma imagem de cada serviço
 ./dev.ps1 test -p rwall --lib on_and_off '--' --ignored           # escreve e apaga o valor em HKCU\…\Run
 ./dev.ps1 test -p rwall --lib scene_pictures '--' --ignored       # target/screens/scene-*.png e flow.gif (GIF de teste)
 ./dev.ps1 test -p rwall --release --lib scene_speed '--' --ignored --nocapture   # ms por imagem de cada cena
+./dev.ps1 test -p rwall --lib widget_pictures '--' --ignored      # target/screens/widgets-*.png (claro, escuro, 150 %, céus)
+./dev.ps1 test -p rwall --lib weather_live '--' --ignored --nocapture   # Open-Meteo de verdade (Lisboa)
+./dev.ps1 test -p rwall --lib pinned_window_order '--' --ignored --nocapture   # janela invisível: fica logo acima dos ícones
 ```
 
 ## Exceção à regra "sem rede"
 
 Aprovada pelo utilizador em 2026-11-11, só para o rwall: pedidos GET às fontes ligadas pelo utilizador, sem
 conta, cookies nem telemetria. Windows: WinHTTP (`net.rs`, `windows-sys`, proxy do sistema); Linux: o programa
-`curl`. User-Agent genérico `rwall/<versão>`. As outras ferramentas continuam sem rede.
+`curl`. User-Agent genérico `rwall/<versão>`. As outras ferramentas continuam sem rede. Desde 2026-11-12 também a
+Open-Meteo (geocodificação e previsão) para o widget de meteorologia, escolhida pelo utilizador.
 
 ## Arquitetura (`src/`)
 
@@ -92,6 +103,32 @@ conta, cookies nem telemetria. Windows: WinHTTP (`net.rs`, `windows-sys`, proxy 
 - `main.rs` (fundo dinâmico) — `apply_live`/`live_changed`/`next_video`; o `Player` nasce na primeira vez e é largado
   em `quit` (pára e repõe o fundo). Com o dinâmico ligado, o `tick` não muda a imagem estática (só roda o vídeo da
   pasta). Erro do leitor → `live.on = false` e mensagem.
+- `widgets/` — widgets do ambiente de trabalho. `mod.rs`: `WKind` (9 tipos, tamanhos por omissão e mínimos),
+  `Widget` (posição em píxeis do ecrã, `on_top`, `locked`, opções por tipo), `WidgetSettings` (`widgets`,
+  `widgets.ids` e `widget.<id>.*` no `settings.ini`; acrescentam-se até 16 (`MAX_WIDGETS`), lêem-se até 64; relógios,
+  calendários e meteorologia: um de cada tipo, `WKind::single`, `can_add`). `region.rs`: definições regionais lidas uma
+  vez (`GetLocaleInfoEx`: 24 h, °F por `LOCALE_IMEASURE`, primeiro dia só se sábado/domingo/segunda;
+  `GetUserDefaultGeoName`: país; `icu.dll` `ucal_getDefaultTimeZone`: fuso IANA → cidade "Lisbon, PT"); valores
+  iniciais de `Widget::new`. `holidays.rs`: feriados nacionais de 9 países (`COUNTRIES`; fixos, Páscoa, "n-ésima
+  segunda"); nomes são chaves da tabela. `calendar.rs`: dia da semana, grelha de 6 semanas,
+  nomes traduzidos e modelos de data `%W %D %M %Y` (linhas da tabela; sem definição regional, a semana começa ao
+  domingo em en-US, pt-BR e ja). `edit.rs`: `Editor` (cursor, seleção, palavras) e `layout` (quebra de linhas). `weather.rs`: Open-Meteo
+  (`count=10`, fica o mais populoso, ou o da região/país depois da vírgula; códigos WMO → `Sky`). `paint.rs`: desenha
+  um widget numa imagem transparente (tiny-skia + `Gfx`) e devolve as zonas (`Zone`; `Zone::Day` nos feriados, para
+  os nomear por baixo do mês); testável em qualquer sistema. Um widget novo vai para o primeiro sítio livre a partir
+  do canto superior direito (`Host2::place`).
+  `host.rs` (Windows): fio próprio com OLE, uma janela `WS_EX_LAYERED | WS_EX_TOOLWINDOW` por widget
+  (`UpdateLayeredWindow`); presas = donas (`GWLP` owner) da janela que tem os ícones (`desktop::icons_window`, depois
+  do `0x052C`) e `HWND_BOTTOM` → logo acima dos ícones; `WM_WINDOWPOSCHANGING` com `SWP_NOZORDER` segura o lugar
+  (mesmo ao escrever numa nota, que se ativa; as outras têm `WS_EX_NOACTIVATE`). O procedimento só põe eventos numa
+  fila; o ciclo trata-os (sem reentrância). Arrastar/redimensionar à mão (`SetCapture`), menu `TrackPopupMenuEx` na
+  janela de controlo escondida, fences com `IDropTarget` (`SHFileOperationW` num fio; mover mesmo disco, copiar de
+  outro; a um mover responde `DROPEFFECT_NONE` para a origem não apagar) e `DoDragDrop` com o `IDataObject` do
+  Explorador; ícones por `thumb::shell_image` num fio. Verifica a cada 2 s o dono, se as janelas existem e as pastas
+  das fences; `TaskbarCreated` recria. Eventos para a janela: `Changed`, `Remove`, `NewNote`, `Settings`, `Status`.
+- `main.rs` (widgets) — `apply_widgets` arranca/para o `Host` e manda a lista e o estilo (tema, acento, língua: a
+  língua é por fio). `widget_event` guarda o que os widgets mudam (sem pisar a cidade a ser escrita). Cidade nova →
+  `place` vazio → o anfitrião procura-a outra vez.
 - `i18n/strings.txt` — 10 línguas, como nas outras aplicações.
 
 ## Verificado (2026-11-11, Windows 10)
@@ -112,6 +149,14 @@ a última imagem fica até o fundo voltar a ser pintado. Não verificado: Window
 reinício do Explorador, as pausas a acontecer de verdade (só a lógica), a rotação da pasta de vídeos e o separador
 dinâmico na janela real (só nas capturas do teste `screenshots`).
 
+Widgets (2026-11-12, Windows 10 22H2, 1920×1080, release em modo portátil, com o utilizador a jogar): as nove janelas
+nasceram donas do `WorkerW` dos ícones, logo acima dele e abaixo de todas as outras (lista das janelas pela API; o jogo
+ficou por cima, como deve); o conteúdo de cada uma foi visto com `PrintWindow` (ícones reais do Explorador na fence,
+foto carregada, meteorologia de Lisboa); 9 widgets (3 com segundos) a ~0,9 % de um núcleo e 36 MB. A procura com
+`count=1` deu "Lisboa, Moçambique": corrigido (mais populoso). Não verificado: as interações (arrastar, escrever nas
+notas, menus, largar ficheiros numa fence, arrastar para fora), Win+D, Windows 11 24H2, vários ecrãs, DPI misto e o
+reinício do Explorador — o utilizador estava a jogar e não se roubou o foco.
+
 ## Regras
 
 - Nunca mexer nas imagens das pastas do utilizador; só apagar o que está em `images/` (descarregadas e convertidas).
@@ -119,8 +164,9 @@ dinâmico na janela real (só nas capturas do teste `screenshots`).
   `WallpaperStyle`) e repô-lo no fim; usar modo portátil (`rwall.portable` ao lado do `.exe`) e apagá-lo depois;
   preferir a compilação `release` (a de depuração abre uma consola) e não roubar o foco ao utilizador.
 - Qualquer texto visível novo precisa de linha completa em `strings.txt`.
-- `unsafe` só em `net.rs`, `wallpaper.rs`, `autostart.rs`, `live/desktop.rs`, `live/player.rs`, `live/thumb.rs` e
-  `screen_size` no `main.rs` (chamadas Win32/COM), com `SAFETY`.
+- `unsafe` só em `net.rs`, `wallpaper.rs`, `autostart.rs`, `live/desktop.rs`, `live/player.rs`, `live/thumb.rs`,
+  `widgets/host.rs` e `screen_size` no `main.rs` (chamadas Win32/COM), com `SAFETY`.
+- Widgets presos nunca acima das outras janelas; não roubar o foco (só uma nota em que se clica se ativa).
 - Fundo dinâmico: nunca pôr a janela acima da camada dos ícones; ao parar (e ao sair) repor sempre o fundo estático.
   Caminhos escritos à mão no `settings.ini` levam `\\` (o ficheiro usa escapes).
 - `README.md` e `README.pt.md` são atualizados em conjunto.

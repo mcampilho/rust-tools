@@ -49,6 +49,34 @@ pub fn find_host() -> Option<Host> {
     }
 }
 
+/// The top-level window that holds the desktop icons: `Progman`, or the
+/// `WorkerW` the icons moved to (see `find_host`). Widgets pinned to the
+/// desktop are owned by it, so they stay just above the icons.
+pub fn icons_window() -> Option<HWND> {
+    // SAFETY: plain window queries; the callback gets a pointer to a local
+    // that outlives the call.
+    unsafe {
+        let progman = FindWindowW(w!("Progman"), PCWSTR::null()).ok()?;
+        if FindWindowExW(Some(progman), None, w!("SHELLDLL_DefView"), PCWSTR::null()).is_ok() {
+            return Some(progman);
+        }
+        let mut found = HWND::default();
+        let _ = EnumWindows(Some(holds_icons), LPARAM(&mut found as *mut HWND as isize));
+        (!found.is_invalid()).then_some(found)
+    }
+}
+
+unsafe extern "system" fn holds_icons(top: HWND, lp: LPARAM) -> BOOL {
+    // SAFETY: called by EnumWindows with the pointer given by icons_window.
+    unsafe {
+        if FindWindowExW(Some(top), None, w!("SHELLDLL_DefView"), PCWSTR::null()).is_ok() {
+            *(lp.0 as *mut HWND) = top;
+            return BOOL(0);
+        }
+    }
+    BOOL(1)
+}
+
 unsafe extern "system" fn next_workerw(top: HWND, lp: LPARAM) -> BOOL {
     // SAFETY: called by EnumWindows with the pointer given by find_host.
     unsafe {
@@ -152,7 +180,7 @@ fn class_of(h: HWND) -> String {
 fn is_shell(h: HWND) -> bool {
     matches!(
         class_of(h).as_str(),
-        "Progman" | "WorkerW" | "Shell_TrayWnd" | "Shell_SecondaryTrayWnd" | "Windows.UI.Core.CoreWindow" | "rwall-live" | "rwall-live-control"
+        "Progman" | "WorkerW" | "Shell_TrayWnd" | "Shell_SecondaryTrayWnd" | "Windows.UI.Core.CoreWindow" | "rwall-live" | "rwall-live-control" | "rwall-widget" | "rwall-widget-control"
     )
 }
 

@@ -26,7 +26,8 @@ use rwall::sources::Source;
 use rwall::storage;
 use rwall::ui::gfx::{Color, Gfx, Rect};
 use rwall::ui::theme::Theme;
-use rwall::ui::view::{self, Drawn, Field, Hit, LiveModel, Model, Tab};
+use rwall::ui::view::{self, Drawn, Field, Hit, LiveModel, Model, Tab, WidgetsModel};
+use rwall::widgets::WKind;
 use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -49,6 +50,9 @@ enum UserEvent {
     Live(State),
     /// A still of the dynamic wallpaper.
     LiveThumb(Option<tiny_skia::Pixmap>),
+    /// What a desktop widget did.
+    #[cfg(windows)]
+    Widget(rwall::widgets::host::Event),
     #[cfg(windows)]
     Win(rt_sys::win::WinMsg),
     /// A later launch, or the notification-area icon (Linux).
@@ -118,6 +122,13 @@ struct Shell {
     live_error: Option<String>,
     /// Paused from the menu of the icon.
     live_paused: bool,
+    /// Shows the desktop widgets (started when there are some to show).
+    #[cfg(windows)]
+    widgets: Option<rwall::widgets::host::Host>,
+    /// A word about some widgets (the weather), by id.
+    widget_status: Vec<(u32, String)>,
+    /// What a text box held when it got the keyboard.
+    focus_value: String,
     /// The notification-area icon and the socket for later launches (Linux).
     #[cfg(not(windows))]
     resident: Option<rt_sys::linux::shell::Shell>,
@@ -480,6 +491,113 @@ impl Shell {
         self.redraw();
     }
 
+    // ------------------------------------------------------------ widgets
+
+    /// Shows the widgets as the settings say (starting or ending their thread).
+    fn apply_widgets(&mut self) {
+        #[cfg(windows)]
+        {
+            use rwall::widgets::host::{Host, Style};
+            if !self.settings.widgets.showing() {
+                self.widgets = None;
+                return;
+            }
+            if self.widgets.is_none() {
+                let proxy = std::sync::Mutex::new(self.proxy.clone());
+                self.widgets = Host::start(Box::new(move |e| {
+                    if let Ok(p) = proxy.lock() {
+                        let _ = p.send_event(UserEvent::Widget(e));
+                    }
+                }));
+            }
+            let style = Style { dark: self.dark(), accent: Theme::new(self.dark(), self.accent).accent, lang: i18n::lang() };
+            if let Some(h) = &self.widgets {
+                h.set(self.settings.widgets.list.clone(), style);
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    fn widget_event(&mut self, e: rwall::widgets::host::Event) {
+        use rwall::widgets::host::Event;
+        match e {
+            Event::Changed(w) => {
+                // Only what the widget changed; the city may be being typed here.
+                let typing = self.focus == Some(Field::City(w.id));
+                if let Some(old) = self.settings.widgets.get_mut(w.id) {
+                    let city = old.city.clone();
+                    *old = w;
+                    if typing {
+                        old.city = city;
+                    }
+                }
+                self.save();
+            }
+            Event::Remove(id) => {
+                self.settings.widgets.remove(id);
+                self.widget_status.retain(|(i, _)| *i != id);
+                self.save();
+                self.apply_widgets();
+            }
+            Event::NewNote { x, y, w, h } => {
+                if let Some(n) = self.settings.widgets.add(WKind::Note) {
+                    (n.x, n.y, n.w, n.h) = (x, y, w, h);
+                }
+                self.save();
+                self.apply_widgets();
+            }
+            Event::Settings => {
+                self.tab = Tab::Widgets;
+                self.scroll = 0.0;
+                self.show();
+            }
+            Event::Status(id, s) => {
+                self.widget_status.retain(|(i, _)| *i != id);
+                if let Some(s) = s {
+                    self.widget_status.push((id, s));
+                }
+            }
+        }
+        self.redraw();
+    }
+
+    /// A widget's option was changed here: remember it and show it.
+    fn widget_changed(&mut self) {
+        self.save();
+        self.apply_widgets();
+    }
+
+    fn choose_widget_folder(&mut self, id: u32) {
+        let Some(kind) = self.settings.widgets.list.iter().find(|w| w.id == id).map(|w| w.kind) else { return };
+        let title = if kind == WKind::Fence { tr("Choose a folder for the fence") } else { tr("Choose a folder of photos") };
+        #[cfg(windows)]
+        let f = rt_sys::win::dialogs::pick_folder(self.win.as_ref().map_or(std::ptr::null_mut(), |w| w.hwnd), &title);
+        #[cfg(not(windows))]
+        let f = rt_sys::linux::dialogs::pick_folder(&title);
+        if let (Some(dir), Some(w)) = (f, self.settings.widgets.get_mut(id)) {
+            w.folder = dir;
+            self.widget_changed();
+        }
+    }
+
+    /// Removes a widget, asking first when text would be lost.
+    fn remove_widget(&mut self, id: u32) {
+        let Some(w) = self.settings.widgets.list.iter().find(|w| w.id == id) else { return };
+        if w.kind.editable() && !w.text.trim().is_empty() {
+            let text = tr("Remove this widget? What is written in it is lost.");
+            #[cfg(windows)]
+            let yes = rwall::widgets::host::confirm(self.win.as_ref().map_or(std::ptr::null_mut(), |w| w.hwnd), &text);
+            #[cfg(not(windows))]
+            let yes = !text.is_empty();
+            if !yes {
+                return;
+            }
+        }
+        self.settings.widgets.remove(id);
+        self.widget_status.retain(|(i, _)| *i != id);
+        self.widget_changed();
+    }
+
     // ------------------------------------------------------------ commands
 
     fn about(&self) {
@@ -582,6 +700,46 @@ impl Shell {
                 st.live.subfolders = !st.live.subfolders;
                 self.save();
             }
+            Hit::WidgetsOn => {
+                st.widgets.on = !st.widgets.on;
+                self.widget_changed();
+            }
+            Hit::AddWidget(k) => {
+                let Some(id) = st.widgets.add(k).map(|w| w.id) else { return };
+                st.widgets.on = true;
+                match k {
+                    WKind::Fence | WKind::Photos => self.choose_widget_folder(id),
+                    // The city of the regional settings is there already;
+                    // without one, type it.
+                    WKind::Weather if st.widgets.list.iter().any(|w| w.id == id && w.city.is_empty()) => {
+                        self.focus = Some(Field::City(id));
+                        self.focus_value.clear();
+                    }
+                    _ => {}
+                }
+                self.widget_changed();
+            }
+            Hit::WidgetTop(id)
+            | Hit::WidgetSeconds(id)
+            | Hit::WidgetH24(id)
+            | Hit::WidgetHolidays(id)
+            | Hit::WidgetLess(id)
+            | Hit::WidgetMore(id)
+            | Hit::WidgetUnits(id, _) => {
+                if let Some(w) = st.widgets.get_mut(id) {
+                    match h {
+                        Hit::WidgetTop(_) => w.on_top = !w.on_top,
+                        Hit::WidgetSeconds(_) => w.seconds = !w.seconds,
+                        Hit::WidgetH24(_) => w.h24 = !w.h24,
+                        Hit::WidgetHolidays(_) => w.holidays = !w.holidays,
+                        Hit::WidgetUnits(_, f) => w.fahrenheit = f,
+                        _ => w.minutes = rwall::widgets::photo_step(w.minutes, h == Hit::WidgetMore(id)),
+                    }
+                }
+                self.widget_changed();
+            }
+            Hit::WidgetRemove(id) => self.remove_widget(id),
+            Hit::WidgetFolder(id) => self.choose_widget_folder(id),
             Hit::Next => self.change(),
             Hit::About => self.about(),
             Hit::OpenFolder => self.show_file(),
@@ -604,7 +762,13 @@ impl Shell {
                 }
                 self.save();
             }
-            Hit::Field(f) => self.focus = Some(f),
+            Hit::Field(f) => {
+                if self.focus != Some(f) {
+                    self.unfocus();
+                    self.focus = Some(f);
+                    self.focus_value = self.field_text(f).map(|s| s.clone()).unwrap_or_default();
+                }
+            }
             Hit::AddFolder => {
                 self.add_folder();
                 self.save();
@@ -657,18 +821,29 @@ impl Shell {
 
     /// Ends typing in a text box, keeping what was typed.
     fn unfocus(&mut self) {
-        if self.focus.take().is_some() {
-            let st = &mut self.settings;
-            st.bing_market = st.bing_market.trim().to_string();
-            self.save();
-            self.redraw();
+        let Some(f) = self.focus.take() else { return };
+        let st = &mut self.settings;
+        st.bing_market = st.bing_market.trim().to_string();
+        if let Field::City(id) = f {
+            if let Some(w) = st.widgets.get_mut(id) {
+                w.city = w.city.trim().to_string();
+                // Another city: look for it again.
+                if w.city != self.focus_value.trim() {
+                    w.place.clear();
+                    self.widget_status.retain(|(i, _)| *i != id);
+                }
+            }
+            self.apply_widgets();
         }
+        self.save();
+        self.redraw();
     }
 
-    fn field_text(&mut self, f: Field) -> &mut String {
+    fn field_text(&mut self, f: Field) -> Option<&mut String> {
         match f {
-            Field::Market => &mut self.settings.bing_market,
-            Field::Wallhaven => &mut self.settings.wallhaven_query,
+            Field::Market => Some(&mut self.settings.bing_market),
+            Field::Wallhaven => Some(&mut self.settings.wallhaven_query),
+            Field::City(id) => self.settings.widgets.get_mut(id).map(|w| &mut w.city),
         }
     }
 
@@ -677,20 +852,25 @@ impl Shell {
             match &event.logical_key {
                 WKey::Named(NamedKey::Enter | NamedKey::Escape | NamedKey::Tab) => self.unfocus(),
                 WKey::Named(NamedKey::Backspace) => {
-                    self.field_text(f).pop();
+                    if let Some(s) = self.field_text(f) {
+                        s.pop();
+                    }
                 }
                 WKey::Character(c) if self.mods.control_key() && c.eq_ignore_ascii_case("v") => {
                     if let Some(t) = rt_sys::clipboard_text() {
                         let line = t.lines().next().unwrap_or("").to_string();
-                        self.field_text(f).push_str(&line);
+                        if let Some(s) = self.field_text(f) {
+                            s.push_str(&line);
+                        }
                     }
                 }
                 _ => {
                     if let Some(t) = event.text.as_ref().filter(|_| !self.mods.control_key() && !self.mods.alt_key()) {
                         let typed: String = t.chars().filter(|c| !c.is_control()).collect();
-                        let s = self.field_text(f);
-                        if s.chars().count() + typed.chars().count() <= 200 {
-                            s.push_str(&typed);
+                        if let Some(s) = self.field_text(f) {
+                            if s.chars().count() + typed.chars().count() <= 200 {
+                                s.push_str(&typed);
+                            }
                         }
                     }
                 }
@@ -747,10 +927,12 @@ impl Shell {
     fn quit(&mut self, el: &ActiveEventLoop) {
         self.unfocus();
         self.save();
-        // Stops the dynamic wallpaper and shows the still one again.
+        // Stops the dynamic wallpaper and shows the still one again; the
+        // widgets close.
         #[cfg(windows)]
         {
             self.player = None;
+            self.widgets = None;
         }
         #[cfg(windows)]
         if let Some(w) = &self.win {
@@ -797,6 +979,12 @@ impl Shell {
             focus: self.focus,
             hot: self.hot,
             scroll: self.scroll,
+            widgets: WidgetsModel {
+                available: cfg!(windows),
+                tray: self.tray,
+                status: &self.widget_status,
+                country: &rwall::widgets::region::region().country,
+            },
         };
         self.drawn = view::draw(&mut self.gfx, &model, &theme, s, full);
         // Keep the scroll inside the content after a resize.
@@ -1017,6 +1205,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         if self.live_on() {
             self.apply_live();
         }
+        self.apply_widgets();
         self.tick();
         if self.show_on_start {
             self.show();
@@ -1034,6 +1223,8 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
             #[cfg(windows)]
             UserEvent::Live(s) => self.live_event(s),
+            #[cfg(windows)]
+            UserEvent::Widget(e) => self.widget_event(e),
             UserEvent::LiveThumb(t) => {
                 self.live_thumb = t;
                 self.redraw();
@@ -1063,6 +1254,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 if let Some(w) = &self.win {
                     w.window.set_theme(Some(if self.dark() { WinTheme::Dark } else { WinTheme::Light }));
                 }
+                self.apply_widgets();
                 self.redraw();
             }
             #[cfg(windows)]
@@ -1092,7 +1284,11 @@ impl ApplicationHandler<UserEvent> for Shell {
             WindowEvent::RedrawRequested => self.paint(),
             WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => self.redraw(),
             WindowEvent::ThemeChanged(t) => {
-                self.system_dark = t == WinTheme::Dark;
+                let dark = t == WinTheme::Dark;
+                if dark != self.system_dark {
+                    self.system_dark = dark;
+                    self.apply_widgets();
+                }
                 self.redraw();
             }
             WindowEvent::ModifiersChanged(m) => self.mods = m.state(),
@@ -1168,6 +1364,11 @@ const USAGE: &str = "rwall [--tray | --auto]
   notifications and widgets stay over it. It pauses on its own in full
   screen, when the computer is locked, and as chosen in its tab.
 
+  Widgets (Windows): clocks, a calendar, sticky notes, annotations, the
+  weather (from Open-Meteo.com), fences (a box showing a folder's files)
+  and photos, on the desktop over the wallpaper and under every window.
+  Drag one to move it; right-click it for its options.
+
 Settings and downloaded pictures are kept in the user's settings folder
 (%APPDATA%\\rwall on Windows, ~/.config/rwall on Linux), or next to the
 program when a file named rwall.portable exists there (portable mode).";
@@ -1241,7 +1442,8 @@ fn main() {
     }
     if auto_once {
         std::process::exit(auto());
-    }    let mut location = storage::detect();
+    }
+    let mut location = storage::detect();
     let first_run = location.settings_file().is_none_or(|f| !f.exists());
     let settings = Settings::load(&location.load());
     let gfx = match Gfx::new() {
@@ -1289,6 +1491,10 @@ fn main() {
         live_thumb: None,
         live_error: None,
         live_paused: false,
+        #[cfg(windows)]
+        widgets: None,
+        widget_status: Vec::new(),
+        focus_value: String::new(),
         #[cfg(not(windows))]
         resident: None,
         #[cfg(not(windows))]

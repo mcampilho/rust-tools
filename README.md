@@ -13,7 +13,7 @@ uses the network, to download the pictures it puts on the desktop.
 | [rview](apps/rview/README.md) | Document viewer for PDF, Markdown, HTML, text and CSV, with selection and copy | 4.4 MB | 16.6 MB |
 | [rsize](apps/rsize/README.md) | Disk space analyzer: folders by size with a treemap, pie or rings, file types, CSV export; reads NTFS directly or the Everything index | 1.9 MB | 5.5 MB |
 | [rdup](apps/rdup/README.md) | Duplicate file finder: files with the same contents on several drives and folders at once, by size and BLAKE3 hashes; reads the drives like rsize | 1.9 MB | 5.6 MB |
-| [rwall](apps/rwall/README.md) | Wallpaper changer in the notification area: every day, twice or four times a day, weekly, monthly or every few minutes, with pictures from Bing, NASA, Wallhaven, Picsum or your own folders; on Windows also a dynamic wallpaper behind the icons (video, animated GIF or a drawn scene) | 3.2 MB | 6.8 MB |
+| [rwall](apps/rwall/README.md) | Wallpaper changer in the notification area: every day, twice or four times a day, weekly, monthly or every few minutes, with pictures from Bing, NASA, Wallhaven, Picsum or your own folders; on Windows also a dynamic wallpaper behind the icons (video, animated GIF or a drawn scene) and desktop widgets (clocks, calendar, notes, weather, fences, photos) | 3.7 MB | 6.8 MB |
 
 They all draw their own interface on the CPU (winit, softbuffer, tiny-skia and
 ab_glyph), with no GPU and no UI toolkit. They come in 10 languages and follow
