@@ -115,6 +115,15 @@ pub fn popup<C: MenuCommand>(
     }
 }
 
+/// Shows a context menu with submenus at the mouse pointer; returns the
+/// chosen command.
+pub fn popup_at_pointer<C: MenuCommand>(hwnd: HWND, items: Vec<M<C>>, checked: impl Fn(C) -> bool, enabled: impl Fn(C) -> bool) -> Option<C> {
+    let mut pt = POINT { x: 0, y: 0 };
+    // SAFETY: `pt` is a valid POINT to write to.
+    unsafe { GetCursorPos(&mut pt) };
+    popup(hwnd, items, pt.x, pt.y, checked, enabled)
+}
+
 /// Shows a flat context menu at the mouse pointer and returns the chosen
 /// command. `None` entries are separators; `items` holds each command and
 /// whether it is enabled.

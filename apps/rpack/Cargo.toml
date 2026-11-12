@@ -1,0 +1,60 @@
+[package]
+name = "rpack"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+description = "A portable archiver: opens, tests and extracts zip, tar and compressed files"
+license = "MIT"
+
+[dependencies]
+rt-core = { path = "../../crates/rt-core" }
+rt-gfx = { path = "../../crates/rt-gfx" }
+rt-sys = { path = "../../crates/rt-sys" }
+rt-ui = { path = "../../crates/rt-ui" }
+rt-scan = { path = "../../crates/rt-scan" }
+winit = { version = "0.30", default-features = false, features = ["rwh_06"] }
+softbuffer = { version = "0.4", default-features = false }
+tiny-skia = { version = "0.11", default-features = false, features = ["std", "simd"] }
+accesskit = "0.25"
+accesskit_winit = { version = "0.34", default-features = false, features = ["rwh_06"] }
+# The formats. Every codec is also used to write in a later phase, so the
+# encoders stay in.
+zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs", "deflate64", "bzip2", "lzma", "xz", "zstd", "ppmd", "legacy-zip"] }
+tar = { version = "0.4", default-features = false }
+# No AES until passwords come (phase 2).
+sevenz-rust2 = { version = "0.25", default-features = false, features = ["compress", "util", "bzip2", "ppmd"] }
+flate2 = { version = "1", default-features = false, features = ["zlib-rs"] }
+bzip2 = "0.6"
+lzma-rust2 = "0.25"
+# The C library: the fastest, and the reference for the format.
+zstd = { version = "0.14", default-features = false }
+lz4_flex = "0.14"
+brotli = { version = "9", default-features = false, features = ["std"] }
+# Hashes of files and entries.
+crc32fast = "1"
+crc = "3"
+twox-hash = { version = "2", default-features = false, features = ["std", "xxhash64"] }
+md-5 = "0.11"
+sha1 = "0.11"
+sha2 = "0.11"
+sha3 = "0.12"
+blake2s_simd = "1"
+blake3 = "1"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation"] }
+
+# X11 and Wayland both: the same executable runs on either.
+[target.'cfg(target_os = "linux")'.dependencies]
+winit = { version = "0.30", default-features = false, features = ["rwh_06", "x11", "wayland", "wayland-dlopen", "wayland-csd-adwaita"] }
+softbuffer = { version = "0.4", default-features = false, features = ["x11", "x11-dlopen", "wayland", "wayland-dlopen"] }
+accesskit_winit = { version = "0.34", default-features = false, features = ["rwh_06", "async-io"] }
+
+[build-dependencies]
+rt-build = { path = "../../crates/rt-build" }
+# build.rs draws the icon with the app's own `src/ui/appicon.rs`.
+tiny-skia = { version = "0.11", default-features = false, features = ["std"] }
+
+[dev-dependencies]
+# PNG output for the screenshot test (`cargo test -- --ignored screenshots`).
+tiny-skia = { version = "0.11", default-features = false, features = ["std", "simd", "png-format"] }

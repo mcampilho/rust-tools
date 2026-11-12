@@ -1,0 +1,152 @@
+# rpack's strings, looked up before the common table of rt-core.
+# Columns: en-US key, en-GB, de-DE, es-ES, fr-FR, it-IT, ja-JP, pt-BR, pt-PT, zh-CN (tab-separated).
+# An empty cell falls back (en-GB and pt-PT to en-US and pt-BR); edit by hand, one row per string.
+&File		&Datei	&Archivo	&Fichier	&File	ファイル(&F)	&Arquivo	&Ficheiro	文件(&F)
+&Edit		&Bearbeiten	&Edición	&Édition	&Modifica	編集(&E)	&Editar	&Editar	编辑(&E)
+&Archive		A&rchiv	&Comprimido	A&rchive	&Archivio	アーカイブ(&A)	&Compactado	&Arquivo	压缩包(&A)
+&View		&Ansicht	&Ver	&Affichage	&Visualizza	表示(&V)	E&xibir	&Ver	视图(&V)
+&Help		&Hilfe	A&yuda	A&ide	&Guida	ヘルプ(&H)	A&juda	A&juda	帮助(&H)
+T&heme		&Design	&Tema	&Thème	&Tema	テーマ(&H)	&Tema		主题(&H)
+Display &Language		&Anzeigesprache	&Idioma de la interfaz	&Langue de l’interface	&Lingua dell’interfaccia	表示言語(&L)	&Idioma da interface		界面语言(&L)
+Use &System Setting		&Systemeinstellung verwenden	Usar configuración del &sistema	Utiliser le paramètre du &système	Usa impostazione di &sistema	システム設定を使用(&S)	Usar configuração do &sistema	Usar definição do &sistema	使用系统设置(&S)
+&Light		&Hell	&Claro	&Clair	&Chiaro	ライト(&L)	&Claro		浅色(&L)
+&Dark		&Dunkel	&Oscuro	S&ombre	Sc&uro	ダーク(&D)	&Escuro		深色(&D)
+&Keyboard Shortcuts		&Tastenkombinationen	&Métodos abreviados de teclado	&Raccourcis clavier	&Tasti di scelta rapida	キーボード ショートカット(&K)	&Atalhos de teclado	&Atalhos de teclado	键盘快捷方式(&K)
+&About rpack		Ü&ber rpack	&Acerca de rpack	À &propos de rpack	&Informazioni su rpack	rpack について(&A)	&Sobre o rpack	A&cerca do rpack	关于 rpack(&A)
+About rpack		Über rpack	Acerca de rpack	À propos de rpack	Informazioni su rpack	rpack について	Sobre o rpack	Acerca do rpack	关于 rpack
+E&xit		&Beenden	&Salir	&Quitter	&Esci	終了(&X)	&Sair	&Sair	退出(&X)
+&Open Archive...		Archiv ö&ffnen...	&Abrir comprimido...	&Ouvrir une archive...	&Apri archivio...	アーカイブを開く(&O)...	&Abrir arquivo compactado...	&Abrir arquivo...	打开压缩包(&O)...
+&Close Archive		Archiv sch&ließen	&Cerrar comprimido	&Fermer l’archive	&Chiudi archivio	アーカイブを閉じる(&C)	&Fechar arquivo compactado	&Fechar arquivo	关闭压缩包(&C)
+&Open		Ö&ffnen	A&brir	&Ouvrir	&Apri	開く(&O)	A&brir	A&brir	打开(&O)
+&Up One Level		Eine Ebene &nach oben	S&ubir un nivel	Dossier &parent	Livello &superiore	1 つ上のフォルダーへ(&U)	&Subir um nível	&Subir um nível	向上一级(&U)
+Select &All		&Alles auswählen	Seleccionar &todo	Tout &sélectionner	Seleziona &tutto	すべて選択(&A)	Selecionar &tudo	Selecionar &tudo	全选(&A)
+&Extract		&Entpacken	&Extraer	&Extraire	&Estrai	展開(&E)	&Extrair	&Extrair	解压(&E)
+Extract to &Folder...		In &Ordner entpacken...	Extraer en una &carpeta...	Extraire dans un &dossier...	Estrai in una &cartella...	フォルダーに展開(&F)...	Extrair para uma &pasta...	Extrair para uma &pasta...	解压到文件夹(&F)...
+Choose the &Destination...		&Ziel wählen...	Elegir el &destino...	C&hoisir la destination...	Scegli la &destinazione...	展開先を選択(&D)...	Escolher o &destino...	Escolher o &destino...	选择目标位置(&D)...
+&Test		&Testen	&Probar	&Tester	&Verifica	テスト(&T)	&Testar	&Testar	测试(&T)
+&Stop		&Anhalten	De&tener	&Arrêter	&Interrompi	停止(&S)	Pa&rar	Pa&rar	停止(&S)
+&When a File Exists		Wenn eine Datei &vorhanden ist	Si el archivo &ya existe	&Si le fichier existe	Se il file esiste &già	ファイルが既にある場合(&W)	&Se o arquivo já existir	&Se o ficheiro já existir	文件已存在时(&W)
+&Replace It		&Ersetzen	&Reemplazarlo	&Remplacer	&Sostituisci	置き換える(&R)	&Substituir	&Substituir	替换(&R)
+&Skip It		&Überspringen	&Omitirlo	&Ignorer	&Ignora	スキップ(&S)	&Ignorar	&Ignorar	跳过(&S)
+&Keep Both		Beide &behalten	&Conservar ambos	&Garder les deux	&Mantieni entrambi	両方とも残す(&K)	&Manter ambos	&Manter ambos	保留两者(&K)
+Open the Folder Afte&r Extracting		Ordner nach dem Entpacken ö&ffnen	Abrir la carpeta al ter&minar	&Ouvrir le dossier après l’extraction	&Apri la cartella dopo l’estrazione	展開後にフォルダーを開く(&R)	&Abrir a pasta após extrair	&Abrir a pasta depois de extrair	解压后打开文件夹(&R)
+Keyboard shortcuts		Tastenkombinationen	Métodos abreviados de teclado	Raccourcis clavier	Tasti di scelta rapida	キーボード ショートカット	Atalhos de teclado		键盘快捷方式
+Name		Name	Nombre	Nom	Nome	名前	Nome	Nome	名称
+Size		Größe	Tamaño	Taille	Dimensione	サイズ	Tamanho	Tamanho	大小
+Packed		Gepackt	Comprimido	Compressé	Compresso	圧縮後	Compactado	Comprimido	压缩后
+Modified		Geändert	Modificado	Modifié	Modificato	更新日時	Modificado	Modificado	修改日期
+Method		Methode	Método	Méthode	Metodo	方式	Método	Método	方法
+Open		Öffnen	Abrir	Ouvrir	Apri	開く	Abrir		打开
+Test		Testen	Probar	Tester	Verifica	テスト	Testar		测试
+Stop		Anhalten	Detener	Arrêter	Interrompi	停止	Parar		停止
+Stopped.		Angehalten.	Detenido.	Arrêté.	Interrotto.	停止しました。	Parado.	Parado.	已停止。
+Extract		Entpacken	Extraer	Extraire	Estrai	展開	Extrair		解压
+Extract All		Alles entpacken	Extraer todo	Tout extraire	Estrai tutto	すべて展開	Extrair tudo		全部解压
+Extract {}		{} entpacken	Extraer {}	Extraire {}	Estrai {}	{} 個を展開	Extrair {}		解压 {} 项
+Extract to:		Entpacken nach:	Extraer en:	Extraire dans :	Estrai in:	展開先:	Extrair para:		解压到：
+Change...		Ändern...	Cambiar...	Modifier...	Cambia...	変更...	Alterar...		更改...
+Choose where to extract		Wählen Sie, wohin entpackt werden soll	Elija dónde extraer	Choisissez où extraire	Scegli dove estrarre	展開先を選択してください	Escolha onde extrair		选择解压位置
+Files		Dateien	Archivos	Fichiers	File	ファイル	Arquivos	Ficheiros	文件
+Archives		Archive	Archivos comprimidos	Archives	Archivi	アーカイブ	Arquivos compactados	Arquivos	压缩包
+All files		Alle Dateien	Todos los archivos	Tous les fichiers	Tutti i file	すべてのファイル	Todos os arquivos	Todos os ficheiros	所有文件
+Open an archive		Ein Archiv öffnen	Abrir un archivo comprimido	Ouvrir une archive	Apri un archivio	アーカイブを開く	Abrir um arquivo compactado	Abrir um arquivo	打开压缩包
+This archive is empty.		Dieses Archiv ist leer.	Este archivo comprimido está vacío.	Cette archive est vide.	Questo archivio è vuoto.	このアーカイブは空です。	Este arquivo compactado está vazio.	Este arquivo está vazio.	此压缩包为空。
+Opening {}		{} wird geöffnet	Abriendo {}	Ouverture de {}	Apertura di {}	{} を開いています	Abrindo {}	A abrir {}	正在打开 {}
+Extracting {}		{} wird entpackt	Extrayendo {}	Extraction de {}	Estrazione di {}	{} を展開しています	Extraindo {}	A extrair {}	正在解压 {}
+Testing {}		{} wird getestet	Probando {}	Test de {}	Verifica di {}	{} をテストしています	Testando {}	A testar {}	正在测试 {}
+{} of {}		{} von {}	{} de {}	{} sur {}	{} di {}	{} / {}	{} de {}		{} / {}
+{} files		{} Dateien	{} archivos	{} fichiers	{} file	{} ファイル	{} arquivos	{} ficheiros	{} 个文件
+{} selected		{} ausgewählt	{} seleccionados	{} sélectionnés	{} selezionati	{} 個を選択	{} selecionados		已选择 {} 项
+Back to the folder above		Zurück zum übergeordneten Ordner	Volver a la carpeta superior	Retour au dossier parent	Torna alla cartella superiore	1 つ上のフォルダーに戻る	Voltar à pasta acima		返回上一级文件夹
+Could not read or write: {}		Lesen oder Schreiben nicht möglich: {}	No se pudo leer ni escribir: {}	Lecture ou écriture impossible : {}	Impossibile leggere o scrivere: {}	読み書きできませんでした: {}	Não foi possível ler ou gravar: {}	Não foi possível ler ou escrever: {}	无法读取或写入：{}
+This is not an archive that rpack can open.		Dies ist kein Archiv, das rpack öffnen kann.	Esto no es un archivo comprimido que rpack pueda abrir.	Ce n’est pas une archive que rpack peut ouvrir.	Questo non è un archivio che rpack può aprire.	rpack で開けるアーカイブではありません。	Isto não é um arquivo compactado que o rpack consiga abrir.	Isto não é um arquivo que o rpack consiga abrir.	这不是 rpack 能打开的压缩包。
+The archive is damaged: {}		Das Archiv ist beschädigt: {}	El archivo comprimido está dañado: {}	L’archive est endommagée : {}	L’archivio è danneggiato: {}	アーカイブが壊れています: {}	O arquivo compactado está danificado: {}	O arquivo está danificado: {}	压缩包已损坏：{}
+Not supported: {}		Nicht unterstützt: {}	No compatible: {}	Non pris en charge : {}	Non supportato: {}	未対応: {}	Não suportado: {}		不支持：{}
+Encrypted: a password is needed, which rpack does not ask for yet.		Verschlüsselt: Ein Kennwort ist nötig, nach dem rpack noch nicht fragt.	Cifrado: se necesita una contraseña, que rpack todavía no pide.	Chiffré : un mot de passe est nécessaire, que rpack ne demande pas encore.	Crittografato: serve una password, che rpack non chiede ancora.	暗号化されています: パスワードが必要ですが、rpack はまだ入力に対応していません。	Criptografado: é necessária uma senha, que o rpack ainda não pede.	Encriptado: é precisa uma palavra-passe, que o rpack ainda não pede.	已加密：需要密码，但 rpack 尚不支持输入密码。
+Extracting was stopped.		Das Entpacken wurde angehalten.	Se detuvo la extracción.	L’extraction a été arrêtée.	L’estrazione è stata interrotta.	展開を停止しました。	A extração foi interrompida.		解压已停止。
+The test was stopped.		Der Test wurde angehalten.	Se detuvo la prueba.	Le test a été arrêté.	La verifica è stata interrotta.	テストを停止しました。	O teste foi interrompido.		测试已停止。
+{} files extracted ({}) to {}.		{} Dateien ({}) nach {} entpackt.	{} archivos extraídos ({}) en {}.	{} fichiers extraits ({}) dans {}.	{} file estratti ({}) in {}.	{} 個のファイル ({}) を {} に展開しました。	{} arquivos extraídos ({}) para {}.	{} ficheiros extraídos ({}) para {}.	已将 {} 个文件（{}）解压到 {}。
+{} were already there and were left as they were.		{} waren schon vorhanden und blieben unverändert.	{} ya existían y se dejaron como estaban.	{} existaient déjà et ont été laissés tels quels.	{} esistevano già e sono stati lasciati com’erano.	{} 個は既にあったため、そのままにしました。	{} já existiam e foram mantidos como estavam.		{} 个已存在，保持不变。
+{} were already there: the new ones have a number added.		{} waren schon vorhanden: Die neuen haben eine Nummer erhalten.	{} ya existían: los nuevos llevan un número.	{} existaient déjà : les nouveaux ont reçu un numéro.	{} esistevano già: ai nuovi è stato aggiunto un numero.	{} 個は既にあったため、新しいほうに番号を付けました。	{} já existiam: os novos receberam um número.		{} 个已存在：新文件已加上编号。
+{} links were left out.		{} Verknüpfungen wurden ausgelassen.	Se omitieron {} enlaces.	{} liens ont été ignorés.	{} collegamenti sono stati omessi.	{} 個のリンクは展開しませんでした。	{} links foram deixados de fora.	{} ligações foram deixadas de fora.	已跳过 {} 个链接。
+{} files could not be extracted:		{} Dateien konnten nicht entpackt werden:	No se pudieron extraer {} archivos:	{} fichiers n’ont pas pu être extraits :	Impossibile estrarre {} file:	{} 個のファイルを展開できませんでした:	Não foi possível extrair {} arquivos:	Não foi possível extrair {} ficheiros:	有 {} 个文件无法解压：
+…and {} more.		…und {} weitere.	…y {} más.	…et {} de plus.	…e altri {}.	…ほか {} 件。	…e mais {}.		…以及另外 {} 个。
+No errors were found.\n\n{} files, {}.		Es wurden keine Fehler gefunden.\n\n{} Dateien, {}.	No se encontraron errores.\n\n{} archivos, {}.	Aucune erreur n’a été trouvée.\n\n{} fichiers, {}.	Non è stato trovato alcun errore.\n\n{} file, {}.	エラーは見つかりませんでした。\n\n{} ファイル、{}。	Nenhum erro foi encontrado.\n\n{} arquivos, {}.	Não foi encontrado nenhum erro.\n\n{} ficheiros, {}.	未发现错误。\n\n{} 个文件，{}。
+{} errors were found.		Es wurden {} Fehler gefunden.	Se encontraron {} errores.	{} erreurs ont été trouvées.	Sono stati trovati {} errori.	{} 件のエラーが見つかりました。	Foram encontrados {} erros.		发现 {} 个错误。
+{} files are fine.		{} Dateien sind in Ordnung.	{} archivos están bien.	{} fichiers sont intacts.	{} file sono a posto.	{} 個のファイルは正常です。	{} arquivos estão bem.	{} ficheiros estão bem.	{} 个文件正常。
+Close the archive		Das Archiv schließen	Cerrar el archivo comprimido	Fermer l’archive	Chiudi l’archivio	アーカイブを閉じる	Fechar o arquivo compactado	Fechar o arquivo	关闭压缩包
+Select everything in the folder		Alles im Ordner auswählen	Seleccionar todo lo de la carpeta	Tout sélectionner dans le dossier	Seleziona tutto nella cartella	フォルダー内をすべて選択	Selecionar tudo na pasta		选择文件夹中的所有内容
+Extract the selection, or everything		Die Auswahl entpacken, oder alles	Extraer la selección, o todo	Extraire la sélection, ou tout	Estrai la selezione, o tutto	選択した項目、またはすべてを展開	Extrair a seleção, ou tudo		解压所选内容或全部内容
+Extract to a folder you choose		In einen Ordner Ihrer Wahl entpacken	Extraer en una carpeta que elija	Extraire dans un dossier de votre choix	Estrai in una cartella a scelta	選んだフォルダーに展開	Extrair para uma pasta à sua escolha	Extrair para uma pasta à escolha	解压到所选文件夹
+Test the archive		Das Archiv testen	Probar el archivo comprimido	Tester l’archive	Verifica l’archivio	アーカイブをテスト	Testar o arquivo compactado	Testar o arquivo	测试压缩包
+Move in the list (Shift selects)		In der Liste bewegen (Umschalt wählt aus)	Moverse por la lista (Mayús selecciona)	Se déplacer dans la liste (Maj sélectionne)	Muoversi nell’elenco (Maiusc seleziona)	一覧内を移動 (Shift で選択)	Mover na lista (Shift seleciona)		在列表中移动（Shift 选择）
+rpack {}\n\nOpens, tests and extracts archives, written in Rust.\nNo telemetry, no network access.\n\nMIT License.		rpack {}\n\nÖffnet, testet und entpackt Archive, geschrieben in Rust.\nKeine Telemetrie, kein Netzwerkzugriff.\n\nMIT-Lizenz.	rpack {}\n\nAbre, prueba y extrae archivos comprimidos, escrito en Rust.\nSin telemetría ni acceso a la red.\n\nLicencia MIT.	rpack {}\n\nOuvre, teste et extrait des archives, écrit en Rust.\nAucune télémétrie, aucun accès au réseau.\n\nLicence MIT.	rpack {}\n\nApre, verifica ed estrae archivi, scritto in Rust.\nNessuna telemetria, nessun accesso alla rete.\n\nLicenza MIT.	rpack {}\n\nアーカイブを開き、テストし、展開します。Rust で作られています。\nテレメトリーなし、ネットワーク接続なし。\n\nMIT ライセンス。	rpack {}\n\nAbre, testa e extrai arquivos compactados, escrito em Rust.\nSem telemetria, sem acesso à rede.\n\nLicença MIT.	rpack {}\n\nAbre, testa e extrai arquivos, escrito em Rust.\nSem telemetria, sem acesso à rede.\n\nLicença MIT.	rpack {}\n\n打开、测试和解压压缩包，使用 Rust 编写。\n无遥测，不访问网络。\n\nMIT 许可证。
+&Refresh		A&ktualisieren	&Actualizar	&Actualiser	A&ggiorna	最新の情報に更新(&R)	&Atualizar	&Atualizar	刷新(&R)
+Calc&ulate Hashes		&Prüfsummen berechnen	Calcular &hashes	Ca&lculer les empreintes	Calcola &hash	ハッシュを計算(&U)	Calcular &hashes	Calcular &hashes	计算哈希(&U)
+&All Hashes		&Alle Prüfsummen	&Todos los hashes	&Toutes les empreintes	&Tutti gli hash	すべてのハッシュ(&A)	&Todos os hashes	&Todos os hashes	全部哈希(&A)
+&Save Hashes...		Prüfsummen &speichern...	&Guardar hashes...	&Enregistrer les empreintes...	&Salva hash...	ハッシュを保存(&S)...	&Salvar hashes...	&Guardar hashes...	保存哈希(&S)...
+This PC		Dieser PC	Este equipo	Ce PC	Questo PC	PC	Este Computador	Este PC	此电脑
+Computer		Computer	Equipo	Ordinateur	Computer	コンピューター	Computador		计算机
+File		Datei	Archivo	Fichier	File	ファイル	Arquivo	Ficheiro	文件
+Folder		Ordner	Carpeta	Dossier	Cartella	フォルダー	Pasta		文件夹
+Type		Typ	Tipo	Type	Tipo	種類	Tipo		类型
+Free		Frei	Libre	Libre	Libero	空き	Livre		可用
+File system		Dateisystem	Sistema de archivos	Système de fichiers	File system	ファイル システム	Sistema de arquivos	Sistema de ficheiros	文件系统
+This folder is empty.		Dieser Ordner ist leer.	Esta carpeta está vacía.	Ce dossier est vide.	Questa cartella è vuota.	このフォルダーは空です。	Esta pasta está vazia.		此文件夹为空。
+Hashes...		Prüfsummen...	Hashes...	Empreintes...	Hash...	ハッシュ...	Hashes...		哈希...
+Hashes		Prüfsummen	Hashes	Empreintes	Hash	ハッシュ	Hashes		哈希
+Open a drive, then the archives in it.		Öffnen Sie ein Laufwerk und dann die Archive darauf.	Abra una unidad y luego los archivos comprimidos que contenga.	Ouvrez un lecteur, puis les archives qu’il contient.	Apri un’unità, poi gli archivi che contiene.	ドライブを開き、その中のアーカイブを開いてください。	Abra uma unidade e depois os arquivos compactados nela.	Abra uma unidade e depois os arquivos que tem.	打开一个驱动器，再打开其中的压缩包。
+Each archive is extracted into a folder beside it.		Jedes Archiv wird in einen Ordner daneben entpackt.	Cada archivo comprimido se extrae en una carpeta a su lado.	Chaque archive est extraite dans un dossier à côté d’elle.	Ogni archivio viene estratto in una cartella accanto.	各アーカイブは隣のフォルダーに展開されます。	Cada arquivo compactado é extraído para uma pasta ao lado dele.	Cada arquivo é extraído para uma pasta ao lado dele.	每个压缩包都会解压到旁边的文件夹中。
+Open an archive to see what it holds, or select archives to extract them.		Öffnen Sie ein Archiv, um seinen Inhalt zu sehen, oder wählen Sie Archive zum Entpacken aus.	Abra un archivo comprimido para ver su contenido, o seleccione varios para extraerlos.	Ouvrez une archive pour voir son contenu, ou sélectionnez des archives pour les extraire.	Apri un archivio per vederne il contenuto, o seleziona degli archivi per estrarli.	アーカイブを開いて中身を見るか、展開するアーカイブを選択してください。	Abra um arquivo compactado para ver o que contém, ou selecione arquivos para extraí-los.	Abra um arquivo para ver o que contém, ou selecione arquivos para os extrair.	打开压缩包查看内容，或选择压缩包进行解压。
+{} and {} more		{} und {} weitere	{} y {} más	{} et {} de plus	{} e altri {}	{} ほか {} 件	{} e mais {}		{} 及另外 {} 个
+Calculating the hashes of {}		Prüfsummen von {} werden berechnet	Calculando los hashes de {}	Calcul des empreintes de {}	Calcolo degli hash di {}	{} のハッシュを計算しています	Calculando os hashes de {}	A calcular os hashes de {}	正在计算 {} 的哈希
+{} file		{}-Datei	Archivo {}	Fichier {}	File {}	{} ファイル	Arquivo {}	Ficheiro {}	{} 文件
+{} free of {}		{} von {} frei	{} libres de {}	{} libres sur {}	{} liberi su {}	{} 空き / {}	{} livres de {}		{} 可用，共 {}
+{} folders		{} Ordner	{} carpetas	{} dossiers	{} cartelle	{} フォルダー	{} pastas		{} 个文件夹
+{} drives		{} Laufwerke	{} unidades	{} lecteurs	{} unità	{} ドライブ	{} unidades		{} 个驱动器
+(the rest of the archive)		(der Rest des Archivs)	(el resto del archivo comprimido)	(le reste de l’archive)	(il resto dell’archivio)	(アーカイブの残り)	(o resto do arquivo compactado)	(o resto do arquivo)	（压缩包的其余部分）
+There are no files to hash.		Es gibt keine Dateien für Prüfsummen.	No hay archivos para calcular hashes.	Il n’y a aucun fichier dont calculer l’empreinte.	Non ci sono file di cui calcolare l’hash.	ハッシュを計算するファイルがありません。	Não há arquivos para calcular hashes.	Não há ficheiros para calcular hashes.	没有可计算哈希的文件。
+Ctrl+C copies the hashes; Save Hashes, under the Hashes button, writes them to a file.		Strg+C kopiert die Prüfsummen; „Prüfsummen speichern“ unter der Schaltfläche „Prüfsummen“ schreibt sie in eine Datei.	Ctrl+C copia los hashes; Guardar hashes, en el botón Hashes, los escribe en un archivo.	Ctrl+C copie les empreintes ; Enregistrer les empreintes, sous le bouton Empreintes, les écrit dans un fichier.	Ctrl+C copia gli hash; Salva hash, nel pulsante Hash, li scrive in un file.	Ctrl+C でハッシュをコピーします。[ハッシュ] ボタンの [ハッシュを保存] でファイルに書き出せます。	Ctrl+C copia os hashes; Salvar hashes, no botão Hashes, grava-os num arquivo.	Ctrl+C copia os hashes; Guardar hashes, no botão Hashes, escreve-os num ficheiro.	Ctrl+C 复制哈希；“哈希”按钮下的“保存哈希”可将其写入文件。
+Open the folder, archive or file selected		Den ausgewählten Ordner, das Archiv oder die Datei öffnen	Abrir la carpeta, el archivo comprimido o el archivo seleccionado	Ouvrir le dossier, l’archive ou le fichier sélectionné	Apri la cartella, l’archivio o il file selezionato	選択したフォルダー、アーカイブ、またはファイルを開く	Abrir a pasta, o arquivo compactado ou o arquivo selecionado	Abrir a pasta, o arquivo ou o ficheiro selecionado	打开所选文件夹、压缩包或文件
+Read the folder again		Den Ordner neu einlesen	Volver a leer la carpeta	Relire le dossier	Rileggi la cartella	フォルダーを読み込み直す	Ler a pasta de novo		重新读取文件夹
+Could not open {}: {}		{} konnte nicht geöffnet werden: {}	No se pudo abrir {}: {}	Impossible d’ouvrir {} : {}	Impossibile aprire {}: {}	{} を開けませんでした: {}	Não foi possível abrir {}: {}		无法打开 {}：{}
+no errors ({} files).		keine Fehler ({} Dateien).	sin errores ({} archivos).	aucune erreur ({} fichiers).	nessun errore ({} file).	エラーなし ({} ファイル)。	sem erros ({} arquivos).	sem erros ({} ficheiros).	无错误（{} 个文件）。
+Hashes · {} files · {}		Prüfsummen · {} Dateien · {}	Hashes · {} archivos · {}	Empreintes · {} fichiers · {}	Hash · {} file · {}	ハッシュ · {} ファイル · {}	Hashes · {} arquivos · {}	Hashes · {} ficheiros · {}	哈希 · {} 个文件 · {}
+The hashes were saved to {}.		Die Prüfsummen wurden in {} gespeichert.	Los hashes se guardaron en {}.	Les empreintes ont été enregistrées dans {}.	Gli hash sono stati salvati in {}.	ハッシュを {} に保存しました。	Os hashes foram salvos em {}.	Os hashes foram guardados em {}.	哈希已保存到 {}。
+Could not save {}: {}		{} konnte nicht gespeichert werden: {}	No se pudo guardar {}: {}	Impossible d’enregistrer {} : {}	Impossibile salvare {}: {}	{} を保存できませんでした: {}	Não foi possível salvar {}: {}	Não foi possível guardar {}: {}	无法保存 {}：{}
+Copied to the clipboard.		In die Zwischenablage kopiert.	Copiado al portapapeles.	Copié dans le presse-papiers.	Copiato negli appunti.	クリップボードにコピーしました。	Copiado para a área de transferência.		已复制到剪贴板。
+&Add to Archive...		Zum Archiv &hinzufügen...	&Añadir a un archivo comprimido...	Ajouter à une a&rchive...	Aggiungi a un a&rchivio...	アーカイブに追加(&A)...	Adicionar a um arquivo &compactado...	Adi&cionar a um arquivo...	添加到压缩包(&A)...
+Add to a &7z Archive		Zu &7z-Archiv hinzufügen	Añadir a un archivo &7z	Ajouter à une archive &7z	Aggiungi a un archivio &7z	7z アーカイブに追加(&7)	Adicionar a um arquivo &7z	Adicionar a um arquivo &7z	添加到 7z 压缩包(&7)
+Add to a &Zip Archive		Zu Zip-Archiv hinz&ufügen	Añadir a un archivo &zip	Ajouter à une archive &zip	Aggiungi a un archivio &zip	Zip アーカイブに追加(&Z)	Adicionar a um arquivo &zip	Adicionar a um arquivo &zip	添加到 Zip 压缩包(&Z)
+Add Each to &Its Own Archive		Jedes in ein ei&genes Archiv	Añadir cada uno a su propio arch&ivo	Ajouter chacun à sa propre arch&ive	Aggiungi ognuno a un archivio &proprio	それぞれ個別のアーカイブに追加(&I)	Adicionar cada um a um arquivo &individual	Adicionar cada um a um arquivo &individual	分别添加到各自的压缩包(&I)
+Extract &Here		Hie&r entpacken	Extraer a&quí	Extraire i&ci	Estrai &qui	ここに展開(&H)	Extrair a&qui	Extrair a&qui	解压到此处(&H)
+Extract Each to a &New Folder		Jedes in einen neuen Ordner entpa&cken	Extraer cada uno en una carpeta &nueva	Extraire chacun dans un &nouveau dossier	Estrai ognuno in una &nuova cartella	それぞれ新しいフォルダーに展開(&N)	Extrair cada um para uma pasta &nova	Extrair cada um para uma pasta &nova	分别解压到新文件夹(&N)
+Show in File &Manager		Im &Dateimanager anzeigen	Mostrar en el e&xplorador de archivos	Afficher dans le &gestionnaire de fichiers	&Mostra nel gestore file	ファイル マネージャーで表示(&M)	Mostrar no &gerenciador de arquivos	Mostrar no &gestor de ficheiros	在文件管理器中显示(&M)
+&Copy Path		Pfad kop&ieren	Copiar &ruta	Copier le c&hemin	C&opia percorso	パスをコピー(&C)	Copiar ca&minho	Copiar ca&minho	复制路径(&C)
+Move to Recycle &Bin		In den Papierkorb &verschieben	&Mover a la papelera de reciclaje	Déplacer vers la cor&beille	Sposta nel cest&ino	ごみ箱に移動(&B)	Mover para a &Lixeira	Mover para a &Reciclagem	移到回收站(&B)
+Mo&ve to Trash		In den Papierkorb &verschieben	&Mover a la papelera	Déplacer vers la cor&beille	Sposta nel cest&ino	ごみ箱に移動(&V)	Mover para a &Lixeira	Mover para o &Lixo	移到回收站(&V)
+Add...		Hinzufügen...	Añadir...	Ajouter...	Aggiungi...	追加...	Adicionar...		添加...
+Create		Erstellen	Crear	Créer	Crea	作成	Criar		创建
+Format		Format	Formato	Format	Formato	形式	Formato		格式
+Level		Stufe	Nivel	Niveau	Livello	レベル	Nível		级别
+Store		Speichern	Almacenar	Stocker	Archivia	無圧縮	Armazenar		仅存储
+Fastest		Am schnellsten	Más rápido	Le plus rapide	Più veloce	最速	Mais rápido		最快
+Fast		Schnell	Rápido	Rapide	Veloce	高速	Rápido		快速
+Normal		Normal	Normal	Normal	Normale	標準	Normal		标准
+Maximum		Maximal	Máximo	Maximum	Massimo	最大	Máximo		最大
+Ultra		Ultra	Ultra	Ultra	Ultra	ウルトラ	Ultra		极限
+Each one named after itself		Jedes nach sich selbst benannt	Cada uno con su propio nombre	Chacun nommé d’après lui-même	Ognuno con il proprio nome	それぞれ元の名前で	Cada um com o próprio nome		每个都以其自身命名
+Solid: compress the files together (smaller archive)		Solid: die Dateien zusammen komprimieren (kleineres Archiv)	Sólido: comprimir los archivos juntos (archivo más pequeño)	Solide : compresser les fichiers ensemble (archive plus petite)	Solido: comprimi i file insieme (archivio più piccolo)	ソリッド: ファイルをまとめて圧縮 (小さくなります)	Sólido: comprimir os arquivos juntos (arquivo menor)	Sólido: comprimir os ficheiros juntos (arquivo mais pequeno)	固实：将文件一起压缩（压缩包更小）
+Each item into an archive of its own		Jedes Element in ein eigenes Archiv	Cada elemento en su propio archivo comprimido	Chaque élément dans sa propre archive	Ogni elemento in un archivio a sé	各項目を個別のアーカイブに	Cada item em um arquivo compactado próprio	Cada item num arquivo próprio	每个项目放入单独的压缩包
+{} items		{} Elemente	{} elementos	{} éléments	{} elementi	{} 個の項目	{} itens		{} 个项目
+Add {} to an archive		{} zu einem Archiv hinzufügen	Añadir {} a un archivo comprimido	Ajouter {} à une archive	Aggiungi {} a un archivio	{} をアーカイブに追加	Adicionar {} a um arquivo compactado	Adicionar {} a um arquivo	将 {} 添加到压缩包
+Compressing {}		{} wird komprimiert	Comprimiendo {}	Compression de {}	Compressione di {}	{} を圧縮しています	Compactando {}	A comprimir {}	正在压缩 {}
+Add to Archive		Zum Archiv hinzufügen	Añadir a un archivo comprimido	Ajouter à une archive	Aggiungi a un archivio	アーカイブに追加	Adicionar a um arquivo compactado	Adicionar a um arquivo	添加到压缩包
+{} is already there. Replace it?		{} ist bereits vorhanden. Ersetzen?	{} ya existe. ¿Reemplazarlo?	{} existe déjà. Le remplacer ?	{} esiste già. Sostituirlo?	{} は既にあります。置き換えますか?	{} já existe. Substituí-lo?		{} 已存在。要替换吗？
+{} created: {} files, {} → {}.		{} erstellt: {} Dateien, {} → {}.	{} creado: {} archivos, {} → {}.	{} créée : {} fichiers, {} → {}.	{} creato: {} file, {} → {}.	{} を作成しました: {} ファイル、{} → {}。	{} criado: {} arquivos, {} → {}.	{} criado: {} ficheiros, {} → {}.	已创建 {}：{} 个文件，{} → {}。
+{} files could not be read and were left out:		{} Dateien konnten nicht gelesen werden und wurden ausgelassen:	No se pudieron leer {} archivos y se omitieron:	{} fichiers n’ont pas pu être lus et ont été ignorés :	Impossibile leggere {} file, che sono stati omessi:	{} 個のファイルを読み取れなかったため、除外しました:	Não foi possível ler {} arquivos, que ficaram de fora:	Não foi possível ler {} ficheiros, que ficaram de fora:	有 {} 个文件无法读取，已跳过：
+Move {} to the Recycle Bin?		{} in den Papierkorb verschieben?	¿Mover {} a la papelera de reciclaje?	Déplacer {} vers la corbeille ?	Spostare {} nel cestino?	{} をごみ箱に移動しますか?	Mover {} para a Lixeira?	Mover {} para a Reciclagem?	将 {} 移到回收站？
+Move {} to the trash?		{} in den Papierkorb verschieben?	¿Mover {} a la papelera?	Déplacer {} vers la corbeille ?	Spostare {} nel cestino?	{} をごみ箱に移動しますか?	Mover {} para a lixeira?	Mover {} para o lixo?	将 {} 移到回收站？
+Choose where to put the archive		Wählen Sie, wohin das Archiv kommt	Elija dónde poner el archivo comprimido	Choisissez où placer l’archive	Scegli dove mettere l’archivio	アーカイブの保存先を選択してください	Escolha onde colocar o arquivo compactado	Escolha onde pôr o arquivo	选择压缩包的保存位置
+Extract to “{}”		Nach „{}“ entpacken	Extraer en «{}»	Extraire dans « {} »	Estrai in “{}”	“{}” に展開	Extrair para “{}”		解压到“{}”
+Add to “{}”		Zu „{}“ hinzufügen	Añadir a «{}»	Ajouter à « {} »	Aggiungi a “{}”	“{}” に追加	Adicionar a “{}”		添加到“{}”

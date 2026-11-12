@@ -14,6 +14,7 @@ uses the network, to download the pictures it puts on the desktop.
 | [rsize](apps/rsize/README.md) | Disk space analyzer laid out as WizTree: the volume's space, folders and file types sortable by every column, a treemap with folder headers, pie or rings, CSV export; reads NTFS directly or the Everything index | 1.9 MB | 5.5 MB |
 | [rdup](apps/rdup/README.md) | Duplicate file finder: files with the same contents on several drives and folders at once, by size and BLAKE3 hashes; reads the drives like rsize | 1.9 MB | 5.6 MB |
 | [rwall](apps/rwall/README.md) | Wallpaper changer in the notification area: every day, twice or four times a day, weekly, monthly or every few minutes, with pictures from Bing, NASA, Wallhaven, Picsum or your own folders; on Windows also a dynamic wallpaper behind the icons (video, animated GIF or a drawn scene) and desktop widgets (clocks, calendar, notes, weather, fences, photos) | 3.7 MB | 6.8 MB |
+| [rpack](apps/rpack/README.md) | Archiver with a file browser: makes 7z, zip and tar archives; opens, tests and extracts zip, 7z, tar and files compressed with gzip, bzip2, xz, lzma, lzip, zstd, lz4 or brotli, found by their contents; hashes from CRC-32 to BLAKE3; passwords, rar, iso and more come next | 4.8 MB | 9.3 MB |
 
 They all draw their own interface on the CPU (winit, softbuffer, tiny-skia and
 ab_glyph), with no GPU and no UI toolkit. They come in 10 languages and follow
@@ -43,12 +44,13 @@ is one: from `$env:RUST_TOOLS_MSVC_ENV`, or from `\Portable\Tools\dev\msvc` on
 | rsize | `cargo build --profile release-small -p rsize` | `target\release-small\rsize.exe` |
 | rdup | `cargo build --profile release-small -p rdup` | `target\release-small\rdup.exe` |
 | rwall | `cargo build --release -p rwall` | `target\release\rwall.exe` |
+| rpack | `cargo build --release -p rpack` | `target\release\rpack.exe` |
 
 The two profiles exist because `panic` cannot be set per package in a workspace.
 `release-small` aborts on panic, which makes rcalc, rpad, rsize and rdup about 20% smaller.
 rview needs `release`: it catches a panic from the PDF library, so that a
 malformed PDF cannot close the program. rwall uses it too, for the same reason
-with pictures from the web. `./dev.ps1 dist` picks the right profile
+with pictures from the web, and rpack with damaged archives. `./dev.ps1 dist` picks the right profile
 for each tool.
 
 ## Download
@@ -67,8 +69,8 @@ The Linux packages need glibc 2.35 or newer (2.34 for rcalc and rpad) and run on
 X11 and Wayland. What
 differs from Windows is in each README: [rcalc](apps/rcalc/README.md#linux),
 [rpad](apps/rpad/README.md#linux), [rview](apps/rview/README.md#linux),
-[rsize](apps/rsize/README.md#linux), [rdup](apps/rdup/README.md#linux) and
-[rwall](apps/rwall/README.md#linux).
+[rsize](apps/rsize/README.md#linux), [rdup](apps/rdup/README.md#linux),
+[rwall](apps/rwall/README.md#linux) and [rpack](apps/rpack/README.md#linux).
 They were checked under WSL2, not on a real Linux desktop.
 
 Under WSLg, the title bar these tools draw on Wayland can crash its compositor,
@@ -85,6 +87,7 @@ rust-tools/
 ├─ apps/
 │  ├─ rcalc/
 │  ├─ rdup/
+│  ├─ rpack/
 │  ├─ rpad/
 │  ├─ rsize/
 │  ├─ rview/
@@ -94,6 +97,7 @@ rust-tools/
    ├─ rt-gfx/      drawing, text layout, drawn menus, message panel
    ├─ rt-scan/     reading drives fast: Everything, the NTFS table, folder by folder
    ├─ rt-sys/      Windows and Linux integration
+   ├─ rt-ui/       window shell: window, theme, drawn menus, messages, controls
    ├─ rt-syntax/   syntax highlighting
    └─ rt-build/    icon and version in the Windows executable
 ```

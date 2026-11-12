@@ -14,6 +14,7 @@ a rede, para descarregar as imagens que põe no ambiente de trabalho.
 | [rsize](apps/rsize/README.pt.md) | Analisador de espaço em disco ao jeito do WizTree: o espaço do volume, pastas e tipos de ficheiro ordenáveis por todas as colunas, treemap com cabeçalhos de pasta, tarte ou anéis, exportação CSV; lê o NTFS diretamente ou o índice do Everything | 1,9 MB | 5,5 MB |
 | [rdup](apps/rdup/README.pt.md) | Procurador de ficheiros duplicados: ficheiros com o mesmo conteúdo em vários discos e pastas de uma vez, por tamanho e hashes BLAKE3; lê os discos como o rsize | 1,9 MB | 5,6 MB |
 | [rwall](apps/rwall/README.pt.md) | Muda o fundo do ambiente de trabalho: todos os dias, duas ou quatro vezes por dia, todas as semanas, todos os meses ou a cada tantos minutos, com imagens do Bing, da NASA, do Wallhaven, do Picsum ou das suas pastas; no Windows também um fundo dinâmico atrás dos ícones (vídeo, GIF animado ou uma cena desenhada) e widgets no ambiente de trabalho (relógios, calendário, notas, meteorologia, fences, fotos) | 3,7 MB | 6,8 MB |
+| [rpack](apps/rpack/README.pt.md) | Arquivador com navegador de ficheiros: cria arquivos 7z, zip e tar; abre, testa e extrai zip, 7z, tar e ficheiros comprimidos com gzip, bzip2, xz, lzma, lzip, zstd, lz4 ou brotli, reconhecidos pelo conteúdo; hashes do CRC-32 ao BLAKE3; palavras-passe, rar, iso e mais vêm a seguir | 4,8 MB | 9,3 MB |
 
 Todas desenham a sua própria interface no CPU (winit, softbuffer, tiny-skia e
 ab_glyph), sem GPU nem biblioteca de interface. Têm 10 idiomas e seguem o tema
@@ -44,12 +45,13 @@ Tools, se existir: o de `$env:RUST_TOOLS_MSVC_ENV`, ou o de
 | rsize | `cargo build --profile release-small -p rsize` | `target\release-small\rsize.exe` |
 | rdup | `cargo build --profile release-small -p rdup` | `target\release-small\rdup.exe` |
 | rwall | `cargo build --release -p rwall` | `target\release\rwall.exe` |
+| rpack | `cargo build --release -p rpack` | `target\release\rpack.exe` |
 
 Há dois perfis porque, num workspace, o `panic` não se pode definir por pacote.
 O `release-small` aborta em pânicos, o que torna o rcalc, o rpad, o rsize e o rdup
 cerca de 20% mais pequenos. O rview precisa do `release`: apanha os pânicos da biblioteca de
 PDF, para que um PDF malformado não feche o programa. O rwall também o usa, pela
-mesma razão, com as imagens que vêm da internet. O `./dev.ps1 dist` escolhe
+mesma razão, com as imagens que vêm da internet, e o rpack com arquivos danificados. O `./dev.ps1 dist` escolhe
 o perfil certo para cada ferramenta.
 
 ## Transferir
@@ -68,7 +70,7 @@ Os pacotes para Linux precisam da glibc 2.35 ou mais recente (2.34 no rcalc e no
 rpad) e funcionam em X11 e Wayland. O que muda face ao Windows está em cada README:
 [rcalc](apps/rcalc/README.pt.md#linux), [rpad](apps/rpad/README.pt.md#linux),
 [rview](apps/rview/README.pt.md#linux), [rsize](apps/rsize/README.pt.md#linux),
-[rdup](apps/rdup/README.pt.md#linux) e [rwall](apps/rwall/README.pt.md#linux). Foram
+[rdup](apps/rdup/README.pt.md#linux), [rwall](apps/rwall/README.pt.md#linux) e [rpack](apps/rpack/README.pt.md#linux). Foram
 verificados no WSL2, não num ambiente de trabalho Linux real.
 
 No WSLg, a barra de título que estas ferramentas desenham em Wayland pode fazer cair
@@ -85,6 +87,7 @@ rust-tools/
 ├─ apps/
 │  ├─ rcalc/
 │  ├─ rdup/
+│  ├─ rpack/
 │  ├─ rpad/
 │  ├─ rsize/
 │  ├─ rview/
@@ -94,6 +97,7 @@ rust-tools/
    ├─ rt-gfx/      desenho, disposição de texto, menus desenhados, painel de mensagens
    ├─ rt-scan/     leitura rápida dos discos: Everything, tabela NTFS, pasta a pasta
    ├─ rt-sys/      integração com Windows e Linux
+   ├─ rt-ui/       base da janela: janela, tema, menus desenhados, mensagens, controlos
    ├─ rt-syntax/   realce de sintaxe
    └─ rt-build/    ícone e versão no executável de Windows
 ```

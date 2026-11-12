@@ -1,6 +1,6 @@
 # rust-tools — ferramentas portáteis em Rust para Windows
 
-Monorepo (workspace Cargo) com seis aplicações, cada uma um único `.exe`, e os crates que partilham
+Monorepo (workspace Cargo) com sete aplicações, cada uma um único `.exe`, e os crates que partilham
 (`crates/`):
 
 - `apps/rcalc` — calculadora.
@@ -11,6 +11,8 @@ Monorepo (workspace Cargo) com seis aplicações, cada uma um único `.exe`, e o
 - `apps/rwall` — muda o wallpaper a partir da área de notificação (Bing, NASA, Wallhaven, Picsum, pastas locais) e,
   no Windows, põe um fundo dinâmico atrás dos ícones (vídeo, GIF/WebP animado, cenas próprias) e widgets no ambiente de
   trabalho (relógios, calendário, notas, anotações, meteorologia da Open-Meteo, fences, fotos).
+- `apps/rpack` — arquivador com navegador de ficheiros (em curso, por fases): cria 7z, zip e tar; abre, testa e
+  extrai zip, 7z, tar e ficheiros comprimidos; hashes.
 
 Cada aplicação tem o seu `CLAUDE.md` com arquitetura e regras próprias.
 
@@ -29,7 +31,7 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
 
 - "Pronto" = sem avisos, clippy limpo, testes a passar.
 - Perfis só na raiz do `Cargo.toml`. rcalc, rpad, rsize e rdup usam `release-small` (`panic = "abort"`);
-  o rview e o rwall usam sempre `release`, porque precisam de `catch_unwind`.
+  o rview, o rwall e o rpack usam sempre `release`, porque precisam de `catch_unwind`.
 - Compilar para distribuição com `./dev.ps1 dist`, que escolhe o perfil de cada aplicação.
 - `README.md` e `README.pt.md` são atualizados em conjunto, na raiz e em cada aplicação.
 - Textos visíveis ficam no `strings.txt` de cada aplicação, nunca no código de desenho.

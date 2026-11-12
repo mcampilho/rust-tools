@@ -2,7 +2,7 @@
 
 [Versão portuguesa](README.pt.md)
 
-The code that rcalc, rpad, rview, rsize, rdup and rwall have in common. A new tool of the same kind
+The code that rcalc, rpad, rview, rsize, rdup, rwall and rpack have in common. A new tool of the same kind
 (a single executable that draws its own interface on the CPU) starts from these
 crates and only writes what is its own.
 
