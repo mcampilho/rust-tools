@@ -112,6 +112,27 @@ pub fn shell_open(target: &str) -> bool {
     r as usize > 32
 }
 
+/// What Windows calls files ending in `.ext` ("JSON File", "Application"), in
+/// the system's language; None when it has no name for them. `ext` is
+/// without the dot. Asks the registry only, never the disk.
+pub fn file_type_name(ext: &str) -> Option<String> {
+    use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_NORMAL;
+    use windows_sys::Win32::UI::Shell::{SHGetFileInfoW, SHFILEINFOW, SHGFI_TYPENAME, SHGFI_USEFILEATTRIBUTES};
+    if ext.is_empty() || ext.contains(['\\', '/', ':']) {
+        return None;
+    }
+    let name = wide(&format!("x.{ext}"));
+    // SAFETY: SHFILEINFOW is plain data; zeroed is a valid value.
+    let mut info: SHFILEINFOW = unsafe { std::mem::zeroed() };
+    // SAFETY: NUL-terminated name; `info` is as large as stated. With
+    // SHGFI_USEFILEATTRIBUTES the file need not exist.
+    let ok = unsafe {
+        SHGetFileInfoW(name.as_ptr(), FILE_ATTRIBUTE_NORMAL, &mut info, std::mem::size_of::<SHFILEINFOW>() as u32, SHGFI_TYPENAME | SHGFI_USEFILEATTRIBUTES)
+    } != 0;
+    let text = from_wide(&info.szTypeName);
+    (ok && !text.trim().is_empty()).then(|| text.trim().to_string())
+}
+
 /// Whether this process runs with administrator rights (elevated).
 pub fn elevated() -> bool {
     use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};

@@ -3,20 +3,22 @@
 //! - the start page: the drives, with their used space, and a button to
 //!   choose a folder;
 //! - the scan page: what has been found so far;
-//! - the result: the folder list on top, the treemap below, split by a bar
-//!   that can be dragged.
+//! - the result: what was read and the volume's space on top; the folder
+//!   list at the left and the file types at the right, split by a bar that
+//!   can be dragged; the treemap (or the pie, or the rings) below, split
+//!   from them by another bar.
 //!
 //! [`layout`] decides where things go; `main` uses the same [`Layout`] to
 //! find what the pointer is on.
 
 use super::gfx::{Align, Color, FontId, Gfx, Rect};
 use super::theme::Theme;
-use crate::app::App;
+use crate::app::{items, type_name, App, Col, ExtCol, Sort};
 use crate::format;
 use crate::i18n::{tf, tr};
-use crate::model::{ExtStat, Id, Kind, SizeMode, Tree, F_HARDLINK, F_OTHER_FS, F_UNREADABLE};
+use crate::model::{Id, Kind, SizeMode, Tree, F_HARDLINK, F_OTHER_FS, F_UNREADABLE};
 use crate::chart::{pop_offset, sector, Chart, Hit, Kind as ChartKind, Segment};
-use crate::settings::ChartType;
+use crate::settings::{ChartType, Panes, ViewMode};
 use crate::treemap::{self, Map};
 use rt_core::i18n::strip_mnemonic;
 use rt_gfx::dialog::{ellipsize, ellipsize_middle};
@@ -30,19 +32,58 @@ pub enum Hot {
     Choose,
     Stop,
     Row(usize),
+    /// A header of the list (sorts it).
+    Head(Col),
+    /// A row of the table of file types.
+    ExtRow(usize),
+    /// A header of the table of file types (sorts it).
+    ExtHead(ExtCol),
     Splitter,
+    /// The bar between the list and the file types.
+    VSplitter,
     /// A chart tab above the chart.
     Tab(ChartType),
+    /// A layout button above the chart.
+    Mode(ViewMode),
 }
 
-/// Column positions of the list, as (x, width); a width of 0 hides a column.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct Cols {
-    pub name: (f32, f32),
-    pub share: (f32, f32),
-    pub size: (f32, f32),
-    pub files: (f32, f32),
-    pub date: (f32, f32),
+/// The columns shown, in order, as (column, x, width).
+pub type Cols<C> = Vec<(C, f32, f32)>;
+
+/// Lays out columns in `x..x + w`: `order` gives each column, its width
+/// (unscaled) and how long it stays when there is little room (0: always);
+/// `flex` takes what is left, at least `min_flex`.
+fn columns<C: Copy + PartialEq>(x: f32, w: f32, s: f32, order: &[(C, f32, u8)], flex: C, min_flex: f32) -> Cols<C> {
+    let mut shown: Vec<(C, f32, u8)> = order.to_vec();
+    loop {
+        let fixed: f32 = shown.iter().filter(|c| c.0 != flex).map(|c| (c.1 * s).round()).sum();
+        if fixed + min_flex * s <= w {
+            break;
+        }
+        // The column that goes first: the highest number.
+        match shown.iter().enumerate().filter(|(_, c)| c.0 != flex && c.2 > 0).max_by_key(|(_, c)| c.2) {
+            Some((i, _)) => {
+                shown.remove(i);
+            }
+            None => break,
+        }
+    }
+    let fixed: f32 = shown.iter().filter(|c| c.0 != flex).map(|c| (c.1 * s).round()).sum();
+    let mut cx = x;
+    shown
+        .iter()
+        .map(|c| {
+            let cw = if c.0 == flex { (w - fixed).max(0.0) } else { (c.1 * s).round() };
+            let out = (c.0, cx, cw);
+            cx += cw;
+            out
+        })
+        .collect()
+}
+
+/// Where a column is: (x, width), or None when it is hidden.
+pub fn col_at<C: Copy + PartialEq>(cols: &Cols<C>, c: C) -> Option<(f32, f32)> {
+    cols.iter().find(|k| k.0 == c).map(|k| (k.1, k.2))
 }
 
 #[derive(Clone, Debug, Default)]
@@ -53,16 +94,28 @@ pub struct Layout {
     pub status: Rect,
     pub body: Rect,
     // Result page.
+    /// What was read, and the volume's space.
+    pub info: Rect,
     pub header: Rect,
     pub list: Rect,
     pub row_h: f32,
     pub indent: f32,
-    pub cols: Cols,
+    pub cols: Cols<Col>,
     pub track: Rect,
+    /// The bar between the list and the file types.
+    pub vsplit: Rect,
+    pub ext_header: Rect,
+    pub ext_list: Rect,
+    pub ext_cols: Cols<ExtCol>,
+    pub ext_track: Rect,
     pub splitter: Rect,
     pub map_title: Rect,
     /// The chart tabs, at the right of the title.
     pub tabs: Vec<(ChartType, Rect)>,
+    /// The layout buttons, at the right of the chart tabs.
+    pub modes: Vec<(ViewMode, Rect)>,
+    /// The layout in use.
+    pub view: ViewMode,
     pub map: Rect,
     // Start page.
     pub cards: Vec<Rect>,
@@ -104,21 +157,67 @@ impl Layout {
 
     /// Whether `x` is on the open/close arrow of a row at `depth`.
     pub fn on_arrow(&self, x: f32, depth: u16) -> bool {
-        let ax = self.cols.name.0 + 4.0 + depth as f32 * self.indent;
+        let ax = self.list.x + 4.0 + depth as f32 * self.indent;
         x >= ax - 2.0 && x < ax + self.indent + 2.0
     }
 
     /// Rows that fit in the list.
     pub fn page_rows(&self) -> usize {
-        if self.row_h <= 0.0 {
-            return 1;
+        rows_in(self.list, self.row_h)
+    }
+
+    /// Rows that fit in the table of file types.
+    pub fn ext_rows(&self) -> usize {
+        rows_in(self.ext_list, self.row_h)
+    }
+
+    /// The row of the table of file types under the pointer, if any.
+    pub fn ext_row_at(&self, app: &App, x: f32, y: f32) -> Option<usize> {
+        if !self.ext_list.contains(x, y) || self.row_h <= 0.0 {
+            return None;
         }
-        ((self.list.h / self.row_h).floor() as usize).max(1)
+        let i = app.types_scroll + ((y - self.ext_list.y) / self.row_h) as usize;
+        (i < app.exts.len()).then_some(i)
+    }
+
+    /// The header of the list under the pointer.
+    pub fn head_at(&self, x: f32, y: f32) -> Option<Col> {
+        self.header.contains(x, y).then(|| self.cols.iter().find(|c| x >= c.1 && x < c.1 + c.2).map(|c| c.0)).flatten()
+    }
+
+    /// The header of the table of file types under the pointer.
+    pub fn ext_head_at(&self, x: f32, y: f32) -> Option<ExtCol> {
+        self.ext_header.contains(x, y).then(|| self.ext_cols.iter().find(|c| x >= c.1 && x < c.1 + c.2).map(|c| c.0)).flatten()
     }
 }
 
-/// Where everything goes in a window of `full` at scale `s`.
-pub fn layout(app: &App, settings_split: f32, full: Rect, s: f32, menu_bar: bool) -> Layout {
+fn rows_in(r: Rect, row_h: f32) -> usize {
+    if row_h <= 0.0 {
+        return 1;
+    }
+    ((r.h / row_h).floor() as usize).max(1)
+}
+
+/// The list's columns: (column, width, how long it stays).
+const LIST_COLS: [(Col, f32, u8); 8] = [
+    (Col::Name, 0.0, 0),
+    (Col::Share, 120.0, 1),
+    (Col::Size, 80.0, 2),
+    (Col::Alloc, 80.0, 5),
+    (Col::Items, 84.0, 6),
+    (Col::Files, 84.0, 4),
+    (Col::Folders, 74.0, 7),
+    (Col::Modified, 90.0, 3),
+];
+
+const EXT_COLS: [(ExtCol, f32, u8); 6] =
+    [(ExtCol::Ext, 116.0, 0), (ExtCol::Type, 0.0, 0), (ExtCol::Share, 110.0, 1), (ExtCol::Size, 78.0, 2), (ExtCol::Alloc, 78.0, 4), (ExtCol::Files, 70.0, 3)];
+
+/// Where everything goes in a window of `full` at scale `s`, in the layout
+/// `view`; `panes` places its bars: `split` is the share of the height for
+/// the upper part, `split_x` the share of its width for the left part.
+pub fn layout(app: &App, view: ViewMode, panes: Panes, full: Rect, s: f32, menu_bar: bool) -> Layout {
+    let (settings_split, split_x) = (panes.split, panes.split_x);
     let mut l = Layout { full, ..Layout::default() };
     let mut area = full;
     if menu_bar {
@@ -157,43 +256,80 @@ pub fn layout(app: &App, settings_split: f32, full: Rect, s: f32, menu_bar: bool
             l.stop = Rect::new((area.x + (area.w - w) / 2.0).round(), (area.y + area.h * 0.5 + 120.0 * s).round(), w, (34.0 * s).round());
         }
         Page::Result => {
+            l.info = area.take_top((52.0 * s).round());
+            mode_buttons(&mut l, s);
+            l.view = view;
             let split = (area.h * settings_split).round();
             let mut top = area.take_top(split);
             l.splitter = area.take_top((6.0 * s).round());
-            l.map_title = area.take_top((26.0 * s).round());
-            let mut x = l.map_title.right() - 6.0 * s;
-            for kind in ChartType::ALL.into_iter().rev() {
-                let w = (tab_w(kind) * s).round();
-                x -= w;
-                l.tabs.push((kind, Rect::new(x.round(), l.map_title.y + 3.0 * s, w, l.map_title.h - 6.0 * s)));
-                x -= 4.0 * s;
-            }
-            l.tabs.reverse();
-            l.map = Rect::new(area.x.round(), area.y.round(), area.w.round(), area.h.round());
-            l.header = top.take_top((26.0 * s).round());
+            let bottom = area;
             l.row_h = (22.0 * s).round();
             l.indent = (16.0 * s).round();
-            l.track = top.take_right((10.0 * s).round());
-            l.list = top;
-            // Columns from the right; the name takes what is left.
-            let mut x1 = top.right();
-            let mut col = |want: f32, min_name: f32| {
-                let w = (want * s).round();
-                if x1 - w - top.x >= min_name * s {
-                    x1 -= w;
-                    (x1, w)
-                } else {
-                    (x1, 0.0)
-                }
+            // The upper part: a left pane, the bar, the file types at the right.
+            let left = top.take_left((top.w * split_x).round());
+            l.vsplit = top.take_left((6.0 * s).round());
+            let mut right = top;
+            // Folders: the list at the left, the treemap below. Map: the chart
+            // at the left, the list below.
+            let (mut list, mut chart) = match view {
+                ViewMode::Folders => (left, bottom),
+                ViewMode::Map => (bottom, left),
             };
-            l.cols.date = col(100.0, 420.0);
-            l.cols.files = col(90.0, 330.0);
-            l.cols.size = col(90.0, 200.0);
-            l.cols.share = col(130.0, 160.0);
-            l.cols.name = (top.x, x1 - top.x);
+            l.map_title = chart.take_top((26.0 * s).round());
+            title_tabs(&mut l, view, s);
+            l.map = Rect::new(chart.x.round(), chart.y.round(), chart.w.round(), chart.h.round());
+            let head_h = (26.0 * s).round();
+            l.header = list.take_top(head_h);
+            l.track = list.take_right((10.0 * s).round());
+            l.list = list;
+            l.cols = columns(list.x, list.w, s, &LIST_COLS, Col::Name, 170.0);
+            l.ext_header = right.take_top(head_h);
+            l.ext_track = right.take_right((10.0 * s).round());
+            l.ext_list = right;
+            l.ext_cols = columns(right.x, right.w, s, &EXT_COLS, ExtCol::Type, 70.0);
         }
     }
     l
+}
+
+/// The layout buttons, at the right of the block on top: always in the
+/// same place, whatever the layout.
+fn mode_buttons(l: &mut Layout, s: f32) {
+    let bar = l.info;
+    let h = (26.0 * s).round();
+    let y = (bar.y + (bar.h - h) / 2.0).round();
+    let mut x = bar.right() - 12.0 * s;
+    for mode in ViewMode::ALL.into_iter().rev() {
+        let w = (tab_w(&view_name(mode)) * s).round();
+        x -= w;
+        l.modes.push((mode, Rect::new(x.round(), y, w, h)));
+        x -= 4.0 * s;
+    }
+    l.modes.reverse();
+}
+
+/// The chart tabs at the right of the chart's title, in the map layout.
+fn title_tabs(l: &mut Layout, view: ViewMode, s: f32) {
+    let bar = l.map_title;
+    let (y, h) = (bar.y + 3.0 * s, bar.h - 6.0 * s);
+    let mut x = bar.right() - 6.0 * s;
+    if view == ViewMode::Map {
+        for kind in ChartType::ALL.into_iter().rev() {
+            let w = (tab_w(&chart_name(kind)) * s).round();
+            x -= w;
+            l.tabs.push((kind, Rect::new(x.round(), y, w, h)));
+            x -= 4.0 * s;
+        }
+        l.tabs.reverse();
+    }
+}
+
+/// The name of a layout on its button.
+pub fn view_name(mode: ViewMode) -> String {
+    match mode {
+        ViewMode::Folders => tr("Folders"),
+        ViewMode::Map => tr("Map"),
+    }
 }
 
 /// What a frame shows besides the app's state.
@@ -204,12 +340,12 @@ pub struct Frame<'a> {
     pub kind: ChartType,
     /// The treemap for `layout.map`.
     pub map: Option<&'a Map>,
+    /// The treemap with the files of the picked type standing out.
+    pub lit: Option<&'a tiny_skia::Pixmap>,
     /// The pie or the rings for `layout.map`.
     pub chart: Option<&'a Chart>,
     /// What the pointer is on in the pie or the rings.
     pub hover_seg: Option<Hit>,
-    /// The table of file types of the folder shown.
-    pub types: Option<&'a [(u32, ExtStat)]>,
     pub hot: Hot,
     /// The node under the pointer.
     pub hover: Option<Id>,
@@ -349,42 +485,30 @@ fn draw_result(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, f: &Frame
     let Some(scan) = &app.scan else { return };
     let t = &scan.tree;
     let p = px(s);
-    // Header.
-    g.fill_rect(l.header, th.header);
-    g.fill_rect(Rect::new(l.header.x, l.header.bottom() - 1.0, l.full.w, 1.0), th.border);
-    let size_title = match mode {
-        SizeMode::Logical => tr("Size"),
-        SizeMode::Allocated => tr("Size on disk"),
-    };
     let pad = 8.0 * s;
-    let heads = [
-        (l.cols.name, tr("Name"), Align::Left),
-        (l.cols.share, tr("Share of folder"), Align::Left),
-        (l.cols.size, size_title, Align::Right),
-        (l.cols.files, tr("Files"), Align::Right),
-        (l.cols.date, tr("Modified"), Align::Right),
-    ];
-    for ((x, w), text, align) in &heads {
-        if *w > 0.0 {
-            let r = Rect::new(x + pad, l.header.y, w - 2.0 * pad, l.header.h);
-            let text = ellipsize(g, text, r.w, p, FontId::Semibold);
-            g.text_in(&text, r, p, FontId::Semibold, th.dim, *align);
-        }
-    }
+    draw_info(g, app, l, th, s);
+    // Headers of the list.
+    let heads: Vec<HeadCell> = l
+        .cols
+        .iter()
+        .map(|&(c, x, w)| (x, w, col_title(c), col_align(c), hot == Hot::Head(c), sorted(app.sort, c)))
+        .collect();
+    draw_header(g, l.header, &heads, th, s);
     // Rows.
     let table = treemap::ext_colors(t);
     g.set_clip(Some(l.list));
     let end = (app.scroll + l.page_rows() + 1).min(app.rows.len());
+    let name_col = col_at(&l.cols, Col::Name).unwrap_or((l.list.x, l.list.w));
     for (i, &(id, depth)) in app.rows.iter().enumerate().take(end).skip(app.scroll) {
         let y = l.list.y + (i - app.scroll) as f32 * l.row_h;
         let row = Rect::new(l.list.x, y, l.list.w, l.row_h);
         if app.sel == Some(id) {
             g.fill_rect(row, th.selection);
-        } else if hot == Hot::Row(i) {
+        } else if hot == Hot::Row(i) || (hover == Some(id) && hot == Hot::None) {
             g.fill_rect(row, th.hover);
         }
         let n = t.node(id);
-        let mut x = l.cols.name.0 + 4.0 * s + depth as f32 * l.indent;
+        let mut x = name_col.0 + 4.0 * s + depth as f32 * l.indent;
         let cy = row.center_y();
         // Open/close arrow.
         if !t.children(id).is_empty() {
@@ -410,7 +534,7 @@ fn draw_result(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, f: &Frame
             Kind::File => g.fill_rrect(Rect::new(x + 1.0, cy - icon / 2.0 + 1.0, icon - 2.0, icon - 2.0), 2.0 * s, Color::rgb(treemap::base_color(t, id, &table))),
         }
         x += icon + 6.0 * s;
-        let name_w = l.cols.name.0 + l.cols.name.1 - x - pad;
+        let name_w = name_col.0 + name_col.1 - x - pad;
         let name = t.name(id);
         let (asc, desc) = g.metrics(p, FontId::Regular);
         let base = (cy + (asc + desc) / 2.0).round();
@@ -425,34 +549,39 @@ fn draw_result(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, f: &Frame
                 g.text(&note, x + w + 6.0 * s, base, p, FontId::Regular, if warn { th.warn } else { th.dim });
             }
         }
-        // Share of the parent folder.
         let size = n.size_in(mode);
         let whole = t.parent(id).map_or(size, |pa| t.node(pa).size_in(mode));
-        if l.cols.share.1 > 0.0 {
-            let bar = Rect::new(l.cols.share.0 + pad, row.y + 4.0 * s, l.cols.share.1 - 2.0 * pad, row.h - 8.0 * s);
-            g.fill_rect(bar, th.bar_track);
-            let frac = if whole > 0 { size as f32 / whole as f32 } else { 0.0 };
-            g.fill_rect(Rect::new(bar.x, bar.y, (bar.w * frac).round(), bar.h), th.bar);
-            g.text_in(&format::percent(size, whole), bar.inset(4.0 * s), p * 0.92, FontId::Regular, th.text, Align::Right);
-        }
         let cell = |c: (f32, f32)| Rect::new(c.0 + pad, row.y, c.1 - 2.0 * pad, row.h);
-        if l.cols.size.1 > 0.0 {
-            g.text_in(&format::size(size), cell(l.cols.size), p, FontId::Regular, th.text, Align::Right);
-        }
-        if l.cols.files.1 > 0.0 && n.kind == Kind::Dir {
-            g.text_in(&format::count(n.files), cell(l.cols.files), p, FontId::Regular, th.dim, Align::Right);
-        }
-        if l.cols.date.1 > 0.0 {
-            g.text_in(&format::date(n.mtime), cell(l.cols.date), p, FontId::Regular, th.dim, Align::Right);
+        let dir = n.kind == Kind::Dir;
+        for &(c, cx, cw) in &l.cols {
+            let r = cell((cx, cw));
+            match c {
+                Col::Name => {}
+                Col::Share => share_bar(g, Rect::new(cx + pad, row.y + 4.0 * s, cw - 2.0 * pad, row.h - 8.0 * s), size, whole, th, s),
+                Col::Size => _ = g.text_in(&format::size(n.size), r, p, FontId::Regular, th.text, Align::Right),
+                Col::Alloc => _ = g.text_in(&format::size(n.alloc), r, p, FontId::Regular, th.text, Align::Right),
+                Col::Items if dir => _ = g.text_in(&format::count(items(n)), r, p, FontId::Regular, th.dim, Align::Right),
+                Col::Files if dir => _ = g.text_in(&format::count(n.files), r, p, FontId::Regular, th.dim, Align::Right),
+                Col::Folders if dir => _ = g.text_in(&format::count(n.dirs), r, p, FontId::Regular, th.dim, Align::Right),
+                Col::Modified => _ = g.text_in(&format::date(n.mtime), r, p, FontId::Regular, th.dim, Align::Right),
+                _ => {}
+            }
         }
     }
     g.set_clip(None);
     // Scroll bar.
     let page = l.page_rows();
     if app.rows.len() > page {
-        let (y, h) = thumb(l, app.rows.len(), page, app.scroll);
+        let (y, h) = thumb(l.track, app.rows.len(), page, app.scroll);
         g.fill_rrect(Rect::new(l.track.x + 2.0 * s, y, l.track.w - 4.0 * s, h), 3.0 * s, th.scrollbar);
     }
+    draw_exts(g, app, l, th, s, f);
+    // The bar between the list and the file types.
+    let v = l.vsplit;
+    g.fill_rect(v, if hot == Hot::VSplitter { th.accent.with_alpha(0x60) } else { th.status });
+    g.fill_rect(Rect::new(v.x, v.y, 1.0, v.h), th.border);
+    g.fill_rect(Rect::new(v.right() - 1.0, v.y, 1.0, v.h), th.border);
+    let _ = pad;
     // Splitter.
     g.fill_rect(l.splitter, if hot == Hot::Splitter { th.accent.with_alpha(0x60) } else { th.status });
     g.fill_rect(Rect::new(l.splitter.x, l.splitter.y, l.splitter.w, 1.0), th.border);
@@ -460,23 +589,32 @@ fn draw_result(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, f: &Frame
     // Chart title: the folder shown, a hint, and the chart tabs.
     let title_r = l.map_title;
     g.fill_rect(title_r, th.header);
-    for &(kind, r) in &l.tabs {
-        let on = kind == f.kind;
+    let tab = |g: &mut Gfx, r: Rect, text: &str, on: bool, hot: bool, framed: bool| {
         if on {
             g.fill_rrect(r, (4.0 * s).round(), th.accent);
-        } else if hot == Hot::Tab(kind) {
+        } else if hot {
             g.fill_rrect(r, (4.0 * s).round(), th.hover);
         }
+        if framed && !on {
+            g.stroke_rrect(r, (4.0 * s).round(), 1.0, th.border);
+        }
         let fg = if on { if th.dark { Color::rgb(0x000000) } else { Color::rgb(0xFFFFFF) } } else { th.text };
-        g.text_in(&chart_name(kind), r, p * 0.95, FontId::Regular, fg, Align::Center);
+        g.text_in(text, r, p * 0.95, FontId::Regular, fg, Align::Center);
+    };
+    for &(kind, r) in &l.tabs {
+        tab(g, r, &chart_name(kind), kind == f.kind, hot == Hot::Tab(kind), false);
+    }
+    // The layouts, framed: they move the parts of the window.
+    for &(mode, r) in &l.modes {
+        tab(g, r, &view_name(mode), mode == l.view, hot == Hot::Mode(mode), true);
     }
     let tabs_x = l.tabs.first().map_or(title_r.right(), |t| t.1.x);
     let shown = t.path(app.zoom).to_string_lossy().into_owned();
     let title = format!("{shown} — {}", format::size(t.node(app.zoom).size_in(mode)));
     let hint = match (app.zoom != t.root(), f.kind) {
-        (_, ChartType::Types) => String::new(),
         (_, ChartType::Rings) => tr("Double-click a folder to zoom in, click the middle to zoom out"),
-        (true, _) => tr("Backspace: zoom out"),
+        (true, _) => tr("Backspace or right click: zoom out"),
+        (false, ChartType::Treemap) => tr("Click a folder's header to select it, double-click to zoom in"),
         (false, _) => tr("Double-click a folder to zoom in"),
     };
     let hw = g.measure(&hint, p, FontId::Regular);
@@ -490,15 +628,15 @@ fn draw_result(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, f: &Frame
     }
     match f.kind {
         ChartType::Treemap => {}
-        ChartType::Types => return draw_types(g, app, l, th, s, f),
         ChartType::Pie | ChartType::Rings => return draw_chart(g, app, l, th, s, f),
     }
     // Treemap.
     match map {
         Some(m) if !m.tiles.is_empty() => {
             // Stretched while the window is being resized.
-            g.draw_image(&m.image, l.map);
+            g.draw_image(f.lit.unwrap_or(&m.image), l.map);
             let (sx, sy) = (l.map.w / m.w as f32, l.map.h / m.h as f32);
+            draw_heads(g, t, m, l, s, sx, sy, mode, hover);
             let outline = |g: &mut Gfx, id: Id, c: Color, inner: Color| {
                 if let Some(tile) = m.tile_of(t, id) {
                     let (x0, y0) = ((tile.x0 * sx).round(), (tile.y0 * sy).round());
@@ -521,10 +659,195 @@ fn draw_result(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, f: &Frame
     }
 }
 
+/// The folders' headers in the treemap: name and size, on the strip the
+/// treemap left for them.
+#[allow(clippy::too_many_arguments)]
+fn draw_heads(g: &mut Gfx, t: &Tree, m: &Map, l: &Layout, s: f32, sx: f32, sy: f32, mode: SizeMode, hover: Option<Id>) {
+    let fs = 11.0 * s;
+    g.set_clip(Some(l.map));
+    for tile in m.tiles.iter().filter(|t| t.head > 0.0) {
+        let r = Rect::new(l.map.x + tile.x0 * sx, l.map.y + tile.y0 * sy, tile.w() * sx, tile.head * sy);
+        if hover == Some(tile.node) {
+            g.fill_rect(Rect::new(r.x + 1.0, r.y + 1.0, r.w - 2.0, r.h - 1.0), Color::rgba(0xFFFFFF, 0x30));
+        }
+        if r.w < 28.0 * s {
+            continue;
+        }
+        // The folder shown is named by its whole path; the others by their name.
+        let name = if tile.node == m.root { t.path(tile.node).to_string_lossy().into_owned() } else { t.name(tile.node).to_string() };
+        let text = format!("{name} — {}", format::size(t.node(tile.node).size_in(mode)));
+        let inner = Rect::new(r.x + 4.0 * s, r.y, r.w - 8.0 * s, r.h);
+        let text = ellipsize(g, &text, inner.w, fs, FontId::Regular);
+        g.text_in(&text, inner, fs, FontId::Regular, Color::rgb(0xF2F4F7), Align::Left);
+    }
+    g.set_clip(None);
+}
+
+/// Whether a column sorts its table, and which way (true: down).
+fn sorted<C: PartialEq + Copy>(sort: Sort<C>, c: C) -> Option<bool> {
+    (sort.col == c).then_some(sort.desc)
+}
+
+/// A column's header: x, width, title, alignment, under the pointer, sorted (down).
+type HeadCell = (f32, f32, String, Align, bool, Option<bool>);
+
+/// A header row: each column's title, the sort arrow and the hover.
+fn draw_header(g: &mut Gfx, r: Rect, heads: &[HeadCell], th: &Theme, s: f32) {
+    let p = px(s);
+    let pad = 8.0 * s;
+    g.fill_rect(r, th.header);
+    g.fill_rect(Rect::new(r.x, r.bottom() - 1.0, r.w, 1.0), th.border);
+    g.set_clip(Some(r));
+    for (x, w, text, align, hot, sort) in heads {
+        let cell = Rect::new(*x, r.y, *w, r.h - 1.0);
+        if *hot {
+            g.fill_rect(cell, th.hover);
+        }
+        if *x > r.x {
+            g.fill_rect(Rect::new(*x, r.y + 5.0 * s, 1.0, r.h - 10.0 * s), th.border);
+        }
+        let arrow_w = if sort.is_some() { 12.0 * s } else { 0.0 };
+        let room = (w - 2.0 * pad - arrow_w).max(0.0);
+        let text = ellipsize(g, text, room, p, FontId::Semibold);
+        let tw = g.measure(&text, p, FontId::Semibold);
+        let tx = match align {
+            Align::Right => x + w - pad - tw,
+            _ => x + pad + arrow_w,
+        };
+        g.text_in(&text, Rect::new(tx, r.y, tw + 1.0, r.h), p, FontId::Semibold, if sort.is_some() { th.text } else { th.dim }, Align::Left);
+        if let Some(down) = sort {
+            // The arrow at the side of the title away from the numbers.
+            let ax = match align {
+                Align::Right => tx - 8.0 * s,
+                _ => x + pad + 3.0 * s,
+            };
+            let (cy, a) = (r.center_y(), 3.5 * s);
+            let pts = if *down { [(ax - a, cy - a / 2.0), (ax, cy + a / 2.0), (ax + a, cy - a / 2.0)] } else { [(ax - a, cy + a / 2.0), (ax, cy - a / 2.0), (ax + a, cy + a / 2.0)] };
+            g.polyline(&pts, 1.4 * s, th.accent, false);
+        }
+    }
+    g.set_clip(None);
+}
+
+/// A bar for a share, with the percentage on it.
+fn share_bar(g: &mut Gfx, bar: Rect, part: u64, whole: u64, th: &Theme, s: f32) {
+    if bar.w <= 0.0 {
+        return;
+    }
+    g.fill_rect(bar, th.bar_track);
+    let frac = if whole > 0 { part as f32 / whole as f32 } else { 0.0 };
+    g.fill_rect(Rect::new(bar.x, bar.y, (bar.w * frac.min(1.0)).round(), bar.h), th.bar);
+    g.text_in(&format::percent(part, whole), bar.inset(4.0 * s), px(s) * 0.92, FontId::Regular, th.text, Align::Right);
+}
+
+pub fn col_title(c: Col) -> String {
+    match c {
+        Col::Name => tr("Name"),
+        Col::Share => tr("Share of folder"),
+        Col::Size => tr("Size"),
+        Col::Alloc => tr("Allocated"),
+        Col::Items => tr("Items"),
+        Col::Files => tr("Files"),
+        Col::Folders => tr("Folders"),
+        Col::Modified => tr("Modified"),
+    }
+}
+
+fn col_align(c: Col) -> Align {
+    match c {
+        Col::Name | Col::Share => Align::Left,
+        _ => Align::Right,
+    }
+}
+
+pub fn ext_title(c: ExtCol) -> String {
+    match c {
+        ExtCol::Ext => tr("Extension"),
+        ExtCol::Type => tr("File type"),
+        ExtCol::Share => tr("Percent"),
+        ExtCol::Size => tr("Size"),
+        ExtCol::Alloc => tr("Allocated"),
+        ExtCol::Files => tr("Files"),
+    }
+}
+
+fn ext_align(c: ExtCol) -> Align {
+    match c {
+        ExtCol::Ext | ExtCol::Type | ExtCol::Share => Align::Left,
+        _ => Align::Right,
+    }
+}
+
+/// The block on top: what was read, how, and the volume's space.
+fn draw_info(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32) {
+    let Some(scan) = &app.scan else { return };
+    let t = &scan.tree;
+    let r = l.info;
+    g.fill_rect(r, th.panel);
+    g.fill_rect(Rect::new(r.x, r.bottom() - 1.0, r.w, 1.0), th.border);
+    let p = px(s);
+    let root = t.node(t.root());
+    let mut folder = t.name(t.root()).to_string();
+    if let Some(sp) = app.space.as_ref().filter(|sp| !sp.label.is_empty()) {
+        folder = format!("{folder}  ({})", sp.label);
+    }
+    let how = match scan.method {
+        crate::scan::Method::Ntfs => tr("from the NTFS table"),
+        crate::scan::Method::Everything => tr("from the Everything index"),
+        crate::scan::Method::System => tr("folder by folder"),
+    };
+    let time = format!("{} · {how}", tf("{} s", &[&format::decimal(scan.elapsed.as_secs_f64(), 1)]));
+    let counts = format!("{} · {}", tf("{} files", &[&format::count(root.files)]), tf("{} folders", &[&format::count(root.dirs)]));
+    let dash = || "—".to_string();
+    let space = app.space.as_ref();
+    let (total, used, reserved, free) = match space {
+        Some(sp) if sp.total > 0 => (
+            format::size(sp.total),
+            format!("{} ({})", format::size(sp.used()), format::percent(sp.used(), sp.total)),
+            format::size(sp.reserved()),
+            format!("{} ({})", format::size(sp.free), format::percent(sp.free, sp.total)),
+        ),
+        _ => (dash(), dash(), dash(), dash()),
+    };
+    let rows: [Vec<(String, String, f32)>; 2] = [
+        vec![(tr("Folder"), folder, 2.0), (tr("Scan time"), time, 1.0), (tr("Contents"), counts, 1.0)],
+        vec![(tr("Total space"), total, 1.0), (tr("Used space"), used, 1.0), (tr("Reserved space"), reserved, 1.0), (tr("Free space"), free, 1.0)],
+    ];
+    let pad = 12.0 * s;
+    // The figures leave room for the layout buttons at the right.
+    let text_w = l.modes.first().map_or(r.w, |m| m.1.x - r.x - 12.0 * s);
+    let col_w = (text_w - 2.0 * pad) / 4.0;
+    let line_h = (r.h - 6.0 * s) / 2.0;
+    for (ri, row) in rows.iter().enumerate() {
+        let y = r.y + 3.0 * s + ri as f32 * line_h;
+        let mut x = r.x + pad;
+        for (label, value, span) in row {
+            let w = col_w * span;
+            let lw = g.measure(label, p, FontId::Regular);
+            g.text_in(label, Rect::new(x, y, lw + 1.0, line_h), p, FontId::Regular, th.dim, Align::Left);
+            let vx = x + lw + 8.0 * s;
+            let room = (x + w - vx - 12.0 * s).max(0.0);
+            // A path loses its middle; the other values their end.
+            let path = ri == 0 && x == r.x + pad;
+            let value = if path { ellipsize_middle(g, value, room, p, FontId::Semibold) } else { ellipsize(g, value, room, p, FontId::Semibold) };
+            g.text_in(&value, Rect::new(vx, y, room, line_h), p, FontId::Semibold, th.text, Align::Left);
+            x += w;
+        }
+    }
+    // How full the volume is, under the space figures.
+    if let Some(sp) = space.filter(|sp| sp.total > 0) {
+        let bar = Rect::new(r.x + pad, r.bottom() - 4.0 * s, text_w - 2.0 * pad, (2.0 * s).max(1.0));
+        g.fill_rect(bar, th.bar_track);
+        let frac = sp.used() as f32 / sp.total as f32;
+        let fill = if frac > 0.9 { Color::rgb(0xD9534F) } else { th.accent };
+        g.fill_rect(Rect::new(bar.x, bar.y, (bar.w * frac).round(), bar.h), fill);
+    }
+}
+
 /// Width of a chart tab, in unscaled pixels: room for the longest name in
 /// the ten languages.
-fn tab_w(kind: ChartType) -> f32 {
-    let n = chart_name(kind).chars().count() as f32;
+fn tab_w(name: &str) -> f32 {
+    let n = name.chars().count() as f32;
     (n * 7.0 + 22.0).clamp(56.0, 140.0)
 }
 
@@ -534,74 +857,78 @@ pub fn chart_name(kind: ChartType) -> String {
         ChartType::Treemap => tr("Treemap"),
         ChartType::Pie => tr("Pie"),
         ChartType::Rings => tr("Rings"),
-        ChartType::Types => tr("Types"),
     }
 }
 
-/// Rows of the table of file types that fit, and its header and rows areas.
-pub fn types_layout(l: &Layout) -> (Rect, Rect, usize) {
-    let mut area = l.map;
-    let header = area.take_top(l.row_h.max(1.0) + 4.0);
-    let rows = ((area.h / l.row_h.max(1.0)).floor() as usize).max(1);
-    (header, area, rows)
-}
-
-/// The table of file types: one row per extension below the folder shown.
-fn draw_types(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, f: &Frame) {
-    let (Some(scan), Some(types)) = (&app.scan, f.types) else { return };
+/// The table of file types: one row per extension below the folder the
+/// chart shows.
+fn draw_exts(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, f: &Frame) {
+    let Some(scan) = &app.scan else { return };
     let t = &scan.tree;
     let p = px(s);
     let pad = 8.0 * s;
-    let (header, rows, fit) = types_layout(l);
-    let total = t.node(app.zoom).size_in(f.mode).max(1);
-    g.fill_rect(header, th.header);
-    // Columns from the right.
-    let cw = |w: f32| (w * s).round();
-    let files_x = rows.right() - cw(100.0);
-    let size_x = files_x - cw(100.0);
-    let share_x = size_x - cw(170.0);
-    let name_x = rows.x + pad;
-    let head = |g: &mut Gfx, text: &str, x: f32, w: f32, a: Align| {
-        g.text_in(text, Rect::new(x + pad, header.y, w - 2.0 * pad, header.h), p, FontId::Semibold, th.dim, a);
-    };
-    head(g, &tr("Extension"), name_x - pad, share_x - name_x, Align::Left);
-    head(g, &tr("Share of folder"), share_x, cw(170.0), Align::Left);
-    head(g, &tr("Size"), size_x, cw(100.0), Align::Right);
-    head(g, &tr("Files"), files_x, cw(100.0), Align::Right);
-    if types.is_empty() {
+    let heads: Vec<HeadCell> = l
+        .ext_cols
+        .iter()
+        .map(|&(c, x, w)| (x, w, ext_title(c), ext_align(c), f.hot == Hot::ExtHead(c), sorted(app.ext_sort, c)))
+        .collect();
+    draw_header(g, l.ext_header, &heads, th, s);
+    let rows = l.ext_list;
+    if app.exts.is_empty() {
         g.text_in(&tr("Nothing here takes up space."), rows, p, FontId::Regular, th.dim, Align::Center);
         return;
     }
+    let total = t.node(app.zoom).size_in(f.mode).max(1);
     let table = treemap::ext_colors(t);
+    let fit = l.ext_rows();
     g.set_clip(Some(rows));
-    for (i, (ext, st)) in types.iter().enumerate().skip(app.types_scroll).take(fit + 1) {
+    for (i, (ext, st)) in app.exts.iter().enumerate().skip(app.types_scroll).take(fit + 1) {
         let y = rows.y + (i - app.types_scroll) as f32 * l.row_h;
         let row = Rect::new(rows.x, y, rows.w, l.row_h);
-        if i % 2 == 1 {
+        if app.ext_sel == Some(*ext) {
+            g.fill_rect(row, th.selection);
+        } else if f.hot == Hot::ExtRow(i) {
             g.fill_rect(row, th.hover);
         }
-        let color = match table.get(*ext as usize) {
-            Some(&k) if (k as usize) < treemap::PALETTE.len() && *ext != 0 => treemap::PALETTE[k as usize],
-            _ => treemap::OTHER,
-        };
-        let sw = (12.0 * s).round();
-        g.fill_rrect(Rect::new(name_x, row.center_y() - sw / 2.0, sw, sw), 2.0 * s, Color::rgb(color));
-        let name = if *ext == 0 { tr("(no extension)") } else { format!(".{}", t.ext_name(*ext)) };
-        let nx = name_x + sw + 8.0 * s;
-        let name = ellipsize(g, &name, share_x - nx - pad, p, FontId::Regular);
-        g.text_in(&name, Rect::new(nx, row.y, share_x - nx, row.h), p, FontId::Regular, th.text, Align::Left);
         let size = match f.mode {
             SizeMode::Logical => st.size,
             SizeMode::Allocated => st.alloc,
         };
-        let bar = Rect::new(share_x + pad, row.y + 4.0 * s, cw(170.0) - 2.0 * pad, row.h - 8.0 * s);
-        g.fill_rect(bar, th.bar_track);
-        g.fill_rect(Rect::new(bar.x, bar.y, (bar.w * size as f32 / total as f32).round(), bar.h), th.bar);
-        g.text_in(&format::percent(size, total), bar.inset(4.0 * s), p * 0.92, FontId::Regular, th.text, Align::Right);
-        g.text_in(&format::size(size), Rect::new(size_x + pad, row.y, cw(100.0) - 2.0 * pad, row.h), p, FontId::Regular, th.text, Align::Right);
-        g.text_in(&format::count(st.files), Rect::new(files_x + pad, row.y, cw(100.0) - 2.0 * pad, row.h), p, FontId::Regular, th.dim, Align::Right);
+        let cell = |x: f32, w: f32| Rect::new(x + pad, row.y, w - 2.0 * pad, row.h);
+        for &(c, cx, cw) in &l.ext_cols {
+            match c {
+                ExtCol::Ext => {
+                    let color = match table.get(*ext as usize) {
+                        Some(&k) if (k as usize) < treemap::PALETTE.len() && *ext != 0 => treemap::PALETTE[k as usize],
+                        _ => treemap::OTHER,
+                    };
+                    let sw = (12.0 * s).round();
+                    let sx = cx + pad;
+                    g.fill_rrect(Rect::new(sx, row.center_y() - sw / 2.0, sw, sw), 2.0 * s, Color::rgb(color));
+                    let name = if *ext == 0 { tr("(no extension)") } else { format!(".{}", t.ext_name(*ext)) };
+                    let nx = sx + sw + 6.0 * s;
+                    let name = ellipsize(g, &name, (cx + cw - nx - pad).max(0.0), p, FontId::Regular);
+                    g.text_in(&name, Rect::new(nx, row.y, cx + cw - nx, row.h), p, FontId::Regular, th.text, Align::Left);
+                }
+                ExtCol::Type => {
+                    let name = type_name(&app.type_names, t.ext_name(*ext));
+                    let r = cell(cx, cw);
+                    let name = ellipsize(g, &name, r.w.max(0.0), p, FontId::Regular);
+                    g.text_in(&name, r, p, FontId::Regular, th.dim, Align::Left);
+                }
+                ExtCol::Share => share_bar(g, Rect::new(cx + pad, row.y + 4.0 * s, cw - 2.0 * pad, row.h - 8.0 * s), size, total, th, s),
+                ExtCol::Size => _ = g.text_in(&format::size(st.size), cell(cx, cw), p, FontId::Regular, th.text, Align::Right),
+                ExtCol::Alloc => _ = g.text_in(&format::size(st.alloc), cell(cx, cw), p, FontId::Regular, th.text, Align::Right),
+                ExtCol::Files => _ = g.text_in(&format::count(st.files), cell(cx, cw), p, FontId::Regular, th.dim, Align::Right),
+            }
+        }
     }
     g.set_clip(None);
+    let n = app.exts.len();
+    if n > fit {
+        let (y, h) = thumb(l.ext_track, n, fit, app.types_scroll);
+        g.fill_rrect(Rect::new(l.ext_track.x + 2.0 * s, y, l.ext_track.w - 4.0 * s, h), 3.0 * s, th.scrollbar);
+    }
 }
 
 fn sector_at(c: &Chart, seg: &Segment, ox: f32, oy: f32) -> Vec<(f32, f32)> {
@@ -695,20 +1022,19 @@ fn draw_chart(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, f: &Frame)
     }
 }
 
-/// The scroll bar's thumb: (y, height).
-pub fn thumb(l: &Layout, rows: usize, page: usize, scroll: usize) -> (f32, f32) {
-    let track = l.track;
-    let h = (track.h * page as f32 / rows as f32).max(24.0f32.min(track.h));
+/// The thumb of a scroll bar in `track`: (y, height).
+pub fn thumb(track: Rect, rows: usize, page: usize, scroll: usize) -> (f32, f32) {
+    let h = (track.h * page as f32 / rows.max(1) as f32).max(24.0f32.min(track.h));
     let max = rows.saturating_sub(page).max(1);
     let y = track.y + (track.h - h) * scroll as f32 / max as f32;
     (y, h)
 }
 
-/// The scroll position for a thumb dragged to `y` (its middle).
-pub fn scroll_for(l: &Layout, rows: usize, page: usize, y: f32) -> usize {
-    let (_, h) = thumb(l, rows, page, 0);
-    let room = (l.track.h - h).max(1.0);
-    let frac = ((y - l.track.y - h / 2.0) / room).clamp(0.0, 1.0);
+/// The scroll position for a thumb in `track` dragged to `y` (its middle).
+pub fn scroll_for(track: Rect, rows: usize, page: usize, y: f32) -> usize {
+    let (_, h) = thumb(track, rows, page, 0);
+    let room = (track.h - h).max(1.0);
+    let frac = ((y - track.y - h / 2.0) / room).clamp(0.0, 1.0);
     (frac * rows.saturating_sub(page) as f32).round() as usize
 }
 
@@ -742,17 +1068,8 @@ pub fn status_text(app: &App, hover: Option<Id>) -> (String, String) {
         }
         text
     }));
-    let root = t.node(t.root());
-    let mut parts = vec![
-        tf("{} files", &[&format::count(root.files)]),
-        tf("{} folders", &[&format::count(root.dirs)]),
-        tf("read in {} s", &[&format::decimal(scan.elapsed.as_secs_f64(), 1)]),
-        match scan.method {
-            crate::scan::Method::Ntfs => tr("from the NTFS table"),
-            crate::scan::Method::Everything => tr("from the Everything index"),
-            crate::scan::Method::System => tr("folder by folder"),
-        },
-    ];
+    // What was read and how is in the block on top; here, what to know about it.
+    let mut parts = Vec::new();
     if scan.admin_would_help {
         parts.push(tr("faster as administrator (File menu)"));
     }
@@ -797,26 +1114,30 @@ mod screenshots {
         let many: Vec<Volume> = (0..14u8)
             .map(|i| Volume { path: format!("{}:\\", (b'C' + i) as char).into(), label: format!("Disk {i}"), fs: "NTFS".into(), total: 500 * gb, free: (i as u64 * 30) * gb, remote: i > 9 })
             .collect();
-        let mut chart_shot = |name: &str, app: &App, dark: bool, kind: ChartType, pointed: Option<usize>| {
+        let mut chart_shot = |name: &str, app: &App, dark: bool, kind: ChartType, pointed: Option<usize>, over: Option<Id>| {
             g.resize(w, h);
             let th = Theme::new(dark, None);
-            let l = layout(app, 0.45, full, 1.0, false);
+            // The pie and the rings are in the map layout, and so is the
+            // treemap of a picked file type.
+            let map_view = kind != ChartType::Treemap || app.ext_sel.is_some();
+            let d = crate::settings::Settings::default();
+            let l = if map_view { layout(app, ViewMode::Map, d.map, full, 1.0, false) } else { layout(app, ViewMode::Folders, d.folders, full, 1.0, false) };
             let (mw, mh) = (l.map.w as u32, l.map.h as u32);
             let bg = (th.bg.r as u32) << 16 | (th.bg.g as u32) << 8 | th.bg.b as u32;
             let tree = &app.scan.as_ref().map(|s| &s.tree);
-            let map = tree.map(|t| Map::new(t, app.zoom, mw, mh));
+            let map = tree.map(|t| Map::new(t, app.zoom, mw, mh, 16.0));
             let chart = tree.map(|t| match kind {
                 ChartType::Pie => Chart::pie(t, app.zoom, mw, mh, 1.0, bg),
                 _ => Chart::rings(t, app.zoom, mw, mh, 1.0, bg),
             });
-            let hover = pointed.and_then(|i| chart.as_ref()?.segments.get(i)?.node);
+            let hover = pointed.and_then(|i| chart.as_ref()?.segments.get(i)?.node).or(over);
             let hot = if page(app) == Page::Start { Hot::Card(1) } else { Hot::Tab(ChartType::Pie) };
-            let types = tree.map(|t| t.ext_totals(app.zoom));
-            let f = Frame { mode: SizeMode::Logical, kind, map: map.as_ref(), chart: chart.as_ref(), hover_seg: pointed.map(Hit::Segment), types: types.as_deref(), hot, hover };
+            let lit = map.as_ref().zip(tree.as_ref()).zip(app.ext_sel).map(|((m, t), e)| m.highlighted(t, e));
+            let f = Frame { mode: SizeMode::Logical, kind, map: map.as_ref(), lit: lit.as_ref(), chart: chart.as_ref(), hover_seg: pointed.map(Hit::Segment), hot, hover };
             draw(&mut g, app, &l, &th, 1.0, &f);
             g.pix.save_png(out.join(format!("{name}.png"))).unwrap();
         };
-        let mut shot = |name: &str, app: &App, dark: bool, _: Option<Id>| chart_shot(name, app, dark, ChartType::Treemap, None);
+        let mut shot = |name: &str, app: &App, dark: bool, over: Option<Id>| chart_shot(name, app, dark, ChartType::Treemap, None, over);
         set_lang(Lang::EnUS);
         let mut app = App::new();
         app.volumes = Some(vols);
@@ -836,6 +1157,14 @@ mod screenshots {
         shot("scanning", &app, false, None);
         app.scanning = None;
         app.set_scan(scan, SizeMode::Logical);
+        app.space = crate::volumes::space_of(&dir);
+        #[cfg(windows)]
+        {
+            let t = &app.scan.as_ref().unwrap().tree;
+            let exts: Vec<String> = t.ext_ranking().iter().map(|&e| t.ext_name(e).to_string()).collect();
+            app.type_names = exts.into_iter().filter_map(|e| Some((e.clone(), rt_sys::win::file_type_name(&e)?))).collect();
+            app.sort_exts();
+        }
         let first = app.rows.get(1).map(|r| r.0);
         if let Some(f) = first {
             app.toggle(f);
@@ -859,15 +1188,30 @@ mod screenshots {
             app.select(first);
         }
         drop(shot);
-        chart_shot("pie-light", &app, false, ChartType::Pie, Some(1));
-        chart_shot("pie-dark", &app, true, ChartType::Pie, None);
-        chart_shot("rings-light", &app, false, ChartType::Rings, Some(0));
-        chart_shot("rings-dark", &app, true, ChartType::Rings, Some(3));
+        app.refresh_exts();
+        chart_shot("pie-light", &app, false, ChartType::Pie, Some(1), None);
+        chart_shot("pie-dark", &app, true, ChartType::Pie, None, None);
+        chart_shot("rings-light", &app, false, ChartType::Rings, Some(0), None);
+        chart_shot("rings-dark", &app, true, ChartType::Rings, Some(3), None);
+        // Sorted by name, from Z to A; the file types by how many files.
         app.zoom = 0;
+        app.refresh_exts();
+        app.sort_by(crate::app::Col::Name);
+        app.sort_by(crate::app::Col::Name);
+        app.sort_exts_by(crate::app::ExtCol::Files);
         app.note = Some("“old.log” was moved to the Recycle Bin.".into());
-        chart_shot("types-light", &app, false, ChartType::Types, None);
+        chart_shot("sorted-light", &app, false, ChartType::Treemap, None, None);
         set_lang(Lang::PtPT);
-        chart_shot("types-pt-dark", &app, true, ChartType::Types, None);
+        chart_shot("sorted-pt-dark", &app, true, ChartType::Treemap, None, None);
+        set_lang(Lang::EsES);
+        chart_shot("sorted-es", &app, false, ChartType::Treemap, None, None);
+        set_lang(Lang::EnUS);
+        // The map layout with the largest file type picked: its files stand out.
+        app.sort_exts_by(crate::app::ExtCol::Share);
+        app.ext_sel = app.exts.first().map(|e| e.0);
+        chart_shot("map-lit-dark", &app, true, ChartType::Treemap, None, None);
+        set_lang(Lang::PtPT);
+        chart_shot("map-lit-pt", &app, false, ChartType::Treemap, None, None);
         set_lang(Lang::EnUS);
     }
 }

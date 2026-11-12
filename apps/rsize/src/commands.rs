@@ -1,7 +1,7 @@
 //! Commands, their menu labels (translation keys) and keyboard shortcuts.
 
 use crate::i18n::{tr, Lang};
-use crate::settings::ChartType;
+use crate::settings::{ChartType, ViewMode};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Command {
@@ -31,8 +31,10 @@ pub enum Command {
     ZoomIn,
     ZoomOut,
     ZoomTop,
-    /// Which chart is shown below the list.
+    /// Which chart is shown (the map layout; the folders layout shows the treemap).
     Chart(ChartType),
+    /// How the result is laid out.
+    View(ViewMode),
     SizeLogical,
     SizeAllocated,
     /// 0 system, 1 light, 2 dark.
@@ -70,7 +72,8 @@ impl Command {
             Chart(ChartType::Treemap) => "Tree&map",
             Chart(ChartType::Pie) => "&Pie Chart",
             Chart(ChartType::Rings) => "&Rings",
-            Chart(ChartType::Types) => "File T&ypes",
+            View(ViewMode::Folders) => "Folder &View",
+            View(ViewMode::Map) => "M&ap View",
             SizeLogical => "File &Size",
             SizeAllocated => "Size on &Disk",
             Theme(0) => "Use &System Setting",
@@ -103,10 +106,11 @@ pub const BINDINGS: &[(&str, Command)] = &[
     ("Enter", ZoomIn),
     ("Backspace", ZoomOut),
     ("Ctrl+Backspace", ZoomTop),
+    ("F3", View(ViewMode::Folders)),
+    ("F4", View(ViewMode::Map)),
     ("F6", Chart(ChartType::Treemap)),
     ("F7", Chart(ChartType::Pie)),
     ("F8", Chart(ChartType::Rings)),
-    ("F9", Chart(ChartType::Types)),
     ("Ctrl+S", ExportCsv),
     ("Delete", Delete),
     ("Ctrl+1", SizeLogical),
@@ -160,10 +164,12 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
                 Item(ZoomOut),
                 Item(ZoomTop),
                 Sep,
+                Item(View(ViewMode::Folders)),
+                Item(View(ViewMode::Map)),
+                Sep,
                 Item(Chart(ChartType::Treemap)),
                 Item(Chart(ChartType::Pie)),
                 Item(Chart(ChartType::Rings)),
-                Item(Chart(ChartType::Types)),
                 Sep,
                 Item(SizeLogical),
                 Item(SizeAllocated),
@@ -197,6 +203,7 @@ mod tests {
         assert_eq!(lookup(false, false, false, "esc"), Some(Stop));
         assert_eq!(lookup(true, false, false, "2"), Some(SizeAllocated));
         assert_eq!(lookup(false, false, false, "f8"), Some(Chart(ChartType::Rings)));
+        assert_eq!(lookup(false, false, false, "f4"), Some(View(ViewMode::Map)));
         assert_eq!(lookup(false, false, false, "delete"), Some(Delete));
         assert_eq!(lookup(true, false, false, "s"), Some(ExportCsv));
         assert_eq!(lookup(false, false, false, "o"), None);

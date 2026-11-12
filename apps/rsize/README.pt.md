@@ -2,11 +2,12 @@
 
 Um analisador de espaço em disco portátil para Windows e [Linux](#linux), escrito
 em Rust. Lê um disco, uma pasta ou uma partilha de rede e mostra o que ocupa o
-espaço: as pastas e os ficheiros por tamanho, dos maiores para os mais pequenos, e um
-gráfico: um **treemap** em que cada ficheiro é um retângulo do tamanho do ficheiro,
-uma **tarte** com o conteúdo da pasta, ou **anéis** com as pastas dentro das pastas.
-Também soma o espaço por tipo de ficheiro, exporta para CSV e manda para a Reciclagem
-o que já não quer.
+espaço, dispostos como no WizTree: o espaço do disco em cima, as pastas e os
+ficheiros à esquerda, o espaço por tipo de ficheiro à direita e um gráfico em baixo:
+um **treemap** em que cada ficheiro é um retângulo do tamanho do ficheiro e cada
+pasta uma caixa com o seu nome, uma **tarte** com o conteúdo da pasta, ou **anéis**
+com as pastas dentro das pastas. Todas as colunas ordenam. Também exporta para CSV e
+manda para a Reciclagem o que já não quer.
 
 [English version](README.md)
 
@@ -52,21 +53,54 @@ Durante a leitura, a janela mostra quantos ficheiros e pastas já encontrou e o 
 tamanho. **Parar** (Esc) termina a leitura e mostra o que já foi lido; a barra de
 estado indica então que o resultado está incompleto.
 
-O resultado tem duas partes, separadas por uma barra que se pode arrastar:
+O resultado tem quatro partes, numa de duas disposições (**Ver**, F3 e F4, ou os
+botões **Pastas** e **Mapa** à direita do bloco de cima):
 
-- **A lista**: cada pasta com a sua parte da pasta acima (uma barra e uma
-  percentagem), o tamanho, quantos ficheiros contém e a alteração mais recente. As
-  pastas abrem-se com a seta, um duplo clique, a seta para a direita ou o Espaço. As
-  pastas que não se conseguiram ler, as ligações e as ligações físicas ficam
-  assinaladas depois do nome.
-- **O treemap**: um retângulo por ficheiro, dentro dos retângulos das suas pastas,
-  sombreados em almofada para que as pastas se distingam sem contornos. Os ficheiros
-  têm a cor da extensão: as doze extensões que ocupam mais espaço têm uma cor cada,
-  as restantes são cinzentas. Apontar para um retângulo mostra o caminho e o tamanho
-  na barra de estado; um clique seleciona-o na lista.
+- **Pastas** (como o WizTree): a lista à esquerda, os tipos de ficheiro à direita,
+  o treemap em baixo.
+- **Mapa**: o gráfico à esquerda, os tipos de ficheiro à direita, a lista em
+  baixo. O gráfico fica com a área maior, e só aqui pode ser a tarte ou os anéis.
 
-Os separadores por cima do gráfico (ou o menu **Ver**, ou F6 a F9) escolhem entre
-três gráficos e uma tabela:
+As barras entre as partes podem arrastar-se; cada disposição lembra-se das suas.
+
+- **Em cima**, o que foi lido e o espaço do seu volume: a pasta (com o nome do
+  volume), quanto tempo a leitura demorou e como (do índice do Everything, da tabela
+  do NTFS, pasta a pasta), quantos ficheiros e pastas contém; depois o espaço total
+  do volume, o espaço usado (com a percentagem), o espaço reservado e o espaço livre,
+  com uma linha que fica vermelha acima de 90 %. **Reservado** é o espaço livre que
+  este utilizador não pode ocupar: quotas de disco no Windows, os blocos que o ext4
+  guarda para o root em Linux.
+- **A lista**: cada pasta com a sua parte da pasta acima (uma barra e
+  uma percentagem), o tamanho, o espaço que ocupa no disco (**Alocado**), quantos
+  **itens** (ficheiros e pastas), **ficheiros** e **pastas** contém, e a alteração
+  mais recente. As pastas abrem-se com a seta, um duplo clique, a seta para a
+  direita ou o Espaço. As pastas que não se conseguiram ler, as ligações e as
+  ligações físicas ficam assinaladas depois do nome. Com a janela estreita, as
+  colunas menos precisas escondem-se primeiro (Pastas, Itens, Alocado).
+- **Os tipos de ficheiro**, à direita: os ficheiros da pasta que o gráfico mostra,
+  por extensão: a cor que têm no treemap, o nome que o Windows lhes dá ("Ficheiro
+  JSON", "Aplicação", na língua do sistema; "Ficheiro EXT" em Linux), a percentagem
+  da pasta, o tamanho, o espaço em disco e quantos ficheiros há. Um clique num tipo
+  faz sobressair os seus ficheiros no treemap (o resto escurece), na pasta mostrada
+  e nas que se abrirem depois; outro clique nele acaba com isso.
+- **O gráfico**. No treemap, um retângulo por ficheiro, dentro dos
+  retângulos das suas pastas, sombreados em almofada. Os ficheiros têm a cor da
+  extensão: as doze extensões que ocupam mais espaço têm uma cor cada, as restantes
+  são cinzentas. As pastas com espaço para isso têm um **cabeçalho** com o nome e o
+  tamanho (como no SpaceSniffer e no TreeSize), e o encaixe lê-se como
+  "Portable — 240 GB › scoop › apps". Apontar para um retângulo mostra o caminho e o
+  tamanho na barra de estado; um clique num ficheiro, ou no cabeçalho de uma pasta,
+  seleciona-o na lista, que abre as pastas acima dele. Selecionar na lista contorna
+  o item no treemap.
+
+**Ordenar.** Um clique no cabeçalho de uma coluna ordena por ela; outro clique
+inverte a ordem. A seta mostra a coluna e o sentido. Tamanhos e contagens começam
+pelos maiores, nomes de A a Z. Na lista, o conteúdo de cada pasta é ordenado dentro
+dela. "Parte da pasta" e "Percentagem" seguem o tamanho escolhido em **Ver**
+(tamanho dos ficheiros ou tamanho em disco).
+
+Na disposição Mapa, os separadores por cima do gráfico (ou o menu **Ver**, ou F6 a
+F8) escolhem entre três gráficos (F7 e F8 passam para a disposição Mapa):
 
 - **Treemap**, como no WinDirStat ou no WizTree.
 - **Tarte**, como no TreeSize ou no JDiskReport: uma fatia para cada item da pasta,
@@ -77,26 +111,25 @@ três gráficos e uma tabela:
   do ângulo da sua pasta. A cor segue o ângulo e fica mais clara para fora; os
   ficheiros são mais pálidos do que as pastas. Os itens finos demais para se verem
   ficam de fora.
-- **Tipos**: os ficheiros da pasta mostrada, por extensão, dos maiores para os mais
-  pequenos: a cor que têm no treemap, o tamanho total e a percentagem, e quantos
-  ficheiros há.
 
 Na tarte e nos anéis, a fatia sob o ponteiro afasta-se do centro e fica mais clara,
 com tudo o que tem dentro, e o caminho e o tamanho aparecem na barra de estado. Um
 clique seleciona-a na lista.
 
-O gráfico mostra uma pasta de cada vez. No treemap, um duplo clique desce uma pasta
-em direção ao ficheiro clicado; na tarte e nos anéis, um duplo clique numa pasta
+O gráfico mostra uma pasta de cada vez, e os tipos de ficheiro seguem-na. No treemap,
+um duplo clique no cabeçalho de uma pasta mostra essa pasta, e num ficheiro desce uma
+pasta em direção a ele; na tarte e nos anéis, um duplo clique numa pasta
 mostra essa pasta, e um clique no centro dos anéis sobe uma pasta. **Enter** mostra a
-pasta selecionada na lista, **Retrocesso** sobe uma pasta e **Ctrl+Retrocesso** volta
-ao topo.
+pasta selecionada na lista, **Retrocesso** ou um **clique direito** no
+gráfico sobe uma pasta e **Ctrl+Retrocesso** volta ao topo.
 
 **Ver > Tamanho dos ficheiros / Tamanho em disco** escolhe o tamanho mostrado e
 usado para ordenar: o comprimento dos ficheiros, ou o espaço que ocupam no disco
 (clusters, compressão, ficheiros esparsos e, em Linux, as próprias pastas).
 
-O menu de contexto da lista e dos gráficos (botão direito) abre o item, mostra-o no
-gestor de ficheiros, copia o caminho, muda a pasta do gráfico ou elimina-o.
+O menu de contexto (botão direito na lista, ou Shift+botão direito no gráfico) abre
+o item, mostra-o no gestor de ficheiros, copia o caminho, muda a pasta do gráfico
+ou elimina-o.
 
 **Editar > Eliminar** (Delete) manda o ficheiro ou a pasta selecionados para a
 Reciclagem, ou para o lixo do ambiente de trabalho em Linux, depois de mostrar o que é
@@ -120,8 +153,10 @@ alteração. O ficheiro abre-se tal como está nas folhas de cálculo (UTF-8, v�
 | ↑ ↓ PgUp PgDn Home End | Mover na lista |
 | ← → Espaço | Fechar ou abrir uma pasta |
 | Enter | Mostrar a pasta selecionada no treemap |
-| Retrocesso / Ctrl+Retrocesso | Gráfico: uma pasta acima / tudo |
-| F6 / F7 / F8 / F9 | Treemap / tarte / anéis / tipos de ficheiro |
+| Retrocesso ou clique direito / Ctrl+Retrocesso | Gráfico: uma pasta acima / tudo |
+| Shift+clique direito | O menu do item, no gráfico |
+| F3 / F4 | Disposição Pastas / disposição Mapa |
+| F6 / F7 / F8 | Treemap / tarte / anéis |
 | Ctrl+Enter | Abrir o ficheiro ou a pasta selecionados |
 | Ctrl+E | Mostrá-lo no gestor de ficheiros |
 | Ctrl+C | Copiar o caminho |
@@ -132,7 +167,7 @@ alteração. O ficheiro abre-se tal como está nas folhas de cálculo (UTF-8, v�
 
 ## Como lê o disco
 
-O rsize experimenta três formas, a mais rápida primeiro, e a barra de estado diz qual
+O rsize experimenta três formas, a mais rápida primeiro, e o bloco de cima diz qual
 deu o resultado.
 
 **Do índice do [Everything](https://www.voidtools.com/)** (Windows), quando o
@@ -230,7 +265,7 @@ Requisitos: Rust 1.88+ com o alvo MSVC e as MSVC Build Tools.
 cargo build --profile release-small -p rsize
 # ou, com as Build Tools portáteis:
 ./dev.ps1 build --profile release-small -p rsize
-./dev.ps1 test -p rsize
+./dev.ps1 test -p rsize -p rt-scan
 ./dev.ps1 clippy -p rsize --all-targets
 ```
 
@@ -239,9 +274,11 @@ manifesto (DPI por monitor v2, caminhos longos) são embebidos pelo `build.rs`.
 
 ## Testes e verificação
 
-O `./dev.ps1 test -p rsize` corre 47 testes (45 em Linux), sobre:
+O `./dev.ps1 test -p rsize -p rt-scan` corre 56 testes em Windows (alguns só lá),
+sobre:
 
 - a árvore: totais, ordenação pelos dois tamanhos, caminhos, extensões;
+- o espaço do volume onde está uma pasta;
 - a leitura: uma árvore de pastas com nomes fundos e acentuados, uma raiz que não
   existe, uma leitura interrompida, junções em Windows, ligações simbólicas e físicas
   e pastas sem permissão em Linux;
@@ -253,12 +290,15 @@ O `./dev.ps1 test -p rsize` corre 47 testes (45 em Linux), sobre:
   distinguir maiúsculas), e a recusa de um índice sem a pasta ou sem os tamanhos; com
   o Everything a correr, a mesma pasta lida das duas formas;
 - o treemap: a disposição squarified preenche a área em proporção, cada pixel
-  pertence a um ficheiro, os cliques encontram o ficheiro certo, as cores seguem as
-  extensões;
+  pertence a um ficheiro ou à moldura de uma pasta, os cliques encontram o ficheiro
+  certo, as pastas com espaço têm um cabeçalho que as seleciona e o conteúdo por baixo
+  dele, as cores seguem as extensões, um tipo escolhido sobressai;
 - a tarte e os anéis: as fatias cobrem o círculo em proporção, os itens pequenos vão
   para "Outros", os anéis ficam dentro das suas pastas, os cliques encontram o
   segmento certo;
-- a lista: abrir pastas, seleção, teclado, zoom;
+- a lista: abrir pastas, seleção, teclado, zoom, ordenação por todas as colunas nos
+  dois sentidos; as duas disposições guardam as suas barras; a tabela de tipos de ficheiro: ordenação por todas as colunas, os
+  nomes dos tipos, seguir a pasta que o gráfico mostra;
 - eliminar: o item sai da pasta, os totais e os totais por extensão diminuem, e o
   gráfico sobe quando mostrava o que foi eliminado; a exportação CSV (ordem, aspas,
   colunas); em Linux, a pasta do lixo;
@@ -292,6 +332,9 @@ $env:RSIZE_BENCH_DIR = 'C:\'; ./dev.ps1 test -p rsize --release --lib bench '--'
   também pode estar uns segundos atrasado em relação ao disco.
 - **Analisar novamente** lê a pasta inteira outra vez; ainda não se pode ler só uma
   pasta do resultado.
+- Os cabeçalhos das pastas no treemap ocupam parte da área, por isso as áreas deixam
+  de estar exatamente em proporção entre pastas: o conteúdo de uma pasta reparte o
+  que sobra por baixo do seu cabeçalho. As pastas pequenas demais não têm cabeçalho.
 - Com centenas de milhares de ficheiros, desenhar o treemap leva uma fração de
   segundo; enquanto a janela é redimensionada, o treemap é esticado e volta a ser
   desenhado quando o redimensionamento para.

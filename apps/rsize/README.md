@@ -2,11 +2,12 @@
 
 A portable disk space analyzer for Windows and [Linux](#linux), written in
 Rust. It reads a drive, a folder or a network share and shows what takes up the
-space: the folders and files by size, largest first, and a chart: a
-**treemap** where each file is a rectangle as large as the file, a **pie** of
-the folder's contents, or **rings** with the folders inside folders. It also
-totals the space by file type, exports to CSV, and moves what you no longer
-want to the Recycle Bin.
+space, laid out as in WizTree: the drive's space on top, the folders and files
+at the left, the space by file type at the right, and a chart below: a
+**treemap** where each file is a rectangle as large as the file and each folder
+a box with its name, a **pie** of the folder's contents, or **rings** with the
+folders inside folders. Every column sorts. It also exports to CSV, and moves
+what you no longer want to the Recycle Bin.
 
 [Versão portuguesa](README.pt.md)
 
@@ -53,20 +54,55 @@ While it reads, the window shows how many files and folders it has found and
 their size. **Stop** (Esc) ends the reading and shows what was read so far; the
 status bar then says the result is incomplete.
 
-The result has two parts, with a bar between them that can be dragged:
+The result has four parts, in one of two layouts (**View**, F3 and F4, or the
+**Folders** and **Map** buttons at the right of the block on top):
 
-- **The list**: each folder with its share of the folder above it (a bar and a
-  percentage), its size, how many files it holds and its newest change. Folders
-  open with the arrow, a double click, the Right arrow or Space. Folders that
-  could not be read, links and hard links are marked after the name.
-- **The treemap**: one rectangle per file, inside the rectangles of its
-  folders, shaded as cushions so the folders stand out without borders. Files
-  are coloured by extension: the twelve extensions that take the most space
-  get a colour each, the others are grey. Pointing at a rectangle shows its
-  path and size in the status bar; clicking selects it in the list.
+- **Folders** (as WizTree): the list at the left, the file types at the right,
+  the treemap below.
+- **Map**: the chart at the left, the file types at the right, the list below.
+  The chart gets the larger area, and only here can it be the pie or the rings.
 
-The tabs above the chart (or **View**, or F6 to F9) choose between three
-charts and a table:
+The bars between the parts can be dragged; each layout remembers its own.
+
+- **On top**, what was read and the space of its volume: the folder (with the
+  volume's name), how long the reading took and how (from the Everything index,
+  from the NTFS table, folder by folder), how many files and folders it holds;
+  then the volume's total space, used space (with its share), reserved space
+  and free space, with a line that turns red past 90 %. **Reserved** is free
+  space this user cannot fill: disk quotas on Windows, the blocks ext4 keeps
+  for root on Linux.
+- **The list**: each folder with its share of the folder above it
+  (a bar and a percentage), its size, its space on the disk (**Allocated**), how
+  many **items** (files and folders), **files** and **folders** it holds, and its
+  newest change. Folders open with the arrow, a double click, the Right arrow
+  or Space. Folders that could not be read, links and hard links are marked
+  after the name. When the window is narrow, the least needed columns hide
+  first (Folders, Items, Allocated).
+- **The file types**, at the right: the files of the folder the chart shows,
+  by extension: the colour they have in the treemap, what Windows calls them
+  ("JSON File", "Application", in the system's language; "EXT File" on Linux),
+  their share of the folder, their size, their space on the disk and how many
+  files there are. A click on a type makes its files stand out in the treemap
+  (everything else darkens), in the folder shown and the ones zoomed into
+  later; another click on it ends that.
+- **The chart**. In the treemap, one rectangle per file, inside the
+  rectangles of its folders, shaded as cushions. Files are coloured by
+  extension: the twelve extensions that take the most space get a colour each,
+  the others are grey. Folders with room for it get a **header** with their
+  name and size (as in SpaceSniffer and TreeSize), so the nesting reads as
+  "Portable — 240 GB › scoop › apps". Pointing at a rectangle shows its path
+  and size in the status bar; clicking a file, or a folder's header, selects it
+  in the list, which opens the folders above it. Selecting in the list outlines
+  the item in the treemap.
+
+**Sorting.** A click on a column's header sorts by it; another click turns the
+order round. The arrow shows the column and the direction. Sizes and counts
+start largest first, names from A to Z. In the list, each folder's contents
+are sorted within it. "Share of folder" and "Percent" follow the size chosen
+in **View** (file size or size on disk).
+
+In the map layout, the tabs above the chart (or **View**, or F6 to F8) choose
+between three charts (F7 and F8 switch to the map layout):
 
 - **Treemap**, as in WinDirStat or WizTree.
 - **Pie**, as in TreeSize or JDiskReport: one slice for each item of the
@@ -77,26 +113,26 @@ charts and a table:
   the angle of its folder. The colour follows the angle and gets lighter
   further out; files are paler than folders. Items too thin to see are left
   out.
-- **Types**: the files of the folder shown, by extension, largest first: the
-  colour they have in the treemap, their total size and share, and how many
-  files there are.
 
 In the pie and the rings, the slice under the pointer moves out from the
 centre and brightens, with everything inside it, and its path and size show in
 the status bar. A click selects it in the list.
 
-The chart shows one folder at a time. In the treemap, a double click goes one
-folder down toward the file clicked; in the pie and the rings, a double click
+The chart shows one folder at a time, and the file types follow it. In the
+treemap, a double click on a folder's header shows that folder, and on a file
+goes one folder down toward it; in the pie and the rings, a double click
 on a folder shows that folder, and a click in the middle of the rings goes one
-folder up. **Enter** shows the folder selected in the list, **Backspace** goes
-one folder up and **Ctrl+Backspace** back to the top.
+folder up. **Enter** shows the folder selected in the list, **Backspace** or a
+**right click** on the chart goes one folder up and **Ctrl+Backspace** back to
+the top.
 
 **View > File Size / Size on Disk** chooses which size is shown and sorted by:
 the length of the files, or the space they take on the disk (clusters,
 compression, sparse files, and on Linux the folders themselves).
 
-The context menu of the list and the charts (right click) opens the item,
-shows it in the file manager, copies its path, zooms the chart, or deletes it.
+The context menu (a right click on the list, or Shift+right click on the
+chart) opens the item, shows it in the file manager, copies its path, zooms
+the chart, or deletes it.
 
 **Edit > Delete** (Delete) moves the selected file or folder to the Recycle
 Bin, or to the desktop's trash on Linux, after showing what it is and how much
@@ -120,8 +156,10 @@ file opens in spreadsheets as it is (UTF-8, commas).
 | ↑ ↓ PgUp PgDn Home End | Move in the list |
 | ← → Space | Close or open a folder |
 | Enter | Show the selected folder in the treemap |
-| Backspace / Ctrl+Backspace | Chart: one folder up / the whole scan |
-| F6 / F7 / F8 / F9 | Treemap / pie / rings / file types |
+| Backspace or right click / Ctrl+Backspace | Chart: one folder up / the whole scan |
+| Shift+right click | The item's menu, on the chart |
+| F3 / F4 | Folders layout / map layout |
+| F6 / F7 / F8 | Treemap / pie / rings |
 | Ctrl+Enter | Open the selected file or folder |
 | Ctrl+E | Show it in the file manager |
 | Ctrl+C | Copy its path |
@@ -132,7 +170,7 @@ file opens in spreadsheets as it is (UTF-8, commas).
 
 ## How it reads
 
-rsize tries three ways, the fastest first, and the status bar says which one
+rsize tries three ways, the fastest first, and the block on top says which one
 gave the result.
 
 **From the index of [Everything](https://www.voidtools.com/)** (Windows), when
@@ -229,7 +267,7 @@ Requirements: Rust 1.88+ with the MSVC target and the MSVC Build Tools.
 cargo build --profile release-small -p rsize
 # or, with portable Build Tools:
 ./dev.ps1 build --profile release-small -p rsize
-./dev.ps1 test -p rsize
+./dev.ps1 test -p rsize -p rt-scan
 ./dev.ps1 clippy -p rsize --all-targets
 ```
 
@@ -238,9 +276,11 @@ manifest (per-monitor DPI v2, long paths) are embedded by `build.rs`.
 
 ## Tests and verification
 
-`./dev.ps1 test -p rsize` runs 47 tests (45 on Linux), on:
+`./dev.ps1 test -p rsize -p rt-scan` runs 56 tests on Windows (a few of them
+only there), on:
 
 - the tree: totals, sorting by either size, paths, extensions;
+- the space of the volume a folder is on;
 - reading: a folder tree with deep and accented names, a missing root, a
   stopped scan, junctions on Windows, symbolic and hard links and unreadable
   folders on Linux;
@@ -251,11 +291,15 @@ manifest (per-monitor DPI v2, long paths) are embedded by `build.rs`.
   (without case), and refusing an index that misses the folder or its sizes;
   with Everything running, the same folder read both ways;
 - the treemap: the squarified layout fills the area in proportion, every pixel
-  belongs to a file, clicks find the right file, colours follow the extensions;
+  belongs to a file or a folder's frame, clicks find the right file, folders
+  with room get a header that selects them and holds their contents below it,
+  colours follow the extensions, a picked type stands out;
 - the pie and the rings: slices cover the circle in proportion, small items
   go into "Other", rings nest inside their folders, clicks find the right
   segment;
-- the list: opening folders, selection, the keyboard, zoom;
+- the list: opening folders, selection, the keyboard, zoom, sorting by every
+  column both ways; the two layouts keep their own bars; the table of file types: sorting by every column, the
+  names of the types, following the folder the chart shows;
 - deleting: the item leaves its folder, the totals and the extension totals
   shrink, and the chart moves up when it showed what was deleted; the CSV
   export (order, quotes, columns); on Linux, the trash folder;
@@ -289,6 +333,9 @@ $env:RSIZE_BENCH_DIR = 'C:\'; ./dev.ps1 test -p rsize --release --lib bench '--'
   may also be a few seconds behind the disk.
 - **Rescan** reads the whole folder again; one folder of the result cannot be
   read again on its own yet.
+- The folders' headers in the treemap take some of the area, so areas are no
+  longer exactly in proportion across folders: the contents of a folder share
+  what is left below its header. Folders too small for a header have none.
 - With hundreds of thousands of files, drawing the treemap takes a fraction of
   a second; while the window is being resized it is stretched, and drawn again
   when the resizing stops.

@@ -157,24 +157,24 @@ fn pages_render_fully_translated() {
     let mut app = App::new();
     let mut draw = |app: &App| {
         use crate::chart::{Chart, Hit};
-        use crate::settings::ChartType;
-        let l = view::layout(app, 0.45, full, 1.0, true);
-        let (w, h) = (l.map.w as u32, l.map.h as u32);
-        for kind in ChartType::ALL {
-            let map = app.scan.as_ref().map(|s| crate::treemap::Map::new(&s.tree, app.zoom, w, h));
+        use crate::settings::{ChartType, ViewMode};
+        let d = crate::settings::Settings::default();
+        for (view, kind) in [(ViewMode::Folders, ChartType::Treemap)].into_iter().chain(ChartType::ALL.map(|k| (ViewMode::Map, k))) {
+            let l = view::layout(app, view, if view == ViewMode::Map { d.map } else { d.folders }, full, 1.0, true);
+            let (w, h) = (l.map.w as u32, l.map.h as u32);
+            let map = app.scan.as_ref().map(|s| crate::treemap::Map::new(&s.tree, app.zoom, w, h, 16.0));
             let chart = app.scan.as_ref().map(|s| match kind {
                 ChartType::Pie => Chart::pie(&s.tree, app.zoom, w, h, 1.0, 0xFFFFFF),
                 _ => Chart::rings(&s.tree, app.zoom, w, h, 1.0, 0xFFFFFF),
             });
             let hover_seg = chart.as_ref().filter(|c| !c.segments.is_empty()).map(|_| Hit::Segment(0));
-            let types = app.scan.as_ref().map(|s| s.tree.ext_totals(app.zoom));
             let frame = view::Frame {
                 mode: SizeMode::Allocated,
                 kind,
                 map: map.as_ref(),
+                lit: None,
                 chart: chart.as_ref(),
                 hover_seg,
-                types: types.as_deref(),
                 hot: view::Hot::None,
                 hover: None,
             };
@@ -196,6 +196,11 @@ fn pages_render_fully_translated() {
     app.scanning = None;
     app.set_scan(scan, SizeMode::Allocated);
     app.toggle(app.rows[1].0);
+    draw(&app);
+    // With the volume's space, and the file types without system names.
+    app.space = crate::volumes::space_of(&tt.0);
+    app.sort_by(crate::app::Col::Folders);
+    app.sort_exts_by(crate::app::ExtCol::Type);
     draw(&app);
     let _ = crate::format::size(5000);
     set_lang(Lang::EnUS);

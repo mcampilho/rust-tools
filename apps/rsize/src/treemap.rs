@@ -42,6 +42,10 @@ pub struct Tile {
     pub node: Id,
     /// Drawn (a file, or a folder whose contents are not split further).
     pub leaf: bool,
+    /// Height of the folder's header (its name and size) at the top; 0: none.
+    pub head: f32,
+    /// Folders above it, up to the one the map shows.
+    pub depth: u16,
     /// The cushion: coefficients of x², y², x, y.
     surface: [f32; 4],
 }
@@ -99,12 +103,15 @@ pub struct Map {
 }
 
 impl Map {
-    /// Lays out and draws `root` of `tree` at `w`×`h` pixels.
-    pub fn new(tree: &Tree, root: Id, w: u32, h: u32) -> Map {
+    /// Lays out and draws `root` of `tree` at `w`×`h` pixels. Folders with
+    /// room for it get a header `head` pixels high (0: none), with their
+    /// contents below it.
+    pub fn new(tree: &Tree, root: Id, w: u32, h: u32, head: f32) -> Map {
         let (w, h) = (w.max(1), h.max(1));
         let mut tiles = Vec::new();
         if tree.size(root) > 0 {
-            place(tree, root, [0.0, 0.0, w as f64, h as f64], [0.0; 4], RIDGE, &mut tiles);
+            let p = Place { tree, head: f64::from(head.max(0.0)) };
+            p.place(root, [0.0, 0.0, w as f64, h as f64], [0.0; 4], RIDGE, 0, &mut tiles);
         }
         let mut map = Map { root, w, h, tiles, image: tiny_skia::Pixmap::new(w, h).expect("treemap size"), owner: vec![u32::MAX; (w * h) as usize] };
         map.paint(tree);
@@ -121,6 +128,19 @@ impl Map {
             (x / n, y / n, z / n)
         };
         let data = self.image.data_mut();
+        // Folders with a header first, as a frame: their contents are drawn
+        // over them (tiles are in pre-order).
+        for (ti, t) in self.tiles.iter().enumerate().filter(|(_, t)| t.head > 0.0) {
+            let c = Color::rgb(head_color(t.depth));
+            let (bx0, by0, bx1, by1) = t.pixels();
+            for y in by0..by1.min(h) {
+                for x in bx0..bx1.min(w) {
+                    let i = (y * w + x) * 4;
+                    data[i..i + 4].copy_from_slice(&[c.r, c.g, c.b, 255]);
+                    self.owner[y * w + x] = ti as u32;
+                }
+            }
+        }
         for (ti, t) in self.tiles.iter().enumerate().filter(|(_, t)| t.leaf) {
             let base = Color::rgb(base_color(tree, t.node, &table));
             let (bx0, by0, bx1, by1) = t.pixels();
@@ -143,6 +163,28 @@ impl Map {
                 }
             }
         }
+    }
+
+    /// The image with the files of extension `ext` as they are and
+    /// everything else darkened, so they stand out.
+    pub fn highlighted(&self, tree: &Tree, ext: u32) -> tiny_skia::Pixmap {
+        let lit: Vec<bool> = self
+            .tiles
+            .iter()
+            .map(|t| {
+                let n = tree.node(t.node);
+                t.leaf && n.kind == Kind::File && n.ext == ext
+            })
+            .collect();
+        let mut img = self.image.clone();
+        for (px, &o) in img.data_mut().as_chunks_mut::<4>().0.iter_mut().zip(&self.owner) {
+            if !lit.get(o as usize).copied().unwrap_or(false) {
+                for c in &mut px[..3] {
+                    *c = (*c as u16 * 3 / 10) as u8;
+                }
+            }
+        }
+        img
     }
 
     /// The node drawn at a pixel.
@@ -181,19 +223,55 @@ fn ridge(a: f64, b: f64, h: f64) -> (f64, f64) {
     }
 }
 
-fn place(tree: &Tree, id: Id, r: [f64; 4], parent: [f64; 4], h: f64, out: &mut Vec<Tile>) {
-    let [x0, y0, x1, y1] = r;
-    let (qx, lx) = ridge(x0, x1, h);
-    let (qy, ly) = ridge(y0, y1, h);
-    let s = [parent[0] + qx, parent[1] + qy, parent[2] + lx, parent[3] + ly];
-    let kids: Vec<(Id, f64)> = tree.children(id).iter().map(|&c| (c, tree.size(c) as f64)).take_while(|&(_, sz)| sz > 0.0).collect();
-    let split = !kids.is_empty() && (x1 - x0) * (y1 - y0) >= MIN_AREA;
-    out.push(Tile { x0: x0 as f32, y0: y0 as f32, x1: x1 as f32, y1: y1 as f32, node: id, leaf: !split, surface: s.map(|v| v as f32) });
-    if !split {
-        return;
-    }
-    for (c, cr) in squarify(&kids, r) {
-        place(tree, c, cr, s, h * RIDGE_FALLOFF, out);
+/// The colour of a folder's header and frame: darker for the outer ones,
+/// so white text reads on all of them.
+pub fn head_color(depth: u16) -> u32 {
+    let k = (depth as f32 * 0.09).min(0.45);
+    let c = Color::rgb(0x3E4652).mix(Color::rgb(0x8E98A6), k);
+    (c.r as u32) << 16 | (c.g as u32) << 8 | c.b as u32
+}
+
+/// Headers need this many times their height in width, and in height
+/// (header and room for the contents below it).
+const HEAD_MIN_W: f64 = 5.0;
+const HEAD_MIN_H: f64 = 3.0;
+
+struct Place<'a> {
+    tree: &'a Tree,
+    /// Header height (0: none).
+    head: f64,
+}
+
+impl Place<'_> {
+    fn place(&self, id: Id, r: [f64; 4], parent: [f64; 4], h: f64, depth: u16, out: &mut Vec<Tile>) {
+        let tree = self.tree;
+        let [x0, y0, x1, y1] = r;
+        let (qx, lx) = ridge(x0, x1, h);
+        let (qy, ly) = ridge(y0, y1, h);
+        let s = [parent[0] + qx, parent[1] + qy, parent[2] + lx, parent[3] + ly];
+        let kids: Vec<(Id, f64)> = tree.children(id).iter().map(|&c| (c, tree.size(c) as f64)).take_while(|&(_, sz)| sz > 0.0).collect();
+        let split = !kids.is_empty() && (x1 - x0) * (y1 - y0) >= MIN_AREA;
+        // A header, and a frame of a pixel, for folders with room for them.
+        let hd = self.head;
+        let headed = split && hd > 0.0 && x1 - x0 >= hd * HEAD_MIN_W && y1 - y0 >= hd * HEAD_MIN_H;
+        let inner = if headed { [x0 + 1.0, y0 + hd, x1 - 1.0, y1 - 1.0] } else { r };
+        out.push(Tile {
+            x0: x0 as f32,
+            y0: y0 as f32,
+            x1: x1 as f32,
+            y1: y1 as f32,
+            node: id,
+            leaf: !split,
+            head: if headed { hd as f32 } else { 0.0 },
+            depth,
+            surface: s.map(|v| v as f32),
+        });
+        if !split {
+            return;
+        }
+        for (c, cr) in squarify(&kids, inner) {
+            self.place(c, cr, s, h * RIDGE_FALLOFF, depth.saturating_add(1), out);
+        }
     }
 }
 
@@ -298,7 +376,7 @@ mod tests {
     #[test]
     fn every_pixel_belongs_to_a_file() {
         let t = tree();
-        let m = Map::new(&t, 0, 300, 200);
+        let m = Map::new(&t, 0, 300, 200, 0.0);
         assert!(m.owner.iter().all(|&o| o != u32::MAX));
         assert!(m.image.data().chunks(4).all(|p| p[3] == 255));
         // Leaf tiles cover the area once; zero-size files have none.
@@ -317,7 +395,7 @@ mod tests {
     #[test]
     fn hits_and_tiles_find_nodes() {
         let t = tree();
-        let m = Map::new(&t, 0, 300, 200);
+        let m = Map::new(&t, 0, 300, 200, 0.0);
         let a = t_child(&t, "a.mp4");
         let tile = *m.tile_of(&t, a).unwrap();
         assert_eq!(m.hit(tile.x0 + tile.w() / 2.0, tile.y0 + tile.h() / 2.0), Some(a));
@@ -327,9 +405,51 @@ mod tests {
         assert!((share - 6000.0 / 9780.0).abs() < 0.001, "{share}");
         // Zoomed into docs, files outside it have no tile.
         let docs = t_child(&t, "docs");
-        let z = Map::new(&t, docs, 100, 100);
+        let z = Map::new(&t, docs, 100, 100, 0.0);
         assert!(z.tile_of(&t, a).is_none());
         assert!(z.tile_of(&t, t.children(docs)[5]).is_some());
+    }
+
+    #[test]
+    fn folders_with_room_get_a_header_that_selects_them() {
+        let t = tree();
+        let m = Map::new(&t, 0, 600, 400, 16.0);
+        assert!(m.owner.iter().all(|&o| o != u32::MAX), "the headers and frames belong to their folder");
+        let root = m.tile_of(&t, 0).unwrap();
+        assert_eq!((root.head, root.depth), (16.0, 0));
+        assert_eq!(m.hit(300.0, 8.0), Some(0), "the top strip is the folder shown");
+        let docs = t_child(&t, "docs");
+        let d = *m.tile_of(&t, docs).unwrap();
+        assert!(d.head > 0.0 && d.depth == 1, "{d:?}");
+        assert_eq!(m.hit(d.x0 + d.w() / 2.0, d.y0 + 4.0), Some(docs));
+        // Its files are below its header, inside its frame.
+        for f in t.children(docs) {
+            if let Some(ft) = m.tiles.iter().find(|x| x.node == *f) {
+                assert!(ft.y0 >= d.y0 + d.head - 0.001 && ft.x0 >= d.x0 + 0.999 && ft.x1 <= d.x1 - 0.999, "{ft:?}");
+            }
+        }
+        // Too small for one: no header.
+        let small = Map::new(&t, 0, 60, 40, 16.0);
+        assert!(small.tiles.iter().all(|x| x.head == 0.0));
+    }
+
+    #[test]
+    fn a_file_type_stands_out() {
+        let t = tree();
+        let m = Map::new(&t, 0, 300, 200, 0.0);
+        let a = t_child(&t, "a.mp4");
+        let img = m.highlighted(&t, t.node(a).ext);
+        let at = |img: &tiny_skia::Pixmap, x: f32, y: f32| {
+            let i = (y as usize * 300 + x as usize) * 4;
+            img.data()[i..i + 3].to_vec()
+        };
+        let ta = *m.tile_of(&t, a).unwrap();
+        let (cx, cy) = (ta.x0 + ta.w() / 2.0, ta.y0 + ta.h() / 2.0);
+        assert_eq!(at(&img, cx, cy), at(&m.image, cx, cy), "the .mp4 keeps its colour");
+        let b = *m.tile_of(&t, t_child(&t, "b.zip")).unwrap();
+        let (bx, by) = (b.x0 + b.w() / 2.0, b.y0 + b.h() / 2.0);
+        let (lit, dim) = (at(&m.image, bx, by), at(&img, bx, by));
+        assert!(dim.iter().zip(&lit).all(|(d, l)| d < l || *l == 0), "the .zip is darker: {dim:?} vs {lit:?}");
     }
 
     #[test]
@@ -338,7 +458,7 @@ mod tests {
         let table = ext_colors(&t);
         assert_eq!(base_color(&t, t_child(&t, "a.mp4"), &table), PALETTE[0]);
         assert_eq!(base_color(&t, t_child(&t, "docs"), &table), FOLDER);
-        let empty = Map::new(&Tree::new("/e", 0), 0, 10, 10);
+        let empty = Map::new(&Tree::new("/e", 0), 0, 10, 10, 16.0);
         assert!(empty.tiles.is_empty() && empty.hit(1.0, 1.0).is_none());
     }
 }

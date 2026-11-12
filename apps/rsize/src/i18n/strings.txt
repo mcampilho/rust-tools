@@ -33,8 +33,6 @@ folder by folder		Ordner für Ordner	carpeta por carpeta	dossier par dossier	car
 faster as administrator (File menu)		als Administrator schneller (Menü Datei)	más rápido como administrador (menú Archivo)	plus rapide en administrateur (menu Fichier)	più veloce come amministratore (menu File)	管理者ならより高速 ([ファイル] メニュー)	mais rápido como administrador (menu Arquivo)	mais rápido como administrador (menu Ficheiro)	以管理员身份运行更快（文件菜单）
 &Export to CSV...		Als CSV e&xportieren...	&Exportar a CSV...	&Exporter en CSV...	Es&porta in CSV...	CSV にエクスポート(&E)...	&Exportar para CSV...	&Exportar para CSV...	导出为 CSV(&E)...
 &Delete...		&Löschen...	Elimi&nar...	&Supprimer...	&Elimina...	削除(&D)...	E&xcluir...	&Eliminar...	删除(&D)...
-File T&ypes		Dateit&ypen	Tipos de arc&hivo	T&ypes de fichiers	Tipi di &file	ファイルの種類(&Y)	Tipos de ar&quivo	Tipos de &ficheiro	文件类型(&Y)
-Types		Typen	Tipos	Types	Tipi	種類	Tipos	Tipos	类型
 Extension		Erweiterung	Extensión	Extension	Estensione	拡張子	Extensão	Extensão	扩展名
 (no extension)		(ohne Erweiterung)	(sin extensión)	(sans extension)	(senza estensione)	(拡張子なし)	(sem extensão)	(sem extensão)	(无扩展名)
 Path		Pfad	Ruta	Chemin	Percorso	パス	Caminho	Caminho	路径
@@ -52,7 +50,6 @@ Delete		Löschen	Eliminar	Supprimer	Elimina	削除	Excluir	Eliminar	删除
 “{}” was moved to the Recycle Bin.		„{}“ wurde in den Papierkorb verschoben.	«{}» se movió a la Papelera de reciclaje.	« {} » a été déplacé vers la Corbeille.	«{}» è stato spostato nel Cestino.	「{}」をごみ箱に移動しました。	“{}” foi movido para a Lixeira.	“{}” foi movido para a Reciclagem.	“{}”已移到回收站。
 “{}” was moved to the trash.		„{}“ wurde in den Papierkorb verschoben.	«{}» se movió a la papelera.	« {} » a été mis à la corbeille.	«{}» è stato spostato nel cestino.	「{}」をゴミ箱に移動しました。	“{}” foi movido para a lixeira.	“{}” foi movido para o lixo.	“{}”已移到废纸篓。
 Could not delete “{}”: {}		„{}“ konnte nicht gelöscht werden: {}	No se pudo eliminar «{}»: {}	Impossible de supprimer « {} » : {}	Impossibile eliminare «{}»: {}	「{}」を削除できませんでした: {}	Não foi possível excluir “{}”: {}	Não foi possível eliminar “{}”: {}	无法删除“{}”：{}
-File types		Dateitypen	Tipos de archivo	Types de fichiers	Tipi di file	ファイルの種類	Tipos de arquivo	Tipos de ficheiro	文件类型
 Export the folder shown to CSV		Gezeigten Ordner als CSV exportieren	Exportar a CSV la carpeta mostrada	Exporter en CSV le dossier affiché	Esporta in CSV la cartella mostrata	表示中のフォルダーを CSV にエクスポート	Exportar para CSV a pasta mostrada	Exportar para CSV a pasta mostrada	将显示的文件夹导出为 CSV
 Move it to the Recycle Bin or trash, after asking		Nach Rückfrage in den Papierkorb verschieben	Moverlo a la papelera, tras confirmar	Le mettre à la corbeille, après confirmation	Spostarlo nel cestino, dopo conferma	確認後、ごみ箱に移動	Movê-lo para a lixeira, após confirmação	Movê-lo para a Reciclagem, depois de confirmar	确认后移到回收站
 File &Size		Dateig&röße	Tamaño de a&rchivo	Taille des &fichiers	&Dimensione file	ファイル サイズ(&S)	Ta&manho do arquivo	Ta&manho dos ficheiros	文件大小(&S)
@@ -121,3 +118,21 @@ Analyze with rsize	Analyse with rsize	Mit rsize analysieren	Analizar con rsize	A
 “Analyze with rsize” was removed from the Explorer context menu.	“Analyse with rsize” was removed from the Explorer context menu.	„Mit rsize analysieren“ wurde aus dem Explorer-Kontextmenü entfernt.	«Analizar con rsize» se quitó del menú contextual del Explorador.	« Analyser avec rsize » a été retiré du menu contextuel de l’Explorateur.	«Analizza con rsize» è stato rimosso dal menu contestuale di Esplora file.	「rsize で分析」をエクスプローラーのコンテキスト メニューから削除しました。	“Analisar com o rsize” foi removido do menu de contexto do Explorador.	“Analisar com o rsize” foi removido do menu de contexto do Explorador.	已从资源管理器上下文菜单中移除“用 rsize 分析”。
 Open rsize		rsize öffnen	Abrir rsize	Ouvrir rsize	Apri rsize	rsize を開く	Abrir o rsize	Abrir o rsize	打开 rsize
 Exit		Beenden	Salir	Quitter	Esci	終了	Sair	Sair	退出
+Allocated		Belegt	Asignado	Alloué	Allocato	割り当て済み	Alocado	Alocado	已分配
+Items		Elemente	Elementos	Éléments	Elementi	項目	Itens	Itens	项目
+File type		Dateityp	Tipo de archivo	Type de fichier	Tipo di file	ファイルの種類	Tipo de arquivo	Tipo de ficheiro	文件类型
+Percent		Prozent	Porcentaje	Pourcentage	Percentuale	割合	Porcentagem	Percentagem	百分比
+{} File		{}-Datei	Archivo {}	Fichier {}	File {}	{} ファイル	Arquivo {}	Ficheiro {}	{} 文件
+Folder		Ordner	Carpeta	Dossier	Cartella	フォルダー	Pasta	Pasta	文件夹
+Scan time		Einlesezeit	Tiempo de análisis	Durée de l’analyse	Tempo di analisi	スキャン時間	Tempo de análise	Tempo de análise	扫描用时
+Contents		Inhalt	Contenido	Contenu	Contenuto	内容	Conteúdo	Conteúdo	内容
+Total space		Gesamtgröße	Espacio total	Espace total	Spazio totale	合計容量	Espaço total	Espaço total	总空间
+Used space		Belegter Speicher	Espacio usado	Espace utilisé	Spazio usato	使用領域	Espaço usado	Espaço usado	已用空间
+Reserved space		Reservierter Speicher	Espacio reservado	Espace réservé	Spazio riservato	予約領域	Espaço reservado	Espaço reservado	保留空间
+Free space		Freier Speicher	Espacio libre	Espace libre	Spazio libero	空き領域	Espaço livre	Espaço livre	可用空间
+Click a folder's header to select it, double-click to zoom in	Click a folder's header to select it, double-click to zoom in	Ordnerkopf anklicken zum Auswählen, doppelklicken zum Vergrößern	Clic en la cabecera de una carpeta para seleccionarla, doble clic para acercar	Cliquez sur l’en-tête d’un dossier pour le sélectionner, double-cliquez pour zoomer	Clic sull’intestazione di una cartella per selezionarla, doppio clic per ingrandire	フォルダーの見出しをクリックで選択、ダブルクリックで拡大	Clique no cabeçalho de uma pasta para selecioná-la, clique duplo para ampliar	Clique no cabeçalho de uma pasta para a selecionar, duplo clique para ampliar	单击文件夹标题以选中，双击以放大
+Folder &View		&Ordneransicht	Vista de &carpetas	Vue des d&ossiers	Vista cart&elle	フォルダー表示(&F)	Vista de pa&stas	Vista de pa&stas	文件夹视图(&F)
+M&ap View		Karte&nansicht	Vista de ma&pa	Vue cart&e	Vista ma&ppa	マップ表示(&A)	Vista de ma&pa	Vista de ma&pa	图表视图(&A)
+Map		Karte	Mapa	Carte	Mappa	マップ	Mapa	Mapa	图表
+Backspace or right click: zoom out		Rücktaste oder Rechtsklick: verkleinern	Retroceso o clic derecho: alejar	Retour arrière ou clic droit : zoom arrière	Backspace o clic destro: riduci	Backspace または右クリック: 縮小	Backspace ou clique direito: reduzir	Retrocesso ou clique direito: reduzir	Backspace 或右键：缩小
+Folder view / map view		Ordneransicht / Kartenansicht	Vista de carpetas / vista de mapa	Vue des dossiers / vue carte	Vista cartelle / vista mappa	フォルダー表示 / マップ表示	Vista de pastas / vista de mapa	Vista de pastas / vista de mapa	文件夹视图 / 图表视图

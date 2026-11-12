@@ -8,12 +8,12 @@
 
 use rsize::app::{App, Scanning};
 use rsize::chart::{Chart, Hit};
-use rsize::settings::ChartType;
+use rsize::settings::{ChartType, ViewMode};
 use rsize::commands::{self, Command};
 use rsize::i18n::{self, tf, tr};
 use rsize::model::{Id, SizeMode};
 use rsize::scan::{self, Event as ScanEvent};
-use rsize::settings::{Settings, SPLIT_MAX, SPLIT_MIN};
+use rsize::settings::{Settings, SPLIT_MAX, SPLIT_MIN, SPLIT_X_MAX, SPLIT_X_MIN};
 use rsize::storage;
 use rsize::treemap::Map;
 use rsize::ui::gfx::{Color, Gfx, Rect};
@@ -35,6 +35,10 @@ enum UserEvent {
     A11y(accesskit_winit::Event),
     Scan(u64, ScanEvent),
     Volumes(Vec<Volume>),
+    /// The space of the scanned folder's volume (for the scan of that generation).
+    Space(u64, Option<volumes::Space>),
+    /// The system's names of the scanned file types, by extension.
+    TypeNames(u64, std::collections::HashMap<String, String>),
     #[cfg(windows)]
     Win(rt_sys::win::WinMsg),
     /// A later launch, or the notification-area icon (Linux).
@@ -72,7 +76,9 @@ struct Dialog {
 #[derive(Clone, Copy)]
 enum Drag {
     Splitter,
+    VSplitter,
     Thumb,
+    ExtThumb,
 }
 
 const DOUBLE_CLICK: Duration = Duration::from_millis(500);
@@ -110,9 +116,11 @@ struct Shell {
     chart_key: Option<ChartKey>,
     /// What the pointer is on in the pie or the rings.
     hover_seg: Option<Hit>,
-    /// The table of file types, and the folder and order it was made for.
-    types: Option<Vec<(u32, rsize::model::ExtStat)>>,
-    types_key: Option<MapKey>,
+    /// The treemap with the files of the picked type standing out, and
+    /// what it was made for: the treemap and the type.
+    lit: Option<((MapKey, u32), tiny_skia::Pixmap)>,
+    /// What the table of file types was made for: folder, order, tree.
+    exts_key: Option<(Id, SizeMode, u64)>,
     /// The last change of the window size.
     resized: Instant,
     hot: Hot,
@@ -195,6 +203,33 @@ impl Shell {
         });
     }
 
+    /// Asks for the space of the volume `root` is on, in the background (a
+    /// network drive can be slow to answer).
+    fn load_space(&self, root: &Path) {
+        let (proxy, gen, root) = (self.proxy.clone(), self.generation, root.to_path_buf());
+        std::thread::spawn(move || {
+            let _ = proxy.send_event(UserEvent::Space(gen, volumes::space_of(&root)));
+        });
+    }
+
+    /// Asks the system what the scanned file types are called, in the
+    /// background: thousands of them take a moment.
+    fn load_type_names(&self) {
+        let Some(t) = self.app.scan.as_ref().map(|s| &s.tree) else { return };
+        let exts: Vec<String> = t.ext_ranking().iter().map(|&e| t.ext_name(e).to_string()).collect();
+        let (proxy, gen) = (self.proxy.clone(), self.generation);
+        std::thread::spawn(move || {
+            #[cfg(windows)]
+            let names = exts.into_iter().filter_map(|e| Some((e.clone(), rt_sys::win::file_type_name(&e)?))).collect();
+            #[cfg(not(windows))]
+            let names = {
+                let _ = exts;
+                std::collections::HashMap::new()
+            };
+            let _ = proxy.send_event(UserEvent::TypeNames(gen, names));
+        });
+    }
+
     fn start_scan(&mut self, path: &Path) {
         if let Some(h) = self.handle.take() {
             h.cancel();
@@ -236,6 +271,9 @@ impl Shell {
                     Ok(scan) => {
                         self.app.set_scan(*scan, self.settings.size_mode);
                         self.tree_gen += 1;
+                        self.app.space = None;
+                        self.load_space(&root);
+                        self.load_type_names();
                         self.map = None;
                         self.hover = None;
                     }
@@ -335,6 +373,15 @@ impl Shell {
             Command::ZoomTop => self.app.zoom_top(),
             Command::Chart(kind) => {
                 self.settings.chart = kind;
+                // The pie and the rings need the larger area of the map layout.
+                if kind != ChartType::Treemap {
+                    self.settings.view = ViewMode::Map;
+                }
+                self.hover = None;
+                self.hover_seg = None;
+            }
+            Command::View(mode) => {
+                self.settings.view = mode;
                 self.hover = None;
                 self.hover_seg = None;
             }
@@ -442,7 +489,8 @@ impl Shell {
 
     fn checked(&self, c: Command) -> bool {
         match c {
-            Command::Chart(kind) => self.settings.chart == kind,
+            Command::Chart(kind) => self.settings.chart_shown() == kind,
+            Command::View(mode) => self.settings.view == mode,
             Command::SizeLogical => self.settings.size_mode == SizeMode::Logical,
             Command::SizeAllocated => self.settings.size_mode == SizeMode::Allocated,
             Command::Theme(t) => self.settings.theme == t,
@@ -846,11 +894,21 @@ impl Shell {
             Page::Result => {
                 if l.splitter.contains(x, y) {
                     (Hot::Splitter, None)
+                } else if l.vsplit.contains(x, y) {
+                    (Hot::VSplitter, None)
                 } else if let Some(&(kind, _)) = l.tabs.iter().find(|(_, r)| r.contains(x, y)) {
                     (Hot::Tab(kind), None)
+                } else if let Some(&(mode, _)) = l.modes.iter().find(|(_, r)| r.contains(x, y)) {
+                    (Hot::Mode(mode), None)
+                } else if let Some(c) = l.head_at(x, y) {
+                    (Hot::Head(c), None)
+                } else if let Some(c) = l.ext_head_at(x, y) {
+                    (Hot::ExtHead(c), None)
                 } else if let Some(i) = l.row_at(&self.app, x, y) {
                     (Hot::Row(i), Some(self.app.rows[i].0))
-                } else if let (Some(c), true) = (&self.chart, self.settings.chart != ChartType::Treemap && l.map.contains(x, y)) {
+                } else if let Some(i) = l.ext_row_at(&self.app, x, y) {
+                    (Hot::ExtRow(i), None)
+                } else if let (Some(c), true) = (&self.chart, self.settings.chart_shown() != ChartType::Treemap && l.map.contains(x, y)) {
                     seg = c.hit(x - l.map.x, y - l.map.y);
                     let node = match seg {
                         Some(Hit::Segment(i)) => c.segments[i].node,
@@ -874,7 +932,8 @@ impl Shell {
         }
         let icon = match (self.drag, hot) {
             (Some(Drag::Splitter), _) | (_, Hot::Splitter) => CursorIcon::NsResize,
-            (_, Hot::Card(_) | Hot::Choose | Hot::Stop | Hot::Tab(_)) => CursorIcon::Pointer,
+            (Some(Drag::VSplitter), _) | (_, Hot::VSplitter) => CursorIcon::EwResize,
+            (_, Hot::Card(_) | Hot::Choose | Hot::Stop | Hot::Tab(_) | Hot::Mode(_) | Hot::Head(_) | Hot::ExtHead(_)) => CursorIcon::Pointer,
             _ if seg == Some(Hit::Center) => CursorIcon::Pointer,
             _ => CursorIcon::Default,
         };
@@ -908,7 +967,15 @@ impl Shell {
             Hot::Choose => self.command(el, Command::ChooseFolder),
             Hot::Stop => self.command(el, Command::Stop),
             Hot::Splitter => self.drag = Some(Drag::Splitter),
+            Hot::VSplitter => self.drag = Some(Drag::VSplitter),
             Hot::Tab(kind) => self.command(el, Command::Chart(kind)),
+            Hot::Mode(mode) => self.command(el, Command::View(mode)),
+            Hot::Head(c) => self.app.sort_by(c),
+            Hot::ExtHead(c) => self.app.sort_exts_by(c),
+            Hot::ExtRow(i) => {
+                let ext = self.app.exts.get(i).map(|e| e.0);
+                self.app.ext_sel = if self.app.ext_sel == ext { None } else { ext };
+            }
             Hot::Row(i) => {
                 let (id, depth) = self.app.rows[i];
                 if self.layout.on_arrow(x, depth) || clicks == 2 {
@@ -920,14 +987,23 @@ impl Shell {
                 let l = &self.layout;
                 if l.track.contains(x, y) && self.app.rows.len() > l.page_rows() {
                     self.drag = Some(Drag::Thumb);
-                    self.drag_to(y);
-                } else if self.settings.chart != ChartType::Treemap && l.map.contains(x, y) {
+                    self.drag_to(x, y);
+                } else if l.ext_track.contains(x, y) && self.app.exts.len() > l.ext_rows() {
+                    self.drag = Some(Drag::ExtThumb);
+                    self.drag_to(x, y);
+                } else if self.settings.chart_shown() != ChartType::Treemap && l.map.contains(x, y) {
                     self.chart_press(clicks);
                 } else if let Some((mx, my)) = self.map_point(x, y) {
                     if let Some(id) = self.map.as_ref().and_then(|m| m.hit(mx, my)) {
                         self.app.select(id);
                         if clicks == 2 {
-                            self.zoom_toward(id);
+                            let t = &self.app.scan.as_ref().expect("a treemap has a tree").tree;
+                            // A folder's header shows that folder; a file, one folder down toward it.
+                            if t.node(id).is_dir() && !t.children(id).is_empty() && id != self.app.zoom {
+                                self.app.zoom = id;
+                            } else {
+                                self.zoom_toward(id);
+                            }
                         }
                     }
                 }
@@ -971,17 +1047,28 @@ impl Shell {
         }
     }
 
-    fn drag_to(&mut self, y: f32) {
+    fn drag_to(&mut self, x: f32, y: f32) {
         match self.drag {
             Some(Drag::Splitter) => {
+                // A share of the height below the block on top.
+                let (top, h) = (self.layout.info.bottom(), self.layout.body.bottom() - self.layout.info.bottom());
+                if h > 0.0 {
+                    self.settings.panes_mut().split = ((y - top) / h).clamp(SPLIT_MIN, SPLIT_MAX);
+                }
+            }
+            Some(Drag::VSplitter) => {
                 let body = self.layout.body;
-                if body.h > 0.0 {
-                    self.settings.split = ((y - body.y) / body.h).clamp(SPLIT_MIN, SPLIT_MAX);
+                if body.w > 0.0 {
+                    self.settings.panes_mut().split_x = ((x - body.x) / body.w).clamp(SPLIT_X_MIN, SPLIT_X_MAX);
                 }
             }
             Some(Drag::Thumb) => {
                 let page = self.layout.page_rows();
-                self.app.scroll = view::scroll_for(&self.layout, self.app.rows.len(), page, y);
+                self.app.scroll = view::scroll_for(self.layout.track, self.app.rows.len(), page, y);
+            }
+            Some(Drag::ExtThumb) => {
+                let page = self.layout.ext_rows();
+                self.app.types_scroll = view::scroll_for(self.layout.ext_track, self.app.exts.len(), page, y);
             }
             None => return,
         }
@@ -1002,16 +1089,18 @@ impl Shell {
         }
         self.gfx.resize(w.get(), h.get());
         let full = Rect::new(0.0, 0.0, w.get() as f32, h.get() as f32);
-        self.layout = view::layout(&self.app, self.settings.split, full, s, cfg!(not(windows)));
+        self.layout = view::layout(&self.app, self.settings.view, self.settings.panes(), full, s, cfg!(not(windows)));
         self.app.page = self.layout.page_rows();
+        self.app.types_page = self.layout.ext_rows();
         self.ensure_map(theme.bg);
+        self.ensure_lit();
         let frame = view::Frame {
             mode: self.settings.size_mode,
-            kind: self.settings.chart,
+            kind: self.settings.chart_shown(),
             map: self.map.as_ref(),
+            lit: self.lit.as_ref().map(|l| &l.1),
             chart: self.chart.as_ref(),
             hover_seg: self.hover_seg,
-            types: self.types.as_deref(),
             hot: self.hot,
             hover: self.hover,
         };
@@ -1050,27 +1139,24 @@ impl Shell {
         if view::page(&self.app) != Page::Result {
             return;
         }
-        let Some(scan) = &self.app.scan else { return };
         let r = self.layout.map;
         let (w, h) = (r.w.max(1.0) as u32, r.h.max(1.0) as u32);
         let key = (self.app.zoom, w, h, self.settings.size_mode, self.tree_gen);
-        if self.settings.chart == ChartType::Types {
-            let tkey = (self.app.zoom, 0, 0, self.settings.size_mode, self.tree_gen);
-            if self.types_key != Some(tkey) || self.types.is_none() {
-                self.types = Some(scan.tree.ext_totals(self.app.zoom));
-                self.types_key = Some(tkey);
-                self.app.types_scroll = 0;
-            }
-            return;
+        // The table of file types follows the folder the chart shows.
+        let ekey = (self.app.zoom, self.settings.size_mode, self.tree_gen);
+        if self.exts_key != Some(ekey) {
+            self.exts_key = Some(ekey);
+            self.app.refresh_exts();
         }
-        if self.settings.chart != ChartType::Treemap {
+        let Some(scan) = &self.app.scan else { return };
+        if self.settings.chart_shown() != ChartType::Treemap {
             // A few thousand segments at most: quick enough to redo at once.
             let s = self.scale();
             let bg = (bg.r as u32) << 16 | (bg.g as u32) << 8 | bg.b as u32;
-            let ckey = (self.settings.chart, key, bg, s.to_bits());
+            let ckey = (self.settings.chart_shown(), key, bg, s.to_bits());
             if self.chart_key != Some(ckey) || self.chart.is_none() {
                 let t = &scan.tree;
-                self.chart = Some(match self.settings.chart {
+                self.chart = Some(match self.settings.chart_shown() {
                     ChartType::Pie => Chart::pie(t, self.app.zoom, w, h, s, bg),
                     _ => Chart::rings(t, self.app.zoom, w, h, s, bg),
                 });
@@ -1088,9 +1174,27 @@ impl Shell {
             self.map_due = Some(self.resized + RESIZE_PAUSE);
             return;
         }
-        self.map = Some(Map::new(&scan.tree, self.app.zoom, w, h));
+        let head = (16.0 * self.scale()).round();
+        self.map = Some(Map::new(&scan.tree, self.app.zoom, w, h, head));
         self.map_key = Some(key);
         self.map_due = None;
+    }
+
+    /// Makes the treemap with the files of the picked type standing out,
+    /// when a type is picked and the treemap or the type changed.
+    fn ensure_lit(&mut self) {
+        let want = match (self.app.ext_sel, &self.map, self.map_key, &self.app.scan) {
+            (Some(e), Some(m), Some(k), Some(scan)) if self.settings.chart_shown() == ChartType::Treemap => Some((k, e, m, &scan.tree)),
+            _ => None,
+        };
+        match want {
+            Some((k, e, m, t)) => {
+                if self.lit.as_ref().map(|l| l.0) != Some((k, e)) {
+                    self.lit = Some(((k, e), m.highlighted(t, e)));
+                }
+            }
+            None => self.lit = None,
+        }
     }
 
     /// A point of the window in the treemap's own pixels (it may be
@@ -1131,7 +1235,7 @@ impl Shell {
             list.set_children(rows);
             nodes.push((NodeId(1), list));
             let mut map = Node::new(Role::Image);
-            map.set_label(view::chart_name(self.settings.chart));
+            map.set_label(view::chart_name(self.settings.chart_shown()));
             nodes.push((NodeId(2), map));
             children.extend([NodeId(1), NodeId(2)]);
         }
@@ -1241,12 +1345,13 @@ fn shortcuts_text() -> String {
         ("Backspace", tr("Treemap: one folder up")),
         ("Ctrl+Backspace", tr("Treemap: the whole scan")),
         ("Double click", tr("Treemap: one folder down")),
+        ("Right click", tr("Treemap: one folder up")),
+        ("F3 / F4", tr("Folder view / map view")),
         ("F6 / F7 / F8", tr("Treemap / pie / rings")),
         ("Ctrl+Enter", tr("Open the selected file or folder")),
         ("Ctrl+E", tr("Show it in the file manager")),
         ("Ctrl+C", tr("Copy its path")),
         ("Ctrl+1 / Ctrl+2", tr("Show file sizes / sizes on disk")),
-        ("F9", tr("File types")),
         ("Ctrl+S", tr("Export the folder shown to CSV")),
         ("Delete", tr("Move it to the Recycle Bin or trash, after asking")),
     ];
@@ -1333,6 +1438,16 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.app.volumes = Some(v);
                 self.redraw();
             }
+            UserEvent::Space(gen, space) if gen == self.generation => {
+                self.app.space = space;
+                self.redraw();
+            }
+            UserEvent::TypeNames(gen, names) if gen == self.generation => {
+                self.app.type_names = names;
+                self.app.sort_exts();
+                self.redraw();
+            }
+            UserEvent::Space(..) | UserEvent::TypeNames(..) => {}
             #[cfg(windows)]
             UserEvent::Win(rt_sys::win::WinMsg::Command(id)) => {
                 let cmd = self.win.as_ref().and_then(|w| w.menu.as_ref()).and_then(|m| m.command(id));
@@ -1423,7 +1538,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     return;
                 }
                 if self.drag.is_some() {
-                    self.drag_to(y);
+                    self.drag_to(x, y);
                 }
                 self.pointer(x, y);
             }
@@ -1453,7 +1568,17 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.redraw();
             }
             WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Right, .. } if self.dialog.is_none() => {
-                if view::page(&self.app) == Page::Result && self.hover.is_some() {
+                let in_chart = self.cursor.is_some_and(|(x, y)| self.layout.map.contains(x, y));
+                if view::page(&self.app) == Page::Result && in_chart && !self.mods.shift_key() {
+                    // In the chart a right click goes one folder up, as Backspace
+                    // (a double click goes down, as Enter); Shift+right click
+                    // opens the item's menu there.
+                    self.app.zoom_out();
+                    self.hover = None;
+                    self.hover_seg = None;
+                    self.menu_dirty = true;
+                    self.redraw();
+                } else if view::page(&self.app) == Page::Result && self.hover.is_some() {
                     if let Some(id) = self.hover {
                         self.app.select(id);
                     }
@@ -1483,12 +1608,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 let l = &self.layout;
                 match view::page(&self.app) {
                     Page::Result if l.list.contains(x, y) || l.track.contains(x, y) || l.header.contains(x, y) => self.app.scroll_by(rows),
-                    Page::Result if self.settings.chart == ChartType::Types && l.map.contains(x, y) => {
-                        let n = self.types.as_ref().map_or(0, Vec::len);
-                        let fit = view::types_layout(l).2;
-                        let max = n.saturating_sub(fit) as isize;
-                        self.app.types_scroll = (self.app.types_scroll as isize + rows).clamp(0, max.max(0)) as usize;
-                    }
+                    Page::Result if l.ext_list.contains(x, y) || l.ext_track.contains(x, y) || l.ext_header.contains(x, y) => self.app.scroll_types_by(rows),
                     Page::Start if l.start_max > 0.0 => {
                         let step = 40.0 * self.scale();
                         self.app.start_scroll = (self.app.start_scroll + rows as f32 * step / 3.0).clamp(0.0, l.start_max);
@@ -1666,8 +1786,8 @@ fn main() {
         chart: None,
         chart_key: None,
         hover_seg: None,
-        types: None,
-        types_key: None,
+        exts_key: None,
+        lit: None,
         resized: Instant::now(),
         hot: Hot::None,
         hover: None,

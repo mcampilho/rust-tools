@@ -2,12 +2,114 @@
 //! scanned tree, which folders are open in the list, the selection and the
 //! folder the treemap shows. Everything here can be tested without a window.
 
-use crate::model::{Id, SizeMode};
+use crate::i18n::tf;
+use crate::model::{ExtStat, Id, Node, SizeMode, Tree};
 use crate::scan::{Progress, Scan};
-use crate::volumes::Volume;
-use std::collections::HashSet;
+use crate::volumes::{Space, Volume};
+use std::cmp::Ordering;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::time::Instant;
+
+/// The columns of the folder list, each of which can sort it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum Col {
+    Name,
+    /// The share of the folder: the size in the current mode.
+    #[default]
+    Share,
+    Size,
+    Alloc,
+    /// Files and folders below.
+    Items,
+    Files,
+    Folders,
+    Modified,
+}
+
+impl Col {
+    pub const ALL: [Col; 8] = [Col::Name, Col::Share, Col::Size, Col::Alloc, Col::Items, Col::Files, Col::Folders, Col::Modified];
+}
+
+/// The columns of the table of file types.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum ExtCol {
+    Ext,
+    Type,
+    /// The share of the folder: the size in the current mode.
+    #[default]
+    Share,
+    Size,
+    Alloc,
+    Files,
+}
+
+impl ExtCol {
+    pub const ALL: [ExtCol; 6] = [ExtCol::Ext, ExtCol::Type, ExtCol::Share, ExtCol::Size, ExtCol::Alloc, ExtCol::Files];
+}
+
+/// A column and its direction (true: largest first, or Z to A).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Sort<C> {
+    pub col: C,
+    pub desc: bool,
+}
+
+impl<C: Copy + PartialEq + Default> Default for Sort<C> {
+    fn default() -> Self {
+        Sort { col: C::default(), desc: true }
+    }
+}
+
+impl<C: Copy + PartialEq> Sort<C> {
+    /// A click on a column's header: the same column turns the order round;
+    /// another starts with `first_desc`.
+    pub fn click(&mut self, col: C, first_desc: bool) {
+        if self.col == col {
+            self.desc = !self.desc;
+        } else {
+            *self = Sort { col, desc: first_desc };
+        }
+    }
+}
+
+/// Files and folders below a node (1 for a file).
+pub fn items(n: &Node) -> u64 {
+    if n.is_dir() {
+        n.files + n.dirs
+    } else {
+        1
+    }
+}
+
+/// Compares two nodes by a column, smallest (or A) first.
+pub fn compare(t: &Tree, a: Id, b: Id, col: Col) -> Ordering {
+    let (na, nb) = (t.node(a), t.node(b));
+    match col {
+        Col::Name => natural(t.name(a), t.name(b)),
+        Col::Share => t.size(a).cmp(&t.size(b)),
+        Col::Size => na.size.cmp(&nb.size),
+        Col::Alloc => na.alloc.cmp(&nb.alloc),
+        Col::Items => items(na).cmp(&items(nb)),
+        Col::Files => na.files.cmp(&nb.files),
+        Col::Folders => na.dirs.cmp(&nb.dirs),
+        Col::Modified => na.mtime.cmp(&nb.mtime),
+    }
+}
+
+/// Names as people read them: without regard to case.
+fn natural(a: &str, b: &str) -> Ordering {
+    let lower = |s: &str| s.chars().flat_map(char::to_lowercase).collect::<String>();
+    lower(a).cmp(&lower(b)).then_with(|| a.cmp(b))
+}
+
+/// What a file type is called: the system's name for it, or "EXT File".
+pub fn type_name(names: &HashMap<String, String>, ext: &str) -> String {
+    if ext.is_empty() {
+        return String::new();
+    }
+    names.get(ext).cloned().unwrap_or_else(|| tf("{} File", &[&ext.to_uppercase()]))
+}
 
 /// A scan in progress.
 pub struct Scanning {
@@ -42,15 +144,86 @@ pub struct App {
     pub page: usize,
     /// How far the start page is scrolled, in pixels.
     pub start_scroll: f32,
+    /// How the list's folders order their contents.
+    pub sort: Sort<Col>,
+    /// The table of file types of the folder the chart shows, in its order.
+    pub exts: Vec<(u32, ExtStat)>,
+    pub ext_sort: Sort<ExtCol>,
+    /// The system's names of the file types, by extension (lower case).
+    pub type_names: HashMap<String, String>,
+    /// The selected row of the table of file types (an extension id).
+    pub ext_sel: Option<u32>,
     /// First row shown in the table of file types.
     pub types_scroll: usize,
+    /// Rows that fit in the table of file types (set by the view).
+    pub types_page: usize,
+    /// The volume the scanned folder is on.
+    pub space: Option<Space>,
     /// A message for the status bar (an export, a deletion).
     pub note: Option<String>,
 }
 
 impl App {
     pub fn new() -> App {
-        App { show_drives: true, page: 20, ..App::default() }
+        App { show_drives: true, page: 20, types_page: 10, ..App::default() }
+    }
+
+    /// Fills the table of file types for the folder the chart shows.
+    pub fn refresh_exts(&mut self) {
+        let Some(scan) = &self.scan else {
+            self.exts.clear();
+            return;
+        };
+        self.exts = scan.tree.ext_totals(self.zoom);
+        self.types_scroll = 0;
+        // The type picked stays picked while the folder shown has some.
+        if self.ext_sel.is_some_and(|e| !self.exts.iter().any(|x| x.0 == e)) {
+            self.ext_sel = None;
+        }
+        self.sort_exts();
+    }
+
+    /// Orders the table of file types by its column.
+    pub fn sort_exts(&mut self) {
+        let Some(scan) = &self.scan else { return };
+        let t = &scan.tree;
+        let mode = t.mode();
+        let names = &self.type_names;
+        let Sort { col, desc } = self.ext_sort;
+        let in_mode = |s: &ExtStat| match mode {
+            SizeMode::Logical => s.size,
+            SizeMode::Allocated => s.alloc,
+        };
+        self.exts.sort_by(|a, b| {
+            let o = match col {
+                ExtCol::Ext => natural(t.ext_name(a.0), t.ext_name(b.0)),
+                ExtCol::Type => natural(&type_name(names, t.ext_name(a.0)), &type_name(names, t.ext_name(b.0))),
+                ExtCol::Share => in_mode(&a.1).cmp(&in_mode(&b.1)),
+                ExtCol::Size => a.1.size.cmp(&b.1.size),
+                ExtCol::Alloc => a.1.alloc.cmp(&b.1.alloc),
+                ExtCol::Files => a.1.files.cmp(&b.1.files),
+            };
+            let o = if desc { o.reverse() } else { o };
+            o.then_with(|| in_mode(&b.1).cmp(&in_mode(&a.1))).then(a.0.cmp(&b.0))
+        });
+    }
+
+    /// A click on a header of the table of file types.
+    pub fn sort_exts_by(&mut self, col: ExtCol) {
+        self.ext_sort.click(col, !matches!(col, ExtCol::Ext | ExtCol::Type));
+        self.sort_exts();
+    }
+
+    /// A click on a header of the list.
+    pub fn sort_by(&mut self, col: Col) {
+        self.sort.click(col, !matches!(col, Col::Name));
+        self.rebuild();
+        self.keep_visible();
+    }
+
+    pub fn scroll_types_by(&mut self, rows: isize) {
+        let max = self.exts.len().saturating_sub(self.types_page.max(1));
+        self.types_scroll = (self.types_scroll as isize + rows).clamp(0, max as isize) as usize;
     }
 
     /// Shows a finished scan.
@@ -65,8 +238,10 @@ impl App {
         self.sel = Some(root);
         self.scroll = 0;
         self.types_scroll = 0;
+        self.ext_sel = None;
         self.note = None;
         self.rebuild();
+        self.refresh_exts();
     }
 
     /// Takes a deleted item out of the tree and the views; the selection
@@ -83,6 +258,7 @@ impl App {
         self.expanded.remove(&id);
         self.rebuild();
         self.select(parent);
+        self.refresh_exts();
         true
     }
 
@@ -95,11 +271,25 @@ impl App {
         self.rows.clear();
         let Some(scan) = &self.scan else { return };
         let t = &scan.tree;
+        let Sort { col, desc } = self.sort;
+        // The tree keeps each folder's contents largest first in the current
+        // mode: other orders are made for the open folders only.
+        let as_tree = col == Col::Share && desc;
+        let mut kids = Vec::new();
         let mut stack = vec![(t.root(), 0u16)];
         while let Some((id, depth)) = stack.pop() {
             self.rows.push((id, depth));
             if self.expanded.contains(&id) {
-                stack.extend(t.children(id).iter().rev().map(|&c| (c, depth + 1)));
+                kids.clear();
+                kids.extend_from_slice(t.children(id));
+                if !as_tree {
+                    kids.sort_by(|&a, &b| {
+                        let o = compare(t, a, b, col);
+                        let o = if desc { o.reverse() } else { o };
+                        o.then_with(|| t.size(b).cmp(&t.size(a))).then(a.cmp(&b))
+                    });
+                }
+                stack.extend(kids.iter().rev().map(|&c| (c, depth + 1)));
             }
         }
         self.scroll = self.scroll.min(self.rows.len().saturating_sub(1));
@@ -111,6 +301,7 @@ impl App {
         }
         self.rebuild();
         self.keep_visible();
+        self.sort_exts();
     }
 
     fn row_of(&self, id: Id) -> Option<usize> {
@@ -191,7 +382,8 @@ impl App {
         }
         if self.expanded.insert(id) {
             self.rebuild();
-        } else if let Some(&c) = self.scan.as_ref().and_then(|s| s.tree.children(id).first()) {
+        } else if let Some(&(c, _)) = self.row_of(id).and_then(|i| self.rows.get(i + 1)) {
+            // The first row inside it, in the list's order.
             self.select(c);
         }
     }
@@ -317,6 +509,72 @@ mod tests {
         assert!(!a.rows.iter().any(|&(r, _)| r == 6 || r == 7));
         assert_eq!(a.scan.as_ref().unwrap().tree.node(0).size, 165);
         assert!(!a.removed(0));
+    }
+
+    #[test]
+    fn every_column_sorts_the_list() {
+        let mut a = app();
+        a.toggle(1);
+        let kids = |a: &App| -> Vec<String> {
+            let t = &a.scan.as_ref().unwrap().tree;
+            a.rows.iter().filter(|r| r.1 == 2).map(|&(id, _)| t.name(id).to_string()).collect()
+        };
+        assert_eq!(kids(&a), ["a1", "a2", "a3"], "largest first");
+        a.sort_by(Col::Name);
+        assert_eq!(kids(&a), ["a1", "a2", "a3"]);
+        a.sort_by(Col::Name);
+        assert_eq!(kids(&a), ["a3", "a2", "a1"], "a second click turns it round");
+        a.sort_by(Col::Size);
+        assert!(a.sort.desc);
+        assert_eq!(kids(&a), ["a1", "a2", "a3"]);
+        a.sort_by(Col::Items);
+        assert_eq!(kids(&a), ["a1", "a2", "a3"], "1 item each: then by size");
+        a.sort_by(Col::Folders);
+        assert_eq!(kids(&a), ["a1", "a2", "a3"], "no folders below any: then by size");
+        let top: Vec<String> = {
+            a.sort_by(Col::Files);
+            let t = &a.scan.as_ref().unwrap().tree;
+            a.rows.iter().filter(|r| r.1 == 1).map(|&(id, _)| t.name(id).to_string()).collect()
+        };
+        assert_eq!(top, ["a", "b", "c.txt"], "a holds 3 files, b 1, c.txt is one");
+        for col in Col::ALL {
+            a.sort_by(col);
+            assert_eq!(a.rows.len(), 7, "{col:?} keeps every row");
+        }
+        // Right arrow goes to the first row inside, in the list's order.
+        a.sort = Sort { col: Col::Name, desc: true };
+        a.rebuild();
+        a.select(1);
+        a.right();
+        assert_eq!(a.sel, Some(6), "a3 is first from Z to A");
+    }
+
+    #[test]
+    fn the_table_of_file_types_sorts() {
+        let mut a = app();
+        let names = |a: &App| -> Vec<String> {
+            let t = &a.scan.as_ref().unwrap().tree;
+            a.exts.iter().map(|e| t.ext_name(e.0).to_string()).collect()
+        };
+        assert_eq!(names(&a), ["", "txt"], "no extension: 161 bytes, txt: 5");
+        a.sort_exts_by(ExtCol::Ext);
+        assert_eq!(names(&a), ["", "txt"]);
+        a.sort_exts_by(ExtCol::Ext);
+        assert_eq!(names(&a), ["txt", ""]);
+        a.sort_exts_by(ExtCol::Files);
+        assert_eq!(names(&a), ["", "txt"], "4 files without one, 1 txt");
+        a.type_names.insert("txt".into(), "Text Document".into());
+        assert_eq!(type_name(&a.type_names, "txt"), "Text Document");
+        assert_eq!(type_name(&a.type_names, "xyz"), "XYZ File");
+        assert_eq!(type_name(&a.type_names, ""), "");
+        for col in ExtCol::ALL {
+            a.sort_exts_by(col);
+            assert_eq!(a.exts.len(), 2);
+        }
+        a.select(6);
+        a.zoom_in();
+        a.refresh_exts();
+        assert_eq!(names(&a), [""], "only the files below the folder shown");
     }
 
     #[test]

@@ -1,7 +1,9 @@
 # rsize — analisador de espaço em disco portátil em Rust
 
-Lê um disco, uma pasta ou uma partilha de rede e mostra o que ocupa espaço: lista de pastas por
-tamanho e um gráfico à escolha (treemap com sombreado em almofada, tarte ou anéis) ou a tabela de tipos;
+Lê um disco, uma pasta ou uma partilha de rede e mostra o que ocupa espaço, disposto como no WizTree: bloco
+informativo em cima (pasta, tempo e forma da leitura, espaço total/usado/reservado/livre do volume), lista de
+pastas à esquerda e tipos de ficheiro à direita (todas as colunas ordenam), e um gráfico em baixo (treemap com
+sombreado em almofada e cabeçalhos de pasta, tarte ou anéis);
 exporta para CSV e manda para a Reciclagem. Um único executável (~1,9 MB em Windows, 5,5 MB em Linux), sem
 rede própria nem telemetria. Funcionalidades, atalhos e limitações estão no `README.md`.
 
@@ -9,7 +11,7 @@ rede própria nem telemetria. Funcionalidades, atalhos e limitações estão no 
 
 ```powershell
 ./dev.ps1 build --profile release-small -p rsize
-./dev.ps1 test -p rsize -p rt-scan   # 23 + 27 testes no Windows
+./dev.ps1 test -p rsize -p rt-scan   # 28 + 28 testes no Windows
 ./dev.ps1 clippy -p rsize --all-targets
 ./dev.ps1 test -p rsize --release --lib screenshots '--' --ignored   # páginas em apps/rsize/target/screens/*.png
 $env:RSIZE_BENCH_DIR = 'C:\'; ./dev.ps1 test -p rt-scan --release --lib bench '--' --ignored --nocapture
@@ -48,7 +50,10 @@ módulos do crate:
   carrega a base de dados, o 401 responde 0 e uma pergunta pode levar mais de um minuto: por isso `running()`
   exige o 401. Medido em 2026-11-07 com o Everything 1.5.0.1423b: C:\ em 2,3 s, E:\Projects (1,6 M) em 5,6 s.
 - `treemap.rs` — disposição squarified e cushions (van Wijk), desenhados pixel a pixel numa `Pixmap`; mapa
-  pixel → bloco para os cliques. Cores pelas 12 extensões maiores.
+  pixel → bloco para os cliques. Cores pelas 12 extensões maiores. `Map::new(.., head)`: as pastas com pelo
+  menos 5× `head` de largura e 3× de altura recebem um cabeçalho (`Tile::head`) e uma moldura de 1 px, pintados
+  com `head_color(depth)` antes do conteúdo e donos desses pixels (um clique no cabeçalho dá a pasta); o
+  conteúdo é disposto por baixo. O texto dos cabeçalhos é desenhado a cada imagem em `view::draw_heads`.
 - `chart.rs` — tarte (12 fatias, o resto em "Outros", legenda) e anéis (até 6 níveis, cor pelo ângulo, mais
   clara para fora, segmentos com menos de 3 px omitidos). Desenhados uma vez numa `Pixmap`; o segmento sob o
   ponteiro (e, nos anéis, o que tem dentro) é redesenhado deslocado para fora em `view.rs`.
@@ -57,11 +62,22 @@ módulos do crate:
   FOF_NOCONFIRMATION | FOF_WANTNUKEWARNING`: o Windows avisa antes de apagar de vez) e `rt_sys::linux::trash`
   (`gio trash`, ou o lixo freedesktop em `~/.local/share/Trash`). Depois, `Tree::remove` e `App::removed`
   atualizam a árvore sem voltar a ler; `tree_gen` sobe para refazer os gráficos.
-- Separador Tipos (`ChartType::Types`): `Tree::ext_totals(zoom)`, desenhado em `view::draw_types`.
+- Painel de tipos (sempre visível, à direita da lista; o separador Tipos e o F9 saíram em 2026-11-11):
+  `App::exts` = `Tree::ext_totals(zoom)`, refeito pelo `main` quando muda a pasta do gráfico, o modo ou a árvore
+  (`exts_key`); desenhado em `view::draw_exts`. Nome do tipo: `rt_sys::win::file_type_name` (`SHGetFileInfoW`
+  com `SHGFI_USEFILEATTRIBUTES`, só registo), pedido num fio à parte depois de cada leitura
+  (`UserEvent::TypeNames`); sem nome, "{} File" traduzido.
 - `volumes.rs` — discos (Windows) ou montagens reais (`/proc/self/mounts`, Linux), lidos num fio à parte.
-- `app.rs` — estado sem janela: página, linhas da lista, pastas abertas, seleção, zoom do treemap.
+  `space_of(pasta)` dá o volume da pasta (`GetVolumePathNameW` + `GetDiskFreeSpaceExW`, ou `statvfs`):
+  reservado = livre − disponível para o utilizador. Pedido num fio à parte (`UserEvent::Space`).
+- `app.rs` — estado sem janela: página, linhas da lista, pastas abertas, seleção, zoom do treemap, ordenação
+  (`Sort<Col>` da lista, `Sort<ExtCol>` dos tipos). A árvore guarda os filhos pelo tamanho do modo (o treemap
+  precisa disso); outras ordens são feitas em `rebuild` só para as pastas abertas.
 - `format.rs` — tamanhos (binários, 3 algarismos), contagens, percentagens, datas locais.
-- `ui/view.rs` — as três páginas (discos, leitura, resultado) e o `Layout` usado também para os cliques;
+- `ui/view.rs` — as três páginas (discos, leitura, resultado) e o `Layout` usado também para os cliques. No
+  resultado: `info` em cima, lista e tipos lado a lado (`vsplit`, `settings.split_x`), gráfico em baixo
+  (`splitter`, `settings.split`). As colunas saem de `columns()`: largura fixa e prioridade; com pouco espaço
+  saem as de número mais alto, e uma coluna (`Name`, `Type`) fica com o resto;
   `ui/theme.rs`, `ui/appicon.rs`, `ui/menu.rs` (menus desenhados, só fora do Windows).
 - `main.rs` — janela, menus nativos (Windows) ou desenhados (Linux), rato, teclado, leitura em segundo plano
   (eventos `Scan(geração, …)`; os de leituras antigas são ignorados). O treemap é refeito quando muda a pasta,
@@ -81,6 +97,15 @@ módulos do crate:
 4. Feito: índice do Everything (IPC por `WM_COPYDATA`, sem a DLL), quando está a correr e a pasta está indexada.
 5. Feito: separador Tipos (F9), exportação CSV (Ctrl+S), eliminar para a Reciclagem (Delete, com confirmação).
    A confirmação e a gravação usam os diálogos do sistema, que os testes não cobrem.
+6. Feito (2026-11-11, inspirado em WizTree, WinDirStat, TreeSize e SpaceSniffer): bloco informativo, colunas
+   Alocado/Itens/Pastas, ordenação em todas as colunas, painel de tipos sempre visível com o nome do tipo,
+   cabeçalhos de pasta no treemap (clique seleciona na lista, duplo clique mostra a pasta). Por fazer: clicar
+   num tipo realçar os seus ficheiros no treemap.
+7. Feito (2026-11-11): duas disposições (`settings::ViewMode`, F3/F4, botões Pastas/Mapa à direita do bloco informativo, sempre no mesmo sítio):
+   Pastas = lista à esquerda, tipos à direita, treemap em baixo (só treemap: `Settings::chart_shown`); Mapa =
+   gráfico à esquerda, tipos à direita, lista em baixo (treemap, tarte ou anéis). Cada uma guarda as suas barras
+   (`Settings::folders`/`map`, `Panes`). Clique num tipo: `Map::highlighted` escurece o que não é dessa extensão
+   (imagem guardada em `main::lit`). Clique direito no gráfico = Retrocesso; Shift+clique direito abre o menu.
 
 Em curso: os 76 s da leitura direta do NTFS no E: (disco mecânico). Hipótese: o volume era aberto com cache, e
 o gestor de cache parte as leituras grandes de um volume em pedaços pequenos, lentos num disco mecânico. Agora
