@@ -297,8 +297,8 @@ impl Painter {
         let len = (dx * dx + dy * dy).sqrt();
         let width = 0.13 * hf;
         let ground = |x: f32| hf * (0.88 + 0.025 * (x * 0.011).sin() + 0.02 * (x * 0.027 + 1.0).sin());
-        for x in 0..w {
-            self.ground[x] = ground(x as f32) as usize;
+        for (x, g) in self.ground.iter_mut().enumerate().take(w) {
+            *g = ground(x as f32) as usize;
         }
         // Pine trees along the hills.
         for _ in 0..34 {
@@ -307,9 +307,9 @@ impl Painter {
             let tw = th * 0.32;
             let x0 = (cx - tw).max(0.0) as usize;
             let x1 = ((cx + tw) as usize).min(w - 1);
-            for x in x0..=x1 {
+            for (x, g) in self.ground.iter_mut().enumerate().take(x1 + 1).skip(x0) {
                 let top = ground(cx) - th * (1.0 - (x as f32 - cx).abs() / tw);
-                self.ground[x] = self.ground[x].min(top.max(0.0) as usize);
+                *g = (*g).min(top.max(0.0) as usize);
             }
         }
         for y in 0..h {

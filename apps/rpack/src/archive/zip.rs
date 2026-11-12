@@ -93,12 +93,13 @@ pub fn list(path: &Path, meter: &Meter) -> Result<Listing, Error> {
 
 pub fn each(path: &Path, listing: &Listing, wanted: &dyn Fn(usize) -> bool, meter: &Meter, f: &mut dyn FnMut(usize, Contents) -> Result<(), Error>) -> Result<(), Error> {
     let mut zip = zip::ZipArchive::new(input(path, meter)?)?;
-    for i in 0..listing.entries.len().min(zip.len()) {
+    let count = zip.len();
+    for (i, entry) in listing.entries.iter().enumerate().take(count) {
         if !wanted(i) {
             continue;
         }
         meter.check()?;
-        if listing.entries[i].encrypted {
+        if entry.encrypted {
             f(i, Err(Error::Password))?;
             continue;
         }
