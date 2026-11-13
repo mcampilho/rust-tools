@@ -9,12 +9,11 @@ que marcar, depois de perguntar.
 O rclean faz parte do [rust-tools](../../README.pt.md). Os comandos abaixo
 correm na raiz do repositório.
 
-O `rclean.exe` é um único executável de 1,6 MB: sem instalador, sem runtime,
+O `rclean.exe` é um único executável de 1,8 MB: sem instalador, sem runtime,
 sem DLLs além das que vêm com o Windows. Não faz ligações à rede e não tem
-telemetria. Está a ser feito por fases: esta primeira limpa os ficheiros
-temporários e as caches dos browsers; as caches dos gestores de pacotes, os
-atalhos inválidos e as entradas inválidas do registo vêm a seguir (ver
-[Fases](#fases)).
+telemetria. Está a ser feito por fases: limpa os ficheiros temporários, as
+caches dos browsers e as dos gestores de pacotes; os atalhos inválidos e as
+entradas inválidas do registo vêm a seguir (ver [Fases](#fases)).
 
 ## Utilização
 
@@ -52,6 +51,34 @@ escolha.
 Só o que existe para deitar fora: o histórico, os cookies, as palavras-passe,
 as sessões e as definições dos browsers nunca são tocados. Um browser aparece
 quando tem cache.
+
+### Gestores de pacotes
+
+Cada gestor de pacotes encontrado (no `PATH`, ou pela sua pasta) tem um grupo
+próprio. A cache é medida pelas pastas e limpa pelo comando do próprio gestor,
+para ele manter os seus registos certos; o Cargo e o vcpkg não têm esse
+comando e perdem as pastas.
+
+| Gestor | Item | Limpo com | Marcado à partida |
+| --- | --- | --- | --- |
+| Scoop | Transferências (`<scoop>\cache`) | `scoop cache rm *` | sim |
+| Scoop | Versões antigas (as que ficam depois de atualizar) | `scoop cleanup *` | não |
+| Chocolatey | Cache | `choco cache remove` (administrador) | sim |
+| pip | Cache | `python -m pip cache purge` | sim |
+| npm | Cache (onde o `npm config get cache` diz) | `npm cache clean --force` | sim |
+| Yarn | Cache | `yarn cache clean` | sim |
+| pnpm | Repositório: pacotes que nenhum projeto usa | `pnpm store prune` | não |
+| Go | Cache de compilação | `go clean -cache` | sim |
+| NuGet | Cache HTTP (os pacotes que os projetos usam ficam) | `dotnet nuget locals http-cache --clear` | sim |
+| Cargo | `registry/cache`, `registry/src`, `git/checkouts` | apagados | sim |
+| vcpkg | `downloads`, `buildtrees`, `packages` | apagados | sim |
+
+Em Linux também o apt (`apt-get clean`), o dnf (`dnf clean all`), o zypper e o
+pacman, através do `pkexec` (pede a palavra-passe); os runtimes do Flatpak que
+já nada usa (`flatpak uninstall --unused`, tamanho só conhecido depois) e as
+revisões antigas do Snap (`snap remove <nome> --revision=<n>`), ambos
+desmarcados à partida. Quando um comando não funciona, o resumo final diz o
+que ele escreveu.
 
 Os itens marcados "administrador" precisam de direitos de administrador: sem
 eles aparecem a cinzento, com **Reiniciar como administrador** por cima da
@@ -106,17 +133,16 @@ Um ficheiro de 5,5 MB. Os itens são do utilizador: ficheiros temporários em
 `/tmp` e `/var/tmp` (só os seus, sem alterações há um dia), miniaturas
 (`~/.cache/thumbnails`), caches de shaders do Mesa e da NVIDIA, o lixo
 (`~/.local/share/Trash`) e as caches dos browsers (em `~/.config` e `~/.cache`;
-o Firefox também do Snap e do Flatpak). Os do próprio sistema (`apt`, o
-journal) vêm com os gestores de pacotes, na fase 2.
+o Firefox também do Snap e do Flatpak), e os gestores de pacotes acima.
 
 ## Fases
 
 1. Feito: ficheiros temporários do Windows e do Linux, relatórios de erros,
    despejos de memória, miniaturas, caches de shaders, a Reciclagem e as caches
    dos browsers; analisar, marcar e limpar.
-2. As caches dos gestores de pacotes, pelos comandos de cada um: Scoop
-   (`scoop cache rm`, `scoop cleanup`), Chocolatey, pip, npm, Cargo, vcpkg,
-   winget; apt, dnf, Flatpak e Snap em Linux.
+2. Feito: as caches dos gestores de pacotes, pelos comandos de cada um: Scoop,
+   Chocolatey, pip, npm, Yarn, pnpm, Go, NuGet, Cargo e vcpkg; apt, dnf,
+   zypper, pacman, Flatpak e Snap em Linux.
 3. Atalhos inválidos (menu Iniciar, ambiente de trabalho, ficheiros `.desktop`
    do Linux).
 4. Entradas inválidas do registo, guardadas num `.reg` antes de saírem.

@@ -5,6 +5,7 @@ pub mod app;
 pub mod clean;
 pub mod commands;
 pub mod i18n;
+pub mod managers;
 pub mod procs;
 pub mod settings;
 pub mod storage;

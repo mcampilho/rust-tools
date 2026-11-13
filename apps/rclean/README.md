@@ -9,11 +9,11 @@ deletes what you tick, after asking.
 rclean is part of [rust-tools](../../README.md). Commands below run from the
 repository root.
 
-`rclean.exe` is a single 1.6 MB executable: no installer, no runtime, no DLLs
+`rclean.exe` is a single 1.8 MB executable: no installer, no runtime, no DLLs
 beyond those that ship with Windows. It makes no network connections and has
-no telemetry. It is being built in phases: this first one cleans temporary
-files and browser caches; the caches of package managers, broken shortcuts and
-invalid registry entries come next (see [Phases](#phases)).
+no telemetry. It is being built in phases: it cleans temporary files, browser
+caches and the caches of package managers; broken shortcuts and invalid
+registry entries come next (see [Phases](#phases)).
 
 ## Use
 
@@ -51,6 +51,33 @@ you to choose.
 Only what is there to be thrown away: history, cookies, passwords, sessions
 and settings of the browsers are never touched. A browser is listed when it
 has a cache.
+
+### Package managers
+
+Each package manager found (on the `PATH`, or by its folder) has a group of
+its own. Its cache is measured from its folders and cleaned by its own
+command, so it keeps its records right; Cargo and vcpkg have no such command
+and lose the folders.
+
+| Manager | Item | Cleaned with | Ticked at first |
+| --- | --- | --- | --- |
+| Scoop | Downloads (`<scoop>\cache`) | `scoop cache rm *` | yes |
+| Scoop | Old versions (versions kept after an update) | `scoop cleanup *` | no |
+| Chocolatey | Cache | `choco cache remove` (administrator) | yes |
+| pip | Cache | `python -m pip cache purge` | yes |
+| npm | Cache (where `npm config get cache` says) | `npm cache clean --force` | yes |
+| Yarn | Cache | `yarn cache clean` | yes |
+| pnpm | Store: packages no project uses | `pnpm store prune` | no |
+| Go | Build cache | `go clean -cache` | yes |
+| NuGet | HTTP cache (the packages your projects use stay) | `dotnet nuget locals http-cache --clear` | yes |
+| Cargo | `registry/cache`, `registry/src`, `git/checkouts` | deleted | yes |
+| vcpkg | `downloads`, `buildtrees`, `packages` | deleted | yes |
+
+On Linux also apt (`apt-get clean`), dnf (`dnf clean all`), zypper and pacman,
+through `pkexec` (it asks for the password); Flatpak's unused runtimes
+(`flatpak uninstall --unused`, size known only after) and Snap's old
+revisions (`snap remove <name> --revision=<n>`), both unticked at first. When
+a command does not work, the end says what it printed.
 
 Items marked "administrator" need administrator rights: without them they
 are shown, dimmed, with **Restart as Administrator** above the list.
@@ -103,16 +130,15 @@ One file of 5.5 MB. The items are the user's: temporary files in `/tmp` and
 `/var/tmp` (only yours, not changed for a day), thumbnails (`~/.cache/thumbnails`),
 Mesa and NVIDIA shader caches, the trash (`~/.local/share/Trash`), and the
 browsers' caches (in `~/.config` and `~/.cache`, Firefox also from Snap and
-Flatpak). The system's own (`apt`, the journal) come with the package
-managers, in phase 2.
+Flatpak), and the package managers above.
 
 ## Phases
 
 1. Done: temporary files of Windows and Linux, error reports, memory dumps,
    thumbnails, shader caches, the Recycle Bin and the browsers' caches;
    analyze, tick and clean.
-2. The caches of package managers, through their own commands: Scoop
-   (`scoop cache rm`, `scoop cleanup`), Chocolatey, pip, npm, Cargo, vcpkg,
-   winget; apt, dnf, Flatpak and Snap on Linux.
+2. Done: the caches of package managers, through their own commands: Scoop,
+   Chocolatey, pip, npm, Yarn, pnpm, Go, NuGet, Cargo and vcpkg; apt, dnf,
+   zypper, pacman, Flatpak and Snap on Linux.
 3. Broken shortcuts (Start menu, desktop, Linux `.desktop` files).
 4. Invalid registry entries, saved to a `.reg` file before they are removed.

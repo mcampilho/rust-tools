@@ -15,6 +15,8 @@ pub enum Group {
     System,
     /// A browser, by its name (a product name: not translated).
     Browser(&'static str),
+    /// A package manager, by its name.
+    Tool(&'static str),
 }
 
 /// Which files of a folder go.
@@ -52,6 +54,9 @@ pub enum Kind {
     Files,
     /// Windows' Recycle Bin, through the shell (it has a folder per drive).
     RecycleBin,
+    /// Its own commands clean it (a package manager's); the places only say
+    /// how much it holds.
+    Command,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -70,6 +75,12 @@ pub struct Target {
     pub default_on: bool,
     /// The program that may hold its files open: its process names.
     pub process: &'static [&'static str],
+    /// `Kind::Command`: what cleans it.
+    pub commands: Vec<crate::managers::Cmd>,
+    /// Where it is, when only its manager knows (asked while analysing).
+    pub locate: Option<crate::managers::Locate>,
+    /// Its size can be measured (Flatpak's unused runtimes cannot).
+    pub measure: bool,
 }
 
 /// The folders the targets are found from (from the environment, or made up
@@ -111,7 +122,7 @@ impl Env {
 }
 
 /// A path from parts.
-fn at(base: &Path, rel: &str) -> PathBuf {
+pub fn at(base: &Path, rel: &str) -> PathBuf {
     rel.split('/').fold(base.to_path_buf(), |p, s| p.join(s))
 }
 
@@ -119,11 +130,19 @@ fn at(base: &Path, rel: &str) -> PathBuf {
 pub fn all(env: &Env) -> Vec<Target> {
     let mut out = if cfg!(windows) { windows(env) } else { linux(env) };
     out.extend(browsers(env, cfg!(windows)));
+    out.extend(crate::managers::targets(env));
     out
 }
 
+impl Target {
+    /// A target of files, the others as given.
+    pub fn files(id: &str, group: Group, name: &'static str, about: &'static str, places: Vec<Place>) -> Target {
+        Target { id: id.to_string(), group, name, about, places, kind: Kind::Files, admin: false, default_on: true, process: &[], commands: Vec::new(), locate: None, measure: true }
+    }
+}
+
 fn system(id: &str, name: &'static str, about: &'static str, places: Vec<Place>, admin: bool, default_on: bool) -> Target {
-    Target { id: id.to_string(), group: Group::System, name, about, places, kind: Kind::Files, admin, default_on, process: &[] }
+    Target { admin, default_on, ..Target::files(id, Group::System, name, about, places) }
 }
 
 /// Windows' own.
@@ -339,15 +358,14 @@ fn chromium_places(root: &Path, out: &mut Vec<Place>) {
 pub fn browsers(e: &Env, windows: bool) -> Vec<Target> {
     let mut out = Vec::new();
     let target = |id: &str, name: &'static str, places: Vec<Place>, process: &'static [&'static str]| Target {
-        id: format!("{id}.cache"),
-        group: Group::Browser(name),
-        name: "Cache",
-        about: "Pages, pictures and scripts kept to open sites faster. They are downloaded again when needed; history, cookies and passwords stay.",
-        places,
-        kind: Kind::Files,
-        admin: false,
-        default_on: true,
         process,
+        ..Target::files(
+            &format!("{id}.cache"),
+            Group::Browser(name),
+            "Cache",
+            "Pages, pictures and scripts kept to open sites faster. They are downloaded again when needed; history, cookies and passwords stay.",
+            places,
+        )
     };
     for b in CHROMIUM {
         let mut places = Vec::new();

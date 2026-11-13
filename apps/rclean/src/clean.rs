@@ -22,8 +22,16 @@ pub struct Found {
     pub dirs: Vec<PathBuf>,
     /// Folders that could not be read (no rights).
     pub unreadable: u64,
-    /// The Recycle Bin: its count and size, from the shell.
+    /// The Recycle Bin, or what a package manager's command cleans: how many
+    /// files (not listed one by one).
     pub items: u64,
+    /// Its size cannot be known before cleaning (Flatpak's unused runtimes).
+    pub unknown: bool,
+    /// The folders it is in, once found (a manager's, when it was asked).
+    pub dirs_found: Vec<PathBuf>,
+    /// The commands that clean it, when they are only known now (Snap's
+    /// revisions).
+    pub commands: Vec<crate::managers::Cmd>,
 }
 
 impl Found {
@@ -39,6 +47,8 @@ pub struct Cleaned {
     pub files: u64,
     /// Files that stayed: in use, or no rights.
     pub failed: u64,
+    /// A package manager's command that did not work: what it said.
+    pub error: Option<String>,
 }
 
 /// Whether a file of `place` goes, by its name and when it changed.
@@ -80,16 +90,62 @@ pub fn analyse(t: &Target, stop: &AtomicBool) -> Found {
         }
         return f;
     }
+    if t.kind == Kind::Command {
+        return analyse_manager(t, stop);
+    }
     #[cfg(unix)]
     let uid = my_uid();
     #[cfg(not(unix))]
     let uid: Option<u32> = None;
+    walk(&t.places, uid, true, &mut f, stop);
+    // The deepest first, so a folder is empty when its turn comes.
+    f.dirs.sort_by_key(|d| std::cmp::Reverse(d.components().count()));
+    f
+}
+
+/// A package manager's cache: where it is (asked, if need be) and how much
+/// it holds, counted but not listed (its command cleans it, as root's too).
+fn analyse_manager(t: &Target, stop: &AtomicBool) -> Found {
+    use crate::managers::{output, snap_disabled, Cmd, Locate};
+    let mut f = Found::default();
+    let places: Vec<Place> = match &t.locate {
+        Some(Locate::Ask(cmd, sub)) => output(cmd)
+            .and_then(|o| o.lines().map(str::trim).find(|l| !l.is_empty() && !l.eq_ignore_ascii_case("undefined")).map(PathBuf::from))
+            .map(|d| if sub.is_empty() { d } else { d.join(sub) })
+            .map(|dir| vec![Place { dir, filter: Filter::All }])
+            .unwrap_or_default(),
+        Some(Locate::SnapRevisions) => {
+            let list = output(&Cmd::new("snap", &["list", "--all", "--unicode=never"])).map(|t| snap_disabled(&t)).unwrap_or_default();
+            for (file, cmd) in list {
+                f.bytes += std::fs::metadata(&file).map_or(0, |m| m.len());
+                f.items += 1;
+                f.dirs_found.push(file);
+                f.commands.push(cmd);
+            }
+            return f;
+        }
+        None => t.places.clone(),
+    };
+    f.dirs_found = places.iter().map(|p| p.dir.clone()).filter(|d| d.exists()).collect();
+    if !t.measure {
+        f.unknown = true;
+        return f;
+    }
+    walk(&places, None, false, &mut f, stop);
+    // Root's folders in it (apt's `partial`) are its command's business.
+    f.unreadable = 0;
+    f
+}
+
+/// Walks the places: files that go (listed, or only counted in `items`),
+/// and the folders inside. `uid`: only that user's files (Linux).
+fn walk(places: &[Place], uid: Option<u32>, list: bool, f: &mut Found, stop: &AtomicBool) {
     let now = SystemTime::now();
-    for place in &t.places {
+    for place in places {
         let mut stack = vec![(place.dir.clone(), 0usize)];
         while let Some((dir, depth)) = stack.pop() {
             if stop.load(Ordering::Relaxed) {
-                return f;
+                return;
             }
             let Ok(rd) = std::fs::read_dir(&dir) else {
                 if depth > 0 || place.dir.exists() {
@@ -111,7 +167,7 @@ pub fn analyse(t: &Target, stop: &AtomicBool) -> Found {
                     if place.deep() {
                         // Kept only if it was old enough too (its time changes
                         // when files leave it).
-                        if wanted(place, "", meta.modified().ok(), now) {
+                        if list && wanted(place, "", meta.modified().ok(), now) {
                             f.dirs.push(e.path());
                         }
                         stack.push((e.path(), depth + 1));
@@ -120,14 +176,15 @@ pub fn analyse(t: &Target, stop: &AtomicBool) -> Found {
                 }
                 if wanted(place, &e.file_name().to_string_lossy(), meta.modified().ok(), now) {
                     f.bytes += meta.len();
-                    f.files.push((e.path(), meta.len()));
+                    if list {
+                        f.files.push((e.path(), meta.len()));
+                    } else {
+                        f.items += 1;
+                    }
                 }
             }
         }
     }
-    // The deepest first, so a folder is empty when its turn comes.
-    f.dirs.sort_by_key(|d| std::cmp::Reverse(d.components().count()));
-    f
 }
 
 /// Deletes what `found` lists (for good), then the folders left empty.
@@ -139,6 +196,24 @@ pub fn clean(t: &Target, found: &Found, stop: &AtomicBool) -> Cleaned {
             c.files = found.items;
         } else {
             c.failed = found.items.max(1);
+        }
+        return c;
+    }
+    if t.kind == Kind::Command {
+        // Its own commands; then what is left says what went.
+        let cmds = if found.commands.is_empty() { &t.commands } else { &found.commands };
+        for cmd in cmds {
+            if stop.load(Ordering::Relaxed) {
+                break;
+            }
+            if let Err(e) = crate::managers::run(cmd) {
+                c.error = Some(e);
+            }
+        }
+        if t.measure {
+            let after = analyse(t, &AtomicBool::new(false));
+            c.bytes = found.bytes.saturating_sub(after.bytes);
+            c.files = found.count().saturating_sub(after.count());
         }
         return c;
     }
@@ -215,7 +290,7 @@ mod tests {
     use crate::targets::Group;
 
     fn target(places: Vec<Place>) -> Target {
-        Target { id: "t".into(), group: Group::System, name: "", about: "", places, kind: Kind::Files, admin: false, default_on: true, process: &[] }
+        Target::files("t", Group::System, "", "", places)
     }
 
     #[test]

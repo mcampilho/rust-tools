@@ -196,7 +196,7 @@ impl App {
 
     /// Something was found to clean among the ticked ones.
     pub fn anything_to_clean(&self) -> bool {
-        self.chosen().iter().any(|&i| self.items[i].found().is_some_and(|f| f.count() > 0))
+        self.chosen().iter().any(|&i| self.items[i].found().is_some_and(|f| f.count() > 0 || f.unknown))
     }
 
     // ------------------------------------------------------------ progress
@@ -271,15 +271,15 @@ pub mod tests {
 
     pub fn target(id: &str, group: Group, admin: bool, on: bool) -> Target {
         Target {
-            id: id.into(),
-            group,
-            name: "Cache",
-            about: "Pages, pictures and scripts kept to open sites faster. They are downloaded again when needed; history, cookies and passwords stay.",
-            places: vec![Place { dir: std::path::PathBuf::from(format!("C:\\x\\{id}")), filter: Filter::All }],
-            kind: Kind::Files,
             admin,
             default_on: on,
-            process: &[],
+            ..Target::files(
+                id,
+                group,
+                "Cache",
+                "Pages, pictures and scripts kept to open sites faster. They are downloaded again when needed; history, cookies and passwords stay.",
+                vec![Place { dir: std::path::PathBuf::from(format!("C:\\x\\{id}")), filter: Filter::All }],
+            )
         }
     }
 
@@ -299,7 +299,7 @@ pub mod tests {
         app.set_found(2, found(40, 96_000_000));
         app.set_found(3, Found { bytes: 2_400_000_000, items: 310, ..Found::default() });
         app.set_found(4, found(5210, 1_310_000_000));
-        app.set_cleaned(5, Cleaned { bytes: 250_000_000, files: 900, failed: 12 });
+        app.set_cleaned(5, Cleaned { bytes: 250_000_000, files: 900, failed: 12, error: None });
         app.items[4].open = true;
         app
     }

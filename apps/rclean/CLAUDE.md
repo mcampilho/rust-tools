@@ -1,7 +1,7 @@
 # rclean — limpador portátil em Rust
 
 Mostra quanto ocupam os ficheiros temporários do sistema e as caches dos browsers e apaga, de vez, o que o
-utilizador marca e confirma. Um único executável (1,6 MB em Windows, 5,5 MB em Linux). Pedido do utilizador
+utilizador marca e confirma. Um único executável (1,8 MB em Windows, 5,5 MB em Linux). Pedido do utilizador
 (2026-11-13): limpar temporários do Windows e dos browsers, caches dos gestores de pacotes (Scoop, Chocolatey, pip,
 npm, Cargo, vcpkg…), entradas inválidas do registo e atalhos inválidos. Decidido nesse dia: temporários e caches
 apagados de vez (não para a Reciclagem); caches dos gestores pelos comandos de cada um (pastas só onde não há
@@ -11,7 +11,7 @@ comando); começar pelos temporários e browsers. Funcionalidades no `README.md`
 
 ```powershell
 ./dev.ps1 build --profile release-small -p rclean
-./dev.ps1 test -p rclean         # 16 testes
+./dev.ps1 test -p rclean         # 18 testes
 ./dev.ps1 clippy -p rclean --all-targets
 ./dev.ps1 test -p rclean --lib screenshots '--' --ignored   # apps/rclean/target/screens/*.png (here.png analisa este PC a sério)
 ```
@@ -33,6 +33,20 @@ Em Linux (WSL, `CARGO_TARGET_DIR=$HOME/rt-target`) os mesmos com `cargo`.
   utilizador, `my_uid` por `/proc/self`; pastas interiores para remover se vazias, das mais fundas para cima, só se
   também antigas no filtro de horas) e `clean` (apaga de vez, só-leitura também; o que falha conta como `failed`, um
   ficheiro já desaparecido não). Reciclagem: `SHQueryRecycleBinW`/`SHEmptyRecycleBinW` (todas as unidades).
+- `managers.rs` — fase 2 (2026-11-13): um grupo por gestor (`Group::Tool`), só se existir (`which`, sem os falsos do
+  `WindowsApps`; `real_file` lê os `.shim` do Scoop). `Kind::Command`: as pastas só medem (contadas em `items`, sem
+  lista, sem filtro de dono, sem "pastas por ler"), limpa o `Cmd` do gestor (`run`: sem janela; em Linux `root`
+  passa por `pkexec env K=V …`) e volta a medir para saber o que saiu; erro → `Cleaned::error` (fim da saída) no
+  resumo. `Locate::Ask` pergunta a pasta durante a análise (`npm config get cache` + `_cacache`, `yarn cache dir`,
+  `pnpm store path`, `go env GOCACHE`; o npm do Scoop guarda-a em `persist`). Scoop (`SCOOP` ou `~\scoop`): `cache rm *`
+  e versões antigas (`scoop_old_versions`: pastas de versão que não são o destino da junção `current`; `cleanup *`,
+  desmarcadas), Chocolatey (`admin`), pip (`python -m pip cache purge`), npm, Yarn, pnpm (`store prune`, desmarcado),
+  Go, NuGet (`http-cache`), Cargo e vcpkg (`Kind::Files`, sem comando). Linux: apt, dnf, zypper, pacman (`root`),
+  Flatpak `--unused` (`measure: false`: tamanho desconhecido, "?"), Snap `Locate::SnapRevisions` (`snap list --all`,
+  `disabled` → `snap remove n --revision=r`, comandos em `Found::commands`). Nomes e descrições marcados com `k("…")`
+  (o teste das traduções procura-os). Neste PC (2026-11-13): Scoop 40,3 GB de transferências e 27,2 GB em 132
+  versões antigas, pip 1,52 GB, npm 823 MB, Cargo 999 MB; no WSL: Cargo 314 MB, apt 11,6 MB, Snap 105 MB.
+  Comandos de limpeza não experimentados a sério.
 - `procs.rs` — processos a correr (ToolHelp; `/proc/*/comm` em Linux, nomes cortados a 15): browser aberto → aviso.
 - `app.rs` — `Item` (alvo, marca, `State`: `Waiting`, `Analysing`, `Found`, `Cleaning`, `Cleaned`, `NeedsAdmin` —
   não marcável, desmarcado e não guardado), `Row::Group`/`Row::Item`, marcas por item e grupo (`group_tick`),
@@ -54,8 +68,8 @@ Medido neste PC (2026-11-13, sem administrador): temporários 3,24 GB em 11 760 
 
 1. Feito (2026-11-13): temporários, relatórios de erros, despejos, miniaturas, shaders, Reciclagem/lixo, caches dos
    browsers; analisar, marcar, limpar.
-2. Caches dos gestores de pacotes pelos seus comandos (Scoop `cache rm`/`cleanup`, Chocolatey, pip, npm, Cargo,
-   vcpkg, winget; apt, dnf, Flatpak, Snap).
+2. Feito (2026-11-13): caches dos gestores de pacotes pelos seus comandos (Scoop, Chocolatey, pip, npm, Yarn, pnpm,
+   Go, NuGet; Cargo e vcpkg por pastas; apt, dnf, zypper, pacman, Flatpak, Snap).
 3. Atalhos inválidos (pode partilhar o leitor de `.lnk` do runinst, a passar para um crate).
 4. Entradas inválidas do registo, com cópia `.reg` antes (como os restos do runinst).
 

@@ -8,6 +8,7 @@
 use super::gfx::{Align, Color, FontId, Gfx, Rect};
 use super::theme::Theme;
 use crate::app::{App, Item, Row, State};
+use crate::clean::Cleaned;
 use crate::format;
 use crate::i18n::{tf, tr};
 use crate::targets::{Filter, Group, Kind};
@@ -92,7 +93,7 @@ pub fn group_label(g: Group) -> String {
     match g {
         Group::System if cfg!(windows) => "Windows".into(),
         Group::System => "Linux".into(),
-        Group::Browser(name) => name.to_string(),
+        Group::Browser(name) | Group::Tool(name) => name.to_string(),
     }
 }
 
@@ -198,6 +199,7 @@ fn check_box(g: &mut Gfx, x: f32, cy: f32, th: &Theme, s: f32, state: Tick, usab
 /// What an item holds now, as the Files and Size columns show it.
 fn counts(it: &Item) -> (String, String) {
     match &it.state {
+        State::Found(f) | State::Cleaning(f) if f.unknown => ("?".into(), "?".into()),
         State::Found(f) | State::Cleaning(f) => (format::count(f.count()), format::size(f.bytes)),
         State::Analysing => ("…".into(), "…".into()),
         _ => (String::new(), String::new()),
@@ -211,9 +213,11 @@ pub fn note_text(it: &Item) -> String {
         State::Analysing => tr("Analyzing…"),
         State::Cleaning(_) => tr("Cleaning…"),
         State::NeedsAdmin => tr("Needs administrator rights"),
+        State::Cleaned(c) if c.error.is_some() => tr("Its command did not work"),
         State::Cleaned(c) if c.failed > 0 => tf("{} freed; {} in use stayed", &[&format::size(c.bytes), &format::count(c.failed)]),
         State::Cleaned(c) => tf("{} freed", &[&format::size(c.bytes)]),
         State::Found(_) if it.open => tr("Open: some files may be in use"),
+        State::Found(f) if f.unknown => tr("Size known only after cleaning"),
         State::Found(f) if f.unreadable > 0 => tf("{} folders could not be read", &[&format::count(f.unreadable)]),
         State::Found(f) if f.count() == 0 => tr("Nothing to clean"),
         State::Found(_) => String::new(),
@@ -456,15 +460,32 @@ fn details_lines(app: &App) -> Vec<(String, u8)> {
             if it.open {
                 out.push((tr("Close it to clean everything: files in use are left as they are."), 3));
             }
+            if let State::Cleaned(Cleaned { error: Some(e), .. }) = &it.state {
+                out.push((e.clone(), 3));
+            }
             out.push((tr("Where"), 1));
             if it.target.kind == Kind::RecycleBin {
                 out.push((tr("The Recycle Bin of every drive."), 3));
             }
-            for pl in &it.target.places {
-                out.push((pl.dir.to_string_lossy().into_owned(), 2));
-                out.push((filter_text(pl.filter), 3));
+            if it.target.kind == Kind::Command {
+                // Where its manager said, and the command that cleans it.
+                let found = it.found();
+                let dirs: Vec<String> = found.map(|f| f.dirs_found.iter().map(|d| d.to_string_lossy().into_owned()).collect()).unwrap_or_default();
+                let dirs = if dirs.is_empty() { it.target.places.iter().map(|p| p.dir.to_string_lossy().into_owned()).collect() } else { dirs };
+                out.extend(dirs.into_iter().map(|d| (d, 2)));
+                out.push((tr("Cleaned by its own command"), 1));
+                let cmds = found.map(|f| &f.commands).filter(|c| !c.is_empty()).unwrap_or(&it.target.commands);
+                out.extend(cmds.iter().map(|c| (c.text(), 3)));
+                if cmds.iter().any(|c| c.root) {
+                    out.push((tr("It needs root: pkexec asks for the password."), 3));
+                }
+            } else {
+                for pl in &it.target.places {
+                    out.push((pl.dir.to_string_lossy().into_owned(), 2));
+                    out.push((filter_text(pl.filter), 3));
+                }
+                out.push((tr("Files are deleted for good, not to the Recycle Bin."), 3));
             }
-            out.push((tr("Files are deleted for good, not to the Recycle Bin."), 3));
         }
     }
     out
@@ -604,7 +625,8 @@ mod tests {
                 app.set_found(i, f);
             }
         }
-        shot("here", &app, false, Hot::None, 1200, 700);
+        app.select(app.rows.len() - 1);
+        shot("here", &app, false, Hot::None, 1200, 1000);
     }
 
     fn rt_sys_admin() -> bool {

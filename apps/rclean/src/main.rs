@@ -169,7 +169,7 @@ impl Shell {
             .app
             .chosen()
             .into_iter()
-            .filter_map(|i| self.app.items[i].found().filter(|f| f.count() > 0).map(|f| (i, self.app.items[i].target.clone(), f.clone())))
+            .filter_map(|i| self.app.items[i].found().filter(|f| f.count() > 0 || f.unknown).map(|f| (i, self.app.items[i].target.clone(), f.clone())))
             .collect();
         if work.is_empty() {
             return;
@@ -179,7 +179,10 @@ impl Shell {
         text += "\n\n";
         text += &work
             .iter()
-            .map(|(i, t, f)| format!("  {} — {}: {}", view::group_label(t.group), tr(t.name), format::size(f.bytes)) + if self.app.items[*i].open { " *" } else { "" })
+            .map(|(i, t, f)| {
+                let size = if f.unknown { "?".to_string() } else { format::size(f.bytes) };
+                format!("  {} — {}: {size}", view::group_label(t.group), tr(t.name)) + if self.app.items[*i].open { " *" } else { "" }
+            })
             .collect::<Vec<_>>()
             .join("\n");
         if work.iter().any(|(i, _, _)| self.app.items[*i].open) {
@@ -245,6 +248,22 @@ impl Shell {
                 text += "\n\n";
                 text += &tf("{} files were in use or could not be deleted, and stayed.", &[&format::count(c.failed)]);
             }
+            // What a package manager's command said when it did not work.
+            let errors: Vec<String> = self
+                .app
+                .items
+                .iter()
+                .filter_map(|it| match &it.state {
+                    State::Cleaned(Cleaned { error: Some(e), .. }) => Some(format!("  {} — {}: {e}", view::group_label(it.target.group), tr(it.target.name))),
+                    _ => None,
+                })
+                .collect();
+            if !errors.is_empty() {
+                text += "\n\n";
+                text += &tf("Did not work ({}):", &[&errors.len().to_string()]);
+                text += "\n";
+                text += &errors.join("\n");
+            }
             self.info(&tr("Clean"), &text);
             self.analyse();
         }
@@ -302,7 +321,7 @@ impl Shell {
             Command::Shortcuts => self.info(&tr("Keyboard shortcuts"), &shortcuts_text()),
             Command::About => {
                 let text = tf(
-                    "rclean {}\n\nCleans the temporary files of the system and the caches of the browsers, written in Rust.\nNo telemetry, no network access.\n\nMIT License.",
+                    "rclean {}\n\nCleans the temporary files of the system and the caches of the browsers and package managers, written in Rust.\nNo telemetry, no network access.\n\nMIT License.",
                     &[env!("CARGO_PKG_VERSION")],
                 );
                 self.info(&tr("About rclean"), &text);
@@ -610,7 +629,8 @@ impl ApplicationHandler<UserEvent> for Shell {
 
 const USAGE: &str = "rclean
 
-  Cleans the temporary files of the system and the caches of the browsers:
+  Cleans the temporary files of the system and the caches of the browsers
+  and package managers:
   it shows how much each holds, and deletes for good what you tick, after
   asking. With administrator rights, also Windows' own folders.
 

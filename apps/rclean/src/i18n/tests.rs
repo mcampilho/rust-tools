@@ -88,7 +88,8 @@ fn source_strings_have_translations() {
         }
         let full = std::fs::read_to_string(&p).unwrap();
         let src = full.split("#[cfg(test)]").next().unwrap_or("");
-        for call in ["tr(\"", "tf(\"", "tf(\n                    \""] {
+        // `k("…")` marks the names and descriptions of the package managers.
+        for call in ["tr(\"", "tf(\"", "tf(\n                    \"", "k(\""] {
             let mut rest = src;
             while let Some(i) = rest.find(call) {
                 let start = src.len() - rest.len() + i;

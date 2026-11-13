@@ -15,8 +15,8 @@ Monorepo (workspace Cargo) com nove aplicações, cada uma um único `.exe`, e o
   extrai zip, 7z, tar e ficheiros comprimidos; hashes.
 - `apps/runinst` — desinstalador: lista os programas de todos os utilizadores e os atalhos, desinstala e remove os
   restos; separadores para Scoop, Chocolatey, DISM, npm, pip, Cargo e vcpkg; em Linux, dpkg, rpm, Flatpak e Snap.
-- `apps/rclean` — limpador (em curso, por fases): temporários do sistema e caches dos browsers, apagados de vez
-  depois de confirmar; a seguir caches dos gestores de pacotes, atalhos e registo.
+- `apps/rclean` — limpador (em curso, por fases): temporários do sistema, caches dos browsers e dos gestores de pacotes,
+  apagados de vez depois de confirmar; a seguir atalhos e registo.
 
 Cada aplicação tem o seu `CLAUDE.md` com arquitetura e regras próprias.
 
