@@ -10,7 +10,9 @@ pub mod assoc;
 pub mod clipboard;
 pub mod darkmode;
 pub mod dialogs;
+pub mod icon;
 pub mod menu;
+pub mod reg;
 pub mod tray;
 pub mod window;
 
@@ -151,6 +153,102 @@ pub fn elevated() -> bool {
     // SAFETY: closes the token opened above.
     unsafe { CloseHandle(token) };
     ok && e.TokenIsElevated != 0
+}
+
+/// The security identifier of the user running this process, as text
+/// (`S-1-5-21-…`): the name of their key under `HKEY_USERS`.
+pub fn user_sid() -> Option<String> {
+    use windows_sys::Win32::Foundation::{CloseHandle, LocalFree, HANDLE};
+    use windows_sys::Win32::Security::Authorization::ConvertSidToStringSidW;
+    use windows_sys::Win32::Security::{GetTokenInformation, TokenUser, TOKEN_QUERY, TOKEN_USER};
+    use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
+    let mut token: HANDLE = std::ptr::null_mut();
+    // SAFETY: the pseudo-handle of this process; the token is closed below.
+    if unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) } == 0 {
+        return None;
+    }
+    // TOKEN_USER is followed by the SID it points to: a buffer of u64s keeps it aligned.
+    let mut buf = vec![0u64; 64];
+    let mut len = 0u32;
+    // SAFETY: the buffer is as large as stated; `token` is open.
+    let ok = unsafe { GetTokenInformation(token, TokenUser, buf.as_mut_ptr().cast(), (buf.len() * 8) as u32, &mut len) } != 0;
+    // SAFETY: closes the token opened above.
+    unsafe { CloseHandle(token) };
+    if !ok {
+        return None;
+    }
+    // SAFETY: the buffer holds a TOKEN_USER written by the call above.
+    let user = unsafe { &*(buf.as_ptr() as *const TOKEN_USER) };
+    let mut text: windows_sys::core::PWSTR = std::ptr::null_mut();
+    // SAFETY: a valid SID from the token; the string is freed with LocalFree.
+    if unsafe { ConvertSidToStringSidW(user.User.Sid, &mut text) } == 0 || text.is_null() {
+        return None;
+    }
+    // SAFETY: a NUL-terminated string allocated by the system.
+    let s = unsafe {
+        let mut n = 0;
+        while *text.add(n) != 0 {
+            n += 1;
+        }
+        let s = String::from_utf16_lossy(std::slice::from_raw_parts(text, n));
+        LocalFree(text.cast());
+        s
+    };
+    Some(s)
+}
+
+/// The user of the desktop this process runs on: the one who logged on.
+/// It differs from the user running the process when it was started as
+/// another (an administrator's account, asked for by Windows).
+pub fn session_user() -> Option<String> {
+    use windows_sys::Win32::System::RemoteDesktop::{WTSFreeMemory, WTSQuerySessionInformationW, WTSUserName, WTS_CURRENT_SERVER_HANDLE, WTS_CURRENT_SESSION};
+    let mut buf: windows_sys::core::PWSTR = std::ptr::null_mut();
+    let mut len = 0u32;
+    // SAFETY: asks this session's user name; the buffer is freed with WTSFreeMemory.
+    let ok = unsafe { WTSQuerySessionInformationW(WTS_CURRENT_SERVER_HANDLE, WTS_CURRENT_SESSION, WTSUserName, &mut buf, &mut len) } != 0;
+    if !ok || buf.is_null() {
+        return None;
+    }
+    // SAFETY: `len` bytes of UTF-16 written by the system.
+    let s = unsafe {
+        let s = from_wide(std::slice::from_raw_parts(buf, (len / 2) as usize));
+        WTSFreeMemory(buf.cast());
+        s
+    };
+    (!s.is_empty()).then_some(s)
+}
+
+/// The SID (as text) of an account by its name.
+pub fn sid_of(name: &str) -> Option<String> {
+    use windows_sys::Win32::Foundation::LocalFree;
+    use windows_sys::Win32::Security::Authorization::ConvertSidToStringSidW;
+    use windows_sys::Win32::Security::{LookupAccountNameW, SID_NAME_USE};
+    let n = wide(name);
+    let mut sid = vec![0u8; 256];
+    let mut sid_len = sid.len() as u32;
+    let mut domain = vec![0u16; 256];
+    let mut domain_len = domain.len() as u32;
+    let mut kind: SID_NAME_USE = 0;
+    // SAFETY: the buffers are as large as stated.
+    let ok = unsafe { LookupAccountNameW(std::ptr::null(), n.as_ptr(), sid.as_mut_ptr().cast(), &mut sid_len, domain.as_mut_ptr(), &mut domain_len, &mut kind) } != 0;
+    if !ok {
+        return None;
+    }
+    let mut text: windows_sys::core::PWSTR = std::ptr::null_mut();
+    // SAFETY: a valid SID from the call above; the string is freed with LocalFree.
+    if unsafe { ConvertSidToStringSidW(sid.as_mut_ptr().cast(), &mut text) } == 0 || text.is_null() {
+        return None;
+    }
+    // SAFETY: a NUL-terminated string allocated by the system.
+    unsafe {
+        let mut k = 0;
+        while *text.add(k) != 0 {
+            k += 1;
+        }
+        let s = String::from_utf16_lossy(std::slice::from_raw_parts(text, k));
+        LocalFree(text.cast());
+        Some(s)
+    }
 }
 
 /// Starts this program again with administrator rights, with `args`

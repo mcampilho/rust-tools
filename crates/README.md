@@ -2,15 +2,15 @@
 
 [Versão portuguesa](README.pt.md)
 
-The code that rcalc, rpad, rview, rsize, rdup, rwall and rpack have in common. A new tool of the same kind
+The code that rcalc, rpad, rview, rsize, rdup, rwall, rpack and runinst have in common. A new tool of the same kind
 (a single executable that draws its own interface on the CPU) starts from these
 crates and only writes what is its own.
 
 | Crate | What it gives | Depends on |
 | --- | --- | --- |
-| `rt-core` | Ten UI languages (`i18n`), settings in a `key=value` file with portable mode (`store`), the menu tree (`menu`) | nothing |
+| `rt-core` | Ten UI languages (`i18n`), settings in a `key=value` file with portable mode (`store`), the menu tree (`menu`), a small JSON reader (`json`), a line of text being edited: caret, selection, words, paste (`textedit`) | nothing |
 | `rt-gfx` | Drawing with tiny-skia and text with ab_glyph (`gfx`), monospace text layout (`layout`), menus drawn in the window (`menu`), a message panel and text cut with an ellipsis (`dialog`) | rt-core, tiny-skia, ab_glyph |
-| `rt-sys` | Clipboard, theme, language, links, local time, the Recycle Bin or trash; on Windows: main window messages, single instance, administrator rights, native and dark menus, dialogs, tray icon with a menu of the app's own (`tray::popup`), the console a program was started from (`print_to_console`), Explorer integration for the current user (`assoc`: file types and folders), what file types are called (`file_type_name`); on Linux: zenity/kdialog dialogs, single instance over a Unix socket, StatusNotifierItem icon (with a menu of the app's own: `Shell::with_items`) | rt-core, windows-sys / arboard, ksni, libc |
+| `rt-sys` | Clipboard, theme, language, links, local time, the Recycle Bin or trash; on Windows: main window messages, single instance, administrator rights, native and dark menus, dialogs, tray icon with a menu of the app's own (`tray::popup`), the console a program was started from (`print_to_console`), Explorer integration for the current user (`assoc`: file types and folders), what file types are called (`file_type_name`), reading the registry in either view and loading a user's hive (`reg`), the icons of programs (`icon`), the user's SID (`user_sid`); on Linux: zenity/kdialog dialogs, single instance over a Unix socket, StatusNotifierItem icon (with a menu of the app's own: `Shell::with_items`) | rt-core, windows-sys / arboard, ksni, libc |
 | `rt-scan` | Reading a folder tree the fastest way there is: the Everything index, the NTFS table read directly, or folder by folder (`scan_with`); the compact tree it is read into (`model`), the drives and the space of a folder's volume (`volumes`), sizes and dates as shown (`format`) | rt-core, rt-sys, windows-sys / libc |
 | `rt-ui` | The window shell: making the window and its surface (`window`), the title bar and menu theme, keyboard and mouse of the drawn menus (`menus`), the message panel for About, shortcuts and help (`Message`), resident mode on Linux (`resident`), the Explorer menu of folders (`explorer`), and the controls of settings pages: buttons, check boxes, text boxes, steppers (`controls`) | rt-core, rt-gfx, rt-sys, winit, softbuffer |
 | `rt-syntax` | Language definitions and a line-at-a-time lexer for syntax highlighting | nothing |

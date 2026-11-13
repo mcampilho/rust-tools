@@ -1,6 +1,6 @@
 # rust-tools — ferramentas portáteis em Rust para Windows
 
-Monorepo (workspace Cargo) com sete aplicações, cada uma um único `.exe`, e os crates que partilham
+Monorepo (workspace Cargo) com oito aplicações, cada uma um único `.exe`, e os crates que partilham
 (`crates/`):
 
 - `apps/rcalc` — calculadora.
@@ -13,6 +13,8 @@ Monorepo (workspace Cargo) com sete aplicações, cada uma um único `.exe`, e o
   trabalho (relógios, calendário, notas, anotações, meteorologia da Open-Meteo, fences, fotos).
 - `apps/rpack` — arquivador com navegador de ficheiros (em curso, por fases): cria 7z, zip e tar; abre, testa e
   extrai zip, 7z, tar e ficheiros comprimidos; hashes.
+- `apps/runinst` — desinstalador (em curso, por fases): lista os programas de todos os utilizadores e os atalhos,
+  desinstala e remove os restos.
 
 Cada aplicação tem o seu `CLAUDE.md` com arquitetura e regras próprias.
 
@@ -30,7 +32,7 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
 ## Regras comuns
 
 - "Pronto" = sem avisos, clippy limpo, testes a passar.
-- Perfis só na raiz do `Cargo.toml`. rcalc, rpad, rsize e rdup usam `release-small` (`panic = "abort"`);
+- Perfis só na raiz do `Cargo.toml`. rcalc, rpad, rsize, rdup e runinst usam `release-small` (`panic = "abort"`);
   o rview, o rwall e o rpack usam sempre `release`, porque precisam de `catch_unwind`.
 - Compilar para distribuição com `./dev.ps1 dist`, que escolhe o perfil de cada aplicação.
 - `README.md` e `README.pt.md` são atualizados em conjunto, na raiz e em cada aplicação.
@@ -69,7 +71,7 @@ chamadas). A `libxkbcommon-x11` e a `libxcb-xkb1` estão extraídas sem sudo em 
 O código comum está em `crates/` (ver `crates/README.pt.md`): `rt-core` (traduções, definições, árvore de
 menus), `rt-gfx` (desenho, texto, menus desenhados), `rt-sys` (Windows e Linux), `rt-scan` (leitura dos
 discos: Everything, MFT do NTFS, pasta a pasta; a árvore `model`, `volumes` e `format`; usado pelo rsize e
-pelo rdup), `rt-ui` (base da janela: criar a janela, tema, menus desenhados, painel de mensagem, modo residente em Linux, menu do Explorador, controlos das páginas de definições), `rt-syntax` (realce) e `rt-build` (recursos do `.exe`). As aplicações guardam módulos pequenos com o mesmo nome de antes
+pelo rdup; o runinst usa a pesquisa livre `everything::search` para os restos), `rt-ui` (base da janela: criar a janela, tema, menus desenhados, painel de mensagem, modo residente em Linux, menu do Explorador, controlos das páginas de definições), `rt-syntax` (realce) e `rt-build` (recursos do `.exe`). As aplicações guardam módulos pequenos com o mesmo nome de antes
 (`ui/gfx.rs`, `storage.rs`, `win/mod.rs`, `linux/mod.rs`...) que reexportam dos crates e lhes dão a
 identidade da aplicação. Uma correção num destes assuntos faz-se no crate, uma vez.
 

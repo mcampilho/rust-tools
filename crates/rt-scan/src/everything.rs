@@ -166,6 +166,16 @@ pub fn query(root: &str, cancel: &std::sync::atomic::AtomicBool) -> Result<Vec<I
     win::query(&search_for(root), cancel)
 }
 
+/// Asks the running Everything for a search in its own syntax
+/// (`folder:wfn:"name"`...).
+#[cfg(windows)]
+pub fn search(text: &str, cancel: &std::sync::atomic::AtomicBool) -> Result<Vec<Item>, Skip> {
+    if !win::running() {
+        return Err(Skip::NotRunning);
+    }
+    win::query(text, cancel)
+}
+
 /// Reads `root` from the index of Everything, when it is running and
 /// covers the folder.
 #[cfg(windows)]

@@ -2,15 +2,15 @@
 
 [English version](README.md)
 
-O código que o rcalc, o rpad, o rview, o rsize, o rdup, o rwall e o rpack têm em comum. Uma nova ferramenta do mesmo
+O código que o rcalc, o rpad, o rview, o rsize, o rdup, o rwall, o rpack e o runinst têm em comum. Uma nova ferramenta do mesmo
 tipo (um único executável que desenha a sua própria interface no CPU) parte destes
 crates e só escreve o que é seu.
 
 | Crate | O que dá | Depende de |
 | --- | --- | --- |
-| `rt-core` | Dez línguas de interface (`i18n`), definições num ficheiro `chave=valor` com modo portátil (`store`), a árvore de menus (`menu`) | nada |
+| `rt-core` | Dez línguas de interface (`i18n`), definições num ficheiro `chave=valor` com modo portátil (`store`), a árvore de menus (`menu`), um leitor de JSON pequeno (`json`), uma linha de texto em edição: cursor, seleção, palavras, colar (`textedit`) | nada |
 | `rt-gfx` | Desenho com tiny-skia e texto com ab_glyph (`gfx`), disposição de texto monoespaçado (`layout`), menus desenhados na janela (`menu`), painel de mensagens e texto cortado com reticências (`dialog`) | rt-core, tiny-skia, ab_glyph |
-| `rt-sys` | Clipboard, tema, língua, links, hora local, Reciclagem ou lixo; em Windows: mensagens da janela principal, instância única, direitos de administrador, menus nativos e escuros, diálogos, ícone de notificação com um menu da própria aplicação (`tray::popup`), a consola de onde um programa foi arrancado (`print_to_console`), integração com o Explorador para o utilizador atual (`assoc`: tipos de ficheiro e pastas), o nome dos tipos de ficheiro (`file_type_name`); em Linux: diálogos zenity/kdialog, instância única por socket Unix, ícone StatusNotifierItem (com um menu da própria aplicação: `Shell::with_items`) | rt-core, windows-sys / arboard, ksni, libc |
+| `rt-sys` | Clipboard, tema, língua, links, hora local, Reciclagem ou lixo; em Windows: mensagens da janela principal, instância única, direitos de administrador, menus nativos e escuros, diálogos, ícone de notificação com um menu da própria aplicação (`tray::popup`), a consola de onde um programa foi arrancado (`print_to_console`), integração com o Explorador para o utilizador atual (`assoc`: tipos de ficheiro e pastas), o nome dos tipos de ficheiro (`file_type_name`), ler o registo nas duas vistas e carregar a hive de um utilizador (`reg`), os ícones dos programas (`icon`), o SID do utilizador (`user_sid`); em Linux: diálogos zenity/kdialog, instância única por socket Unix, ícone StatusNotifierItem (com um menu da própria aplicação: `Shell::with_items`) | rt-core, windows-sys / arboard, ksni, libc |
 | `rt-scan` | Leitura de uma árvore de pastas da forma mais rápida que houver: o índice do Everything, a tabela do NTFS lida diretamente, ou pasta a pasta (`scan_with`); a árvore compacta onde fica (`model`), os discos e o espaço do volume de uma pasta (`volumes`), tamanhos e datas como se mostram (`format`) | rt-core, rt-sys, windows-sys / libc |
 | `rt-ui` | A base da janela: criar a janela e a superfície (`window`), o tema da barra de título e dos menus, teclado e rato dos menus desenhados (`menus`), o painel de mensagem do Acerca, atalhos e ajuda (`Message`), o modo residente em Linux (`resident`), o menu do Explorador nas pastas (`explorer`), e os controlos das páginas de definições: botões, caixas de escolha, campos de texto, `steppers` (`controls`) | rt-core, rt-gfx, rt-sys, winit, softbuffer |
 | `rt-syntax` | Definições de linguagens e um lexer linha a linha para o realce de sintaxe | nada |

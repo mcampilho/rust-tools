@@ -15,6 +15,7 @@ uses the network, to download the pictures it puts on the desktop.
 | [rdup](apps/rdup/README.md) | Duplicate file finder: files with the same contents on several drives and folders at once, by size and BLAKE3 hashes; reads the drives like rsize | 1.9 MB | 5.6 MB |
 | [rwall](apps/rwall/README.md) | Wallpaper changer in the notification area: every day, twice or four times a day, weekly, monthly or every few minutes, with pictures from Bing, NASA, Wallhaven, Picsum or your own folders; on Windows also a dynamic wallpaper behind the icons (video, animated GIF or a drawn scene) and desktop widgets (clocks, calendar, notes, weather, fences, photos) | 3.7 MB | 6.8 MB |
 | [rpack](apps/rpack/README.md) | Archiver with a file browser: makes 7z, zip and tar archives; opens, tests and extracts zip, 7z, tar and files compressed with gzip, bzip2, xz, lzma, lzip, zstd, lz4 or brotli, found by their contents; hashes from CRC-32 to BLAKE3; passwords, rar, iso and more come next | 4.8 MB | 9.3 MB |
+| [runinst](apps/runinst/README.md) | Uninstaller: the programs installed for everyone, for you and (as administrator) for every other user, from the registry, Windows Installer, the Store and winget in one list, Scoop and Chocolatey in tabs, with shortcuts, icons and newer versions; uninstalls one or several in a row (normal or quiet, waiting for what each uninstaller starts); then finds and removes the leftovers (folders, shortcuts, startup entries, registry keys, services, scheduled tasks; `.reg` copy and Recycle Bin), also of programs removed before | 2.1 MB | 5.7 MB |
 
 They all draw their own interface on the CPU (winit, softbuffer, tiny-skia and
 ab_glyph), with no GPU and no UI toolkit. They come in 10 languages and follow
@@ -45,9 +46,10 @@ is one: from `$env:RUST_TOOLS_MSVC_ENV`, or from `\Portable\Tools\dev\msvc` on
 | rdup | `cargo build --profile release-small -p rdup` | `target\release-small\rdup.exe` |
 | rwall | `cargo build --release -p rwall` | `target\release\rwall.exe` |
 | rpack | `cargo build --release -p rpack` | `target\release\rpack.exe` |
+| runinst | `cargo build --profile release-small -p runinst` | `target\release-small\runinst.exe` |
 
 The two profiles exist because `panic` cannot be set per package in a workspace.
-`release-small` aborts on panic, which makes rcalc, rpad, rsize and rdup about 20% smaller.
+`release-small` aborts on panic, which makes rcalc, rpad, rsize, rdup and runinst about 20% smaller.
 rview needs `release`: it catches a panic from the PDF library, so that a
 malformed PDF cannot close the program. rwall uses it too, for the same reason
 with pictures from the web, and rpack with damaged archives. `./dev.ps1 dist` picks the right profile
@@ -70,7 +72,7 @@ X11 and Wayland. What
 differs from Windows is in each README: [rcalc](apps/rcalc/README.md#linux),
 [rpad](apps/rpad/README.md#linux), [rview](apps/rview/README.md#linux),
 [rsize](apps/rsize/README.md#linux), [rdup](apps/rdup/README.md#linux),
-[rwall](apps/rwall/README.md#linux) and [rpack](apps/rpack/README.md#linux).
+[rwall](apps/rwall/README.md#linux), [rpack](apps/rpack/README.md#linux) and [runinst](apps/runinst/README.md#linux).
 They were checked under WSL2, not on a real Linux desktop.
 
 Under WSLg, the title bar these tools draw on Wayland can crash its compositor,
@@ -90,6 +92,7 @@ rust-tools/
 │  ├─ rpack/
 │  ├─ rpad/
 │  ├─ rsize/
+│  ├─ runinst/
 │  ├─ rview/
 │  └─ rwall/
 └─ crates/         code shared by the apps

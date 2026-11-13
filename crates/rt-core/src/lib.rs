@@ -10,5 +10,7 @@
 //! No dependencies: everything here also runs in tests without a window.
 
 pub mod i18n;
+pub mod json;
 pub mod menu;
 pub mod store;
+pub mod textedit;

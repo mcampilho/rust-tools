@@ -2888,6 +2888,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "runinst"
+version = "0.1.0"
+dependencies = [
+ "accesskit",
+ "accesskit_winit",
+ "rt-build",
+ "rt-core",
+ "rt-gfx",
+ "rt-scan",
+ "rt-sys",
+ "rt-ui",
+ "softbuffer",
+ "tiny-skia",
+ "windows",
+ "windows-sys 0.59.0",
+ "winit",
+]
+
+[[package]]
 name = "rustc-hash"
 version = "2.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

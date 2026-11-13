@@ -1,0 +1,192 @@
+# runinst's strings, looked up before the common table of rt-core.
+# Columns: en-US key, en-GB, de-DE, es-ES, fr-FR, it-IT, ja-JP, pt-BR, pt-PT, zh-CN (tab-separated).
+# An empty cell falls back (en-GB and pt-PT to en-US and pt-BR); edit by hand, one row per string.
+&File		&Datei	&Archivo	&Fichier	&File	ファイル(&F)	&Arquivo	&Ficheiro	文件(&F)
+&View		&Ansicht	&Ver	&Affichage	&Visualizza	表示(&V)	E&xibir	&Ver	视图(&V)
+&Help		&Hilfe	A&yuda	A&ide	&Guida	ヘルプ(&H)	A&juda	A&juda	帮助(&H)
+T&heme		&Design	&Tema	&Thème	&Tema	テーマ(&H)	&Tema		主题(&H)
+Display &Language		&Anzeigesprache	&Idioma de la interfaz	&Langue de l’interface	&Lingua dell’interfaccia	表示言語(&L)	&Idioma da interface		界面语言(&L)
+Use &System Setting		&Systemeinstellung verwenden	Usar configuración del &sistema	Utiliser le paramètre du &système	Usa impostazione di &sistema	システム設定を使用(&S)	Usar configuração do &sistema	Usar definição do &sistema	使用系统设置(&S)
+&Light		&Hell	&Claro	&Clair	&Chiaro	ライト(&L)	&Claro		浅色(&L)
+&Dark		&Dunkel	&Oscuro	S&ombre	Sc&uro	ダーク(&D)	&Escuro		深色(&D)
+&Keyboard Shortcuts		&Tastenkombinationen	&Métodos abreviados de teclado	&Raccourcis clavier	&Tasti di scelta rapida	キーボード ショートカット(&K)	&Atalhos de teclado	&Atalhos de teclado	键盘快捷方式(&K)
+E&xit		&Beenden	&Salir	&Quitter	&Esci	終了(&X)	&Sair	&Sair	退出(&X)
+&Refresh		A&ktualisieren	&Actualizar	&Actualiser	A&ggiorna	最新の情報に更新(&R)	&Atualizar	&Atualizar	刷新(&R)
+Keyboard shortcuts		Tastenkombinationen	Métodos abreviados de teclado	Raccourcis clavier	Tasti di scelta rapida	キーボード ショートカット	Atalhos de teclado		键盘快捷方式
+Name		Name	Nombre	Nom	Nome	名前	Nome	Nome	名称
+Size		Größe	Tamaño	Taille	Dimensione	サイズ	Tamanho	Tamanho	大小
+Copied to the clipboard.		In die Zwischenablage kopiert.	Copiado al portapapeles.	Copié dans le presse-papiers.	Copiato negli appunti.	クリップボードにコピーしました。	Copiado para a área de transferência.		已复制到剪贴板。
+Could not save {}: {}		{} konnte nicht gespeichert werden: {}	No se pudo guardar {}: {}	Impossible d’enregistrer {} : {}	Impossibile salvare {}: {}	{} を保存できませんでした: {}	Não foi possível salvar {}: {}	Não foi possível guardar {}: {}	无法保存 {}：{}
+Folder		Ordner	Carpeta	Dossier	Cartella	フォルダー	Pasta		文件夹
+Restart as Ad&ministrator		Als Administrator neu &starten	Reiniciar como ad&ministrador	Redémarrer en tant qu’ad&ministrateur	Riavvia come a&mministratore	管理者として再起動(&M)	Reiniciar como ad&ministrador	Reiniciar como ad&ministrador	以管理员身份重新启动(&M)
+&Export to CSV...		Als CSV e&xportieren...	&Exportar a CSV...	&Exporter en CSV...	Es&porta in CSV...	CSV にエクスポート(&E)...	&Exportar para CSV...	&Exportar para CSV...	导出为 CSV(&E)...
+CSV files		CSV-Dateien	Archivos CSV	Fichiers CSV	File CSV	CSV ファイル	Arquivos CSV	Ficheiros CSV	CSV 文件
+The list was saved to {}.		Die Liste wurde in {} gespeichert.	La lista se guardó en {}.	La liste a été enregistrée dans {}.	L’elenco è stato salvato in {}.	一覧を {} に保存しました。	A lista foi salva em {}.	A lista foi guardada em {}.	列表已保存到 {}。
+&Program		&Programm	&Programa	&Programme	&Programma	プログラム(&P)	&Programa	&Programa	程序(&P)
+&About runinst		Ü&ber runinst	&Acerca de runinst	À &propos de runinst	&Informazioni su runinst	runinst について(&A)	&Sobre o runinst	A&cerca do runinst	关于 runinst(&A)
+About runinst		Über runinst	Acerca de runinst	À propos de runinst	Informazioni su runinst	runinst について	Sobre o runinst	Acerca do runinst	关于 runinst
+Open the Install &Folder		&Installationsordner öffnen	Abrir la &carpeta de instalación	Ouvrir le &dossier d’installation	Apri la &cartella di installazione	インストール フォルダーを開く(&F)	Abrir a &pasta de instalação	Abrir a &pasta de instalação	打开安装文件夹(&F)
+Copy the &Name		&Namen kopieren	Copiar el &nombre	Copier le &nom	Copia il &nome	名前をコピー(&N)	Copiar o &nome	Copiar o &nome	复制名称(&N)
+Copy the &Uninstall Command		&Deinstallationsbefehl kopieren	Copiar el comando de &desinstalación	Copier la commande de dés&installation	Copia il comando di &disinstallazione	アンインストール コマンドをコピー(&U)	Copiar o comando de &desinstalação	Copiar o comando de &desinstalação	复制卸载命令(&U)
+Copy the Registry &Key		Registrierungs&schlüssel kopieren	Copiar la cla&ve del registro	Copier la &clé de registre	Copia la chiave di &registro	レジストリ キーをコピー(&K)	Copiar a &chave do registro	Copiar a &chave do registo	复制注册表项(&K)
+Copy All the &Details		&Alle Details kopieren	Copiar &todos los detalles	Copier &tous les détails	Copia &tutti i dettagli	すべての詳細をコピー(&D)	Copiar &todos os detalhes	Copiar &todos os detalhes	复制全部详细信息(&D)
+&Clear the Search		Suche &leeren	&Borrar la búsqueda	Effacer la &recherche	&Cancella la ricerca	検索をクリア(&C)	&Limpar a pesquisa	&Limpar a pesquisa	清除搜索(&C)
+&All Programs		Alle &Programme	Todos los &programas	Tous les &programmes	Tutti i &programmi	すべてのプログラム(&A)	Todos os &programas	Todos os &programas	全部程序(&A)
+For &Everyone		Für alle &Benutzer	Para todos los &usuarios	Pour tout le &monde	Per tutti gli &utenti	すべてのユーザー(&E)	Para todos os &usuários	Para todos os &utilizadores	所有用户(&E)
+For &Me Only		Nur für &mich	Solo para &mí	Pour moi s&eulement	Solo per &me	自分のみ(&M)	Só para &mim	Só para &mim	仅限我(&M)
+For &Other Users		Für and&ere Benutzer	Para &otros usuarios	Pour les &autres utilisateurs	Per gli &altri utenti	ほかのユーザー(&O)	Para &outros usuários	Para &outros utilizadores	其他用户(&O)
+&System Components		&Systemkomponenten	Componentes del &sistema	Composants &système	Componenti di &sistema	システム コンポーネント(&S)	Componentes do &sistema	Componentes do &sistema	系统组件(&S)
+&Updates		&Updates	Actuali&zaciones	Mises à &jour	Aggi&ornamenti	更新プログラム(&U)	Atuali&zações	Atuali&zações	更新(&U)
+Programs		Programme	Programas	Programmes	Programmi	プログラム	Programas		程序
+Everyone		Alle	Todos	Tout le monde	Tutti	すべてのユーザー	Todos		所有用户
+Me		Ich	Yo	Moi	Io	自分	Eu		我
+Publisher		Herausgeber	Editor	Éditeur	Editore	発行元	Editor		发布者
+Version		Version	Versión	Version	Versione	バージョン	Versão		版本
+Installed		Installiert	Instalado	Installé	Installato	インストール日	Instalado		安装日期
+For		Für	Para	Pour	Per	対象	Para		适用于
+Kind		Art	Tipo	Type	Tipo	種類	Tipo		类型
+Install folder		Installationsordner	Carpeta de instalación	Dossier d’installation	Cartella di installazione	インストール フォルダー	Pasta de instalação		安装文件夹
+Uninstall command		Deinstallationsbefehl	Comando de desinstalación	Commande de désinstallation	Comando di disinstallazione	アンインストール コマンド	Comando de desinstalação		卸载命令
+Quiet uninstall command		Befehl für stille Deinstallation	Comando de desinstalación silenciosa	Commande de désinstallation silencieuse	Comando di disinstallazione silenziosa	サイレント アンインストール コマンド	Comando de desinstalação silenciosa		静默卸载命令
+Modify command		Änderungsbefehl	Comando de modificación	Commande de modification	Comando di modifica	変更コマンド	Comando de modificação		修改命令
+Product code		Produktcode	Código de producto	Code de produit	Codice prodotto	製品コード	Código do produto		产品代码
+Registry key		Registrierungsschlüssel	Clave del registro	Clé de registre	Chiave di registro	レジストリ キー	Chave do registro	Chave do registo	注册表项
+Registry values		Registrierungswerte	Valores del registro	Valeurs du registre	Valori del registro	レジストリの値	Valores do registro	Valores do registo	注册表值
+64-bit		64-Bit	64 bits	64 bits	64 bit	64 ビット	64 bits		64 位
+32-bit		32-Bit	32 bits	32 bits	32 bit	32 ビット	32 bits		32 位
+Windows Installer		Windows Installer	Windows Installer	Windows Installer	Windows Installer	Windows インストーラー	Windows Installer		Windows Installer
+System component		Systemkomponente	Componente del sistema	Composant système	Componente di sistema	システム コンポーネント	Componente do sistema		系统组件
+Update		Update	Actualización	Mise à jour	Aggiornamento	更新プログラム	Atualização		更新
+Cannot be removed		Kann nicht entfernt werden	No se puede quitar	Ne peut pas être supprimé	Non può essere rimosso	削除できません	Não pode ser removido		无法删除
+Shortcut		Verknüpfung	Acceso directo	Raccourci	Collegamento	ショートカット	Atalho		快捷方式
+Shortcuts ({})		Verknüpfungen ({})	Accesos directos ({})	Raccourcis ({})	Collegamenti ({})	ショートカット ({})	Atalhos ({})		快捷方式（{}）
+None found.		Keine gefunden.	No se encontró ninguno.	Aucun trouvé.	Nessuno trovato.	見つかりません。	Nenhum encontrado.		未找到。
+Start menu		Startmenü	Menú Inicio	Menu Démarrer	Menu Start	スタート メニュー	Menu Iniciar		开始菜单
+Desktop		Desktop	Escritorio	Bureau	Desktop	デスクトップ	Área de trabalho	Ambiente de trabalho	桌面
+Type to find a program		Tippen, um ein Programm zu finden	Escriba para buscar un programa	Tapez pour trouver un programme	Digita per trovare un programma	入力してプログラムを検索	Digite para encontrar um programa	Escreva para encontrar um programa	输入以查找程序
+The programs of other users ({}) need administrator rights to be seen.		Die Programme anderer Benutzer ({}) sind nur mit Administratorrechten zu sehen.	Para ver los programas de otros usuarios ({}) se necesitan derechos de administrador.	Les programmes des autres utilisateurs ({}) ne sont visibles qu’avec des droits d’administrateur.	Per vedere i programmi degli altri utenti ({}) servono i diritti di amministratore.	ほかのユーザー ({}) のプログラムを見るには管理者権限が必要です。	Para ver os programas de outros usuários ({}) são necessários direitos de administrador.	Para ver os programas de outros utilizadores ({}) são precisos direitos de administrador.	查看其他用户（{}）的程序需要管理员权限。
+Reading the programs installed…		Die installierten Programme werden gelesen…	Leyendo los programas instalados…	Lecture des programmes installés…	Lettura dei programmi installati…	インストールされているプログラムを読み込んでいます…	Lendo os programas instalados…	A ler os programas instalados…	正在读取已安装的程序…
+No program matches.		Kein Programm passt.	Ningún programa coincide.	Aucun programme ne correspond.	Nessun programma corrisponde.	一致するプログラムはありません。	Nenhum programa corresponde.		没有匹配的程序。
+runinst lists the programs of Windows; Linux packages come in a later version.		runinst listet die Programme von Windows auf; Linux-Pakete folgen in einer späteren Version.	runinst muestra los programas de Windows; los paquetes de Linux llegarán en una versión posterior.	runinst liste les programmes de Windows ; les paquets Linux viendront dans une version ultérieure.	runinst elenca i programmi di Windows; i pacchetti Linux arriveranno in una versione successiva.	runinst は Windows のプログラムを一覧表示します。Linux のパッケージは今後のバージョンで対応します。	O runinst lista os programas do Windows; os pacotes do Linux virão numa versão posterior.		runinst 列出 Windows 的程序；Linux 软件包将在以后的版本中支持。
+{} of {} programs		{} von {} Programmen	{} de {} programas	{} sur {} programmes	{} di {} programmi	{} / {} プログラム	{} de {} programas		{} / {} 个程序
+{} shortcuts		{} Verknüpfungen	{} accesos directos	{} raccourcis	{} collegamenti	{} ショートカット	{} atalhos		{} 个快捷方式
+Administrator		Administrator	Administrador	Administrateur	Amministratore	管理者	Administrador		管理员
+Letters		Buchstaben	Letras	Lettres	Lettere	文字	Letras		字母
+Find a program by its name, publisher or folder		Ein Programm nach Name, Herausgeber oder Ordner finden	Buscar un programa por su nombre, editor o carpeta	Trouver un programme par son nom, son éditeur ou son dossier	Trovare un programma per nome, editore o cartella	名前、発行元、フォルダーでプログラムを検索	Encontrar um programa pelo nome, editor ou pasta		按名称、发布者或文件夹查找程序
+Clear the search		Die Suche leeren	Borrar la búsqueda	Effacer la recherche	Cancellare la ricerca	検索をクリア	Limpar a pesquisa		清除搜索
+Move in the list		In der Liste bewegen	Moverse por la lista	Se déplacer dans la liste	Muoversi nell’elenco	一覧内を移動	Mover na lista		在列表中移动
+Read the programs again		Die Programme neu einlesen	Volver a leer los programas	Relire les programmes	Rileggere i programmi	プログラムを読み込み直す	Ler os programas de novo		重新读取程序
+Open the install folder		Den Installationsordner öffnen	Abrir la carpeta de instalación	Ouvrir le dossier d’installation	Aprire la cartella di installazione	インストール フォルダーを開く	Abrir a pasta de instalação		打开安装文件夹
+Copy the name		Den Namen kopieren	Copiar el nombre	Copier le nom	Copiare il nome	名前をコピー	Copiar o nome		复制名称
+Copy all the details		Alle Details kopieren	Copiar todos los detalles	Copier tous les détails	Copiare tutti i dettagli	すべての詳細をコピー	Copiar todos os detalhes		复制全部详细信息
+Save the list as CSV		Die Liste als CSV speichern	Guardar la lista como CSV	Enregistrer la liste en CSV	Salvare l’elenco come CSV	一覧を CSV で保存	Salvar a lista como CSV	Guardar a lista como CSV	将列表保存为 CSV
+runinst {}\n\nLists the programs installed for every user, with their shortcuts, written in Rust.\nNo telemetry, no network access.\n\nMIT License.		runinst {}\n\nListet die für alle Benutzer installierten Programme mit ihren Verknüpfungen auf, geschrieben in Rust.\nKeine Telemetrie, kein Netzwerkzugriff.\n\nMIT-Lizenz.	runinst {}\n\nMuestra los programas instalados para cada usuario, con sus accesos directos, escrito en Rust.\nSin telemetría ni acceso a la red.\n\nLicencia MIT.	runinst {}\n\nListe les programmes installés pour chaque utilisateur, avec leurs raccourcis, écrit en Rust.\nAucune télémétrie, aucun accès au réseau.\n\nLicence MIT.	runinst {}\n\nElenca i programmi installati per ogni utente, con i loro collegamenti, scritto in Rust.\nNessuna telemetria, nessun accesso alla rete.\n\nLicenza MIT.	runinst {}\n\nすべてのユーザーにインストールされたプログラムをショートカットとともに一覧表示します。Rust で作られています。\nテレメトリーなし、ネットワーク接続なし。\n\nMIT ライセンス。	runinst {}\n\nLista os programas instalados para cada usuário, com os seus atalhos, escrito em Rust.\nSem telemetria, sem acesso à rede.\n\nLicença MIT.	runinst {}\n\nLista os programas instalados para cada utilizador, com os seus atalhos, escrito em Rust.\nSem telemetria, sem acesso à rede.\n\nLicença MIT.	runinst {}\n\n列出为每个用户安装的程序及其快捷方式，使用 Rust 编写。\n无遥测，不访问网络。\n\nMIT 许可证。
+Registry		Registrierung	Registro	Registre	Registro	レジストリ	Registro	Registo	注册表
+Installer		Installer	Instalador	Installer	Installer	インストーラー	Instalador		安装程序
+Store		Store	Tienda	Store	Store	ストア	Loja		应用商店
+Source		Quelle	Origen	Origine	Origine	入手元	Origem		来源
+Found in		Gefunden in	Encontrado en	Trouvé dans	Trovato in	検出元	Encontrado em		来源
+Bucket		Bucket	Bucket	Bucket	Bucket	バケット	Bucket		Bucket
+Authors		Autoren	Autores	Auteurs	Autori	作成者	Autores		作者
+Newer version (winget)		Neuere Version (winget)	Versión más reciente (winget)	Version plus récente (winget)	Versione più recente (winget)	新しいバージョン (winget)	Versão mais recente (winget)		较新版本（winget）
+winget id		winget-ID	Id. de winget	Id winget	Id winget	winget ID	Id do winget		winget ID
+Package		Paket	Paquete	Paquet	Pacchetto	パッケージ	Pacote		包
+Where		Ort	Ubicación	Emplacement	Posizione	場所	Local		位置
+More		Mehr	Más	Plus	Altro	その他	Mais		更多
+asking winget…		winget wird gefragt…	consultando winget…	interrogation de winget…	interrogazione di winget…	winget に問い合わせています…	consultando o winget…	a perguntar ao winget…	正在查询 winget…
+{} updates (winget)		{} Updates (winget)	{} actualizaciones (winget)	{} mises à jour (winget)	{} aggiornamenti (winget)	{} 件の更新 (winget)	{} atualizações (winget)		{} 个更新（winget）
+Un&install...		Deinstallie&ren...	Desinsta&lar...	Désinsta&ller...	Disinsta&lla...	アンインストール(&I)...	Desinsta&lar...	Desinsta&lar...	卸载(&I)...
+Uninstall &Quietly...		&Ohne Rückfragen deinstallieren...	Desinstalar en &silencio...	Désinstaller en &silence...	Disinstalla in &silenzio...	確認なしでアンインストール(&Q)...	Desinstalar &sem perguntas...	Desinstalar &sem perguntas...	静默卸载(&Q)...
+&Modify or Repair...		Ändern oder re&parieren...	&Modificar o reparar...	&Modifier ou réparer...	&Modifica o ripara...	変更または修復(&M)...	&Modificar ou reparar...	&Modificar ou reparar...	更改或修复(&M)...
+Select &All		Alle aus&wählen	Seleccion&ar todo	Sélectionner to&ut	Seleziona t&utto	すべて選択(&A)	Selecionar t&udo	Selecionar t&udo	全选(&A)
+Stop after this one		Nach diesem anhalten	Parar después de este	Arrêter après celui-ci	Fermati dopo questo	これで停止	Parar depois deste	Parar depois deste	此项后停止
+Uninstalling {} ({} of {})…		{} wird deinstalliert ({} von {})…	Desinstalando {} ({} de {})…	Désinstallation de {} ({} sur {})…	Disinstallazione di {} ({} di {})…	{} をアンインストール中 ({}/{})…	Desinstalando {} ({} de {})…	A desinstalar {} ({} de {})…	正在卸载 {}（{}/{}）…
+Uninstalling {} ({} of {}); stopping after this one…		{} wird deinstalliert ({} von {}); danach wird angehalten…	Desinstalando {} ({} de {}); se parará después de este…	Désinstallation de {} ({} sur {}) ; arrêt après celui-ci…	Disinstallazione di {} ({} di {}); poi si ferma…	{} をアンインストール中 ({}/{})。これで停止します…	Desinstalando {} ({} de {}); vai parar depois deste…	A desinstalar {} ({} de {}); vai parar depois deste…	正在卸载 {}（{}/{}）；此项后停止…
+Changing {}…		{} wird geändert…	Modificando {}…	Modification de {}…	Modifica di {}…	{} を変更中…	Modificando {}…	A modificar {}…	正在更改 {}…
+{} selected		{} ausgewählt	{} seleccionados	{} sélectionnés	{} selezionati	{} 個選択	{} selecionados	{} selecionados	已选择 {} 个
+{} programs selected		{} Programme ausgewählt	{} programas seleccionados	{} programmes sélectionnés	{} programmi selezionati	{} 個のプログラムを選択	{} programas selecionados	{} programas selecionados	已选择 {} 个程序
+Uninstall		Deinstallieren	Desinstalar	Désinstaller	Disinstalla	アンインストール	Desinstalar	Desinstalar	卸载
+This program cannot be changed from here:		Dieses Programm kann hier nicht geändert werden:	Este programa no se puede modificar desde aquí:	Ce programme ne peut pas être modifié d’ici :	Questo programma non può essere modificato da qui:	このプログラムはここから変更できません:	Este programa não pode ser modificado daqui:	Este programa não pode ser modificado daqui:	无法在此处更改此程序：
+None of these programs can be uninstalled from here:		Keines dieser Programme kann hier deinstalliert werden:	Ninguno de estos programas se puede desinstalar desde aquí:	Aucun de ces programmes ne peut être désinstallé d’ici :	Nessuno di questi programmi può essere disinstallato da qui:	これらのプログラムはどれもここからアンインストールできません:	Nenhum destes programas pode ser desinstalado daqui:	Nenhum destes programas pode ser desinstalado daqui:	这些程序都无法在此处卸载：
+These programs will be uninstalled, one after another:		Diese Programme werden nacheinander deinstalliert:	Estos programas se desinstalarán uno tras otro:	Ces programmes seront désinstallés l’un après l’autre :	Questi programmi verranno disinstallati uno dopo l’altro:	これらのプログラムを順番にアンインストールします:	Estes programas serão desinstalados, um após o outro:	Estes programas serão desinstalados, um a seguir ao outro:	将依次卸载这些程序：
+Where their uninstallers allow it, without their questions.		Ohne Rückfragen, wo ihre Deinstallationsprogramme es erlauben.	Sin sus preguntas, donde sus desinstaladores lo permitan.	Sans leurs questions, là où leurs programmes de désinstallation le permettent.	Senza le loro domande, dove i programmi di disinstallazione lo consentono.	アンインストーラーが対応していれば、確認なしで行います。	Sem as perguntas deles, onde os desinstaladores permitirem.	Sem as perguntas deles, onde os desinstaladores o permitirem.	在卸载程序允许时不再询问。
+These cannot be uninstalled from here:		Diese können hier nicht deinstalliert werden:	Estos no se pueden desinstalar desde aquí:	Ceux-ci ne peuvent pas être désinstallés d’ici :	Questi non possono essere disinstallati da qui:	次のものはここからアンインストールできません:	Estes não podem ser desinstalados daqui:	Estes não podem ser desinstalados daqui:	以下程序无法在此处卸载：
+it was installed for another user: uninstall it from their account		es wurde für einen anderen Benutzer installiert: in dessen Konto deinstallieren	se instaló para otro usuario: desinstálelo desde su cuenta	il a été installé pour un autre utilisateur : désinstallez-le depuis son compte	è stato installato per un altro utente: disinstallalo dal suo account	別のユーザー用にインストールされています: そのアカウントからアンインストールしてください	foi instalado para outro usuário: desinstale-o na conta dele	foi instalado para outro utilizador: desinstale-o na conta dele	它是为其他用户安装的：请从该用户的帐户中卸载
+it has no uninstall command		es hat keinen Deinstallationsbefehl	no tiene comando de desinstalación	il n’a pas de commande de désinstallation	non ha un comando di disinstallazione	アンインストール コマンドがありません	não tem comando de desinstalação	não tem comando de desinstalação	它没有卸载命令
+it says it cannot be removed		es gibt an, nicht entfernt werden zu können	indica que no se puede quitar	il indique qu’il ne peut pas être supprimé	indica che non può essere rimosso	削除できないと示されています	indica que não pode ser removido	indica que não pode ser removido	它标明无法删除
+Store apps are removed for the user runinst runs as: start runinst without administrator rights		Store-Apps werden für den Benutzer entfernt, als der runinst läuft: runinst ohne Administratorrechte starten	las apps de la Store se quitan para el usuario con el que se ejecuta runinst: inicie runinst sin derechos de administrador	les applis du Store sont supprimées pour l’utilisateur qui exécute runinst : lancez runinst sans droits d’administrateur	le app dello Store vengono rimosse per l’utente con cui gira runinst: avvia runinst senza diritti di amministratore	ストア アプリは runinst を実行しているユーザーから削除されます: 管理者権限なしで runinst を起動してください	os apps da Loja são removidos para o usuário com que o runinst roda: inicie o runinst sem direitos de administrador	as aplicações da Loja são removidas para o utilizador com que o runinst corre: inicie o runinst sem direitos de administrador	应用商店应用会为运行 runinst 的用户删除：请不以管理员权限启动 runinst
+it ended with code {}		es endete mit Code {}	terminó con el código {}	il s’est terminé avec le code {}	è terminato con il codice {}	コード {} で終了しました	terminou com o código {}	terminou com o código {}	以代码 {} 结束
+Changed ({}):		Geändert ({}):	Modificados ({}):	Modifiés ({}) :	Modificati ({}):	変更済み ({}):	Modificados ({}):	Modificados ({}):	已更改（{}）：
+Uninstalled ({}):		Deinstalliert ({}):	Desinstalados ({}):	Désinstallés ({}) :	Disinstallati ({}):	アンインストール済み ({}):	Desinstalados ({}):	Desinstalados ({}):	已卸载（{}）：
+Still installed: the uninstaller may have been cancelled ({}):		Noch installiert, das Deinstallationsprogramm wurde vielleicht abgebrochen ({}):	Siguen instalados, quizá se canceló el desinstalador ({}):	Toujours installés, la désinstallation a peut-être été annulée ({}) :	Ancora installati, forse la disinstallazione è stata annullata ({}):	まだインストールされています。アンインストーラーが取り消された可能性があります ({}):	Ainda instalados, talvez o desinstalador tenha sido cancelado ({}):	Ainda instalados, talvez o desinstalador tenha sido cancelado ({}):	仍已安装，可能取消了卸载程序（{}）：
+Did not work ({}):		Fehlgeschlagen ({}):	No funcionó ({}):	Échec ({}) :	Non riuscito ({}):	失敗 ({}):	Não funcionou ({}):	Não funcionou ({}):	未成功（{}）：
+Not started ({}):		Nicht gestartet ({}):	No iniciados ({}):	Non lancés ({}) :	Non avviati ({}):	未開始 ({}):	Não iniciados ({}):	Não iniciados ({}):	未开始（{}）：
+Restart Windows to finish.		Windows neu starten, um abzuschließen.	Reinicie Windows para terminar.	Redémarrez Windows pour terminer.	Riavvia Windows per completare.	完了するには Windows を再起動してください。	Reinicie o Windows para terminar.	Reinicie o Windows para terminar.	重新启动 Windows 以完成。
+Uninstall the programs selected		Die ausgewählten Programme deinstallieren	Desinstalar los programas seleccionados	Désinstaller les programmes sélectionnés	Disinstalla i programmi selezionati	選択したプログラムをアンインストール	Desinstalar os programas selecionados	Desinstalar os programas selecionados	卸载所选程序
+Uninstall them quietly		Ohne Rückfragen deinstallieren	Desinstalarlos en silencio	Les désinstaller en silence	Disinstallarli in silenzio	確認なしでアンインストール	Desinstalá-los sem perguntas	Desinstalá-los sem perguntas	静默卸载
+Select every program shown		Alle angezeigten Programme auswählen	Seleccionar todos los programas mostrados	Sélectionner tous les programmes affichés	Seleziona tutti i programmi mostrati	表示中のプログラムをすべて選択	Selecionar todos os programas mostrados	Selecionar todos os programas mostrados	选择显示的所有程序
+Ctrl+click, Shift+click		Strg+Klick, Umschalt+Klick	Ctrl+clic, Mayús+clic	Ctrl+clic, Maj+clic	Ctrl+clic, Maiusc+clic	Ctrl+クリック、Shift+クリック	Ctrl+clique, Shift+clique	Ctrl+clique, Shift+clique	Ctrl+单击、Shift+单击
+Select several programs		Mehrere Programme auswählen	Seleccionar varios programas	Sélectionner plusieurs programmes	Seleziona più programmi	複数のプログラムを選択	Selecionar vários programas	Selecionar vários programas	选择多个程序
+Waiting		Wartet	En espera	En attente	In attesa	待機中	Na fila	Em espera	等待中
+Uninstalling…		Wird deinstalliert…	Desinstalando…	Désinstallation…	Disinstallazione…	アンインストール中…	Desinstalando…	A desinstalar…	正在卸载…
+Changing…		Wird geändert…	Modificando…	Modification…	Modifica…	変更中…	Modificando…	A modificar…	正在更改…
+Done		Fertig	Hecho	Terminé	Fatto	完了	Concluído	Feito	完成
+Did not work		Fehlgeschlagen	No funcionó	Échec	Non riuscito	失敗	Não funcionou	Não funcionou	未成功
+{} ticked		{} markiert	{} marcados	{} cochés	{} spuntati	{} 個にチェック	{} marcados	{} marcados	已勾选 {} 个
+Space		Leertaste	Espacio	Espace	Spazio	Space	Espaço	Espaço	空格
+Tick the programs selected: the buttons act on those ticked, whatever the search shows		Ausgewählte Programme markieren: Die Schaltflächen wirken auf die markierten, unabhängig von der Suche	Marcar los programas seleccionados: los botones actúan sobre los marcados, muestre lo que muestre la búsqueda	Cocher les programmes sélectionnés : les boutons agissent sur ceux cochés, quoi qu’affiche la recherche	Spunta i programmi selezionati: i pulsanti agiscono su quelli spuntati, qualunque cosa mostri la ricerca	選択したプログラムにチェック: ボタンは検索結果にかかわらずチェックしたものに働きます	Marcar os programas selecionados: os botões agem sobre os marcados, mostre a pesquisa o que mostrar	Marcar os programas selecionados: os botões agem sobre os marcados, mostre a pesquisa o que mostrar	勾选所选程序：按钮作用于已勾选的程序，无论搜索显示什么
+it has no command to change or repair it		es hat keinen Befehl zum Ändern oder Reparieren	no tiene comando para modificarlo o repararlo	il n’a pas de commande pour le modifier ou le réparer	non ha un comando per modificarlo o ripararlo	変更または修復のコマンドがありません	não tem comando para o modificar ou reparar	não tem comando para o modificar ou reparar	它没有更改或修复命令
+Leftovers		Reste	Restos	Restes	Residui	残存物	Restos	Restos	残留项
+Program folder		Programmordner	Carpeta del programa	Dossier du programme	Cartella del programma	プログラム フォルダー	Pasta do programa	Pasta do programa	程序文件夹
+Starts with Windows		Startet mit Windows	Se inicia con Windows	Démarre avec Windows	Si avvia con Windows	Windows と同時に起動	Inicia com o Windows	Arranca com o Windows	随 Windows 启动
+User settings		Benutzereinstellungen	Configuración del usuario	Paramètres de l’utilisateur	Impostazioni dell’utente	ユーザー設定	Configurações do usuário	Definições do utilizador	用户设置
+Found by Everything		Von Everything gefunden	Encontrado por Everything	Trouvé par Everything	Trovato da Everything	Everything で検出	Encontrado pelo Everything	Encontrado pelo Everything	由 Everything 找到
+(default)		(Standard)	(predeterminado)	(par défaut)	(predefinito)	(既定)	(padrão)	(predefinido)	(默认)
+Looking for what the programs left behind…		Suche nach dem, was die Programme hinterlassen haben…	Buscando lo que dejaron los programas…	Recherche de ce que les programmes ont laissé…	Ricerca di ciò che i programmi hanno lasciato…	プログラムが残したものを検索中…	Procurando o que os programas deixaram…	À procura do que os programas deixaram…	正在查找程序留下的内容…
+Nothing was left behind.		Es ist nichts zurückgeblieben.	No quedó nada.	Rien n’a été laissé.	Non è rimasto nulla.	何も残っていません。	Nada ficou para trás.	Não ficou nada para trás.	没有留下任何内容。
+Nothing matches.		Nichts passt.	Nada coincide.	Aucune correspondance.	Nessuna corrispondenza.	一致するものはありません。	Nada corresponde.	Nada corresponde.	没有匹配项。
+administrator		Administrator	administrador	administrateur	amministratore	管理者	administrador	administrador	管理员
+Program		Programm	Programa	Programme	Programma	プログラム	Programa	Programa	程序
+Value		Wert	Valor	Valeur	Valore	値	Valor	Valor	值
+Opens		Öffnet	Abre	Ouvre	Apre	開く対象	Abre	Abre	打开
+Data		Daten	Datos	Données	Dati	データ	Dados	Dados	数据
+Removing		Entfernen	Al quitarlo	Suppression	Rimozione	削除	Ao remover	Ao remover	删除
+Removing it moves it to the Recycle Bin.		Beim Entfernen kommt es in den Papierkorb.	Se mueve a la Papelera de reciclaje.	Il est déplacé dans la Corbeille.	Viene spostato nel Cestino.	ごみ箱に移動します。	Vai para a Lixeira.	Vai para a Reciclagem.	将移至回收站。
+Removing it saves it first to a .reg file (open the file to put it back), then deletes it.		Es wird zuerst in einer .reg-Datei gesichert (Datei öffnen, um es wiederherzustellen) und dann gelöscht.	Primero se guarda en un archivo .reg (ábralo para restaurarlo) y luego se elimina.	Il est d’abord enregistré dans un fichier .reg (ouvrez-le pour le restaurer), puis supprimé.	Viene prima salvato in un file .reg (aprilo per ripristinarlo), poi eliminato.	まず .reg ファイルに保存し (ファイルを開くと元に戻せます)、その後削除します。	Primeiro é salvo num arquivo .reg (abra-o para restaurar) e depois apagado.	Primeiro é guardado num ficheiro .reg (abra-o para o repor) e depois apagado.	先保存到 .reg 文件（打开该文件即可恢复），然后删除。
+It needs administrator rights: use Restart as Administrator.		Dafür sind Administratorrechte nötig: „Als Administrator neu starten“ verwenden.	Necesita derechos de administrador: use Reiniciar como administrador.	Il faut des droits d’administrateur : utilisez Redémarrer en tant qu’administrateur.	Servono diritti di amministratore: usa Riavvia come amministratore.	管理者権限が必要です: [管理者として再起動] を使ってください。	Precisa de direitos de administrador: use Reiniciar como administrador.	Precisa de direitos de administrador: use Reiniciar como administrador.	需要管理员权限：请使用“以管理员身份重新启动”。
+The program's settings and data: not ticked at first, in case you want to keep them.		Einstellungen und Daten des Programms: zunächst nicht markiert, falls Sie sie behalten möchten.	Configuración y datos del programa: sin marcar al principio, por si quiere conservarlos.	Paramètres et données du programme : non cochés au départ, au cas où vous voudriez les garder.	Impostazioni e dati del programma: non spuntati all’inizio, nel caso tu voglia tenerli.	プログラムの設定とデータです。残したい場合に備えて、最初はチェックしていません。	Configurações e dados do programa: desmarcados no início, caso queira mantê-los.	Definições e dados do programa: desmarcados no início, caso os queira manter.	程序的设置和数据：默认不勾选，以便您保留。
+A folder with the program's name outside the usual places: look at it before ticking it.		Ein Ordner mit dem Namen des Programms außerhalb der üblichen Orte: vor dem Markieren ansehen.	Una carpeta con el nombre del programa fuera de los lugares habituales: revísela antes de marcarla.	Un dossier au nom du programme hors des emplacements habituels : regardez-le avant de le cocher.	Una cartella con il nome del programma fuori dai luoghi consueti: controllala prima di spuntarla.	通常の場所以外にあるプログラム名のフォルダーです。チェックする前に確認してください。	Uma pasta com o nome do programa fora dos lugares habituais: veja-a antes de marcar.	Uma pasta com o nome do programa fora dos sítios habituais: veja-a antes de a marcar.	位于常规位置之外、与程序同名的文件夹：勾选前请先查看。
+Note		Hinweis	Nota	Remarque	Nota	注意	Nota	Nota	注意
+{} leftovers, {} ticked		{} Reste, {} markiert	{} restos, {} marcados	{} restes, {} cochés	{} residui, {} spuntati	残存物 {} 件、チェック {} 件	{} restos, {} marcados	{} restos, {} marcados	{} 个残留项，已勾选 {} 个
+Remove the Ticked Ones...		Markierte entfernen...	Quitar los marcados...	Supprimer les éléments cochés...	Rimuovi quelli spuntati...	チェックしたものを削除...	Remover os marcados...	Remover os marcados...	删除已勾选项...
+Close This List		Diese Liste schließen	Cerrar esta lista	Fermer cette liste	Chiudi questo elenco	この一覧を閉じる	Fechar esta lista	Fechar esta lista	关闭此列表
+runinst is now looking for what they left behind: see the Leftovers tab.		runinst sucht jetzt nach dem, was sie hinterlassen haben: siehe Registerkarte „Reste“.	runinst está buscando lo que dejaron: vea la pestaña Restos.	runinst cherche maintenant ce qu’ils ont laissé : voir l’onglet Restes.	runinst sta cercando ciò che hanno lasciato: vedi la scheda Residui.	runinst が残されたものを検索しています: [残存物] タブを見てください。	O runinst está procurando o que deixaram: veja a guia Restos.	O runinst está agora à procura do que deixaram: veja o separador Restos.	runinst 正在查找它们留下的内容：请查看“残留项”选项卡。
+{} leftovers will be removed:		{} Reste werden entfernt:	Se quitarán {} restos:	{} restes seront supprimés :	Verranno rimossi {} residui:	{} 件の残存物を削除します:	{} restos serão removidos:	Vão ser removidos {} restos:	将删除 {} 个残留项：
+and {} more		und {} weitere	y {} más	et {} de plus	e altri {}	ほか {} 件	e mais {}	e mais {}	另外 {} 个
+{} files and folders go to the Recycle Bin.		{} Dateien und Ordner kommen in den Papierkorb.	{} archivos y carpetas irán a la Papelera de reciclaje.	{} fichiers et dossiers iront dans la Corbeille.	{} file e cartelle andranno nel Cestino.	{} 個のファイルとフォルダーはごみ箱に移動します。	{} arquivos e pastas vão para a Lixeira.	{} ficheiros e pastas vão para a Reciclagem.	{} 个文件和文件夹将移至回收站。
+{} registry keys and values are saved first to {}.		{} Registrierungsschlüssel und -werte werden zuerst in {} gesichert.	{} claves y valores del registro se guardan primero en {}.	{} clés et valeurs du registre sont d’abord enregistrées dans {}.	{} chiavi e valori del registro vengono prima salvati in {}.	{} 個のレジストリ キーと値は、まず {} に保存されます。	{} chaves e valores do registro são salvos primeiro em {}.	{} chaves e valores do registo são primeiro guardados em {}.	{} 个注册表项和值将先保存到 {}。
+Remove the leftovers		Reste entfernen	Quitar los restos	Supprimer les restes	Rimuovi i residui	残存物の削除	Remover os restos	Remover os restos	删除残留项
+Removing the leftovers…		Reste werden entfernt…	Quitando los restos…	Suppression des restes…	Rimozione dei residui…	残存物を削除中…	Removendo os restos…	A remover os restos…	正在删除残留项…
+{} leftovers removed.		{} Reste entfernt.	{} restos quitados.	{} restes supprimés.	{} residui rimossi.	{} 件の残存物を削除しました。	{} restos removidos.	{} restos removidos.	已删除 {} 个残留项。
+The registry keys and values were saved to {}: open it to put them back.		Die Registrierungsschlüssel und -werte wurden in {} gesichert: zum Wiederherstellen öffnen.	Las claves y valores del registro se guardaron en {}: ábralo para restaurarlos.	Les clés et valeurs du registre ont été enregistrées dans {} : ouvrez-le pour les restaurer.	Le chiavi e i valori del registro sono stati salvati in {}: aprilo per ripristinarli.	レジストリ キーと値は {} に保存されました。開くと元に戻せます。	As chaves e valores do registro foram salvos em {}: abra-o para restaurá-los.	As chaves e valores do registo foram guardados em {}: abra-o para os repor.	注册表项和值已保存到 {}：打开该文件即可恢复。
+Open the Folder		Ordner öffnen	Abrir la carpeta	Ouvrir le dossier	Apri la cartella	フォルダーを開く	Abrir a pasta	Abrir a pasta	打开文件夹
+Cu&t		&Ausschneiden	C&ortar	&Couper	&Taglia	切り取り(&T)	Recort&ar	Cort&ar	剪切(&T)
+&Copy		&Kopieren	&Copiar	Cop&ier	&Copia	コピー(&C)	&Copiar	&Copiar	复制(&C)
+&Paste		&Einfügen	&Pegar	C&oller	&Incolla	貼り付け(&P)	C&olar	C&olar	粘贴(&P)
+&Delete		&Löschen	&Eliminar	&Supprimer	&Elimina	削除(&D)	&Excluir	&Eliminar	删除(&D)
+Ctrl+V		Strg+V	Ctrl+V	Ctrl+V	Ctrl+V	Ctrl+V	Ctrl+V	Ctrl+V	Ctrl+V
+Paste into the search		In die Suche einfügen	Pegar en la búsqueda	Coller dans la recherche	Incolla nella ricerca	検索欄に貼り付け	Colar na pesquisa	Colar na pesquisa	粘贴到搜索框
+Find &Leftovers...		Reste &gelöschter Programme suchen...	Buscar &restos...	Chercher les &restes...	Cerca &residui...	残存物を検索(&L)...	Procurar &restos...	Procurar &restos...	查找残留项(&L)...
+Find Leftovers		Reste suchen	Buscar restos	Chercher les restes	Cerca residui	残存物を検索	Procurar restos	Procurar restos	查找残留项
+Install failed		Installation fehlgeschlagen	Instalación fallida	Échec de l’installation	Installazione non riuscita	インストール失敗	Instalação falhou	Instalação falhou	安装失败
+Manifest removed		Manifest entfernt	Manifiesto eliminado	Manifeste supprimé	Manifesto rimosso	マニフェスト削除済み	Manifesto removido	Manifesto removido	清单已删除
+Uninstaller missing		Deinstallationsprogramm fehlt	Falta el desinstalador	Programme de désinstallation absent	Manca il programma di disinstallazione	アンインストーラーなし	Desinstalador ausente	Desinstalador em falta	缺少卸载程序
+Problem		Problem	Problema	Problème	Problema	問題	Problema	Problema	问题
+Service		Dienst	Servicio	Service	Servizio	サービス	Serviço	Serviço	服务
+Scheduled task		Geplante Aufgabe	Tarea programada	Tâche planifiée	Attività pianificata	スケジュールされたタスク	Tarefa agendada	Tarefa agendada	计划任务
+Empty folder		Leerer Ordner	Carpeta vacía	Dossier vide	Cartella vuota	空のフォルダー	Pasta vazia	Pasta vazia	空文件夹
+Runs		Führt aus	Ejecuta	Exécute	Esegue	実行するもの	Executa	Executa	运行
+Removing it saves its key to the .reg file, stops the service and deletes it.		Beim Entfernen wird sein Schlüssel in der .reg-Datei gesichert, der Dienst angehalten und gelöscht.	Al quitarlo se guarda su clave en el archivo .reg, se detiene el servicio y se elimina.	Sa clé est enregistrée dans le fichier .reg, puis le service est arrêté et supprimé.	La sua chiave viene salvata nel file .reg, poi il servizio viene arrestato ed eliminato.	キーを .reg ファイルに保存し、サービスを停止して削除します。	Sua chave é salva no arquivo .reg, depois o serviço é parado e excluído.	A chave dele é guardada no ficheiro .reg, depois o serviço é parado e apagado.	将其注册表项保存到 .reg 文件，然后停止并删除该服务。
+Removing it saves a copy of the task beside the .reg file (schtasks /Create /XML puts it back), then deletes it.		Beim Entfernen wird eine Kopie der Aufgabe neben der .reg-Datei gesichert (schtasks /Create /XML stellt sie wieder her) und sie dann gelöscht.	Al quitarla se guarda una copia de la tarea junto al archivo .reg (schtasks /Create /XML la restaura) y luego se elimina.	Une copie de la tâche est enregistrée à côté du fichier .reg (schtasks /Create /XML la restaure), puis elle est supprimée.	Una copia dell’attività viene salvata accanto al file .reg (schtasks /Create /XML la ripristina), poi viene eliminata.	タスクのコピーを .reg ファイルの横に保存し (schtasks /Create /XML で元に戻せます)、その後削除します。	Uma cópia da tarefa é salva ao lado do arquivo .reg (schtasks /Create /XML a restaura) e depois ela é excluída.	É guardada uma cópia da tarefa ao lado do ficheiro .reg (schtasks /Create /XML repõe-na) e depois é apagada.	在 .reg 文件旁保存任务副本（schtasks /Create /XML 可恢复），然后删除该任务。
+Found from a hint only (what it ran is gone): not ticked at first; look at it before ticking it.		Nur aus einem Hinweis gefunden (was es ausführte, fehlt): zunächst nicht markiert; vor dem Markieren ansehen.	Encontrado solo por un indicio (lo que ejecutaba ya no existe): sin marcar al principio; revíselo antes de marcarlo.	Trouvé d’après un indice seulement (ce qu’il lançait a disparu) : non coché au départ ; regardez-le avant de le cocher.	Trovato solo da un indizio (ciò che eseguiva non c’è più): non spuntato all’inizio; controllalo prima di spuntarlo.	手がかりからのみ検出 (実行対象がありません)。最初はチェックしていません。チェックする前に確認してください。	Encontrado só por um indício (o que executava já não existe): desmarcado no início; veja-o antes de marcar.	Encontrado só por um indício (o que corria já não existe): desmarcado no início; veja-o antes de o marcar.	仅根据线索找到（其运行的程序已不存在）：默认不勾选；勾选前请先查看。
+{} with problems		{} mit Problemen	{} con problemas	{} avec des problèmes	{} con problemi	問題あり {} 件	{} com problemas	{} com problemas	{} 个有问题
