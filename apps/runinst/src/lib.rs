@@ -13,6 +13,7 @@ pub mod msi;
 pub mod settings;
 pub mod shortcuts;
 pub mod storage;
+pub mod tools;
 pub mod ui;
 pub mod uninstall;
 pub mod winget;

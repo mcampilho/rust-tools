@@ -51,6 +51,8 @@ enum UserEvent {
     Removed(Vec<(usize, runinst::leftovers::Removed)>, std::path::PathBuf),
     /// What `winget list` said (None: winget is not there, or failed).
     Winget(u64, Option<Vec<runinst::winget::Row>>),
+    /// The tabs of DISM and the development tools that are there.
+    Tools(u64, Vec<(runinst::app::Tab, Vec<runinst::inventory::Program>)>),
     #[cfg(windows)]
     Win(rt_sys::win::WinMsg),
 }
@@ -101,6 +103,8 @@ struct Shell {
     icons: HashMap<usize, Pixmap>,
     /// winget's answer when it came before the list.
     pending_winget: Option<Option<Vec<runinst::winget::Row>>>,
+    /// The tools' tabs when they came before the list.
+    pending_tools: Option<Vec<(runinst::app::Tab, Vec<runinst::inventory::Program>)>>,
     /// Running with administrator rights: every user can be read.
     admin: bool,
     dialog: Option<Message>,
@@ -172,6 +176,14 @@ impl Shell {
         std::thread::spawn(move || {
             let rows = runinst::winget::run().map(|t| runinst::winget::parse(&t));
             let _ = p2.send_event(UserEvent::Winget(gen, rows));
+        });
+        // DISM, npm and pip take a second or more too.
+        self.pending_tools = None;
+        let p3 = proxy.clone();
+        let admin = self.admin;
+        std::thread::spawn(move || {
+            let tools = runinst::tools::read_all(&runinst::inventory::me(), admin);
+            let _ = p3.send_event(UserEvent::Tools(gen, tools));
         });
         std::thread::spawn(move || {
             let inv = runinst::inventory::read();
@@ -532,7 +544,13 @@ impl ApplicationHandler<UserEvent> for Shell {
                 if let Some(rows) = self.pending_winget.take() {
                     self.app.set_winget(rows);
                 }
-                self.show_report();
+                if let Some(tools) = self.pending_tools.take() {
+                    self.app.set_tools(tools);
+                }
+                // The report waits for every list (an npm package may be gone).
+                if self.app.found.as_ref().is_some_and(|f| f.tools_done) {
+                    self.show_report();
+                }
                 self.menu_dirty = true;
                 self.redraw();
             }
@@ -556,6 +574,17 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.redraw();
             }
             UserEvent::Winget(..) => {}
+            UserEvent::Tools(gen, tools) if gen == self.generation => {
+                if self.app.found.as_ref().is_some_and(|f| !f.tools_done) && !self.app.loading {
+                    self.app.set_tools(tools);
+                    self.show_report();
+                } else {
+                    self.pending_tools = Some(tools);
+                }
+                self.menu_dirty = true;
+                self.redraw();
+            }
+            UserEvent::Tools(..) => {}
             UserEvent::Job(m) => self.job_event(m),
             UserEvent::Leftovers(items) => self.leftovers_found(items),
             UserEvent::Removed(results, backup) => self.leftovers_removed(results, &backup),
@@ -799,6 +828,7 @@ fn main() {
         generation: 0,
         icons: HashMap::new(),
         pending_winget: None,
+        pending_tools: None,
         #[cfg(windows)]
         admin: rt_sys::win::elevated(),
         #[cfg(not(windows))]

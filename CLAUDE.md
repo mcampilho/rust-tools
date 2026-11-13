@@ -13,8 +13,8 @@ Monorepo (workspace Cargo) com oito aplicações, cada uma um único `.exe`, e o
   trabalho (relógios, calendário, notas, anotações, meteorologia da Open-Meteo, fences, fotos).
 - `apps/rpack` — arquivador com navegador de ficheiros (em curso, por fases): cria 7z, zip e tar; abre, testa e
   extrai zip, 7z, tar e ficheiros comprimidos; hashes.
-- `apps/runinst` — desinstalador (em curso, por fases): lista os programas de todos os utilizadores e os atalhos,
-  desinstala e remove os restos.
+- `apps/runinst` — desinstalador: lista os programas de todos os utilizadores e os atalhos, desinstala e remove os
+  restos; separadores para Scoop, Chocolatey, DISM, npm, pip, Cargo e vcpkg; em Linux, dpkg, rpm, Flatpak e Snap.
 
 Cada aplicação tem o seu `CLAUDE.md` com arquitetura e regras próprias.
 

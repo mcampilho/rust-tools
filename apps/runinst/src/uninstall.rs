@@ -71,6 +71,7 @@ pub const NO_UNINSTALLER: &str = "no uninstaller";
 pub const NO_REMOVE: &str = "cannot be removed";
 pub const NOT_ELEVATED_PACKAGE: &str = "package of the desktop user";
 pub const NO_MODIFY: &str = "no modify";
+pub const OTHER_MANAGER: &str = "other manager";
 
 fn run(file: &str, params: &str, elevate: bool) -> Plan {
     Plan::Run { file: file.to_string(), params: params.to_string(), elevate, hidden: false, env: Vec::new() }
@@ -86,11 +87,15 @@ fn hidden(file: &str, params: &str, elevate: bool, env: Vec<(String, String)>) -
 pub fn can_modify(p: &Program) -> bool {
     // Scoop's repair: `scoop install` again after a failed install, else
     // `scoop reset` (its shims, shortcuts and current version again).
-    // Linux's package managers install again (Snap has no such command).
-    if matches!(p.sources.first(), Some(Source::Scoop | Source::Dpkg | Source::Rpm | Source::Flatpak)) {
-        return true;
+    // Linux's package managers and the development tools install again
+    // (Snap, vcpkg and DISM have no such command).
+    match p.sources.first() {
+        Some(Source::Scoop | Source::Dpkg | Source::Rpm | Source::Flatpak | Source::Npm) => return true,
+        Some(Source::Pip) => return !crate::tools::pip_by_other(p),
+        Some(Source::Cargo) => return crate::linux_pkgs::value(p, "Source").is_some_and(|s| s.starts_with("registry")),
+        _ => {}
     }
-    let manager = matches!(p.sources.first(), Some(Source::Chocolatey | Source::Snap));
+    let manager = matches!(p.sources.first(), Some(Source::Chocolatey | Source::Snap | Source::Dism | Source::Vcpkg));
     // `NoModify` and `NoRepair` both set: Windows offers no change either.
     let flag = |name: &str| p.values.iter().any(|(k, v)| k.eq_ignore_ascii_case(name) && (v.trim() == "1" || v.trim_end().ends_with("(1)")));
     let closed = flag("NoModify") && flag("NoRepair");
@@ -137,6 +142,7 @@ pub fn plan(p: &Program, how: How, admin: bool, me: &Me) -> Plan {
             return hidden(&choco, &format!("uninstall {id} -y"), !admin, Vec::new());
         }
         Some(Source::Dpkg | Source::Rpm | Source::Flatpak | Source::Snap) => return linux_plan(p, how, admin),
+        Some(Source::Dism | Source::Npm | Source::Pip | Source::Cargo | Source::Vcpkg) => return tool_plan(p, how, admin),
         _ => {}
     }
     // A Store or MSIX package: removed by the package manager of Windows,
@@ -238,6 +244,54 @@ fn linux_plan(p: &Program, how: How, admin: bool) -> Plan {
         _ => ("snap", format!("remove {id}")),
     };
     hidden(file, &args, !admin, Vec::new())
+}
+
+/// What to run for a feature of Windows or a package of a development tool.
+/// What is everyone's needs the rights.
+fn tool_plan(p: &Program, how: How, admin: bool) -> Plan {
+    use crate::linux_pkgs::{package_id, value};
+    let id = package_id(p);
+    let modify = how == How::Modify;
+    let rights = p.scope == Scope::Machine && !admin;
+    let cannot = || Plan::Cannot(NO_UNINSTALLER.into());
+    match p.sources.first() {
+        Some(Source::Dism) => {
+            let quiet = if how == How::Quiet { " /Quiet" } else { "" };
+            let params = if value(p, "Kind") == Some("capability") {
+                format!("/Online /Remove-Capability /CapabilityName:{id} /NoRestart{quiet}")
+            } else {
+                format!("/Online /Disable-Feature /FeatureName:{id} /NoRestart{quiet}")
+            };
+            hidden("dism.exe", &params, !admin, Vec::new())
+        }
+        Some(Source::Npm) => {
+            let Some((file, pre)) = crate::tools::npm_command() else { return cannot() };
+            let what = if modify { format!("install -g {id}@{}", p.version) } else { format!("uninstall -g {id}") };
+            let params = pre.into_iter().chain([what]).collect::<Vec<_>>().join(" ");
+            hidden(&file.to_string_lossy(), &params, rights, Vec::new())
+        }
+        Some(Source::Pip) => {
+            if crate::tools::pip_by_other(p) {
+                return Plan::Cannot(OTHER_MANAGER.into());
+            }
+            let Some(py) = value(p, "Python") else { return cannot() };
+            let params = if modify {
+                format!("-m pip install --force-reinstall --no-deps --disable-pip-version-check {id}=={}", p.version)
+            } else {
+                format!("-m pip uninstall -y --disable-pip-version-check {id}")
+            };
+            hidden(py, &params, rights, Vec::new())
+        }
+        Some(Source::Cargo) => {
+            let Some(cargo) = crate::tools::which("cargo") else { return cannot() };
+            let params = if modify { format!("install --force {id} --version {}", p.version) } else { format!("uninstall {id}") };
+            hidden(&cargo.to_string_lossy(), &params, false, Vec::new())
+        }
+        _ => {
+            let Some((_, exe)) = crate::tools::vcpkg_root() else { return cannot() };
+            hidden(&exe.to_string_lossy(), &format!("remove {id}"), false, Vec::new())
+        }
+    }
 }
 
 /// How it went.
@@ -539,6 +593,24 @@ mod tests {
         let sn = Program { name: "ponysay".into(), values: vec![("Package".into(), "ponysay".into())], sources: vec![Source::Snap], ..Program::default() };
         assert_eq!(plan(&sn, How::Normal, false, &me), hidden("snap", "remove ponysay", true, Vec::new()));
         assert!(!can_modify(&sn) && can_modify(&deb) && can_modify(&fp));
+        // Windows' features and the development tools.
+        let feature = &crate::tools::parse_features("TelnetClient\t1\tTelnet Client\n")[0];
+        assert_eq!(plan(feature, How::Normal, false, &me), hidden("dism.exe", "/Online /Disable-Feature /FeatureName:TelnetClient /NoRestart", true, Vec::new()));
+        let cap = &crate::tools::parse_capabilities("App.StepsRecorder~~~~0.0.1.0 | Installed\n")[0];
+        let Plan::Run { params, elevate, .. } = plan(cap, How::Quiet, true, &me) else { panic!() };
+        assert_eq!((params.as_str(), elevate), ("/Online /Remove-Capability /CapabilityName:App.StepsRecorder~~~~0.0.1.0 /NoRestart /Quiet", false));
+        assert!(!can_modify(feature) && plan(feature, How::Modify, true, &me) == Plan::Cannot(NO_MODIFY.into()));
+        let pips = crate::tools::parse_pip(
+            r#"[{"name":"affine","version":"3.0.1","location":"D:\\Py\\Lib\\site-packages","installer":"pip"},{"name":"PyYAML","version":"6.0","location":"/usr/lib/python3/dist-packages","installer":"debian"}]"#,
+            None,
+            "D:\\Py\\python.exe",
+            "me",
+        );
+        assert_eq!(plan(&pips[0], How::Normal, false, &me), hidden("D:\\Py\\python.exe", "-m pip uninstall -y --disable-pip-version-check affine", false, Vec::new()));
+        let Plan::Run { params, .. } = plan(&pips[0], How::Modify, false, &me) else { panic!() };
+        assert!(params.ends_with("--force-reinstall --no-deps --disable-pip-version-check affine==3.0.1"), "{params}");
+        assert_eq!(plan(&pips[1], How::Normal, true, &me), Plan::Cannot(OTHER_MANAGER.into()));
+        assert!(!can_modify(&pips[1]));
         let essential = Program { no_remove: true, ..deb.clone() };
         assert_eq!(plan(&essential, How::Normal, true, &me), Plan::Cannot(NO_REMOVE.into()));
         assert!(Outcome::Ended(3010, String::new()).ok() && Outcome::Ended(3010, String::new()).needs_restart());

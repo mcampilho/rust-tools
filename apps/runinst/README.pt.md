@@ -15,10 +15,9 @@ correm na raiz do repositório.
 
 O `runinst.exe` é um único executável de 2,1 MB: sem instalador, sem runtime,
 sem DLLs além das que vêm com o Windows. Não faz ligações à rede e não tem
-telemetria. Está a ser feito por fases: lista, desinstala e remove os restos,
-também de programas removidos antes; as funcionalidades opcionais do Windows e
-os pacotes das ferramentas de desenvolvimento vêm a seguir (ver
-[A seguir](#a-seguir)).
+telemetria. Lista, desinstala e remove os restos, também de programas
+removidos antes; as funcionalidades opcionais do Windows e os pacotes do npm,
+do pip, do Cargo e do vcpkg têm separadores próprios.
 
 ## Utilização
 
@@ -82,9 +81,32 @@ direitos de administrador, dos outros utilizadores. O runinst lê cada ficheiro
 pasta de instalação do programa, ou a pasta do ícone ou do desinstalador), ou
 senão pelo nome. Um atalho cujo destino já não existe aparece a laranja.
 
-Não listados: as funcionalidades opcionais do Windows (`dism /online
-/get-features`, que precisa de direitos de administrador) e os pacotes das
-ferramentas de programação (npm, pip, Cargo, vcpkg): mais tarde.
+Mais separadores, lidos depois do resto (demoram alguns segundos) e só quando a
+ferramenta existe:
+
+- **Funcionalidades do Windows**: as funcionalidades opcionais ligadas
+  (Funcionalidades do Windows, `optionalfeatures.exe`), lidas por WMI
+  (`Win32_OptionalFeature`), que não precisa de direitos de administrador; com
+  eles, também as capacidades instaladas ("Funcionalidades opcionais" nas
+  Definições: `dism /Online /Get-Capabilities`). Desinstalar desliga uma
+  funcionalidade (`dism /Online /Disable-Feature`) ou remove uma capacidade
+  (`/Remove-Capability`), com direitos; o Windows pode precisar de reiniciar.
+- **npm**: os pacotes globais (em `npm root -g`), com o autor, o tamanho e a
+  data; desinstalados com `npm uninstall -g`, reparados com `npm install -g
+  nome@versão`.
+- **pip**: os pacotes do primeiro Python no `PATH` (`python3`, `py`, `python`):
+  `pip list`. Os pacotes de que outros precisam são componentes do sistema (vêm
+  com **Componentes do sistema**); também os que o gestor de pacotes de um
+  sistema lá pôs (em Linux), que o runinst não remove. Desinstalados com `pip
+  uninstall`, reparados com `pip install --force-reinstall`.
+- **Cargo**: o que o `cargo install` pôs em `~/.cargo/bin` (`.crates2.json`),
+  com a origem e o tamanho dos programas; `cargo uninstall`, e reparados com
+  `cargo install --force` (só os do crates.io).
+- **vcpkg**: os ports instalados na pasta do vcpkg (`VCPKG_ROOT`, ou onde está
+  o `vcpkg`), um por triplet; `vcpkg remove`.
+
+Estes não deixam nada com o seu nome noutros sítios, por isso não se procuram
+restos depois deles.
 
 ### Desinstalar
 
@@ -261,7 +283,7 @@ O resultado é `target\release-small\runinst.exe`.
 
 ## Linux
 
-Um ficheiro de 5,8 MB. Em vez dos programas do Windows, lista os pacotes:
+Um ficheiro de 5,9 MB. Em vez dos programas do Windows, lista os pacotes:
 
 - **Programas**: os pacotes do dpkg (Debian, Ubuntu, Mint), lidos de
   `/var/lib/dpkg/status`, ou do rpm (Fedora, openSUSE). Os instalados só porque
@@ -289,7 +311,7 @@ instaladas, as entradas do menu que abrem o que desapareceu e as pastas vazias
 em `~/.config`, `~/.local/share` e `~/.cache`. Atalhos, ícones e winget são do
 Windows.
 
-## A seguir
+## Fases
 
 1. Feito: os programas de todos os utilizadores, do registo, do Windows
    Installer, da Loja e do winget, juntos; separadores do Scoop e do Chocolatey;
@@ -301,7 +323,7 @@ Windows.
    Everything), ficheiros para a Reciclagem e chaves guardadas num `.reg`;
    Procurar restos de programas removidos antes e de entradas cujo
    desinstalador já não existe.
-4. As funcionalidades opcionais do Windows (DISM); os pacotes das ferramentas de
-   programação (npm, pip, Cargo, vcpkg).
+4. Feito: separadores para as funcionalidades opcionais do Windows (DISM) e
+   para os pacotes do npm, do pip, do Cargo e do vcpkg.
 5. Feito: os pacotes dpkg, rpm, Flatpak e Snap do Linux, removidos através do
    `pkexec`, e os restos deles nas pastas do utilizador.

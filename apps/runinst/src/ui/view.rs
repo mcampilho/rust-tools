@@ -133,6 +133,11 @@ pub fn source_label(s: Source) -> String {
         Source::Rpm => "RPM".into(),
         Source::Flatpak => "Flatpak".into(),
         Source::Snap => "Snap".into(),
+        Source::Dism => "DISM".into(),
+        Source::Npm => "npm".into(),
+        Source::Pip => "pip".into(),
+        Source::Cargo => "Cargo".into(),
+        Source::Vcpkg => "vcpkg".into(),
     }
 }
 
@@ -152,6 +157,11 @@ pub fn tab_label(app: &App, tab: Tab) -> String {
         Tab::Chocolatey => "Chocolatey".into(),
         Tab::Flatpak => "Flatpak".into(),
         Tab::Snap => "Snap".into(),
+        Tab::Dism => tr("Windows Features"),
+        Tab::Npm => "npm".into(),
+        Tab::Pip => "pip".into(),
+        Tab::Cargo => "Cargo".into(),
+        Tab::Vcpkg => "vcpkg".into(),
         Tab::Leftovers => tr("Leftovers"),
     };
     format!("{name} ({})", format::count(n as u64))
@@ -474,7 +484,9 @@ fn col_title(c: Col, tab: Tab) -> String {
         Col::Name => "Name",
         Col::Publisher if tab == Tab::Scoop => "Bucket",
         Col::Publisher if tab == Tab::Chocolatey => "Authors",
-        Col::Publisher if tab == Tab::Flatpak => "Remote",
+        Col::Publisher if matches!(tab, Tab::Flatpak | Tab::Cargo) => "Remote",
+        Col::Publisher if tab == Tab::Vcpkg => "Triplet",
+        Col::Publisher if tab == Tab::Npm => "Author",
         Col::Publisher if tab == Tab::Programs && cfg!(not(windows)) => "Maintainer",
         Col::Publisher => "Publisher",
         Col::Version => "Version",
@@ -761,7 +773,9 @@ fn lines_of(tab: Tab, p: &Program) -> Vec<(String, String)> {
     add(
         match tab {
             Tab::Scoop => "Bucket",
-            Tab::Flatpak => "Remote",
+            Tab::Flatpak | Tab::Cargo => "Remote",
+            Tab::Vcpkg => "Triplet",
+            Tab::Npm => "Author",
             Tab::Programs if cfg!(not(windows)) => "Maintainer",
             _ => "Publisher",
         },
@@ -1107,6 +1121,16 @@ mod screenshots {
             }
             app.set_tab(crate::app::Tab::Programs);
         }
+        // DISM and the development tools of this computer.
+        app.set_tools(crate::tools::read_all(&crate::inventory::me(), false));
+        for tab in [crate::app::Tab::Dism, crate::app::Tab::Npm, crate::app::Tab::Pip, crate::app::Tab::Cargo] {
+            if app.tabs().contains(&tab) {
+                app.set_tab(tab);
+                app.select(1.min(app.rows.len().saturating_sub(1)));
+                shot(&format!("tab-{tab:?}").to_lowercase(), &app, false, Hot::None, false, 1300, 600);
+            }
+        }
+        app.set_tab(crate::app::Tab::Programs);
         // Several selected, then uninstalling.
         app.select(1);
         app.click(3, false, true);

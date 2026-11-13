@@ -49,6 +49,13 @@ pub enum Source {
     Rpm,
     Flatpak,
     Snap,
+    /// Windows' optional features and capabilities.
+    Dism,
+    /// Global packages of development tools.
+    Npm,
+    Pip,
+    Cargo,
+    Vcpkg,
 }
 
 /// What `winget list` says of a program.

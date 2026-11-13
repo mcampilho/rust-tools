@@ -36,6 +36,7 @@ fn reason_text(why: &str) -> String {
         uninstall::NO_UNINSTALLER => tr("it has no uninstall command"),
         uninstall::NO_REMOVE => tr("it says it cannot be removed"),
         uninstall::NO_MODIFY => tr("it has no command to change or repair it"),
+        uninstall::OTHER_MANAGER => tr("it was installed by the system's package manager: remove it there"),
         uninstall::NEEDS_ROOT => tr("it needs root, and pkexec was not found: start runinst as root"),
         uninstall::NOT_ELEVATED_PACKAGE => tr("Store apps are removed for the user runinst runs as: start runinst without administrator rights"),
         other => other.to_string(),
@@ -218,7 +219,11 @@ impl Shell {
                         there.push(format!("  {name}"));
                     } else {
                         gone.push(format!("  {name}"));
-                        removed.push(prog.clone());
+                        // Features and the tools' packages leave nothing of their own name.
+                        use runinst::inventory::Source;
+                        if !matches!(prog.sources.first(), Some(Source::Dism | Source::Npm | Source::Pip | Source::Cargo | Source::Vcpkg)) {
+                            removed.push(prog.clone());
+                        }
                     }
                 }
                 Some(o) => failed.push(format!("  {name}: {}", outcome_text(o))),

@@ -1,10 +1,11 @@
 # runinst — desinstalador portátil em Rust
 
 Lista os programas instalados para todos os utilizadores (sistema, o atual e, como administrador, os outros), com os
-atalhos do menu Iniciar e do ambiente de trabalho que lhes pertencem. Um único executável (2,1 MB em Windows; 5,8 MB em
+atalhos do menu Iniciar e do ambiente de trabalho que lhes pertencem. Um único executável (2,1 MB em Windows; 5,9 MB em
 Linux, com os pacotes dpkg/rpm/Flatpak/Snap). Depois de experimentar (2026-11-13), o utilizador pediu as outras fontes
 (faltava o ChatGPT, um MSIX): registo, Windows Installer, Loja/MSIX e winget numa só lista sem repetidos, com a
-origem; Scoop e Chocolatey em separadores. DISM e npm/pip/Cargo/vcpkg ficam para depois. Pedido do utilizador (2026-11-12): ter em conta entradas do sistema e de
+origem; Scoop e Chocolatey em separadores. Depois (2026-11-13): um separador por ferramenta — DISM (só Windows), npm, pip,
+Cargo e vcpkg, só quando existem. Pedido do utilizador (2026-11-12): ter em conta entradas do sistema e de
 utilizadores, atalhos de todos ou de alguns; sem privilégios vê-se o sistema e o próprio utilizador (o HKLM lê-se sem
 administrador), com privilégios tudo. Depois (2026-11-13): botão e menu para desinstalar, seleção múltipla, sem repetidos
 nem separadores perdidos quando elevado com outra conta (`Me`: o utilizador da sessão do ambiente de trabalho).
@@ -14,13 +15,14 @@ Funcionalidades no `README.md`.
 
 ```powershell
 ./dev.ps1 build --profile release-small -p runinst
-./dev.ps1 test -p runinst         # 38 testes (34 em Linux)
+./dev.ps1 test -p runinst         # 42 testes (38 em Linux)
 ./dev.ps1 clippy -p runinst --all-targets
 ./dev.ps1 test -p runinst --lib screenshots '--' --ignored   # apps/runinst/target/screens/*.png (com os programas deste PC)
 ./dev.ps1 test -p runinst --lib report '--' --ignored --nocapture   # contagens deste PC
 ./dev.ps1 test -p runinst --lib leftovers_here '--' --ignored --nocapture   # restos de cada programa, se desaparecesse ($env:RUNINST_ONLY filtra)
 ./dev.ps1 test -p runinst --lib removes_and_saves '--' --ignored   # remove e repõe HKCU\Software\runinst-test (escreve no registo)
 ./dev.ps1 test -p runinst --lib orphans_here '--' --ignored --nocapture   # o que "Procurar restos" oferece aqui ($env:RUNINST_ADMIN)
+./dev.ps1 test -p runinst --lib tools_here '--' --ignored --nocapture     # separadores DISM/npm/pip/Cargo/vcpkg deste PC
 ```
 
 Se o `target\release-small\runinst.exe` estiver aberto, compilar com `--target-dir target\alt` (ou `alt2`, se esse
@@ -137,6 +139,22 @@ apps (`D:\Portable\scoop`, ficheiros `scoop-manifest.json`); 102 atalhos; "Admin
   o nome de um pacote ainda instalado nem do `NEVER`; `find_orphans`: dados do Flatpak/Snap sem app (só se a
   lista foi lida ou o gestor já não existe), `.desktop` partidos, pastas vazias; remoção para o lixo. Neste WSL
   (Ubuntu): 787 pacotes em 0,34 s, 45 à vista; 8 snaps (4 de sistema); sem Flatpak nem `pkexec`.
+- `tools.rs` — fase 4 (pedido em 2026-11-13: um separador por ferramenta, só quando existe). `read_all` num fio
+  próprio (`UserEvent::Tools`, guardado em `pending_tools` se vier antes da lista; `Found::tools` e `tools_done`;
+  `set_found` mantém os separadores antigos até chegarem os novos; o relatório de desinstalar espera por eles), cada
+  ferramenta num fio: `Tab::Dism` (só Windows: `Win32_OptionalFeature` por PowerShell, estado 1, sem administrador;
+  com ele, `dism /Get-Capabilities /Format:Table /English` → `parse_capabilities`), `Tab::Npm` (`npm root -g` por
+  `cmd /d /c` em Windows; `package.json` de cada pasta e de `@scope/*`; tamanho da pasta), `Tab::Pip` (primeiro de
+  `python3`/`py`/`python` no `PATH`, sem os falsos do `WindowsApps`; `pip list -v --format=json` e `--not-required` em
+  paralelo: dependências e o que outro instalador lá pôs (`Managed`, em `/usr` sem `installer`) são sistema; data
+  do `.dist-info`), `Tab::Cargo` (`CARGO_HOME`/`.crates2.json`; origem, tamanho e data dos `bins`), `Tab::Vcpkg`
+  (`VCPKG_ROOT` ou o `vcpkg` do `PATH` através do `.shim` do Scoop, com `.vcpkg-root`; `installed/vcpkg/status`, sem
+  as linhas `Feature`). `uninstall::tool_plan`: `dism /Disable-Feature|/Remove-Capability /NoRestart` (com
+  direitos), `npm uninstall -g`/`install -g n@v`, `python -m pip uninstall -y`/`install --force-reinstall --no-deps
+  n==v` (os `Managed`: `OTHER_MANAGER`), `cargo uninstall`/`install --force --version` (só registo), `vcpkg remove
+  n:triplet`; reparar não existe no DISM nem no vcpkg. Não se procuram restos depois destes. Neste PC (2026-11-13,
+  sem administrador): 18 funcionalidades, npm 2, pip 188 (45 à vista), Cargo e vcpkg vazios, 3,4 s ao todo; no WSL:
+  Cargo 2, pip 79 (todos da distribuição), npm vazio.
 - Partilhado: o leitor de JSON passou do rwall para `rt_core::json`. `rt-sys`: `win::reg` (ler o registo nas vistas de 64/32 bits, valores, `load_hive`, `expand`),
   `win::icon` (ícone de um `.exe`/`.dll`/`.ico` em RGBA, máscara para ícones antigos), `win::user_sid`, `win::session_user`,
   `win::sid_of`.
@@ -152,7 +170,8 @@ apps (`D:\Portable\scoop`, ficheiros `scoop-manifest.json`); 102 atalhos; "Admin
    `persist`, Everything, serviços, tarefas), com cópia `.reg` (testada: `removes_and_saves`) e Reciclagem; Procurar
    restos sem desinstalar (entradas sem desinstalador, o que corre algo desaparecido, pastas vazias). Serviços e
    tarefas por experimentar a sério (como administrador).
-4. Funcionalidades opcionais (DISM); npm, pip, Cargo, vcpkg.
+4. Feito (2026-11-13): separadores DISM (funcionalidades e, como administrador, capacidades), npm, pip, Cargo e
+   vcpkg. Por experimentar a sério: desinstalar e reparar em cada um, e as capacidades como administrador.
 5. Feito (2026-11-13), antes da fase 4 a pedido do utilizador: Linux com dpkg, rpm, Flatpak e Snap, remover por
    `pkexec`, restos na pasta pessoal. Por experimentar a sério: remover e reparar (o WSL não tem `pkexec`), rpm e
    Flatpak (só testados com texto de exemplo).

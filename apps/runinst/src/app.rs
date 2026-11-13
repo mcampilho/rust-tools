@@ -33,13 +33,20 @@ pub enum Tab {
     /// Linux.
     Flatpak,
     Snap,
+    /// Windows' optional features (DISM).
+    Dism,
+    /// Development tools' packages.
+    Npm,
+    Pip,
+    Cargo,
+    Vcpkg,
     /// What the programs uninstalled left behind.
     Leftovers,
 }
 
 impl Tab {
     /// The tabs that list programs.
-    pub const LISTS: [Tab; 5] = [Tab::Programs, Tab::Scoop, Tab::Chocolatey, Tab::Flatpak, Tab::Snap];
+    pub const LISTS: [Tab; 10] = [Tab::Programs, Tab::Scoop, Tab::Chocolatey, Tab::Flatpak, Tab::Snap, Tab::Dism, Tab::Npm, Tab::Pip, Tab::Cargo, Tab::Vcpkg];
 }
 
 /// The leftovers found after uninstalling, and which are ticked.
@@ -108,6 +115,10 @@ pub struct Found {
     pub chocolatey: Option<Vec<Program>>,
     pub flatpak: Option<Vec<Program>>,
     pub snap: Option<Vec<Program>>,
+    /// The tabs of DISM and the development tools that are there (`tools`),
+    /// read after the rest.
+    pub tools: Vec<(Tab, Vec<Program>)>,
+    pub tools_done: bool,
     /// winget has answered (or is not there).
     pub winget_done: bool,
 }
@@ -127,6 +138,7 @@ impl Found {
             Tab::Flatpak => self.flatpak.as_deref().unwrap_or(&[]),
             Tab::Snap => self.snap.as_deref().unwrap_or(&[]),
             Tab::Leftovers => &[],
+            t => self.tools.iter().find(|(x, _)| *x == t).map_or(&[], |(_, l)| l.as_slice()),
         }
     }
 }
@@ -207,10 +219,16 @@ impl App {
     }
 
     /// Shows what was just read, keeping the program selected.
-    pub fn set_found(&mut self, f: Found) {
+    pub fn set_found(&mut self, mut f: Found) {
         let keep = self.selected().map(|p| p.key.clone());
         self.marked.clear();
         self.ticked.clear();
+        // The tools' tabs stay as they were until they are read again.
+        if !f.tools_done {
+            if let Some(old) = self.found.take() {
+                f.tools = old.tools;
+            }
+        }
         self.found = Some(f);
         self.loading = false;
         self.rebuild();
@@ -244,6 +262,7 @@ impl App {
             if f.snap.is_some() {
                 t.push(Tab::Snap);
             }
+            t.extend(f.tools.iter().map(|(x, _)| *x));
         }
         if self.leftovers.is_some() {
             t.push(Tab::Leftovers);
@@ -288,6 +307,33 @@ impl App {
     }
 
     /// Joins what winget said to the programs.
+    /// The tabs of DISM and the development tools, read again.
+    pub fn set_tools(&mut self, tools: Vec<(Tab, Vec<Program>)>) {
+        let keep = self.selected().map(|p| p.key.clone());
+        let in_tools = !matches!(self.tab, Tab::Programs | Tab::Scoop | Tab::Chocolatey | Tab::Flatpak | Tab::Snap | Tab::Leftovers);
+        if in_tools {
+            self.marked.clear();
+            self.ticked.clear();
+        }
+        if let Some(f) = &mut self.found {
+            f.tools = tools;
+            f.tools_done = true;
+        }
+        if !self.tabs().contains(&self.tab) {
+            self.set_tab(Tab::Programs);
+        }
+        self.rebuild();
+        if in_tools {
+            if let Some(k) = keep {
+                self.sel = self.rows.iter().position(|&i| self.program(i).is_some_and(|p| p.key == k)).or(self.sel);
+            }
+            if self.sel.is_some_and(|s| s >= self.rows.len()) {
+                self.sel = self.rows.len().checked_sub(1);
+            }
+            self.mark_cursor();
+        }
+    }
+
     pub fn set_winget(&mut self, rows: Option<Vec<crate::winget::Row>>) {
         let keep = self.selected().map(|p| p.key.clone());
         if let Some(f) = &mut self.found {

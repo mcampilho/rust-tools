@@ -14,9 +14,9 @@ repository root.
 
 `runinst.exe` is a single 2.1 MB executable: no installer, no runtime, no DLLs
 beyond those that ship with Windows. It makes no network connections and has
-no telemetry. It is being built in phases: it lists, uninstalls and removes
-the leftovers, also of programs removed before; the optional features of
-Windows and the packages of development tools come next (see [Next](#next)).
+no telemetry. It lists, uninstalls and removes the leftovers, also of
+programs removed before; the optional features of Windows and the packages of
+npm, pip, Cargo and vcpkg have tabs of their own.
 
 ## Use
 
@@ -79,9 +79,32 @@ itself, and ties each shortcut to its program by the folder of what it opens
 uninstaller), or else by its name. A shortcut whose target is gone is shown in
 orange.
 
-Not listed: the optional features of Windows (`dism /online /get-features`,
-which needs administrator rights) and the packages of development tools (npm,
-pip, Cargo, vcpkg): later.
+More tabs, read after the rest (they take a few seconds) and shown only when
+their tool is there:
+
+- **Windows Features**: the optional features turned on (Windows Features,
+  `optionalfeatures.exe`), read through WMI (`Win32_OptionalFeature`), which
+  needs no administrator rights; with them, also the capabilities installed
+  ("Optional features" in Settings: `dism /Online /Get-Capabilities`).
+  Uninstalling turns a feature off (`dism /Online /Disable-Feature`) or removes
+  a capability (`/Remove-Capability`), with the rights; Windows may then need
+  a restart.
+- **npm**: the global packages (in `npm root -g`), with their author, size and
+  date; uninstalled with `npm uninstall -g`, repaired with `npm install -g
+  name@version`.
+- **pip**: the packages of the first Python on the `PATH` (`python3`, `py`,
+  `python`): `pip list`. The packages others need are system components (shown
+  with **System Components**); so are those a system's package manager put there
+  (on Linux), which runinst does not remove. Uninstalled with `pip uninstall`,
+  repaired with `pip install --force-reinstall`.
+- **Cargo**: what `cargo install` put in `~/.cargo/bin` (`.crates2.json`), with
+  where it came from and the size of its programs; `cargo uninstall`, and
+  repaired with `cargo install --force` (crates.io's only).
+- **vcpkg**: the ports installed in vcpkg's folder (`VCPKG_ROOT`, or where
+  `vcpkg` is), one for each triplet; `vcpkg remove`.
+
+These leave nothing of their own name elsewhere, so no leftovers are looked
+for after them.
 
 ### Uninstalling
 
@@ -254,7 +277,7 @@ The output is `target\release-small\runinst.exe`.
 
 ## Linux
 
-One file of 5.8 MB. It lists the packages instead of Windows' programs:
+One file of 5.9 MB. It lists the packages instead of Windows' programs:
 
 - **Programs**: dpkg's packages (Debian, Ubuntu, Mint), read from
   `/var/lib/dpkg/status`, or rpm's (Fedora, openSUSE). Those installed only
@@ -281,7 +304,7 @@ Leftovers** also finds the data of Flatpak and Snap apps no longer installed,
 menu entries that start what is gone, and empty folders in `~/.config`,
 `~/.local/share` and `~/.cache`. Shortcuts, icons and winget are Windows'.
 
-## Next
+## Phases
 
 1. Done: the programs of every user from the registry, Windows Installer, the
    Store and winget, joined; Scoop and Chocolatey tabs; shortcuts, icons,
@@ -292,7 +315,7 @@ menu entries that start what is gone, and empty folders in `~/.config`,
    registry keys, services, scheduled tasks, the user's settings, Everything),
    files to the Recycle Bin and keys saved to a `.reg` file; Find Leftovers for
    programs removed before and entries whose uninstaller is gone.
-4. The optional features of Windows (DISM); the packages of development tools
-   (npm, pip, Cargo, vcpkg).
+4. Done: tabs for the optional features of Windows (DISM) and for the packages
+   of npm, pip, Cargo and vcpkg.
 5. Done: Linux's dpkg, rpm, Flatpak and Snap packages, removed through
    `pkexec`, and their leftovers in the user's folders.
