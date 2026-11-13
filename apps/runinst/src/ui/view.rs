@@ -129,6 +129,10 @@ pub fn source_label(s: Source) -> String {
         Source::Winget => "winget".into(),
         Source::Scoop => "Scoop".into(),
         Source::Chocolatey => "Chocolatey".into(),
+        Source::Dpkg => "dpkg".into(),
+        Source::Rpm => "RPM".into(),
+        Source::Flatpak => "Flatpak".into(),
+        Source::Snap => "Snap".into(),
     }
 }
 
@@ -146,6 +150,8 @@ pub fn tab_label(app: &App, tab: Tab) -> String {
         Tab::Programs => tr("Programs"),
         Tab::Scoop => "Scoop".into(),
         Tab::Chocolatey => "Chocolatey".into(),
+        Tab::Flatpak => "Flatpak".into(),
+        Tab::Snap => "Snap".into(),
         Tab::Leftovers => tr("Leftovers"),
     };
     format!("{name} ({})", format::count(n as u64))
@@ -340,6 +346,7 @@ pub fn problems_text(ps: &[crate::inventory::Problem]) -> String {
                 Problem::InstallFailed => "Install failed",
                 Problem::ManifestRemoved => "Manifest removed",
                 Problem::UninstallerMissing => "Uninstaller missing",
+                Problem::ConfigOnly => "Only settings left",
             })
         })
         .collect::<Vec<_>>()
@@ -467,6 +474,8 @@ fn col_title(c: Col, tab: Tab) -> String {
         Col::Name => "Name",
         Col::Publisher if tab == Tab::Scoop => "Bucket",
         Col::Publisher if tab == Tab::Chocolatey => "Authors",
+        Col::Publisher if tab == Tab::Flatpak => "Remote",
+        Col::Publisher if tab == Tab::Programs && cfg!(not(windows)) => "Maintainer",
         Col::Publisher => "Publisher",
         Col::Version => "Version",
         Col::Size => "Size",
@@ -749,7 +758,15 @@ fn lines_of(tab: Tab, p: &Program) -> Vec<(String, String)> {
         }
     };
     add("Problem", problems_text(&p.problems));
-    add(if tab == Tab::Scoop { "Bucket" } else { "Publisher" }, p.publisher.clone());
+    add(
+        match tab {
+            Tab::Scoop => "Bucket",
+            Tab::Flatpak => "Remote",
+            Tab::Programs if cfg!(not(windows)) => "Maintainer",
+            _ => "Publisher",
+        },
+        p.publisher.clone(),
+    );
     add("Version", p.version.clone());
     add("Newer version (winget)", p.winget.as_ref().and_then(|w| w.available.clone()).unwrap_or_default());
     add("Found in", sources_text(&p.sources));
@@ -972,7 +989,8 @@ pub fn status_text(app: &App, hover: Option<usize>) -> (String, String) {
     if broken > 0 {
         right += &format!(" · {}", tf("{} with problems", &[&format::count(broken as u64)]));
     }
-    if app.tab == Tab::Programs {
+    // Shortcuts and winget are Windows'.
+    if app.tab == Tab::Programs && cfg!(windows) {
         right += &format!(" · {}", tf("{} shortcuts", &[&format::count(f.shortcuts.len() as u64)]));
         right += &format!(" · {}", if !f.winget_done { tr("asking winget…") } else { tf("{} updates (winget)", &[&format::count(updates as u64)]) });
     }
@@ -1051,7 +1069,13 @@ mod screenshots {
             f
         };
         #[cfg(not(windows))]
-        let found = crate::app::tests::sample();
+        let found = {
+            let inv = crate::inventory::read();
+            let mut f = if inv.programs.is_empty() { crate::app::tests::sample() } else { crate::app::Found::new(inv, Vec::new()) };
+            f.flatpak = crate::linux_pkgs::flatpak(&f.inv.me.name);
+            f.snap = crate::linux_pkgs::snap();
+            f
+        };
         app.set_found(found);
         shot("list-waiting-winget", &app, false, Hot::Row(2), false, 1300, 760);
         app.set_winget(crate::winget::run().map(|t| crate::winget::parse(&t)));

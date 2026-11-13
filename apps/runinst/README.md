@@ -254,8 +254,32 @@ The output is `target\release-small\runinst.exe`.
 
 ## Linux
 
-It builds and runs (5.7 MB), but lists nothing yet: the packages of Linux
-(dpkg, rpm, flatpak, snap) come in phase 5.
+One file of 5.8 MB. It lists the packages instead of Windows' programs:
+
+- **Programs**: dpkg's packages (Debian, Ubuntu, Mint), read from
+  `/var/lib/dpkg/status`, or rpm's (Fedora, openSUSE). Those installed only
+  because another needs them, those the system cannot do without, and the
+  libraries count as system components: hidden unless you ask for them (on an
+  Ubuntu with 787 packages, 45 are shown). A package removed whose settings in
+  `/etc` are still there is marked "Only settings left": uninstalling it again
+  removes them (`apt-get purge`).
+- **Flatpak** and **Snap** tabs, when they are there; Flatpak's runtimes and
+  Snap's bases are system components.
+
+Uninstalling runs `apt-get remove` (or `dpkg --remove` without apt), `dnf`,
+`zypper` or `rpm -e`, `flatpak uninstall` and `snap remove`. These need root:
+`pkexec` asks for the password in a window of its own (when it is not there,
+start runinst as root). **Modify or Repair** installs the package again
+(`apt-get install --reinstall`, `dnf reinstall`, `flatpak install
+--reinstall`); Snap has no such command.
+
+Leftovers are the user's own: folders named after the package in
+`~/.config`, `~/.local/share`, `~/.local/state`, `~/.cache` and `~/.<name>`,
+Flatpak's `~/.var/app/<id>`, Snap's `~/snap/<name>`, and menu entries
+(`.desktop`) that start what is gone. They go to the trash. **Find
+Leftovers** also finds the data of Flatpak and Snap apps no longer installed,
+menu entries that start what is gone, and empty folders in `~/.config`,
+`~/.local/share` and `~/.cache`. Shortcuts, icons and winget are Windows'.
 
 ## Next
 
@@ -270,4 +294,5 @@ It builds and runs (5.7 MB), but lists nothing yet: the packages of Linux
    programs removed before and entries whose uninstaller is gone.
 4. The optional features of Windows (DISM); the packages of development tools
    (npm, pip, Cargo, vcpkg).
-5. Linux: dpkg, rpm, flatpak and snap packages, removed with `pkexec`.
+5. Done: Linux's dpkg, rpm, Flatpak and Snap packages, removed through
+   `pkexec`, and their leftovers in the user's folders.

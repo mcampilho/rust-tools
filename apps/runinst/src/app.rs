@@ -30,8 +30,16 @@ pub enum Tab {
     Programs,
     Scoop,
     Chocolatey,
+    /// Linux.
+    Flatpak,
+    Snap,
     /// What the programs uninstalled left behind.
     Leftovers,
+}
+
+impl Tab {
+    /// The tabs that list programs.
+    pub const LISTS: [Tab; 5] = [Tab::Programs, Tab::Scoop, Tab::Chocolatey, Tab::Flatpak, Tab::Snap];
 }
 
 /// The leftovers found after uninstalling, and which are ticked.
@@ -98,6 +106,8 @@ pub struct Found {
     pub links: Vec<Vec<usize>>,
     pub scoop: Option<Vec<Program>>,
     pub chocolatey: Option<Vec<Program>>,
+    pub flatpak: Option<Vec<Program>>,
+    pub snap: Option<Vec<Program>>,
     /// winget has answered (or is not there).
     pub winget_done: bool,
 }
@@ -114,6 +124,8 @@ impl Found {
             Tab::Programs => &self.inv.programs,
             Tab::Scoop => self.scoop.as_deref().unwrap_or(&[]),
             Tab::Chocolatey => self.chocolatey.as_deref().unwrap_or(&[]),
+            Tab::Flatpak => self.flatpak.as_deref().unwrap_or(&[]),
+            Tab::Snap => self.snap.as_deref().unwrap_or(&[]),
             Tab::Leftovers => &[],
         }
     }
@@ -225,6 +237,12 @@ impl App {
             }
             if f.chocolatey.is_some() {
                 t.push(Tab::Chocolatey);
+            }
+            if f.flatpak.is_some() {
+                t.push(Tab::Flatpak);
+            }
+            if f.snap.is_some() {
+                t.push(Tab::Snap);
             }
         }
         if self.leftovers.is_some() {

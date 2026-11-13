@@ -77,13 +77,14 @@ impl TextEdit {
     }
 
     /// Types (or pastes) `s` at the caret, in place of the selection. Line
-    /// breaks become spaces; other control characters are dropped.
+    /// breaks become spaces (but not those at the end of a pasted line);
+    /// other control characters are dropped.
     pub fn insert(&mut self, s: &str) {
+        let s = s.trim_end_matches(['\r', '\n']);
         let s: String = s.chars().map(|c| if c == '\n' || c == '\t' { ' ' } else { c }).filter(|c| !c.is_control()).collect();
-        let s = s.trim_end_matches(' ');
         self.take_selection();
         let at = boundary(&self.text, self.caret);
-        self.text.insert_str(at, s);
+        self.text.insert_str(at, &s);
         self.caret = at + s.len();
         self.anchor = self.caret;
     }
@@ -207,6 +208,11 @@ mod tests {
         assert_eq!((t.text.as_str(), t.caret), ("é", 2));
         t.set_caret(1, false);
         assert_eq!(t.caret, 0);
+        // A space typed stays; a pasted line loses its line break.
+        let mut t = TextEdit::new("bit");
+        t.insert(" ");
+        t.insert("defender\r\n");
+        assert_eq!(t.text, "bit defender");
         assert_eq!(offset_at("abc", 15.0, |_| 10.0), 1);
         assert_eq!(offset_at("abc", 26.0, |_| 10.0), 3);
     }

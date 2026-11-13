@@ -86,10 +86,11 @@ fn hidden(file: &str, params: &str, elevate: bool, env: Vec<(String, String)>) -
 pub fn can_modify(p: &Program) -> bool {
     // Scoop's repair: `scoop install` again after a failed install, else
     // `scoop reset` (its shims, shortcuts and current version again).
-    if p.sources.first() == Some(&Source::Scoop) {
+    // Linux's package managers install again (Snap has no such command).
+    if matches!(p.sources.first(), Some(Source::Scoop | Source::Dpkg | Source::Rpm | Source::Flatpak)) {
         return true;
     }
-    let manager = p.sources.first() == Some(&Source::Chocolatey);
+    let manager = matches!(p.sources.first(), Some(Source::Chocolatey | Source::Snap));
     // `NoModify` and `NoRepair` both set: Windows offers no change either.
     let flag = |name: &str| p.values.iter().any(|(k, v)| k.eq_ignore_ascii_case(name) && (v.trim() == "1" || v.trim_end().ends_with("(1)")));
     let closed = flag("NoModify") && flag("NoRepair");
@@ -135,6 +136,7 @@ pub fn plan(p: &Program, how: How, admin: bool, me: &Me) -> Plan {
             let choco = if root.is_empty() { "choco.exe".to_string() } else { format!("{root}\\bin\\choco.exe") };
             return hidden(&choco, &format!("uninstall {id} -y"), !admin, Vec::new());
         }
+        Some(Source::Dpkg | Source::Rpm | Source::Flatpak | Source::Snap) => return linux_plan(p, how, admin),
         _ => {}
     }
     // A Store or MSIX package: removed by the package manager of Windows,
@@ -193,6 +195,51 @@ pub fn plan(p: &Program, how: How, admin: bool, me: &Me) -> Plan {
     Plan::Cannot(NO_UNINSTALLER.into())
 }
 
+/// What to run for a package of Linux. The system's packages need root:
+/// `pkexec` asks for it (`elevate`). Flatpak asks by itself when it must.
+fn linux_plan(p: &Program, how: How, admin: bool) -> Plan {
+    use crate::linux_pkgs::{on_path, package_id, value};
+    let id = package_id(p);
+    let modify = how == How::Modify;
+    let (file, args) = match p.sources.first() {
+        Some(Source::Dpkg) => {
+            // apt-get also takes what only this package needed; dpkg alone
+            // where there is no apt. Settings left are purged.
+            let purge = p.problems.contains(&Problem::ConfigOnly);
+            let apt = on_path(&["apt-get"]).is_some();
+            let args = match (apt, modify, purge) {
+                (true, true, _) => format!("install --reinstall -y {id}"),
+                (true, false, true) => format!("purge -y {id}"),
+                (true, false, false) => format!("remove -y {id}"),
+                (false, true, _) => return Plan::Cannot(NO_MODIFY.into()),
+                (false, false, true) => format!("--purge {id}"),
+                (false, false, false) => format!("--remove {id}"),
+            };
+            let env = vec![("DEBIAN_FRONTEND".to_string(), "noninteractive".to_string())];
+            return Plan::Run { file: if apt { "apt-get" } else { "dpkg" }.into(), params: args, elevate: !admin, hidden: true, env };
+        }
+        Some(Source::Rpm) => match (on_path(&["dnf", "zypper", "yum"]), modify) {
+            (Some("zypper"), true) => ("zypper", format!("--non-interactive install --force {id}")),
+            (Some("zypper"), false) => ("zypper", format!("--non-interactive remove {id}")),
+            (Some(tool), true) => (tool, format!("reinstall -y {id}")),
+            (Some(tool), false) => (tool, format!("remove -y {id}")),
+            (None, true) => return Plan::Cannot(NO_MODIFY.into()),
+            (None, false) => ("rpm", format!("-e {id}")),
+        },
+        Some(Source::Flatpak) => {
+            let inst = if value(p, "Installation") == Some("user") { "--user" } else { "--system" };
+            let args = if modify {
+                format!("install -y --reinstall {inst} {} {id}", value(p, "Origin").unwrap_or("flathub"))
+            } else {
+                format!("uninstall -y {inst} {id}")
+            };
+            return hidden("flatpak", &args, false, Vec::new());
+        }
+        _ => ("snap", format!("remove {id}")),
+    };
+    hidden(file, &args, !admin, Vec::new())
+}
+
 /// How it went.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Outcome {
@@ -230,17 +277,7 @@ pub fn carry_out(plan: &Plan) -> Outcome {
             for (k, v) in env {
                 c.env(k, v);
             }
-            match c.output() {
-                Ok(o) => {
-                    let mut text = String::from_utf8_lossy(&o.stdout).into_owned();
-                    text.push_str(&String::from_utf8_lossy(&o.stderr));
-                    // The last lines say how it went.
-                    let tail: Vec<&str> = text.lines().filter(|l| !l.trim().is_empty()).collect();
-                    let tail = tail[tail.len().saturating_sub(4)..].join("\n");
-                    Outcome::Ended(o.status.code().unwrap_or(-1) as i64, tail)
-                }
-                Err(e) => Outcome::Failed(e.to_string()),
-            }
+            c.output().map_or_else(|e| Outcome::Failed(e.to_string()), ended)
         }
         Plan::Run { file, params, elevate, hidden, env } => {
             for (k, v) in env {
@@ -252,11 +289,42 @@ pub fn carry_out(plan: &Plan) -> Outcome {
     }
 }
 
+/// How a command run without a window ended, with the last lines it printed
+/// (they say how it went).
+fn ended(o: std::process::Output) -> Outcome {
+    let mut text = String::from_utf8_lossy(&o.stdout).into_owned();
+    text.push_str(&String::from_utf8_lossy(&o.stderr));
+    let tail: Vec<&str> = text.lines().filter(|l| !l.trim().is_empty()).collect();
+    let tail = tail[tail.len().saturating_sub(4)..].join("\n");
+    Outcome::Ended(o.status.code().unwrap_or(-1) as i64, tail)
+}
+
+/// Root is needed, and there is no `pkexec` to ask for it.
+pub const NEEDS_ROOT: &str = "needs root";
+
+/// Linux: runs the package manager, through `pkexec` when it needs root
+/// (it asks for the password in a window of its own; it drops the
+/// environment, so the variables go through `env`).
 #[cfg(not(windows))]
 pub fn carry_out(plan: &Plan) -> Outcome {
+    use std::process::{Command, Stdio};
     match plan {
         Plan::Cannot(why) => Outcome::Cannot(why.clone()),
-        _ => Outcome::Failed("Windows only".into()),
+        Plan::Package(_) => Outcome::Cannot(NO_UNINSTALLER.into()),
+        Plan::Run { file, params, elevate, env, .. } => {
+            let args = params.split_whitespace();
+            let mut c = if *elevate && !crate::linux_pkgs::is_root() {
+                let Some(pkexec) = crate::linux_pkgs::on_path(&["pkexec"]) else { return Outcome::Cannot(NEEDS_ROOT.into()) };
+                let mut c = Command::new(pkexec);
+                c.arg("env").args(env.iter().map(|(k, v)| format!("{k}={v}"))).arg(file).args(args);
+                c
+            } else {
+                let mut c = Command::new(file);
+                c.args(args).envs(env.iter().map(|(k, v)| (k, v)));
+                c
+            };
+            c.stdin(Stdio::null()).output().map_or_else(|e| Outcome::Failed(e.to_string()), ended)
+        }
     }
 }
 
@@ -450,6 +518,29 @@ mod tests {
         closed.values = vec![("NoModify".into(), "0x00000001 (1)".into()), ("NoRepair".into(), "1".into())];
         assert!(!can_modify(&closed));
         assert_eq!(plan(&closed, How::Modify, false, &me), Plan::Cannot(NO_MODIFY.into()));
+        // Linux: the package manager, through pkexec without root.
+        let deb = Program { name: "htop".into(), values: vec![("Package".into(), "htop:amd64".into())], sources: vec![Source::Dpkg], ..Program::default() };
+        let Plan::Run { file, params, elevate, env, .. } = plan(&deb, How::Normal, false, &me) else { panic!() };
+        assert!(elevate && params.ends_with(" htop:amd64") && (file == "apt-get" && params.starts_with("remove -y") || file == "dpkg"), "{file} {params}");
+        assert_eq!(env, [("DEBIAN_FRONTEND".to_string(), "noninteractive".to_string())]);
+        let Plan::Run { elevate, .. } = plan(&deb, How::Normal, true, &me) else { panic!() };
+        assert!(!elevate, "already root");
+        let rc = Program { problems: vec![Problem::ConfigOnly], ..deb.clone() };
+        let Plan::Run { params, .. } = plan(&rc, How::Normal, false, &me) else { panic!() };
+        assert!(params.contains("purge"), "settings left are purged: {params}");
+        let fp = Program {
+            values: vec![("Ref".into(), "app/org.gimp.GIMP/x86_64/stable".into()), ("Installation".into(), "user".into()), ("Origin".into(), "flathub".into())],
+            sources: vec![Source::Flatpak],
+            ..Program::default()
+        };
+        assert_eq!(plan(&fp, How::Quiet, false, &me), hidden("flatpak", "uninstall -y --user app/org.gimp.GIMP/x86_64/stable", false, Vec::new()));
+        let Plan::Run { params, .. } = plan(&fp, How::Modify, false, &me) else { panic!() };
+        assert_eq!(params, "install -y --reinstall --user flathub app/org.gimp.GIMP/x86_64/stable");
+        let sn = Program { name: "ponysay".into(), values: vec![("Package".into(), "ponysay".into())], sources: vec![Source::Snap], ..Program::default() };
+        assert_eq!(plan(&sn, How::Normal, false, &me), hidden("snap", "remove ponysay", true, Vec::new()));
+        assert!(!can_modify(&sn) && can_modify(&deb) && can_modify(&fp));
+        let essential = Program { no_remove: true, ..deb.clone() };
+        assert_eq!(plan(&essential, How::Normal, true, &me), Plan::Cannot(NO_REMOVE.into()));
         assert!(Outcome::Ended(3010, String::new()).ok() && Outcome::Ended(3010, String::new()).needs_restart());
         assert!(!Outcome::Ended(2, String::new()).ok());
     }

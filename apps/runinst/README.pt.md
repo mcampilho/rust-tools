@@ -261,8 +261,33 @@ O resultado é `target\release-small\runinst.exe`.
 
 ## Linux
 
-Compila e corre (5,7 MB), mas ainda não lista nada: os pacotes do Linux (dpkg,
-rpm, flatpak, snap) vêm na fase 5.
+Um ficheiro de 5,8 MB. Em vez dos programas do Windows, lista os pacotes:
+
+- **Programas**: os pacotes do dpkg (Debian, Ubuntu, Mint), lidos de
+  `/var/lib/dpkg/status`, ou do rpm (Fedora, openSUSE). Os instalados só porque
+  outro precisa deles, aqueles sem os quais o sistema não funciona e as
+  bibliotecas contam como componentes do sistema: ficam escondidos, a menos que
+  os peça (num Ubuntu com 787 pacotes, aparecem 45). Um pacote removido cujas
+  definições em `/etc` ainda lá estão aparece marcado "Só restam as
+  definições": desinstalá-lo de novo remove-as (`apt-get purge`).
+- Separadores **Flatpak** e **Snap**, quando existem; os runtimes do Flatpak e
+  as bases do Snap são componentes do sistema.
+
+Desinstalar corre `apt-get remove` (ou `dpkg --remove` sem o apt), `dnf`,
+`zypper` ou `rpm -e`, `flatpak uninstall` e `snap remove`. Estes precisam de
+root: o `pkexec` pede a palavra-passe numa janela própria (se não existir,
+inicie o runinst como root). **Modificar ou reparar** instala o pacote de novo
+(`apt-get install --reinstall`, `dnf reinstall`, `flatpak install
+--reinstall`); o Snap não tem esse comando.
+
+Os restos são do próprio utilizador: pastas com o nome do pacote em
+`~/.config`, `~/.local/share`, `~/.local/state`, `~/.cache` e `~/.<nome>`, o
+`~/.var/app/<id>` do Flatpak, o `~/snap/<nome>` do Snap e entradas do menu
+(`.desktop`) que abrem o que desapareceu. Vão para o lixo. **Procurar restos**
+encontra também os dados de apps do Flatpak e do Snap que já não estão
+instaladas, as entradas do menu que abrem o que desapareceu e as pastas vazias
+em `~/.config`, `~/.local/share` e `~/.cache`. Atalhos, ícones e winget são do
+Windows.
 
 ## A seguir
 
@@ -278,4 +303,5 @@ rpm, flatpak, snap) vêm na fase 5.
    desinstalador já não existe.
 4. As funcionalidades opcionais do Windows (DISM); os pacotes das ferramentas de
    programação (npm, pip, Cargo, vcpkg).
-5. Linux: pacotes dpkg, rpm, flatpak e snap, removidos com `pkexec`.
+5. Feito: os pacotes dpkg, rpm, Flatpak e Snap do Linux, removidos através do
+   `pkexec`, e os restos deles nas pastas do utilizador.

@@ -1,8 +1,8 @@
 # runinst — desinstalador portátil em Rust
 
 Lista os programas instalados para todos os utilizadores (sistema, o atual e, como administrador, os outros), com os
-atalhos do menu Iniciar e do ambiente de trabalho que lhes pertencem. Um único executável (2,1 MB em Windows; o Linux
-compila, 5,7 MB, mas ainda não lista). Depois de experimentar (2026-11-13), o utilizador pediu as outras fontes
+atalhos do menu Iniciar e do ambiente de trabalho que lhes pertencem. Um único executável (2,1 MB em Windows; 5,8 MB em
+Linux, com os pacotes dpkg/rpm/Flatpak/Snap). Depois de experimentar (2026-11-13), o utilizador pediu as outras fontes
 (faltava o ChatGPT, um MSIX): registo, Windows Installer, Loja/MSIX e winget numa só lista sem repetidos, com a
 origem; Scoop e Chocolatey em separadores. DISM e npm/pip/Cargo/vcpkg ficam para depois. Pedido do utilizador (2026-11-12): ter em conta entradas do sistema e de
 utilizadores, atalhos de todos ou de alguns; sem privilégios vê-se o sistema e o próprio utilizador (o HKLM lê-se sem
@@ -14,7 +14,7 @@ Funcionalidades no `README.md`.
 
 ```powershell
 ./dev.ps1 build --profile release-small -p runinst
-./dev.ps1 test -p runinst         # 35 testes
+./dev.ps1 test -p runinst         # 38 testes (34 em Linux)
 ./dev.ps1 clippy -p runinst --all-targets
 ./dev.ps1 test -p runinst --lib screenshots '--' --ignored   # apps/runinst/target/screens/*.png (com os programas deste PC)
 ./dev.ps1 test -p runinst --lib report '--' --ignored --nocapture   # contagens deste PC
@@ -23,7 +23,11 @@ Funcionalidades no `README.md`.
 ./dev.ps1 test -p runinst --lib orphans_here '--' --ignored --nocapture   # o que "Procurar restos" oferece aqui ($env:RUNINST_ADMIN)
 ```
 
-Se o `target\release-small\runinst.exe` estiver aberto, compilar com `--target-dir target\alt`.
+Se o `target\release-small\runinst.exe` estiver aberto, compilar com `--target-dir target\alt` (ou `alt2`, se esse
+também estiver aberto).
+
+Em Linux (WSL, com `CARGO_TARGET_DIR=$HOME/rt-target`): `cargo test -p runinst --lib packages_here -- --ignored
+--nocapture` (pacotes deste sistema), `orphans_here` também, e `screenshots` usa os pacotes reais.
 
 Medido em 2026-11-13 neste PC (sem administrador): 112 entradas (31 visíveis) de registo, Windows Installer e
 pacotes em ~0,55 s; `winget list` 66 linhas em ~1 s, todas juntas a uma entrada; 7 atualizações; Scoop com 1307
@@ -116,6 +120,23 @@ apps (`D:\Portable\scoop`, ficheiros `scoop-manifest.json`); 102 atalhos; "Admin
   volta a `back_tab` (antes saltava para Programas a partir do Scoop).
 - `main.rs` (com `input.rs`, `menus.rs`, `render.rs`) — leitura num fio (`refresh`, eventos com geração), ícones num
   fio em lotes de 16 (`rt_sys::win::icon::extract`, cache por ficheiro e índice), "Reiniciar como administrador".
+- `linux_pkgs.rs` — fase 5 (pedido em 2026-11-13). Leitores de texto que correm em qualquer sistema (testados em
+  Windows): `parse_dpkg` (`/var/lib/dpkg/status`; `config-files` → `Problem::ConfigOnly`, outros estados a meio →
+  `InstallFailed`; componente do sistema se `Auto-Installed` em `/var/lib/apt/extended_states`, `Priority`
+  required/important, `Section` libs ou `Essential`; `Essential` → `no_remove`; data pelo `info/<pkg>.list`),
+  `parse_rpm` (`RPM_FORMAT`, `part_name` para as bibliotecas), `parse_flatpak` (`FLATPAK_COLUMNS`, tamanhos SI
+  por `parse_size`; runtimes → sistema; `user` → `Scope::User`), `parse_snap` (colunas pelo cabeçalho; notas
+  base/core/snapd → sistema; tamanho e data do `.snap`). `package_id` (`Package` ou `Ref` nos `values`), `is_root`
+  (`/proc/self/status`), `on_path`. Em Linux, `inventory::read` = dpkg + rpm; `Found::flatpak`/`snap` em
+  `Tab::Flatpak`/`Tab::Snap` (`Tab::LISTS`). `uninstall::linux_plan`: `apt-get remove|purge|install --reinstall`
+  com `DEBIAN_FRONTEND` (ou `dpkg`), `dnf`/`zypper`/`yum`/`rpm -e`, `flatpak uninstall|install --reinstall
+  --user|--system` (sem `elevate`: pede ele), `snap remove`; `carry_out` em Linux passa por `pkexec env K=V …`
+  sem root (sem `pkexec`: `NEEDS_ROOT`). Depois de remover, um pacote `ConfigOnly` conta como desinstalado.
+  `leftovers::lin`: só a pasta pessoal (`~/.config`, `~/.local/share`, `~/.local/state` → `Settings`, `~/.cache` →
+  `Folder`, `~/.<nome>`, `~/.var/app/<id>`, `~/snap/<nome>`, `.desktop` com `Exec` desaparecido), nada que seja
+  o nome de um pacote ainda instalado nem do `NEVER`; `find_orphans`: dados do Flatpak/Snap sem app (só se a
+  lista foi lida ou o gestor já não existe), `.desktop` partidos, pastas vazias; remoção para o lixo. Neste WSL
+  (Ubuntu): 787 pacotes em 0,34 s, 45 à vista; 8 snaps (4 de sistema); sem Flatpak nem `pkexec`.
 - Partilhado: o leitor de JSON passou do rwall para `rt_core::json`. `rt-sys`: `win::reg` (ler o registo nas vistas de 64/32 bits, valores, `load_hive`, `expand`),
   `win::icon` (ícone de um `.exe`/`.dll`/`.ico` em RGBA, máscara para ícones antigos), `win::user_sid`, `win::session_user`,
   `win::sid_of`.
@@ -132,7 +153,9 @@ apps (`D:\Portable\scoop`, ficheiros `scoop-manifest.json`); 102 atalhos; "Admin
    restos sem desinstalar (entradas sem desinstalador, o que corre algo desaparecido, pastas vazias). Serviços e
    tarefas por experimentar a sério (como administrador).
 4. Funcionalidades opcionais (DISM); npm, pip, Cargo, vcpkg.
-5. Linux: dpkg, rpm, flatpak, snap.
+5. Feito (2026-11-13), antes da fase 4 a pedido do utilizador: Linux com dpkg, rpm, Flatpak e Snap, remover por
+   `pkexec`, restos na pasta pessoal. Por experimentar a sério: remover e reparar (o WSL não tem `pkexec`), rpm e
+   Flatpak (só testados com texto de exemplo).
 
 ## Regras
 

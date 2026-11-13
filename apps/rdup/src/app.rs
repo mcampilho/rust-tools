@@ -8,6 +8,7 @@ use std::collections::HashSet;
 use crate::folders::Group as FolderGroup;
 use crate::search::{Found, Progress};
 use crate::volumes::Volume;
+use rt_core::textedit::{boundary, TextEdit};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
@@ -113,47 +114,6 @@ impl Calendar {
     }
 }
 
-/// Words in the filter boxes are separated by these.
-fn is_separator(c: char) -> bool {
-    c.is_whitespace() || c == ',' || c == ';'
-}
-
-/// `at` within `text`, on the start of a character.
-fn boundary(text: &str, at: usize) -> usize {
-    let mut at = at.min(text.len());
-    while !text.is_char_boundary(at) {
-        at -= 1;
-    }
-    at
-}
-
-/// Where the caret goes from `at` one character (or `word`) forward or back.
-fn step(text: &str, at: usize, forward: bool, word: bool) -> usize {
-    if forward {
-        let mut it = text[at..].char_indices().peekable();
-        if !word {
-            return it.next().map_or(at, |(_, c)| at + c.len_utf8());
-        }
-        // Past the separators, then past the word.
-        while it.next_if(|&(_, c)| is_separator(c)).is_some() {}
-        while it.next_if(|&(_, c)| !is_separator(c)).is_some() {}
-        it.peek().map_or(text.len(), |&(i, _)| at + i)
-    } else {
-        let mut it = text[..at].char_indices().rev().peekable();
-        if !word {
-            return it.next().map_or(at, |(i, _)| i);
-        }
-        let mut to = at;
-        while let Some((i, _)) = it.next_if(|&(_, c)| is_separator(c)) {
-            to = i;
-        }
-        while let Some((i, _)) = it.next_if(|&(_, c)| !is_separator(c)) {
-            to = i;
-        }
-        to
-    }
-}
-
 /// Whether two paths name the same folder (without case on Windows).
 fn same(a: &Path, b: &Path) -> bool {
     let (a, b) = (rt_scan::normalize(a), rt_scan::normalize(b));
@@ -243,6 +203,18 @@ impl App {
         self.focus_field(Field::ALL[i], None);
     }
 
+    /// Runs `op` on the box being typed in, as a `rt_core::textedit::TextEdit`
+    /// (its text, the caret and the other end of the selection).
+    fn edit<R>(&mut self, op: impl FnOnce(&mut TextEdit) -> R) -> Option<R> {
+        let f = self.focus?;
+        let text = std::mem::take(&mut self.choice.texts[f.index()]);
+        let mut e = TextEdit { text, caret: self.caret, anchor: self.anchor };
+        let r = op(&mut e);
+        self.choice.texts[f.index()] = e.text;
+        (self.caret, self.anchor) = (e.caret, e.anchor);
+        Some(r)
+    }
+
     /// The selected text of the box being typed in, as (start, end), when
     /// there is some.
     pub fn selection(&self) -> Option<(usize, usize)> {
@@ -259,98 +231,37 @@ impl App {
         }
     }
 
-    /// Takes the selected text out. Returns whether there was some.
-    fn take_selection(&mut self) -> bool {
-        let (Some(f), Some((a, b))) = (self.focus, self.selection()) else { return false };
-        self.choice.texts[f.index()].replace_range(a..b, "");
-        self.caret = a;
-        self.anchor = a;
-        true
-    }
-
-    /// Types `s` at the caret, in place of the selection (control characters
-    /// are dropped).
+    /// Types `s` at the caret, in place of the selection (line breaks become
+    /// spaces; other control characters are dropped).
     pub fn type_text(&mut self, s: &str) {
-        let Some(f) = self.focus else { return };
-        let s: String = s.chars().filter(|c| !c.is_control()).collect();
-        self.take_selection();
-        let text = &mut self.choice.texts[f.index()];
-        let at = boundary(text, self.caret);
-        text.insert_str(at, &s);
-        self.caret = at + s.len();
-        self.anchor = self.caret;
+        self.edit(|e| e.insert(s));
     }
 
     /// Deletes the selection, or else the character (`word`: the word) before
     /// the caret (`forward`: after it).
     pub fn delete(&mut self, forward: bool, word: bool) {
-        let Some(f) = self.focus else { return };
-        if self.take_selection() {
-            return;
-        }
-        let text = self.choice.text(f);
-        let at = boundary(text, self.caret);
-        let to = step(text, at, forward, word);
-        let (a, b) = (at.min(to), at.max(to));
-        self.choice.texts[f.index()].replace_range(a..b, "");
-        self.caret = a;
-        self.anchor = a;
+        self.edit(|e| e.delete(forward, word));
     }
 
     /// Moves the caret a character (`word`: a word) left or right, or to the
     /// start or end; `extend` keeps the other end of the selection where it is.
     pub fn move_caret(&mut self, delta: isize, to_end: bool, word: bool, extend: bool) {
-        let Some(f) = self.focus else { return };
-        let text = self.choice.text(f);
-        let back = delta < 0;
-        let at = boundary(text, self.caret);
-        self.caret = match (to_end, self.selection()) {
-            (true, _) => {
-                if back {
-                    0
-                } else {
-                    text.len()
-                }
-            }
-            // Without Shift, an arrow first goes to that side of the selection.
-            (false, Some((a, b))) if !extend && !word => {
-                if back {
-                    a
-                } else {
-                    b
-                }
-            }
-            _ => step(text, at, !back, word),
-        };
-        if !extend {
-            self.anchor = self.caret;
-        }
+        self.edit(|e| e.move_caret(delta < 0, to_end, word, extend));
     }
 
     /// Moves the caret to `caret` keeping the other end of the selection (a
     /// drag of the pointer, or Shift with a click).
     pub fn drag_caret(&mut self, caret: usize) {
-        if let Some(f) = self.focus {
-            self.caret = boundary(self.choice.text(f), caret);
-        }
+        self.edit(|e| e.set_caret(caret, true));
     }
 
     /// Selects the word around `at` (a double click).
     pub fn select_word(&mut self, at: usize) {
-        let Some(f) = self.focus else { return };
-        let text = self.choice.text(f);
-        let at = boundary(text, at);
-        let start = text[..at].rfind(is_separator).map_or(0, |i| i + text[i..].chars().next().map_or(1, char::len_utf8));
-        let end = text[at..].find(is_separator).map_or(text.len(), |i| at + i);
-        self.anchor = start;
-        self.caret = end.max(start);
+        self.edit(|e| e.select_word(at));
     }
 
     pub fn select_all(&mut self) {
-        if let Some(f) = self.focus {
-            self.anchor = 0;
-            self.caret = self.choice.text(f).len();
-        }
+        self.edit(TextEdit::select_all);
     }
     pub fn set_found(&mut self, found: Found) {
         self.marks.clear();
@@ -714,14 +625,15 @@ mod tests {
         app.delete(false, false);
         app.move_caret(-1, false, false, false);
         app.move_caret(-1, false, false, false);
+        // A line break inside pasted text becomes a space (a separator).
         app.type_text("\n.");
-        assert_eq!(app.choice.text(Field::SkipExt), "tmp .lö");
+        assert_eq!(app.choice.text(Field::SkipExt), "tmp  .lö");
         app.move_caret(1, true, false, false);
         app.delete(false, false);
-        assert_eq!(app.choice.text(Field::SkipExt), "tmp .l");
+        assert_eq!(app.choice.text(Field::SkipExt), "tmp  .l");
         app.move_caret(-1, true, false, false);
         app.delete(true, false);
-        assert_eq!(app.choice.text(Field::SkipExt), "mp .l");
+        assert_eq!(app.choice.text(Field::SkipExt), "mp  .l");
         app.select_all();
         app.type_text("obj");
         assert_eq!((app.choice.text(Field::SkipExt), app.caret), ("obj", 3));

@@ -7,6 +7,7 @@ pub mod commands;
 pub mod i18n;
 pub mod inventory;
 pub mod leftovers;
+pub mod linux_pkgs;
 pub mod managers;
 pub mod msi;
 pub mod settings;

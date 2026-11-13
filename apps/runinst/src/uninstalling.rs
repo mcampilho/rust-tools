@@ -36,6 +36,7 @@ fn reason_text(why: &str) -> String {
         uninstall::NO_UNINSTALLER => tr("it has no uninstall command"),
         uninstall::NO_REMOVE => tr("it says it cannot be removed"),
         uninstall::NO_MODIFY => tr("it has no command to change or repair it"),
+        uninstall::NEEDS_ROOT => tr("it needs root, and pkexec was not found: start runinst as root"),
         uninstall::NOT_ELEVATED_PACKAGE => tr("Store apps are removed for the user runinst runs as: start runinst without administrator rights"),
         other => other.to_string(),
     }
@@ -196,8 +197,11 @@ impl Shell {
     pub(super) fn show_report(&mut self) {
         let Some(job) = self.report.take() else { return };
         let Some(found) = &self.app.found else { return };
+        // A dpkg package whose settings are all that is left is gone.
         let still = |key: &str, name: &str| {
-            [runinst::app::Tab::Programs, runinst::app::Tab::Scoop, runinst::app::Tab::Chocolatey].iter().any(|&t| found.list(t).iter().any(|p| p.key == key && p.name == name))
+            runinst::app::Tab::LISTS
+                .iter()
+                .any(|&t| found.list(t).iter().any(|p| p.key == key && p.name == name && !p.problems.contains(&runinst::inventory::Problem::ConfigOnly)))
         };
         let (mut gone, mut there, mut failed, mut skipped) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
         let mut restart = false;
@@ -238,7 +242,7 @@ impl Shell {
         if restart {
             parts.push(tr("Restart Windows to finish."));
         }
-        if !removed.is_empty() && cfg!(windows) {
+        if !removed.is_empty() {
             parts.push(tr("runinst is now looking for what they left behind: see the Leftovers tab."));
             self.look_for_leftovers(removed);
         }
@@ -262,7 +266,7 @@ impl Shell {
         let Some(found) = &self.app.found else { return };
         let me = found.inv.me.clone();
         let installed: Vec<runinst::inventory::Program> =
-            [runinst::app::Tab::Programs, runinst::app::Tab::Scoop, runinst::app::Tab::Chocolatey].iter().flat_map(|&t| found.list(t).iter().cloned()).collect();
+            runinst::app::Tab::LISTS.iter().flat_map(|&t| found.list(t).iter().cloned()).collect();
         let shortcuts = found.shortcuts.clone();
         let admin = self.admin;
         let proxy = self.proxy.clone();

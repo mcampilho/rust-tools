@@ -180,6 +180,11 @@ impl Shell {
             let scoop = runinst::managers::scoop_all(&found.inv.me);
             found.scoop = (!scoop.is_empty()).then_some(scoop);
             found.chocolatey = runinst::managers::choco_root().map(|r| runinst::managers::choco_packages(&r));
+            #[cfg(not(windows))]
+            {
+                found.flatpak = runinst::linux_pkgs::flatpak(&found.inv.me.name);
+                found.snap = runinst::linux_pkgs::snap();
+            }
             let wanted: Vec<IconOf> = found
                 .inv
                 .programs
@@ -335,7 +340,7 @@ impl Shell {
             Command::RestartAdmin => !self.admin,
             Command::Refresh => !self.app.loading && !self.busy(),
             Command::RemoveLeftovers => leftovers_tab && lo_idle && !self.app.chosen().is_empty(),
-            Command::FindLeftovers => cfg!(windows) && !self.busy() && self.app.found.is_some() && self.app.leftovers.as_ref().is_none_or(|l| !l.searching && !l.removing),
+            Command::FindLeftovers => !self.busy() && self.app.found.is_some() && self.app.leftovers.as_ref().is_none_or(|l| !l.searching && !l.removing),
             Command::CloseLeftovers => lo_idle,
             Command::OpenLeftover | Command::OpenFolder if leftovers_tab => self.leftover_folder().is_some(),
             Command::OpenLeftover => false,
@@ -797,7 +802,7 @@ fn main() {
         #[cfg(windows)]
         admin: rt_sys::win::elevated(),
         #[cfg(not(windows))]
-        admin: false,
+        admin: runinst::linux_pkgs::is_root(),
         dialog: help.then(|| Message::new("runinst", USAGE)),
         job: None,
         report: None,

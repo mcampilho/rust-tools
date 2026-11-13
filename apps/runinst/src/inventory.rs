@@ -43,6 +43,12 @@ pub enum Source {
     Winget,
     Scoop,
     Chocolatey,
+    /// Linux: Debian's packages (`dpkg`, removed with `apt-get`).
+    Dpkg,
+    /// Linux: `rpm`'s packages (removed with `dnf`, `zypper` or `rpm`).
+    Rpm,
+    Flatpak,
+    Snap,
 }
 
 /// What `winget list` says of a program.
@@ -101,13 +107,17 @@ pub struct Program {
 /// Something wrong with an installed program.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Problem {
-    /// Scoop: its install did not finish (no `install.json`).
+    /// Scoop: its install did not finish (no `install.json`); dpkg: a
+    /// package half installed.
     InstallFailed,
     /// Scoop: no bucket has its manifest any more.
     ManifestRemoved,
     /// Its uninstaller is gone (and its folder too, or it has none): an
     /// entry left by a program removed some other way.
     UninstallerMissing,
+    /// dpkg: removed, but its settings in `/etc` are still there (removing
+    /// it again purges them).
+    ConfigOnly,
 }
 
 impl Program {
@@ -281,9 +291,9 @@ pub fn me() -> Me {
 }
 
 #[cfg(not(windows))]
-/// Linux comes in a later phase: nothing is listed yet.
+/// The packages of dpkg and rpm (Flatpak and Snap have their own tabs).
 pub fn read() -> Inventory {
-    Inventory::default()
+    Inventory { me: me(), programs: crate::linux_pkgs::dpkg_and_rpm(), ..Inventory::default() }
 }
 
 #[cfg(windows)]

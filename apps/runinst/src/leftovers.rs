@@ -331,8 +331,7 @@ pub fn find(gone: &[Program], cx: &Context, stop: &std::sync::atomic::AtomicBool
     }
     #[cfg(not(windows))]
     {
-        let _ = (gone, cx, stop);
-        Vec::new()
+        lin::find(gone, cx, stop)
     }
 }
 
@@ -347,8 +346,7 @@ pub fn find_orphans(cx: &Context, stop: &std::sync::atomic::AtomicBool) -> Vec<L
     }
     #[cfg(not(windows))]
     {
-        let _ = (cx, stop);
-        Vec::new()
+        lin::find_orphans(cx, stop)
     }
 }
 
@@ -364,8 +362,199 @@ pub fn remove(items: &[Leftover], backup: &Path) -> Vec<Removed> {
     }
     #[cfg(not(windows))]
     {
+        // Only files and folders of the user's on Linux: to the trash.
         let _ = backup;
-        items.iter().map(|_| Err("Windows only".to_string())).collect()
+        items
+            .iter()
+            .map(|l| match l.kind {
+                Kind::Folder | Kind::File => rt_sys::recycle(Path::new(&l.path)),
+                _ => Err(format!("{:?}", l.kind)),
+            })
+            .collect()
+    }
+}
+
+/// The name of a package as its folders are named: no architecture
+/// (`htop:amd64`, `firefox.x86_64`).
+pub fn package_base(p: &Program) -> String {
+    let id = crate::linux_pkgs::package_id(p);
+    let base = id.split(':').next().unwrap_or(id);
+    let base = if p.sources.first() == Some(&crate::inventory::Source::Rpm) { base.rsplit_once('.').map_or(base, |(a, _)| a) } else { base };
+    norm(base)
+}
+
+/// The program a `.desktop` file starts (`Exec=`), when it names one by its
+/// full path.
+pub fn desktop_exec(text: &str) -> Option<PathBuf> {
+    let line = text.lines().find_map(|l| l.strip_prefix("Exec="))?;
+    let first = line.split_whitespace().next()?.trim_matches('"');
+    first.starts_with('/').then(|| PathBuf::from(first))
+}
+
+/// Linux: the user's own folders (`~/.config`, `~/.local/share`, `~/.cache`,
+/// `~/.local/state`, `~/.<name>`), Flatpak's (`~/.var/app/<id>`) and Snap's
+/// (`~/snap/<name>`) data, and their menu entries (`.desktop`). The system's
+/// files are the package manager's: its settings left in `/etc` show in the
+/// list ("Only settings left"), and removing that entry purges them.
+#[cfg(not(windows))]
+mod lin {
+    use super::*;
+    use crate::inventory::Source;
+    use crate::linux_pkgs::value;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    /// XDG folders that are no program's.
+    const NEVER: &[&str] = &[
+        "applications", "icons", "fonts", "trash", "keyrings", "sounds", "themes", "mime", "systemd", "autostart", "recentlyused", "gvfsmetadata",
+        "flatpak", "snap", "dbus1", "pulse", "userdirs", "gtk30", "gtk40", "dconf", "nautilus", "backgrounds",
+    ];
+
+    struct Places {
+        home: PathBuf,
+        /// (folder, group): where a folder of the program's name may be.
+        bases: Vec<(PathBuf, Group)>,
+    }
+
+    fn places(cx: &Context) -> Option<Places> {
+        let home = cx.me.home.clone().filter(|h| h.is_dir())?;
+        let bases = vec![
+            (home.join(".config"), Group::Settings),
+            (home.join(".local/share"), Group::Settings),
+            (home.join(".local/state"), Group::Settings),
+            (home.join(".cache"), Group::Folder),
+        ];
+        Some(Places { home, bases })
+    }
+
+    fn leftover(program: &str, path: &Path, group: Group) -> Leftover {
+        let kind = if path.is_dir() { Kind::Folder } else { Kind::File };
+        let size = Some(if kind == Kind::Folder { size_of(path, 200_000) } else { std::fs::metadata(path).map_or(0, |m| m.len()) });
+        Leftover { program: program.to_string(), group, kind, path: path.to_string_lossy().into_owned(), value: None, data: None, size, admin: false, doubt: false }
+    }
+
+    /// The names (compared) of what is still installed.
+    fn installed_names(cx: &Context) -> HashSet<String> {
+        cx.installed.iter().filter(|p| !p.problems.contains(&crate::inventory::Problem::ConfigOnly)).flat_map(|p| names(p).into_iter().map(|(_, n)| n).chain([package_base(p)])).collect()
+    }
+
+    use std::collections::HashSet;
+
+    pub fn find(gone: &[Program], cx: &Context, stop: &AtomicBool) -> Vec<Leftover> {
+        let Some(pl) = places(cx) else { return Vec::new() };
+        let keep = installed_names(cx);
+        let mut out: Vec<Leftover> = Vec::new();
+        for p in gone {
+            if stop.load(Ordering::Relaxed) {
+                break;
+            }
+            let mut push = |path: PathBuf, group: Group| {
+                if path.exists() && !out.iter().any(|l| l.path == path.to_string_lossy()) {
+                    out.push(leftover(&p.name, &path, group));
+                }
+            };
+            match p.sources.first() {
+                Some(Source::Flatpak) => {
+                    if let Some(id) = value(p, "Application") {
+                        push(pl.home.join(".var/app").join(id), Group::Settings);
+                    }
+                    continue;
+                }
+                Some(Source::Snap) => {
+                    push(pl.home.join("snap").join(&p.name), Group::Settings);
+                    continue;
+                }
+                _ => {}
+            }
+            // Folders named after the package or the program.
+            let mut wanted: Vec<String> = names(p).into_iter().map(|(_, n)| n).collect();
+            let base = package_base(p);
+            if !generic(&base) && !wanted.contains(&base) {
+                wanted.push(base);
+            }
+            wanted.retain(|n| !keep.contains(n) && !NEVER.contains(&n.as_str()));
+            if wanted.is_empty() {
+                continue;
+            }
+            let hit = |name: &str| wanted.contains(&norm(name.trim_start_matches('.')));
+            for (dir, group) in &pl.bases {
+                for e in std::fs::read_dir(dir).into_iter().flatten().flatten() {
+                    if hit(&e.file_name().to_string_lossy()) {
+                        push(e.path(), *group);
+                    }
+                }
+            }
+            // ~/.name
+            for e in std::fs::read_dir(&pl.home).into_iter().flatten().flatten() {
+                let n = e.file_name().to_string_lossy().into_owned();
+                if n.starts_with('.') && e.path().is_dir() && hit(&n) {
+                    push(e.path(), Group::Settings);
+                }
+            }
+            // Its menu entries of the user's, if they start what is gone.
+            for e in std::fs::read_dir(pl.home.join(".local/share/applications")).into_iter().flatten().flatten() {
+                let path = e.path();
+                let stem = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+                let gone_exec = std::fs::read_to_string(&path).ok().and_then(|t| desktop_exec(&t)).is_some_and(|f| !f.exists());
+                if gone_exec && wanted.iter().any(|w| norm(&stem).contains(w.as_str())) {
+                    push(path, Group::Shortcut);
+                }
+            }
+        }
+        out
+    }
+
+    pub fn find_orphans(cx: &Context, stop: &AtomicBool) -> Vec<Leftover> {
+        let Some(pl) = places(cx) else { return Vec::new() };
+        let mut out = Vec::new();
+        let listed = |s: Source| cx.installed.iter().filter(move |p| p.sources.first() == Some(&s));
+        // Flatpak's and Snap's data of apps no longer there (only when the
+        // list could be read, or the manager is gone altogether).
+        let flatpak_ids: HashSet<&str> = listed(Source::Flatpak).filter_map(|p| value(p, "Application")).collect();
+        if !flatpak_ids.is_empty() || crate::linux_pkgs::on_path(&["flatpak"]).is_none() {
+            for e in std::fs::read_dir(pl.home.join(".var/app")).into_iter().flatten().flatten() {
+                let id = e.file_name().to_string_lossy().into_owned();
+                if !flatpak_ids.contains(id.as_str()) {
+                    out.push(leftover(&id, &e.path(), Group::Folder));
+                }
+            }
+        }
+        let snaps: HashSet<&str> = listed(Source::Snap).map(|p| p.name.as_str()).collect();
+        if !snaps.is_empty() || crate::linux_pkgs::on_path(&["snap"]).is_none() {
+            for e in std::fs::read_dir(pl.home.join("snap")).into_iter().flatten().flatten() {
+                let name = e.file_name().to_string_lossy().into_owned();
+                if e.path().is_dir() && !snaps.contains(name.as_str()) {
+                    out.push(leftover(&name, &e.path(), Group::Folder));
+                }
+            }
+        }
+        if stop.load(Ordering::Relaxed) {
+            return out;
+        }
+        // The user's menu entries that start what is gone.
+        for e in std::fs::read_dir(pl.home.join(".local/share/applications")).into_iter().flatten().flatten() {
+            let path = e.path();
+            if path.extension().is_some_and(|x| x == "desktop") {
+                if let Some(exec) = std::fs::read_to_string(&path).ok().and_then(|t| desktop_exec(&t)).filter(|f| !f.exists()) {
+                    let mut l = leftover(&path.file_stem().unwrap_or_default().to_string_lossy(), &path, Group::Shortcut);
+                    l.data = Some(exec.to_string_lossy().into_owned());
+                    out.push(l);
+                }
+            }
+        }
+        // Empty folders right below the user's XDG folders (not those of a
+        // program still installed).
+        let keep = installed_names(cx);
+        for (dir, _) in &pl.bases {
+            for e in std::fs::read_dir(dir).into_iter().flatten().flatten() {
+                let path = e.path();
+                let n = norm(&e.file_name().to_string_lossy());
+                let empty = std::fs::read_dir(&path).is_ok_and(|mut r| r.next().is_none());
+                if empty && e.file_type().is_ok_and(|t| t.is_dir()) && !NEVER.contains(&n.as_str()) && !keep.contains(&n) {
+                    out.push(leftover(&e.file_name().to_string_lossy(), &path, Group::Empty));
+                }
+            }
+        }
+        out
     }
 }
 
@@ -1203,12 +1392,16 @@ mod tests {
     /// `cargo test -p runinst --lib orphans_here -- --ignored --nocapture`.
     #[test]
     #[ignore]
-    #[cfg(windows)]
     fn orphans_here() {
         let inv = crate::inventory::read();
         let sc = crate::shortcuts::read(&inv.me, &inv.other_users);
         let mut installed = inv.programs.clone();
         installed.extend(crate::managers::scoop_all(&inv.me));
+        #[cfg(not(windows))]
+        {
+            installed.extend(crate::linux_pkgs::flatpak(&inv.me.name).unwrap_or_default());
+            installed.extend(crate::linux_pkgs::snap().unwrap_or_default());
+        }
         let admin = std::env::var("RUNINST_ADMIN").is_ok();
         let cx = Context { me: &inv.me, admin, installed: &installed, shortcuts: &sc };
         let t = std::time::Instant::now();

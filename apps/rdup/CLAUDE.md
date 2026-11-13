@@ -58,8 +58,8 @@ Correm na raiz do repositório. Saída: `target\release-small\rdup.exe` (perfil 
   `chosen` tem as marcadas e os discos), `compare` (ficheiros, pastas), marcas (`marks`: caminhos; `toggle_mark` recusa a
   última cópia de um grupo e as pastas só semelhantes; `apply_rule`; `marked` nunca devolve um grupo inteiro;
   `removed` tira do resultado o que saiu, desfaz pares de pastas que mudaram e desmarca grupos todos marcados), discos, raízes escolhidas (`chosen`, guardadas em `settings.roots`), filtros e
-  a caixa em edição (`focus`, `caret`, `anchor`: seleção por teclado e rato, palavras com Ctrl; editar sem
-  janela, testado), o calendário aberto (`Calendar`: caixa e mês), pesquisa em curso, resultado e
+  a caixa em edição (`focus`, `caret`, `anchor`: seleção por teclado e rato, palavras com Ctrl; cada operação
+  corre por `App::edit` num `rt_core::textedit::TextEdit` emprestado, o mesmo da pesquisa do runinst; testado), o calendário aberto (`Calendar`: caixa e mês), pesquisa em curso, resultado e
   linhas da lista (`Row::Group`/`Row::File`, ou `Row::FolderGroup`/`Row::Folder` na vista `View::Folders`, com a
   percentagem `share` guardada em `settings.share`), seleção e deslocamento.
 - `ui/view.rs` — as três páginas (discos, pastas e filtros com a barra dos botões fixa em baixo; pesquisa;
