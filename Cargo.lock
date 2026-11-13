@@ -2643,6 +2643,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "rclean"
+version = "0.1.0"
+dependencies = [
+ "accesskit",
+ "accesskit_winit",
+ "rt-build",
+ "rt-core",
+ "rt-gfx",
+ "rt-scan",
+ "rt-sys",
+ "rt-ui",
+ "softbuffer",
+ "tiny-skia",
+ "windows-sys 0.59.0",
+ "winit",
+]
+
+[[package]]
 name = "rdup"
 version = "0.1.1"
 dependencies = [

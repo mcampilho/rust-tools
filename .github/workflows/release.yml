@@ -1,11 +1,11 @@
 # Builds one tool when its version tag is pushed (rcalc-v1.1.0, rpad-v1.0.0,
-# rview-v1.1.0, rsize-v0.1.0, rdup-v0.1.0, rwall-v0.1.0, rpack-v0.1.0, runinst-v0.1.0) and publishes it as a GitHub release, with SHA-256
+# rview-v1.1.0, rsize-v0.1.0, rdup-v0.1.0, rwall-v0.1.0, rpack-v0.1.0, runinst-v0.1.0, rclean-v0.1.0) and publishes it as a GitHub release, with SHA-256
 # sums and build provenance, for Windows and Linux.
 name: release
 
 on:
   push:
-    tags: ["rcalc-v*", "rpad-v*", "rview-v*", "rsize-v*", "rdup-v*", "rwall-v*", "rpack-v*", "runinst-v*"]
+    tags: ["rcalc-v*", "rpad-v*", "rview-v*", "rsize-v*", "rdup-v*", "rwall-v*", "rpack-v*", "runinst-v*", "rclean-v*"]
   workflow_dispatch:
     inputs:
       tag:

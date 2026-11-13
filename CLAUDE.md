@@ -1,6 +1,6 @@
 # rust-tools — ferramentas portáteis em Rust para Windows
 
-Monorepo (workspace Cargo) com oito aplicações, cada uma um único `.exe`, e os crates que partilham
+Monorepo (workspace Cargo) com nove aplicações, cada uma um único `.exe`, e os crates que partilham
 (`crates/`):
 
 - `apps/rcalc` — calculadora.
@@ -15,6 +15,8 @@ Monorepo (workspace Cargo) com oito aplicações, cada uma um único `.exe`, e o
   extrai zip, 7z, tar e ficheiros comprimidos; hashes.
 - `apps/runinst` — desinstalador: lista os programas de todos os utilizadores e os atalhos, desinstala e remove os
   restos; separadores para Scoop, Chocolatey, DISM, npm, pip, Cargo e vcpkg; em Linux, dpkg, rpm, Flatpak e Snap.
+- `apps/rclean` — limpador (em curso, por fases): temporários do sistema e caches dos browsers, apagados de vez
+  depois de confirmar; a seguir caches dos gestores de pacotes, atalhos e registo.
 
 Cada aplicação tem o seu `CLAUDE.md` com arquitetura e regras próprias.
 
@@ -32,7 +34,7 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
 ## Regras comuns
 
 - "Pronto" = sem avisos, clippy limpo, testes a passar.
-- Perfis só na raiz do `Cargo.toml`. rcalc, rpad, rsize, rdup e runinst usam `release-small` (`panic = "abort"`);
+- Perfis só na raiz do `Cargo.toml`. rcalc, rpad, rsize, rdup, runinst e rclean usam `release-small` (`panic = "abort"`);
   o rview, o rwall e o rpack usam sempre `release`, porque precisam de `catch_unwind`.
 - Compilar para distribuição com `./dev.ps1 dist`, que escolhe o perfil de cada aplicação.
 - `README.md` e `README.pt.md` são atualizados em conjunto, na raiz e em cada aplicação.

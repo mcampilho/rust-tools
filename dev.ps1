@@ -13,7 +13,7 @@ if (-not $env:VCToolsInstallDir -and $envScript) {
 if ($args[0] -eq 'dist') {
     # Each app has its own profile: see Cargo.toml.
     New-Item -ItemType Directory -Force "$PSScriptRoot\dist" | Out-Null
-    foreach ($app in @(@('rcalc', 'release-small'), @('rpad', 'release-small'), @('rview', 'release'), @('rsize', 'release-small'), @('rdup', 'release-small'), @('rwall', 'release'), @('rpack', 'release'), @('runinst', 'release-small'))) {
+    foreach ($app in @(@('rcalc', 'release-small'), @('rpad', 'release-small'), @('rview', 'release'), @('rsize', 'release-small'), @('rdup', 'release-small'), @('rwall', 'release'), @('rpack', 'release'), @('runinst', 'release-small'), @('rclean', 'release-small'))) {
         cargo build --profile $app[1] -p $app[0] --manifest-path "$PSScriptRoot\Cargo.toml"
         if ($LASTEXITCODE) { exit $LASTEXITCODE }
         Copy-Item "$PSScriptRoot\target\$($app[1])\$($app[0]).exe" "$PSScriptRoot\dist\"
