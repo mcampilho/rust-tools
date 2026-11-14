@@ -344,6 +344,11 @@ impl Shell {
             #[cfg(windows)]
             Command::ExplorerMenu => self.integration(!self.explorer_menu),
             Command::Exit => self.quit(el),
+            Command::Autostart => {
+                if let Err(e) = rt_sys::autostart::set("rsize", !rt_sys::autostart::enabled("rsize")) {
+                    self.info("rsize", &tf("Cannot change how it starts: {}", &[&e]));
+                }
+            }
             Command::ExportCsv => self.export_csv(),
             Command::Delete => self.delete(),
             Command::CopyPath => {
@@ -491,6 +496,7 @@ impl Shell {
             Command::UiLanguage(i) => self.settings.language == i18n::Lang::ALL.get(i as usize - 1).copied(),
             #[cfg(windows)]
             Command::ExplorerMenu => self.explorer_menu,
+            Command::Autostart => rt_sys::autostart::enabled("rsize"),
             _ => false,
         }
     }

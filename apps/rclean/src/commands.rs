@@ -13,6 +13,8 @@ pub enum Command {
     /// Starts rclean again with administrator rights.
     #[cfg(windows)]
     RestartAdmin,
+    /// Starts rclean resident with the session (`--tray`).
+    Autostart,
     Exit,
     TickAll,
     UntickAll,
@@ -41,6 +43,7 @@ impl Command {
             Stop => "&Stop",
             #[cfg(windows)]
             RestartAdmin => "Restart as Ad&ministrator",
+            Autostart => if cfg!(windows) { "Start wit&h Windows" } else { "Start &When I Log In" },
             Exit => "E&xit",
             TickAll => "Tick &All",
             UntickAll => "&Untick All",
@@ -111,7 +114,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
     let mut file = vec![Item(Analyse), Item(Clean), Item(Stop), Sep];
     #[cfg(windows)]
     file.extend([Item(RestartAdmin), Sep]);
-    file.push(Item(Exit));
+    file.extend([Item(Autostart), Sep, Item(Exit)]);
     vec![
         ("&File", file),
         ("&Edit", vec![Item(TickAll), Item(UntickAll), Item(TickDefaults), Sep, Item(OpenFolder), Item(CopyDetails)]),

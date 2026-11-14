@@ -31,11 +31,11 @@ Três modos (pedido do utilizador, 2026-11-11, como as outras aplicações):
 
 ```powershell
 ./dev.ps1 build --release -p rwall          # perfil release (com unwind): target\release\rwall.exe, ~3,7 MB
-./dev.ps1 test -p rwall                     # 54 testes no Windows
+./dev.ps1 test -p rwall                     # 53 testes no Windows
 ./dev.ps1 clippy -p rwall --all-targets
 ./dev.ps1 test -p rwall --lib screenshots '--' --ignored          # apps/rwall/target/screens/*.png
 ./dev.ps1 test -p rwall --lib live_services '--' --ignored --nocapture   # rede: uma imagem de cada serviço
-./dev.ps1 test -p rwall --lib on_and_off '--' --ignored           # escreve e apaga o valor em HKCU\…\Run
+./dev.ps1 test -p rt-sys --lib on_and_off '--' --ignored          # escreve e apaga um valor de teste em HKCU\…\Run
 ./dev.ps1 test -p rwall --lib scene_pictures '--' --ignored       # target/screens/scene-*.png e flow.gif (GIF de teste)
 ./dev.ps1 test -p rwall --release --lib scene_speed '--' --ignored --nocapture   # ms por imagem de cada cena
 ./dev.ps1 test -p rwall --lib widget_pictures '--' --ignored      # target/screens/widgets-*.png (claro, escuro, 150 %, céus)
@@ -78,7 +78,8 @@ Open-Meteo (geocodificação e previsão) para o widget de meteorologia, escolhi
 - `wallpaper.rs` — Windows: `WallpaperStyle`/`TileWallpaper` em `HKCU\Control Panel\Desktop` +
   `SystemParametersInfoW(SPI_SETDESKWALLPAPER, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE)`. Linux: plasma, xfconf,
   gsettings (GNOME/Cinnamon, `picture-uri` e `picture-uri-dark`), feh.
-- `autostart.rs` — `HKCU\…\CurrentVersion\Run\rwall = "<exe>" --tray`; Linux `~/.config/autostart/rwall.desktop`.
+- `autostart.rs` — chama o `rt_sys::autostart` (desde 2026-11-14 partilhado por todas as aplicações):
+  `HKCU\…\CurrentVersion\Run\rwall = "<exe>" --tray`; Linux `~/.config/autostart/rwall.desktop`.
 - `net.rs` — `split_url`, `encode`, `get(url, limite)` → corpo + URL final (`WINHTTP_OPTION_URL`).
 - `json.rs` — reexporta o leitor de JSON (sem serde, com limite de profundidade), que passou para `rt_core::json` em 2026-11-13 (o runinst também o usa).
 - `settings.rs` — `settings.ini` (`rt_core::store`): frequência, fontes, pastas (`folder=` repetido), posição,
@@ -164,7 +165,7 @@ reinício do Explorador — o utilizador estava a jogar e não se roubou o foco.
   `WallpaperStyle`) e repô-lo no fim; usar modo portátil (`rwall.portable` ao lado do `.exe`) e apagá-lo depois;
   preferir a compilação `release` (a de depuração abre uma consola) e não roubar o foco ao utilizador.
 - Qualquer texto visível novo precisa de linha completa em `strings.txt`.
-- `unsafe` só em `net.rs`, `wallpaper.rs`, `autostart.rs`, `live/desktop.rs`, `live/player.rs`, `live/thumb.rs`,
+- `unsafe` só em `net.rs`, `wallpaper.rs`, `live/desktop.rs`, `live/player.rs`, `live/thumb.rs`,
   `widgets/host.rs` e `screen_size` no `main.rs` (chamadas Win32/COM), com `SAFETY`.
 - Widgets presos nunca acima das outras janelas; não roubar o foco (só uma nota em que se clica se ativa).
 - Fundo dinâmico: nunca pôr a janela acima da camada dos ícones; ao parar (e ao sair) repor sempre o fundo estático.

@@ -1219,7 +1219,21 @@ fn settings(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors) {
         "Start rcalc with {} to keep it running in the notification area for instant access. Closing the window then hides it; use the tray icon menu to exit.",
         &["rcalc.exe --tray"],
     );
-    y += ui.paragraph(&bg, Rect::new(x, y, w, 0.0), 14.0, FontId::Regular, t.text) + ui.px(16.0);
+    y += ui.paragraph(&bg, Rect::new(x, y, w, 0.0), 14.0, FontId::Regular, t.text) + ui.px(8.0);
+    {
+        let on = app.autostart;
+        let label = if cfg!(windows) { "Start with Windows" } else { "Start when I log in" };
+        ui.button(
+            Button::new(Action::Autostart(!on), Rect::new(x, y, w, ui.px(40.0)), label, Content::None, Style::Subtle)
+                .role(Role::Toggle)
+                .checked(on),
+        );
+        toggle_switch(ui, Rect::new(x + ui.px(4.0), y + ui.px(10.0), ui.px(40.0), ui.px(20.0)), on);
+        let lr = Rect::new(x + ui.px(56.0), y, w - ui.px(56.0), ui.px(40.0));
+        ui.fit_text(label, lr, 14.0, 10.0, FontId::Regular, t.text, Align::Left);
+        y += ui.px(46.0);
+    }
+    y += ui.px(8.0);
 
     heading(ui, &mut y, "Saved data");
     let loc = &app.location;

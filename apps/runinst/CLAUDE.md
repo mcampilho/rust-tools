@@ -122,6 +122,8 @@ apps (`D:\Portable\scoop`, ficheiros `scoop-manifest.json`); 102 atalhos; "Admin
   volta a `back_tab` (antes saltava para Programas a partir do Scoop).
 - `main.rs` (com `input.rs`, `menus.rs`, `render.rs`) — leitura num fio (`refresh`, eventos com geração), ícones num
   fio em lotes de 16 (`rt_sys::win::icon::extract`, cache por ficheiro e índice), "Reiniciar como administrador".
+  Modo residente (`--tray`, 2026-11-14): arranca escondido sem ler; mostrar volta a ler se não houver desinstalação
+  nem restos em curso; Ficheiro › Iniciar com o Windows (`rt_sys::autostart`).
 - `linux_pkgs.rs` — fase 5 (pedido em 2026-11-13). Leitores de texto que correm em qualquer sistema (testados em
   Windows): `parse_dpkg` (`/var/lib/dpkg/status`; `config-files` → `Problem::ConfigOnly`, outros estados a meio →
   `InstallFailed`; componente do sistema se `Auto-Installed` em `/var/lib/apt/extended_states`, `Priority`

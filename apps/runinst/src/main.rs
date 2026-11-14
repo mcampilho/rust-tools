@@ -55,6 +55,9 @@ enum UserEvent {
     Tools(u64, Vec<(runinst::app::Tab, Vec<runinst::inventory::Program>)>),
     #[cfg(windows)]
     Win(rt_sys::win::WinMsg),
+    /// The tray icon and other launches (Linux).
+    #[cfg(not(windows))]
+    Shell(rt_sys::linux::shell::Msg),
 }
 
 impl From<accesskit_winit::Event> for UserEvent {
@@ -116,6 +119,15 @@ struct Shell {
     job_started: Option<std::time::Instant>,
     #[cfg(not(windows))]
     menu: runinst::ui::menu::Menu,
+    /// Resident mode (`--tray`): closing the window hides it to the
+    /// notification area.
+    tray: bool,
+    hidden: bool,
+    maximize_on_show: bool,
+    /// Starts with the session (as `runinst --tray`).
+    autostart: bool,
+    #[cfg(not(windows))]
+    resident: Option<rt_sys::linux::shell::Shell>,
 }
 
 /// Straight RGBA to a pixmap (premultiplied).
@@ -257,6 +269,10 @@ impl Shell {
             Command::Modify => self.uninstall(runinst::uninstall::How::Modify),
             Command::SelectAll => self.app.select_all(),
             Command::Exit => self.quit(el),
+            Command::Autostart => match rt_sys::autostart::set("runinst", !self.autostart) {
+                Ok(()) => self.autostart = rt_sys::autostart::enabled("runinst"),
+                Err(e) => self.info("runinst", &tf("Cannot change how it starts: {}", &[&e])),
+            },
             Command::OpenLeftover => {
                 if let Some(dir) = self.leftover_folder() {
                     open_path(&dir);
@@ -339,6 +355,7 @@ impl Shell {
             Command::Whose(i) => Whose::ALL.get(i as usize) == Some(&self.app.whose),
             Command::ShowSystem => self.app.show_system,
             Command::ShowUpdates => self.app.show_updates,
+            Command::Autostart => self.autostart,
             _ => false,
         }
     }
@@ -384,7 +401,68 @@ impl Shell {
 
     fn quit(&mut self, el: &ActiveEventLoop) {
         self.save_settings();
+        #[cfg(windows)]
+        if let Some(w) = &self.win {
+            rt_sys::win::tray::remove(w.hwnd);
+        }
+        #[cfg(not(windows))]
+        {
+            self.resident = None;
+        }
         el.exit();
+    }
+
+    /// The close button: hides to the notification area in resident mode.
+    fn close(&mut self, el: &ActiveEventLoop) {
+        if self.tray {
+            self.hide();
+        } else {
+            self.quit(el);
+        }
+    }
+
+    /// Hides the window to the notification area; an uninstalling goes on.
+    fn hide(&mut self) {
+        self.save_settings();
+        if cfg!(windows) {
+            if let Some(w) = &self.win {
+                w.window.set_visible(false);
+            }
+        } else {
+            // Wayland cannot hide a window, so it is closed and made again.
+            self.win = None;
+            self.cursor = None;
+        }
+        self.hidden = true;
+        self.dragging = false;
+        self.selecting = false;
+        // Release the frame buffer while hidden.
+        self.gfx.resize(1, 1);
+        self.gfx.trim_cache();
+    }
+
+    /// Shows the window (from the icon or another launch), and reads the
+    /// programs again when nothing is going on.
+    fn show(&mut self, el: &ActiveEventLoop) {
+        if self.win.is_none() && !self.open_window(el) {
+            return;
+        }
+        if let Some(w) = &self.win {
+            if std::mem::take(&mut self.maximize_on_show) {
+                w.window.set_maximized(true);
+            }
+            w.window.set_visible(true);
+            w.window.set_minimized(false);
+            w.window.focus_window();
+        }
+        let was_hidden = std::mem::take(&mut self.hidden);
+        self.autostart = rt_sys::autostart::enabled("runinst");
+        self.menu_dirty = true;
+        let leftovers_busy = self.app.leftovers.as_ref().is_some_and(|l| l.searching || l.removing);
+        if was_hidden && self.job.is_none() && self.app.busy.is_none() && !leftovers_busy {
+            self.refresh();
+        }
+        self.redraw();
     }
 
     /// Writes the list shown to a CSV file the user chooses.
@@ -414,7 +492,9 @@ impl Shell {
             .with_title("runinst")
             .with_inner_size(LogicalSize::new(w.max(560.0), h.max(400.0)))
             .with_min_inner_size(LogicalSize::new(560.0, 400.0))
-            .with_maximized(maximized)
+            // Maximizing shows the window on Windows: a resident start, which
+            // stays hidden, maximizes when it is first shown.
+            .with_maximized(maximized && !self.tray)
             .with_window_icon(rt_ui::window::icon(runinst::ui::appicon::render))
             .with_theme(Some(rt_ui::window::theme(self.dark())))
             .with_visible(false);
@@ -433,7 +513,12 @@ impl Shell {
                     let _ = proxy.send_event(UserEvent::Win(m));
                 }),
             );
+            if self.tray {
+                rt_sys::win::set_resident(hwnd, &IDENT);
+                rt_sys::win::tray::show(hwnd, "runinst");
+            }
         }
+        self.maximize_on_show = maximized && self.tray;
         self.win = Some(Win {
             window,
             surface,
@@ -523,13 +608,44 @@ fn shortcuts_text() -> String {
     rows.iter().map(|(k, v)| format!("{k}\t{v}")).collect::<Vec<_>>().join("\n")
 }
 
+/// Starts resident mode on Linux: without an icon, a hidden window could not
+/// be reached or closed, so runinst then runs as a normal window.
+#[cfg(not(windows))]
+fn start_resident(shell: &mut Shell) {
+    let proxy = std::sync::Mutex::new(shell.proxy.clone());
+    let send = Box::new(move |m| {
+        if let Ok(p) = proxy.lock() {
+            let _ = p.send_event(UserEvent::Shell(m));
+        }
+    });
+    shell.resident = rt_ui::resident::start("runinst", runinst::ui::appicon::render, tr("Open runinst"), tr("Exit"), send);
+    shell.tray = shell.resident.is_some();
+}
+
 impl ApplicationHandler<UserEvent> for Shell {
     fn resumed(&mut self, el: &ActiveEventLoop) {
-        if self.win.is_some() || !self.open_window(el) {
+        if self.win.is_some() {
+            return;
+        }
+        #[cfg(not(windows))]
+        if self.tray && self.resident.is_none() {
+            start_resident(self);
+        }
+        // A resident start stays in the notification area (and reads nothing
+        // until shown); Linux has no hidden window, so it is made when first
+        // shown.
+        if !(cfg!(not(windows)) && self.tray) && !self.open_window(el) {
             return;
         }
         self.sync_menu();
+        if self.tray {
+            self.hidden = true;
+            return;
+        }
         if let Some(w) = &self.win {
+            if std::mem::take(&mut self.maximize_on_show) {
+                w.window.set_maximized(true);
+            }
             w.window.set_visible(true);
             w.window.focus_window();
         }
@@ -605,8 +721,25 @@ impl ApplicationHandler<UserEvent> for Shell {
                 }
                 self.redraw();
             }
+            // Another launch, or the tray icon: the window shows.
             #[cfg(windows)]
-            UserEvent::Win(_) => {}
+            UserEvent::Win(rt_sys::win::WinMsg::OpenFiles(_)) => self.show(el),
+            #[cfg(windows)]
+            UserEvent::Win(rt_sys::win::WinMsg::Tray(rt_sys::win::tray::TrayEvent::Activate)) => self.show(el),
+            #[cfg(windows)]
+            UserEvent::Win(rt_sys::win::WinMsg::Tray(rt_sys::win::tray::TrayEvent::Menu)) => {
+                if let Some(hwnd) = self.win.as_ref().map(|w| w.hwnd) {
+                    match rt_sys::win::tray::menu(hwnd, &tr("Open runinst"), &tr("Exit")) {
+                        Some(1) => self.show(el),
+                        Some(2) => self.quit(el),
+                        _ => {}
+                    }
+                }
+            }
+            #[cfg(not(windows))]
+            UserEvent::Shell(rt_sys::linux::shell::Msg::Open(_)) => self.show(el),
+            #[cfg(not(windows))]
+            UserEvent::Shell(rt_sys::linux::shell::Msg::Quit) => self.quit(el),
             UserEvent::A11y(ev) => match ev.window_event {
                 accesskit_winit::WindowEvent::ActionRequested(req) if req.action == accesskit::Action::Click => {
                     let id = req.target_node.0;
@@ -634,7 +767,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             w.adapter.process_event(&w.window, &event);
         }
         match event {
-            WindowEvent::CloseRequested => self.quit(el),
+            WindowEvent::CloseRequested => self.close(el),
             WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => self.redraw(),
             WindowEvent::ThemeChanged(t) => {
                 self.system_dark = t == WinTheme::Dark;
@@ -736,7 +869,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     self.pointer(x, y);
                 }
             }
-            WindowEvent::RedrawRequested => self.render(),
+            WindowEvent::RedrawRequested if !self.hidden => self.render(),
             _ => {}
         }
     }
@@ -760,12 +893,19 @@ impl ApplicationHandler<UserEvent> for Shell {
     }
 }
 
-const USAGE: &str = "runinst
+const USAGE: &str = "runinst [--tray] [--new-window]
 
   Lists the programs installed on this computer: for every user (the
   system's), for you, and, with administrator rights, for every other user;
   with their size, version, publisher, uninstall command, registry entry and
   the shortcuts that belong to them on the Start menu and the desktop.
+
+  --tray        Stay resident in the notification area: closing the window
+                hides it, and the icon (or starting runinst again) shows it,
+                reading the programs again. Exit from the icon's menu or
+                File > Exit. File > Start with Windows starts it this way
+                with the session.
+  --new-window  Open a separate window even when runinst is resident.
 
 Settings are stored in the user's settings folder (%APPDATA%\\runinst on
 Windows, ~/.config/runinst on Linux), or next to the program when a file
@@ -781,6 +921,17 @@ fn main() {
     #[cfg(not(windows))]
     if help {
         println!("{USAGE}");
+        return;
+    }
+    let tray = raw.iter().any(|a| a == "--tray" || a == "/tray") && !help;
+    let new_window = raw.iter().any(|a| a == "--new-window") || help;
+    // A resident runinst shows itself instantly.
+    #[cfg(windows)]
+    if !new_window && rt_sys::win::hand_off(&IDENT, &[], false, false) {
+        return;
+    }
+    #[cfg(not(windows))]
+    if !new_window && rt_sys::linux::shell::hand_off("runinst", &[], false) {
         return;
     }
     let mut location = storage::detect();
@@ -839,9 +990,18 @@ fn main() {
         job_started: None,
         #[cfg(not(windows))]
         menu: runinst::ui::menu::Menu::default(),
+        tray,
+        hidden: false,
+        maximize_on_show: false,
+        autostart: rt_sys::autostart::enabled("runinst"),
+        #[cfg(not(windows))]
+        resident: None,
     };
     shell.apply_language();
-    shell.refresh();
+    // A first reading at once, unless it starts hidden (it reads when shown).
+    if !tray {
+        shell.refresh();
+    }
     if let Err(e) = event_loop.run_app(&mut shell) {
         eprintln!("runinst: {e}");
     }

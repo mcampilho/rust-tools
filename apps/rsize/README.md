@@ -40,8 +40,9 @@ Launching rsize again (with or without a folder) or clicking the tray icon
 shows the window instantly and reads the folder there; closing the window
 only hides it, and a reading goes on. Quit from the tray icon's menu or
 File › Exit. `--new-window` opens a separate window even when rsize is
-resident. To start it with Windows, put a shortcut to `rsize.exe --tray` in
-`shell:startup`.
+resident. **File › Start with Windows** (Start When I Log In on Linux) starts
+it this way with the session, for the current user only (the Run key, or
+`~/.config/autostart/rsize.desktop`); choosing it again turns it off.
 
 **Explorer integration** (Windows): File › Windows Integration › Explorer
 Context Menu, or `--register`, adds "Analyze with rsize" to the right-click

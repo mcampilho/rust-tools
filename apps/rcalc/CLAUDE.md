@@ -29,7 +29,8 @@ embebe ícone + versão com `rc.exe` (sem `rc.exe` compila na mesma, sem ícone)
 - `src/platform.rs` — Clipboard, tema, cor de destaque e data, de `rt-sys`; tecla Calculadora (Windows).
 - `src/winshell.rs` — janela escondida que recebe a ativação, a tecla Calculadora e o ícone de notificação
   (`rt_sys::win::tray`). `src/linuxshell.rs` — instância única e ícone, com `rt_sys::linux::shell`.
-  `crate::shell` é o módulo da plataforma.
+  `crate::shell` é o módulo da plataforma. "Iniciar com o Windows" (`Action::Autostart`, `rt_sys::autostart`) é um
+  interruptor em Definições › Modo em segundo plano (captura `settings_lower`).
 - `src/storage.rs`, `src/i18n/mod.rs` — `rt-core` com o nome, o ficheiro `rcalc.ini` e a tabela do rcalc;
   o `i18n` acrescenta os separadores de números e as datas.
 - `src/i18n/strings.txt` — tabela de traduções (10 idiomas), uma linha por string, colunas separadas por `|`.

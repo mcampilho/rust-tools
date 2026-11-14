@@ -14,6 +14,7 @@
 
 #[cfg(target_os = "linux")]
 pub mod linux;
+pub mod autostart;
 pub mod lnk;
 pub mod regfile;
 #[cfg(windows)]

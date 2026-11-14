@@ -31,7 +31,9 @@ Correm na raiz do repositório. Saída: `target\release-small\rpad.exe`. Rust 1.
 - `win` — Win32 de `rt-sys` (menus com dark mode via `WM_UAHDRAWMENU`, diálogos, tray, instância única),
   com a identidade do rpad e os seus tipos de ficheiro; `win/assoc.rs`: os tipos para "Editar com o rpad" e
   editor predefinido (`rt_sys::win::assoc`, só HKCU), pelo menu Ficheiro › Integração com o Windows ou
-  `--register`/`--associate`/`--unregister` (tratados no `main.rs`, não na `App`).
+  `--register`/`--associate`/`--unregister` (tratados no `main.rs`, não na `App`). "Iniciar com o Windows"
+  (`Command::Autostart`, `rt_sys::autostart`) também é tratado no `main.rs`; fica nesse submenu (no Linux em
+  Ferramentas › Preferências) porque todas as letras dele já são teclas de acesso no menu Ficheiro.
 - `Host::info` não abre caixa do sistema: a mensagem (About, `--help` sem consola...) é desenhada na janela,
   com o tema (`Shell::dialog`, `rt_gfx::dialog::draw_message`). `--tray` com a janela maximizada da última
   vez: maximiza só ao mostrar (`maximize_on_show`), porque maximizar mostra a janela no Windows.

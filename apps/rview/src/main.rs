@@ -239,6 +239,11 @@ impl Shell {
             }
             Command::Close => self.close(el),
             Command::Exit => self.quit(el),
+            Command::Autostart => {
+                if let Err(e) = rt_sys::autostart::set("rview", !rt_sys::autostart::enabled("rview")) {
+                    self.info("rview", &tf("Cannot change how it starts: {}", &[&e]));
+                }
+            }
             Command::Copy => self.copy(false),
             Command::CopyPlain => self.copy(true),
             Command::SelectAll => {
@@ -412,6 +417,7 @@ impl Shell {
             Command::Theme(t) => self.settings.theme == t,
             Command::UiLanguage(0) => self.settings.language.is_none(),
             Command::UiLanguage(i) => self.settings.language == i18n::Lang::ALL.get(i as usize - 1).copied(),
+            Command::Autostart => rt_sys::autostart::enabled("rview"),
             _ => false,
         }
     }

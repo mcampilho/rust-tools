@@ -99,8 +99,10 @@ o rcalc a correr escondido, com um ícone na área de notificação:
 - Escondido, liberta os buffers de desenho. A memória privada medida é de cerca
   de 7 MB num arranque escondido e de cerca de 12 MB depois de a janela ter sido
   mostrada uma vez.
-- Para o ter pronto depois de iniciar sessão, coloca um atalho para
-  `rcalc.exe --tray` na pasta Arranque (`shell:startup`).
+- Para o ter pronto depois de iniciar sessão, liga **Iniciar com o Windows**
+  (Iniciar ao entrar na sessão, em Linux) em Definições › Modo em segundo plano.
+  Arranca o `rcalc.exe --tray` com a sessão, só para o utilizador atual (a chave
+  Run, ou `~/.config/autostart/rcalc.desktop`).
 
 **Instância única e tecla Calculadora.** Abrir o rcalc quando já está a correr
 traz a janela existente para a frente, e o novo processo termina em milissegundos.

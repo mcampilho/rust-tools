@@ -21,8 +21,18 @@ npm, pip, Cargo and vcpkg have tabs of their own.
 ## Use
 
 ```text
-runinst
+runinst [--tray] [--new-window]
 ```
+
+**Resident mode:** `runinst --tray` starts hidden in the notification area,
+reading nothing until shown. Launching runinst again or clicking the tray icon
+shows the window and reads the programs again (unless an uninstalling is
+running); closing the window only hides it, and an uninstalling goes on. Quit
+from the tray icon's menu or File › Exit. `--new-window` opens a separate
+window even when runinst is resident. **File › Start with Windows** (Start
+When I Log In on Linux) starts it this way with the session, for the current
+user only (the Run key, or `~/.config/autostart/runinst.desktop`); choosing it
+again turns it off.
 
 ### What is listed
 

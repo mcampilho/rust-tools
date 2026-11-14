@@ -21,7 +21,8 @@ a rede, para descarregar as imagens que põe no ambiente de trabalho.
 Todas desenham a sua própria interface no CPU (winit, softbuffer, tiny-skia e
 ab_glyph), sem GPU nem biblioteca de interface. Têm 10 idiomas e seguem o tema
 claro ou escuro do sistema. Podem também ficar residentes na área de notificação
-com `--tray`.
+com `--tray`, e cada uma pode arrancar assim com o Windows (ou ao entrar na sessão,
+em Linux) a partir do seu menu ou das suas definições.
 
 ## Compilar
 

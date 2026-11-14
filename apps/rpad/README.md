@@ -68,9 +68,10 @@ instant access:
   next start; with recovery off, rpad asks about unsaved documents.
 - Hidden, rpad uses about 20-30 MB and no CPU.
 
-To start it with Windows, put a shortcut to `rpad.exe --tray` in the
-Startup folder (`shell:startup`); rpad does not add itself. It stays hidden
-even when the window was last maximized.
+**File › Windows Integration › Start with Windows** (Tools › Preferences ›
+Start When I Log In on Linux) starts it this way with the session, for the current user only
+(the Run key, or `~/.config/autostart/rpad.desktop`); choosing it again turns
+it off. It stays hidden even when the window was last maximized.
 
 ### Explorer integration
 

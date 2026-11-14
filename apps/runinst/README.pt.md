@@ -22,8 +22,17 @@ do pip, do Cargo e do vcpkg têm separadores próprios.
 ## Utilização
 
 ```text
-runinst
+runinst [--tray] [--new-window]
 ```
+
+**Modo residente:** `runinst --tray` arranca escondido na área de notificação, sem
+ler nada até ser mostrado. Voltar a arrancar o runinst ou clicar no ícone mostra a
+janela e lê outra vez os programas (a não ser que esteja a desinstalar); fechar a
+janela só a esconde, e uma desinstalação continua. Para sair, usa-se o menu do ícone
+ou Ficheiro › Sair. `--new-window` abre uma janela à parte mesmo com o runinst
+residente. **Ficheiro › Iniciar com o Windows** (Iniciar ao entrar na sessão, em
+Linux) arranca-o assim com a sessão, só para o utilizador atual (a chave Run, ou
+`~/.config/autostart/runinst.desktop`); escolhê-lo outra vez desliga-o.
 
 ### O que é listado
 

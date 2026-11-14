@@ -20,12 +20,21 @@ menu do Explorador vêm a seguir (ver [A seguir](#a-seguir)).
 ## Utilização
 
 ```text
-rpack [arquivo | pasta]
+rpack [arquivo | pasta] [--tray] [--new-window]
 ```
 
 Um arquivo na linha de comandos abre logo; uma pasta é mostrada. `rpack --help`
 escreve isto na consola onde foi escrito; aberto sem consola, o rpack mostra-o
 na sua janela.
+
+**Modo residente:** `rpack --tray` arranca escondido na área de notificação. Voltar
+a arrancar o rpack (com ou sem arquivo ou pasta) ou clicar no ícone mostra a janela
+de imediato e abre lá o que foi dado; fechar a janela só a esconde, e uma tarefa
+continua. Para sair, usa-se o menu do ícone ou Ficheiro › Sair. `--new-window` abre
+uma janela à parte mesmo com o rpack residente. **Ficheiro › Iniciar com o Windows**
+(Iniciar ao entrar na sessão, em Linux) arranca-o assim com a sessão, só para o
+utilizador atual (a chave Run, ou `~/.config/autostart/rpack.desktop`); escolhê-lo
+outra vez desliga-o.
 
 O rpack abre como um navegador de ficheiros, na última pasta mostrada (da
 primeira vez, a pasta do utilizador). O caminho por cima da lista volta a

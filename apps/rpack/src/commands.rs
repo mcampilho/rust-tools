@@ -11,6 +11,8 @@ pub enum Command {
     /// Asks for an archive to open.
     OpenArchive,
     CloseArchive,
+    /// Starts rpack resident with the session (`--tray`).
+    Autostart,
     Exit,
     /// The row selected: a folder is entered, a file opened with its program.
     OpenItem,
@@ -70,6 +72,7 @@ impl Command {
         Ok(match self {
             OpenArchive => "&Open Archive...",
             CloseArchive => "&Close Archive",
+            Autostart => if cfg!(windows) { "Start wit&h Windows" } else { "Start &When I Log In" },
             Exit => "E&xit",
             OpenItem => "&Open",
             Up => "&Up One Level",
@@ -165,7 +168,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
     let mut langs = vec![Item(UiLanguage(0)), Sep];
     langs.extend((1..=Lang::ALL.len()).map(|i| Item(UiLanguage(i as u8))));
     vec![
-        ("&File", vec![Item(OpenArchive), Item(CloseArchive), Sep, Item(Exit)]),
+        ("&File", vec![Item(OpenArchive), Item(CloseArchive), Sep, Item(Autostart), Sep, Item(Exit)]),
         (
             "&Edit",
             vec![Item(OpenItem), Item(Up), Item(Refresh), Sep, Item(SelectAll), Sep, Item(CopyPath), Item(Reveal), Item(Recycle)],

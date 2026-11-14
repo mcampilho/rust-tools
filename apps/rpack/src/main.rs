@@ -59,6 +59,9 @@ enum UserEvent {
     Failed(u64, String),
     #[cfg(windows)]
     Win(rt_sys::win::WinMsg),
+    /// The tray icon and other launches (Linux).
+    #[cfg(not(windows))]
+    Shell(rt_sys::linux::shell::Msg),
 }
 
 impl From<accesskit_winit::Event> for UserEvent {
@@ -113,6 +116,15 @@ struct Shell {
     last_sums: Option<(Vec<Algo>, Vec<Sums>)>,
     #[cfg(not(windows))]
     menu: rpack::ui::menu::Menu,
+    /// Resident mode (`--tray`): closing the window hides it to the
+    /// notification area.
+    tray: bool,
+    hidden: bool,
+    maximize_on_show: bool,
+    /// Starts with the session (as `rpack --tray`).
+    autostart: bool,
+    #[cfg(not(windows))]
+    resident: Option<rt_sys::linux::shell::Shell>,
 }
 
 /// The folder for files opened from the list, emptied when rpack ends.
@@ -811,6 +823,10 @@ impl Shell {
                 }
             }
             Command::Exit => self.quit(el),
+            Command::Autostart => match rt_sys::autostart::set("rpack", !self.autostart) {
+                Ok(()) => self.autostart = rt_sys::autostart::enabled("rpack"),
+                Err(e) => self.info("rpack", &tf("Cannot change how it starts: {}", &[&e])),
+            },
             Command::OpenItem => self.open_row(),
             Command::Up => self.go_up(),
             Command::Refresh => match self.app.place.clone() {
@@ -925,6 +941,7 @@ impl Shell {
             Command::UiLanguage(i) => self.settings.language == i18n::Lang::ALL.get(i as usize - 1).copied(),
             Command::Overwrite(i) => Overwrite::ALL.get(i as usize) == Some(&self.app.overwrite),
             Command::OpenAfter => self.app.open_after,
+            Command::Autostart => self.autostart,
             _ => false,
         }
     }
@@ -965,7 +982,80 @@ impl Shell {
         }
         self.save_settings();
         let _ = std::fs::remove_dir_all(temp_root());
+        #[cfg(windows)]
+        if let Some(w) = &self.win {
+            rt_sys::win::tray::remove(w.hwnd);
+        }
+        #[cfg(not(windows))]
+        {
+            self.resident = None;
+        }
         el.exit();
+    }
+
+    /// The close button: hides to the notification area in resident mode.
+    fn close(&mut self, el: &ActiveEventLoop) {
+        if self.tray {
+            self.hide();
+        } else {
+            self.quit(el);
+        }
+    }
+
+    /// Hides the window to the notification area; a task goes on.
+    fn hide(&mut self) {
+        self.save_settings();
+        if cfg!(windows) {
+            if let Some(w) = &self.win {
+                w.window.set_visible(false);
+            }
+        } else {
+            // Wayland cannot hide a window, so it is closed and made again.
+            self.win = None;
+            self.cursor = None;
+        }
+        self.hidden = true;
+        self.dragging = false;
+        // Release the frame buffer while hidden.
+        self.gfx.resize(1, 1);
+        self.gfx.trim_cache();
+    }
+
+    /// Shows the window (from the icon or another launch) with `path` (an
+    /// archive or a folder), or the folder shown read again.
+    fn show(&mut self, el: &ActiveEventLoop, path: Option<PathBuf>) {
+        if self.win.is_none() && !self.open_window(el) {
+            return;
+        }
+        if let Some(w) = &self.win {
+            if std::mem::take(&mut self.maximize_on_show) {
+                w.window.set_maximized(true);
+            }
+            w.window.set_visible(true);
+            w.window.set_minimized(false);
+            w.window.focus_window();
+        }
+        let was_hidden = std::mem::take(&mut self.hidden);
+        self.autostart = rt_sys::autostart::enabled("rpack");
+        self.menu_dirty = true;
+        match path {
+            Some(p) => self.open_given(p),
+            None if was_hidden && self.enabled(Command::Refresh) => self.command(el, Command::Refresh),
+            None => {}
+        }
+        self.redraw();
+    }
+
+    /// Opens what was asked for: a folder is shown, anything else opened as an archive.
+    fn open_given(&mut self, p: PathBuf) {
+        if p.is_dir() {
+            self.show_folder(&p, None);
+        } else {
+            if let Some(dir) = p.parent().filter(|d| d.is_dir()) {
+                let _ = self.app.show_folder(dir, Some(&p));
+            }
+            self.open_archive(p);
+        }
     }
 
     fn pick_archive(&mut self) -> Option<PathBuf> {
@@ -992,7 +1082,9 @@ impl Shell {
             .with_title("rpack")
             .with_inner_size(LogicalSize::new(w.max(480.0), h.max(360.0)))
             .with_min_inner_size(LogicalSize::new(480.0, 360.0))
-            .with_maximized(maximized)
+            // Maximizing shows the window on Windows: a resident start, which
+            // stays hidden, maximizes when it is first shown.
+            .with_maximized(maximized && !self.tray)
             .with_window_icon(rt_ui::window::icon(rpack::ui::appicon::render))
             .with_theme(Some(rt_ui::window::theme(self.dark())))
             .with_visible(false);
@@ -1011,7 +1103,12 @@ impl Shell {
                     let _ = proxy.send_event(UserEvent::Win(m));
                 }),
             );
+            if self.tray {
+                rt_sys::win::set_resident(hwnd, &IDENT);
+                rt_sys::win::tray::show(hwnd, "rpack");
+            }
         }
+        self.maximize_on_show = maximized && self.tray;
         self.win = Some(Win {
             window,
             surface,
@@ -1064,13 +1161,43 @@ fn shortcuts_text() -> String {
     rows.iter().map(|(k, v)| format!("{k}\t{v}")).collect::<Vec<_>>().join("\n")
 }
 
+/// Starts resident mode on Linux: without an icon, a hidden window could not
+/// be reached or closed, so rpack then runs as a normal window.
+#[cfg(not(windows))]
+fn start_resident(shell: &mut Shell) {
+    let proxy = std::sync::Mutex::new(shell.proxy.clone());
+    let send = Box::new(move |m| {
+        if let Ok(p) = proxy.lock() {
+            let _ = p.send_event(UserEvent::Shell(m));
+        }
+    });
+    shell.resident = rt_ui::resident::start("rpack", rpack::ui::appicon::render, tr("Open rpack"), tr("Exit"), send);
+    shell.tray = shell.resident.is_some();
+}
+
 impl ApplicationHandler<UserEvent> for Shell {
     fn resumed(&mut self, el: &ActiveEventLoop) {
-        if self.win.is_some() || !self.open_window(el) {
+        if self.win.is_some() {
+            return;
+        }
+        #[cfg(not(windows))]
+        if self.tray && self.resident.is_none() {
+            start_resident(self);
+        }
+        // A resident start stays in the notification area; Linux has no
+        // hidden window, so it is made when first shown.
+        if !(cfg!(not(windows)) && self.tray) && !self.open_window(el) {
             return;
         }
         self.sync_menu();
+        if self.tray {
+            self.hidden = true;
+            return;
+        }
         if let Some(w) = &self.win {
+            if std::mem::take(&mut self.maximize_on_show) {
+                w.window.set_maximized(true);
+            }
             w.window.set_visible(true);
             w.window.focus_window();
         }
@@ -1115,13 +1242,23 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.redraw();
             }
             #[cfg(windows)]
-            UserEvent::Win(rt_sys::win::WinMsg::OpenFiles(paths)) => {
-                if let Some(p) = paths.into_iter().next() {
-                    self.open_archive(p);
+            UserEvent::Win(rt_sys::win::WinMsg::OpenFiles(paths)) => self.show(el, paths.into_iter().next()),
+            #[cfg(windows)]
+            UserEvent::Win(rt_sys::win::WinMsg::Tray(rt_sys::win::tray::TrayEvent::Activate)) => self.show(el, None),
+            #[cfg(windows)]
+            UserEvent::Win(rt_sys::win::WinMsg::Tray(rt_sys::win::tray::TrayEvent::Menu)) => {
+                if let Some(hwnd) = self.win.as_ref().map(|w| w.hwnd) {
+                    match rt_sys::win::tray::menu(hwnd, &tr("Open rpack"), &tr("Exit")) {
+                        Some(1) => self.show(el, None),
+                        Some(2) => self.quit(el),
+                        _ => {}
+                    }
                 }
             }
-            #[cfg(windows)]
-            UserEvent::Win(_) => {}
+            #[cfg(not(windows))]
+            UserEvent::Shell(rt_sys::linux::shell::Msg::Open(paths)) => self.show(el, paths.into_iter().next()),
+            #[cfg(not(windows))]
+            UserEvent::Shell(rt_sys::linux::shell::Msg::Quit) => self.quit(el),
             UserEvent::A11y(ev) => match ev.window_event {
                 accesskit_winit::WindowEvent::ActionRequested(req) if req.action == accesskit::Action::Click => {
                     let id = req.target_node.0;
@@ -1149,7 +1286,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             w.adapter.process_event(&w.window, &event);
         }
         match event {
-            WindowEvent::CloseRequested => self.quit(el),
+            WindowEvent::CloseRequested => self.close(el),
             WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => self.redraw(),
             WindowEvent::ThemeChanged(t) => {
                 self.system_dark = t == WinTheme::Dark;
@@ -1239,7 +1376,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     self.pointer(x, y);
                 }
             }
-            WindowEvent::RedrawRequested => self.render(),
+            WindowEvent::RedrawRequested if !self.hidden => self.render(),
             _ => {}
         }
     }
@@ -1255,7 +1392,7 @@ impl ApplicationHandler<UserEvent> for Shell {
     }
 }
 
-const USAGE: &str = "rpack [archive | folder]
+const USAGE: &str = "rpack [archive | folder] [--tray] [--new-window]
 
   Browses drives and folders, and opens, tests and extracts archives: zip,
   tar, and files compressed whole with gzip, bzip2, xz, lzma, lzip, zstd, lz4
@@ -1267,6 +1404,11 @@ const USAGE: &str = "rpack [archive | folder]
   archive       Open this archive.
   folder        Show this folder. Without either, rpack shows the folder
                 shown last.
+  --tray        Stay resident in the notification area: closing the window
+                hides it, and the icon (or starting rpack again) shows it.
+                Exit from the icon's menu or File > Exit. File > Start with
+                Windows starts it this way with the session.
+  --new-window  Open a separate window even when rpack is resident.
 
 Settings are stored in the user's settings folder (%APPDATA%\\rpack on
 Windows, ~/.config/rpack on Linux), or next to the program when a file named
@@ -1286,7 +1428,19 @@ fn main() {
         println!("{USAGE}");
         return;
     }
-    let arg = raw.iter().find(|a| !a.starts_with("--")).map(PathBuf::from);
+    let arg = raw.iter().find(|a| !a.starts_with("--") && *a != "/tray").map(PathBuf::from);
+    let tray = raw.iter().any(|a| a == "--tray" || a == "/tray") && !help;
+    let new_window = raw.iter().any(|a| a == "--new-window") || help;
+    // A resident rpack shows itself (with the archive or folder asked for).
+    let given: Vec<PathBuf> = arg.iter().map(|p| std::path::absolute(p).unwrap_or_else(|_| p.clone())).collect();
+    #[cfg(windows)]
+    if !new_window && rt_sys::win::hand_off(&IDENT, &given, false, false) {
+        return;
+    }
+    #[cfg(not(windows))]
+    if !new_window && rt_sys::linux::shell::hand_off("rpack", &given, false) {
+        return;
+    }
     let mut location = storage::detect();
     let store = location.load();
     let settings = Settings::load(&store);
@@ -1335,19 +1489,19 @@ fn main() {
         last_sums: None,
         #[cfg(not(windows))]
         menu: rpack::ui::menu::Menu::default(),
+        tray,
+        hidden: false,
+        maximize_on_show: false,
+        autostart: rt_sys::autostart::enabled("rpack"),
+        #[cfg(not(windows))]
+        resident: None,
     };
     shell.apply_language();
     // Where to start: the folder or archive asked for, the folder shown last,
     // the user's home, or the drives.
     let home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(PathBuf::from);
     match arg {
-        Some(p) if p.is_dir() => shell.show_folder(&p, None),
-        Some(p) => {
-            if let Some(dir) = p.parent().filter(|d| d.is_dir()) {
-                let _ = shell.app.show_folder(dir, Some(&p));
-            }
-            shell.open_archive(p);
-        }
+        Some(p) => shell.open_given(p),
         None => {
             let shown = [start_folder, home].into_iter().flatten().any(|d| shell.app.show_folder(&d, None).is_ok());
             if !shown {

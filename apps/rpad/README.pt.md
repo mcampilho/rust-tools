@@ -70,9 +70,10 @@ imediato:
   documentos não guardados.
 - Escondido, o rpad usa cerca de 20-30 MB e nenhum CPU.
 
-Para o arrancar com o Windows, coloca um atalho para `rpad.exe --tray` na pasta
-Arranque (`shell:startup`); o rpad não se acrescenta sozinho. Fica escondido mesmo
-quando a janela ficou maximizada da última vez.
+**Ficheiro › Integração com o Windows › Iniciar com o Windows** (Ferramentas ›
+Preferências › Iniciar ao entrar na sessão, em Linux) arranca-o assim com a sessão, só para o utilizador
+atual (a chave Run, ou `~/.config/autostart/rpad.desktop`); escolhê-lo outra vez
+desliga-o. Fica escondido mesmo quando a janela ficou maximizada da última vez.
 
 ### Integração com o Explorador
 

@@ -116,6 +116,8 @@ pub enum Action {
     KeepOnTop(bool),
     /// Point the keyboard Calculator key at rcalc (true) or Windows Calculator.
     CalcKey(bool),
+    /// Start rcalc resident (`--tray`) with the session, or not.
+    Autostart(bool),
     Copy,
     Paste,
     /// Inert element (labels, modal scrim without action).
@@ -155,6 +157,8 @@ pub struct App {
     pub lang_pref: Option<Lang>,
     /// The keyboard Calculator key currently opens this executable.
     pub calc_key: bool,
+    /// rcalc starts resident with the session (set at start).
+    pub autostart: bool,
     pub keep_on_top: bool,
     pub overlay: Overlay,
     pub panel_tab: PanelTab,
@@ -203,6 +207,7 @@ impl App {
             theme_pref: ThemePref::System,
             lang_pref: None,
             calc_key: false,
+            autostart: false,
             keep_on_top: false,
             overlay: Overlay::None,
             panel_tab: PanelTab::History,
@@ -369,6 +374,10 @@ impl App {
             Action::CalcKey(on) => match platform::set_calc_key(*on) {
                 Ok(()) => self.calc_key = *on,
                 Err(e) => self.toast = Some(format!("{}: {e}", i18n::tr("Could not change the Calculator key"))),
+            },
+            Action::Autostart(on) => match rt_sys::autostart::set("rcalc", *on) {
+                Ok(()) => self.autostart = rt_sys::autostart::enabled("rcalc"),
+                Err(e) => self.toast = Some(i18n::tf("Cannot change how it starts: {}", &[&e])),
             },
             Action::Copy => self.copy(),
             Action::Paste => self.paste(),

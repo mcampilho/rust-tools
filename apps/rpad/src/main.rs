@@ -262,6 +262,14 @@ impl Shell {
 
     /// Runs a command and applies its window-level side effects.
     fn command(&mut self, el: &ActiveEventLoop, cmd: Command) {
+        if cmd == Command::Autostart {
+            if let Err(e) = rt_sys::autostart::set("rpad", !self.app.autostart) {
+                self.host.info("rpad", &i18n::tf("Cannot change how it starts: {}", &[&e]));
+            }
+            self.app.autostart = rt_sys::autostart::enabled("rpad");
+            self.app.menu_dirty = true;
+            return self.after_action(el);
+        }
         #[cfg(windows)]
         {
             let action = match cmd {
@@ -1035,6 +1043,7 @@ fn main() {
     event_loop.set_control_flow(ControlFlow::Wait);
     let mut app = App::new(location, settings);
     app.apply_language();
+    app.autostart = rt_sys::autostart::enabled("rpad");
     #[cfg(windows)]
     {
         app.explorer_menu = integrated_here();

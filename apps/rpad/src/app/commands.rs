@@ -25,6 +25,8 @@ pub enum Command {
     CloseAll,
     CopyPath,
     RevealInExplorer,
+    /// Starts rpad resident with the session (done by the window).
+    Autostart,
     Exit,
     // Edit
     Undo,
@@ -177,6 +179,7 @@ impl Command {
             CloseAll => "Close A&ll",
             CopyPath => "Copy Full &Path",
             RevealInExplorer => if cfg!(windows) { "Show in &Explorer" } else { "Show in File &Manager" },
+            Autostart => if cfg!(windows) { "Start wit&h Windows" } else { "Start &When I Log In" },
             Exit => "E&xit",
             Undo => "&Undo",
             Redo => "&Redo",
@@ -518,8 +521,10 @@ pub fn menu_tree(recent: &[std::path::PathBuf]) -> Vec<(&'static str, Vec<M>)> {
                 Item(CloseOthers),
                 Item(CloseAll),
                 Sep,
+                // Every letter of "Start with Windows" is taken in this menu:
+                // it goes in this submenu (in Preferences on Linux).
                 #[cfg(windows)]
-                Sub("Windows Inte&gration", vec![Item(ExplorerMenu), Item(DefaultEditor)]),
+                Sub("Windows Inte&gration", vec![Item(ExplorerMenu), Item(DefaultEditor), Sep, Item(Autostart)]),
                 #[cfg(windows)]
                 Sep,
                 Item(Exit),
@@ -656,6 +661,8 @@ pub fn menu_tree(recent: &[std::path::PathBuf]) -> Vec<(&'static str, Vec<M>)> {
                         Item(OptLocalHistory),
                         Item(OptSingleInstance),
                         Sub("When the &Last Tab Closes", vec![Item(LastTabKeep), Item(LastTabCloseWindow)]),
+                        #[cfg(not(windows))]
+                        Item(Autostart),
                     ],
                 ),
                 Item(OpenDataFolder),

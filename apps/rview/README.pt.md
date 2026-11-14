@@ -110,8 +110,10 @@ Abra ficheiros com Ctrl+O, largando-os na janela ou pela linha de comandos.
 Lançar o rview outra vez (com ou sem ficheiro) ou clicar no ícone mostra a
 janela de imediato e abre lá o ficheiro; fechar a janela (ou Ctrl+W) apenas a
 esconde. Saia pelo menu do ícone ou em Ficheiro › Sair. `--new-window` abre
-uma janela separada mesmo com o rview residente. Para arrancar com o Windows,
-ponha um atalho para `rview.exe --tray` em `shell:startup`. As definições
+uma janela separada mesmo com o rview residente. **Ficheiro › Iniciar com o
+Windows** (Iniciar ao entrar na sessão, em Linux) arranca-o assim com a sessão, só
+para o utilizador atual (a chave Run, ou `~/.config/autostart/rview.desktop`);
+escolhê-lo outra vez desliga-o. As definições
 (tema, idioma, translineação, tamanho da janela, última pasta) ficam em
 `%APPDATA%\rview\settings.ini`, ou junto do `rview.exe` se existir aí um
 ficheiro chamado `rview.portable`.

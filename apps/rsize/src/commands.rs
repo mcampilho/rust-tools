@@ -20,6 +20,8 @@ pub enum Command {
     ExplorerMenu,
     /// Writes the folder shown to a CSV file.
     ExportCsv,
+    /// Starts rsize resident with the session (`--tray`).
+    Autostart,
     Exit,
     CopyPath,
     /// Moves the selection to the Recycle Bin (trash), after asking.
@@ -61,6 +63,7 @@ impl Command {
             #[cfg(windows)]
             ExplorerMenu => "&Explorer Context Menu",
             ExportCsv => "&Export to CSV...",
+            Autostart => if cfg!(windows) { "Start wit&h Windows" } else { "Start &When I Log In" },
             Exit => "E&xit",
             CopyPath => "&Copy Path",
             Delete => "&Delete...",
@@ -153,7 +156,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
     let mut file = vec![Item(ChooseFolder), Item(Drives), Sep, Item(Rescan), Item(Stop), Sep, Item(ExportCsv), Sep];
     #[cfg(windows)]
     file.extend([Item(RestartAdmin), Sub("Windows &Integration", vec![Item(ExplorerMenu)]), Sep]);
-    file.push(Item(Exit));
+    file.extend([Item(Autostart), Sep, Item(Exit)]);
     vec![
         ("&File", file),
         ("&Edit", vec![Item(CopyPath), Sep, Item(OpenItem), Item(Reveal), Sep, Item(Delete)]),

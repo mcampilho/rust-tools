@@ -207,4 +207,7 @@ fn screenshots() {
     shot(&mut g, &a, "converter_currency", 340, 560, 1.0, false);
     a.apply(&Action::Navigate(Mode::Settings));
     shot(&mut g, &a, "settings", 340, 560, 1.0, true);
+    // The lower half: background mode and starting with the session.
+    a.set_scroll(crate::app::ScrollId::Settings, 420.0);
+    shot(&mut g, &a, "settings_lower", 340, 560, 1.0, true);
 }

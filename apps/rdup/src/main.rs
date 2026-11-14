@@ -290,6 +290,11 @@ impl Shell {
             #[cfg(windows)]
             Command::ExplorerMenu => self.integration(!self.explorer_menu),
             Command::Exit => self.quit(el),
+            Command::Autostart => {
+                if let Err(e) = rt_sys::autostart::set("rdup", !rt_sys::autostart::enabled("rdup")) {
+                    self.info("rdup", &tf("Cannot change how it starts: {}", &[&e]));
+                }
+            }
             Command::CopyPath => {
                 if let Some(p) = self.app.selected_path() {
                     rt_sys::set_clipboard_text(&p.to_string_lossy());
@@ -358,6 +363,7 @@ impl Shell {
             Command::UiLanguage(i) => self.settings.language == i18n::Lang::ALL.get(i as usize - 1).copied(),
             #[cfg(windows)]
             Command::ExplorerMenu => self.explorer_menu,
+            Command::Autostart => rt_sys::autostart::enabled("rdup"),
             _ => false,
         }
     }

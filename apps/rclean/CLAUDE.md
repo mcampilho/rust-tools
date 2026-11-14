@@ -75,7 +75,8 @@ Em Linux (WSL, `CARGO_TARGET_DIR=$HOME/rt-target`) os mesmos com `cargo`.
   item, colunas Ficheiros/Tamanho/Nota; detalhes (descrição, pastas e filtros); barra de estado.
 - `main.rs` (com `input.rs`, `menus.rs`, `render.rs`) — analisa ao arrancar; `analyse` e `clean` num fio, eventos
   `Starting`/`Analysed`/`Cleaned`/`Finished` com geração; confirmar com a lista e o total (`*` nos browsers abertos);
-  no fim, resumo e nova análise.
+  no fim, resumo e nova análise. Modo residente (`--tray`, 2026-11-14, como o rsize): arranca escondido sem analisar;
+  mostrar volta a analisar se nada está a correr; Ficheiro › Iniciar com o Windows (`rt_sys::autostart`).
 - `settings.rs` — tema, língua, janela, `ticks=id:0|1,…`.
 - `i18n/strings.txt` — 10 línguas; nomes dos alvos e descrições também (teste `targets_have_translations`).
 

@@ -372,3 +372,7 @@ rcalc {} — a portable calculator written in Rust. Its design is inspired by Wi
 # ---- tray
 Open Calculator||Rechner öffnen|Abrir Calculadora|Ouvrir la calculatrice|Apri Calcolatrice|電卓を開く|Abrir Calculadora||打开计算器
 Exit||Beenden|Salir|Quitter|Esci|終了|Sair||退出
+# ---- start with the session
+Start with Windows||Mit Windows starten|Iniciar con Windows|Démarrer avec Windows|Avvia con Windows|Windows と同時に起動|Iniciar com o Windows||随 Windows 启动
+Start when I log in||Beim Anmelden starten|Iniciar al iniciar sesión|Démarrer à l’ouverture de session|Avvia all’accesso|ログイン時に起動|Iniciar ao entrar|Iniciar ao entrar na sessão|登录时启动
+Cannot change how it starts: {}||Die Startart lässt sich nicht ändern: {}|No se puede cambiar cómo se inicia: {}|Impossible de changer le démarrage : {}|Impossibile cambiare l’avvio: {}|起動方法を変更できません: {}|Não é possível mudar como inicia: {}|Não é possível mudar a forma de arranque: {}|无法更改启动方式：{}

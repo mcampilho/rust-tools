@@ -9,6 +9,8 @@ pub enum Command {
     OpenFolder,
     /// Closes the window (hides it in resident mode).
     Close,
+    /// Starts rview resident with the session (`--tray`).
+    Autostart,
     Exit,
     /// Copies the selection with its formatting.
     Copy,
@@ -48,6 +50,7 @@ impl Command {
             Reload => "&Reload",
             OpenFolder => if cfg!(windows) { "Show in &Explorer" } else { "Show in File &Manager" },
             Close => "&Close",
+            Autostart => if cfg!(windows) { "Start wit&h Windows" } else { "Start &When I Log In" },
             Exit => "E&xit",
             Copy => "&Copy",
             CopyPlain => "Copy as &Plain Text",
@@ -137,7 +140,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
     let mut file = vec![Item(Open), Item(Reload), Item(OpenFolder), Sep];
     #[cfg(windows)]
     file.extend([Sub("Windows &Integration", vec![Item(ExplorerMenu), Item(DefaultViewer)]), Sep]);
-    file.extend([Item(Close), Item(Exit)]);
+    file.extend([Item(Autostart), Sep, Item(Close), Item(Exit)]);
     vec![
         ("&File", file),
         ("&Edit", vec![Item(Copy), Item(CopyPlain), Sep, Item(SelectAll)]),

@@ -11,6 +11,8 @@ pub enum Command {
     RestartAdmin,
     /// Writes the list shown to a CSV file.
     Export,
+    /// Starts runinst resident with the session (`--tray`).
+    Autostart,
     Exit,
     /// Uninstalls the programs selected, one after another.
     Uninstall,
@@ -65,12 +67,13 @@ impl Command {
             #[cfg(windows)]
             RestartAdmin => "Restart as Ad&ministrator",
             Export => "&Export to CSV...",
+            Autostart => if cfg!(windows) { "Start wit&h Windows" } else { "Start &When I Log In" },
             Exit => "E&xit",
             Uninstall => "Un&install...",
             UninstallQuiet => "Uninstall &Quietly...",
             Modify => "&Modify or Repair...",
             SelectAll => "Select &All",
-            OpenFolder => if cfg!(windows) { "Open Folder in &Explorer" } else { "Open Folder in File &Manager" },
+            OpenFolder => if cfg!(windows) { "Open Folder in &Explorer" } else { "Open Folder in &File Manager" },
             CopyName => "Copy the &Name",
             CopyCommand => "Copy the &Uninstall Command",
             CopyKey => "Copy the Registry &Key",
@@ -79,7 +82,7 @@ impl Command {
             FindLeftovers => "Find &Leftovers...",
             RemoveLeftovers => "Remove the Ticked Ones...",
             CloseLeftovers => "Close This List",
-            OpenLeftover => if cfg!(windows) { "Open Folder in &Explorer" } else { "Open Folder in File &Manager" },
+            OpenLeftover => if cfg!(windows) { "Open Folder in &Explorer" } else { "Open Folder in &File Manager" },
             TextCut => "Cu&t",
             TextCopy => "&Copy",
             TextPaste => "&Paste",
@@ -158,7 +161,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
     let mut file = vec![Item(Refresh), Item(Export), Sep, Item(FindLeftovers), Sep];
     #[cfg(windows)]
     file.extend([Item(RestartAdmin), Sep]);
-    file.push(Item(Exit));
+    file.extend([Item(Autostart), Sep, Item(Exit)]);
     vec![
         ("&File", file),
         ("&Program", program_menu()),

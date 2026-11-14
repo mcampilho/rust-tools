@@ -21,7 +21,8 @@ uses the network, to download the pictures it puts on the desktop.
 They all draw their own interface on the CPU (winit, softbuffer, tiny-skia and
 ab_glyph), with no GPU and no UI toolkit. They come in 10 languages and follow
 the system's light or dark theme. They can also stay resident in the
-notification area with `--tray`.
+notification area with `--tray`, and each can start that way with Windows (or
+when you log in, on Linux) from its own menu or settings.
 
 ## Build
 

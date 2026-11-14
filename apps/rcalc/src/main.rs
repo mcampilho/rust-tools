@@ -748,6 +748,7 @@ fn main() {
     let mut app = App::new(location);
     app.load(&store);
     app.calc_key = platform::calc_key_registered();
+    app.autostart = rt_sys::autostart::enabled("rcalc");
 
     let gfx = match Gfx::new() {
         Ok(g) => g,

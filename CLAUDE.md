@@ -68,6 +68,15 @@ chamadas). A `libxkbcommon-x11` e a `libxcb-xkb1` estão extraídas sem sudo em 
 `dpkg -x`, mais a ligação `libxkbcommon-x11.so` → `.so.0`): correr com
 `LD_LIBRARY_PATH=$HOME/xkb/usr/lib/x86_64-linux-gnu`.
 
+## Modo residente e arranque com a sessão
+
+As nove aplicações ficam residentes com `--tray` (ícone na área de notificação; outro arranque mostra a janela por
+`hand_off`, `--new-window` não). Desde 2026-11-14 cada uma tem "Iniciar com o Windows" (Linux: "Iniciar ao entrar na
+sessão"), por `rt_sys::autostart` (`HKCU\…\Run\<app>` ou `~/.config/autostart/<app>.desktop`, sempre `"<exe>" --tray`):
+no menu Ficheiro (rpad: Ficheiro › Integração com o Windows; em Linux Ferramentas › Preferências), nas definições
+(rcalc) ou ao lado dos separadores (rwall). As teclas de acesso desse item mudam por aplicação e por sistema para não
+colidirem (testes em Windows e no WSL).
+
 ## Crates partilhados
 
 O código comum está em `crates/` (ver `crates/README.pt.md`): `rt-core` (traduções, definições, árvore de

@@ -70,7 +70,9 @@ que entre em pânico com um arquivo danificado termina a tarefa (`catch_unwind` 
 - `main.rs` (com `input.rs`, `menus.rs`, `render.rs`; base da janela, menus desenhados e mensagem do `rt-ui`) —
   tarefas em fios (`start`, eventos com geração), discos lidos num fio (`load_drives`), abrir um ficheiro da lista
   (extraído para `%TEMP%\rpack-<pid>\<n>`, apagado ao sair), hashes (Ctrl+C na mensagem copia todos;
-  `dialog_copy`), arranque na última pasta (`settings.folder`), na pasta do utilizador ou nos discos.
+  `dialog_copy`), arranque na última pasta (`settings.folder`), na pasta do utilizador ou nos discos. Modo residente
+  (`--tray`, 2026-11-14): outro arranque passa o arquivo ou a pasta (`hand_off`, `open_given`); mostrar sem nada lê
+  outra vez a pasta; Ficheiro › Iniciar com o Windows (`rt_sys::autostart`).
 - `i18n/strings.txt` — traduções (10 línguas).
 
 ## Fases

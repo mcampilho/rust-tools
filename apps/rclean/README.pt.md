@@ -33,6 +33,15 @@ As marcas ficam guardadas. **Marcar os habituais** volta às que vêm marcadas �
 partida; as outras (miniaturas, caches de shaders, a Reciclagem) ficam à sua
 escolha.
 
+**Modo residente:** `rclean --tray` arranca escondido na área de notificação, sem
+analisar nada até ser mostrado. Voltar a arrancar o rclean ou clicar no ícone mostra
+a janela e analisa outra vez; fechar a janela só a esconde, e uma limpeza continua.
+Para sair, use o menu do ícone ou Ficheiro › Sair. `--new-window` abre uma janela à
+parte mesmo com o rclean residente. **Ficheiro › Iniciar com o Windows** (Iniciar ao
+entrar na sessão, em Linux) arranca-o assim com a sessão, só para o utilizador atual
+(a chave Run, ou `~/.config/autostart/rclean.desktop`); escolhê-lo outra vez
+desliga-o.
+
 ### O que é limpo
 
 | Item | Onde | Marcado à partida |

@@ -20,12 +20,21 @@ the Explorer menu come next (see [Next](#next)).
 ## Use
 
 ```text
-rpack [archive | folder]
+rpack [archive | folder] [--tray] [--new-window]
 ```
 
 An archive on the command line opens at once; a folder is shown. `rpack --help`
 prints this in the console it was typed in; started without one, rpack shows it
 in its window.
+
+**Resident mode:** `rpack --tray` starts hidden in the notification area.
+Launching rpack again (with or without an archive or folder) or clicking the
+tray icon shows the window instantly and opens what was given there; closing
+the window only hides it, and a task goes on. Quit from the tray icon's menu
+or File › Exit. `--new-window` opens a separate window even when rpack is
+resident. **File › Start with Windows** (Start When I Log In on Linux) starts
+it this way with the session, for the current user only (the Run key, or
+`~/.config/autostart/rpack.desktop`); choosing it again turns it off.
 
 rpack opens as a file browser, in the folder shown last (the first time, the
 user's folder). The path above the list goes back to any folder of it, up to

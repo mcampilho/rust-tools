@@ -32,8 +32,10 @@ exemplo), o rdup abre e mostra-as na sua janela.
 a arrancar o rdup (com ou sem pastas) ou clicar no ícone mostra a janela de
 imediato e procura lá as pastas; fechar a janela só a esconde, e uma procura
 continua. Para sair, usa o menu do ícone ou Ficheiro › Sair. `--new-window` abre
-uma janela à parte mesmo com o rdup residente. Para o arrancar com o Windows,
-coloca um atalho para `rdup.exe --tray` em `shell:startup`.
+uma janela à parte mesmo com o rdup residente. **Ficheiro › Iniciar com o Windows**
+(Iniciar ao entrar na sessão, em Linux) arranca-o assim com a sessão, só para o
+utilizador atual (a chave Run, ou `~/.config/autostart/rdup.desktop`); escolhê-lo
+outra vez desliga-o.
 
 **Integração com o Explorador** (Windows): Ficheiro › Integração com o Windows ›
 Menu de contexto do Explorador, ou `--register`, acrescenta "Procurar duplicados

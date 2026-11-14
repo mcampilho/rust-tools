@@ -94,8 +94,10 @@ rcalc running hidden, with an icon in the notification area:
 - Closing the window only hides it; *Exit* in the icon's menu quits.
 - Hidden, it releases its render buffers. Measured private memory is about
   7 MB at a hidden start and about 12 MB after the window has been shown once.
-- To have it ready after sign-in, put a shortcut to `rcalc.exe --tray` in the
-  Startup folder (`shell:startup`).
+- To have it ready after sign-in, turn on **Start with Windows** (Start when I
+  log in, on Linux) under Settings › Background mode. It starts
+  `rcalc.exe --tray` with the session, for the current user only (the Run key,
+  or `~/.config/autostart/rcalc.desktop`).
 
 **Single instance and the Calculator key.** Launching rcalc while it is
 already running brings the running window to the front, and the new process
