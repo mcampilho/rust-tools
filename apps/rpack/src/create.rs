@@ -1,4 +1,5 @@
-//! Creating archives from files and folders on disk: 7z (LZMA2, solid),
+//! Creating archives from files and folders on disk: 7z (LZMA2, LZMA, BZip2
+//! or PPMd; solid),
 //! zip (Deflate, Zstandard, XZ, BZip2 or stored), tar alone or compressed
 //! whole, and one file compressed alone (`.gz`, `.xz`, `.zst`...).
 //!
@@ -93,6 +94,31 @@ impl ZipMethod {
     }
 }
 
+/// How the files of a 7z are compressed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum SevenMethod {
+    /// 7-Zip's own, with threads.
+    #[default]
+    Lzma2,
+    Lzma,
+    Bzip2,
+    /// Best on text.
+    Ppmd,
+}
+
+impl SevenMethod {
+    pub const ALL: [SevenMethod; 4] = [SevenMethod::Lzma2, SevenMethod::Lzma, SevenMethod::Bzip2, SevenMethod::Ppmd];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            SevenMethod::Lzma2 => "LZMA2",
+            SevenMethod::Lzma => "LZMA",
+            SevenMethod::Bzip2 => "BZip2",
+            SevenMethod::Ppmd => "PPMd",
+        }
+    }
+}
+
 /// How hard to compress, as 7-Zip names it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub enum Level {
@@ -139,13 +165,14 @@ pub struct Spec {
     pub kind: Kind,
     pub level: Level,
     pub zip_method: ZipMethod,
+    pub seven_method: SevenMethod,
     /// 7z: files compressed together in blocks (smaller archives).
     pub solid: bool,
 }
 
 impl Default for Spec {
     fn default() -> Spec {
-        Spec { kind: Kind::SevenZ, level: Level::Normal, zip_method: ZipMethod::Deflate, solid: true }
+        Spec { kind: Kind::SevenZ, level: Level::Normal, zip_method: ZipMethod::Deflate, seven_method: SevenMethod::Lzma2, solid: true }
     }
 }
 
@@ -489,15 +516,20 @@ fn zip<W: Write + Seek>(items: &[Item], out: W, spec: &Spec, meter: &Meter, made
 }
 
 fn sevenz(items: &[Item], out: File, spec: &Spec, meter: &Meter, made: &mut Made) -> Result<(), Error> {
-    use sevenz_rust2::encoder_options::Lzma2Options;
+    use sevenz_rust2::encoder_options::{Bzip2Options, Lzma2Options, LzmaOptions, PpmdOptions};
     use sevenz_rust2::{ArchiveEntry, ArchiveWriter, EncoderConfiguration, EncoderMethod, SourceReader};
     let mut w = ArchiveWriter::new(out).map_err(Error::from)?;
-    let method = if spec.level == Level::Store {
-        EncoderConfiguration::new(EncoderMethod::COPY)
-    } else {
-        let n = threads();
-        let opts = if n > 1 { Lzma2Options::from_level_mt(spec.level.nine(), n, 64 << 20) } else { Lzma2Options::from_level(spec.level.nine()) };
-        EncoderConfiguration::new(EncoderMethod::LZMA2).with_options(opts.into())
+    let level = spec.level.nine();
+    let method = match spec.seven_method {
+        _ if spec.level == Level::Store => EncoderConfiguration::new(EncoderMethod::COPY),
+        SevenMethod::Lzma2 => {
+            let n = threads();
+            let opts = if n > 1 { Lzma2Options::from_level_mt(level, n, 64 << 20) } else { Lzma2Options::from_level(level) };
+            EncoderConfiguration::new(EncoderMethod::LZMA2).with_options(opts.into())
+        }
+        SevenMethod::Lzma => LzmaOptions::from_level(level).into(),
+        SevenMethod::Bzip2 => Bzip2Options::from_level(level.clamp(1, 9)).into(),
+        SevenMethod::Ppmd => PpmdOptions::from_level(level).into(),
     };
     w.set_content_methods(vec![method]);
     // Solid: the files go in blocks of up to this much, read one after the other.

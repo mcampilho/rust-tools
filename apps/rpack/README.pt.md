@@ -92,7 +92,8 @@ selecionados:
 - **Nível**: Armazenar, Mais rápido, Rápido, Normal, Máximo ou Ultra (no 7z e no
   xz, os níveis 0 a 9 do 7-Zip e do xz; no zstd, os seus níveis 1 a 19).
 - **Método**, no zip: Deflate (todos os programas o abrem), Zstandard, XZ ou
-  BZip2.
+  BZip2; no 7z: LZMA2 (o habitual, com todos os núcleos do processador), LZMA,
+  BZip2 ou PPMd (muitas vezes o mais pequeno para texto). Todos abrem no 7-Zip.
 - **Sólido** (7z, ligado por omissão): os ficheiros são comprimidos juntos em
   blocos de até 256 MB, o que dá arquivos mais pequenos; desligado, cada
   ficheiro sozinho.
@@ -173,7 +174,7 @@ janela mostra até onde chegou, o ficheiro que está a ler e o tempo que passou.
 
 | Formato | Lê | Escreve | Métodos |
 | --- | --- | --- | --- |
-| 7z | sim | sim | Lê LZMA, LZMA2, BZip2, PPMd, os filtros BCJ, blocos sólidos; escreve LZMA2 (sólido ou não) ou Store |
+| 7z | sim | sim | Lê LZMA, LZMA2, BZip2, PPMd, os filtros BCJ, blocos sólidos; escreve LZMA2, LZMA, BZip2 ou PPMd (sólido ou não) ou Store |
 | zip, jar, apk, docx… | sim, também zip64 | sim | Lê Store, Deflate, Deflate64, BZip2, LZMA, XZ, Zstandard, PPMd, e os antigos Shrink, Reduce e Implode; escreve Store, Deflate, Zstandard, XZ, BZip2 |
 | tar | sim | sim | ustar, GNU (nomes longos, esparsos), pax |
 | gz / tgz | sim | sim | gzip (vários membros como um) |

@@ -10,7 +10,7 @@
 use super::gfx::{Align, Color, FontId, Gfx, Rect};
 use super::theme::Theme;
 use crate::app::{AddForm, App, Busy, Col, Place, Row, Task};
-use crate::create::{Kind as NewKind, Level, ZipMethod};
+use crate::create::{Kind as NewKind, Level, SevenMethod, ZipMethod};
 use crate::format;
 use crate::i18n::{tf, tr};
 use rt_core::i18n::strip_mnemonic;
@@ -166,6 +166,24 @@ fn level_label(l: Level) -> String {
     })
 }
 
+/// The compression methods a kind offers (zip and 7z), as shown.
+pub fn method_labels(k: NewKind) -> Vec<&'static str> {
+    match k {
+        NewKind::Zip => ZipMethod::ALL.iter().map(|m| m.label()).collect(),
+        NewKind::SevenZ => SevenMethod::ALL.iter().map(|m| m.label()).collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// Which of [`method_labels`] is chosen.
+fn method_index(spec: &crate::create::Spec) -> Option<usize> {
+    match spec.kind {
+        NewKind::Zip => ZipMethod::ALL.iter().position(|m| *m == spec.zip_method),
+        NewKind::SevenZ => SevenMethod::ALL.iter().position(|m| *m == spec.seven_method),
+        _ => None,
+    }
+}
+
 /// Lays out the form over the window.
 fn layout_form(f: &AddForm, full: Rect, s: f32) -> FormLayout {
     let mut l = FormLayout::default();
@@ -199,10 +217,12 @@ fn layout_form(f: &AddForm, full: Rect, s: f32) -> FormLayout {
         l.levels.push(Rect::new(x + lw + i as f32 * (lc + 4.0 * s), y, lc, row));
     }
     y += row + gap;
-    if f.spec.kind == NewKind::Zip {
+    let methods = method_labels(f.spec.kind);
+    if !methods.is_empty() {
         push_label(&mut l, y, "Method");
-        let mc = ((cw - 3.0 * 4.0 * s) / 4.0).floor().min(120.0 * s);
-        for i in 0..ZipMethod::ALL.len() {
+        let n = methods.len() as f32;
+        let mc = ((cw - (n - 1.0) * 4.0 * s) / n).floor().min(120.0 * s);
+        for i in 0..methods.len() {
             l.methods.push(Rect::new(x + lw + i as f32 * (mc + 4.0 * s), y, mc, row));
         }
         y += row + gap;
@@ -458,8 +478,9 @@ fn draw_form(g: &mut Gfx, f: &AddForm, l: &FormLayout, full: Rect, th: &Theme, s
     for (i, (r, lv)) in l.levels.iter().zip(Level::ALL).enumerate() {
         chip(g, *r, &level_label(lv), th, s, levels && f.spec.level == lv, hot == Hot::FormLevel(i), levels);
     }
-    for (i, (r, m)) in l.methods.iter().zip(ZipMethod::ALL).enumerate() {
-        chip(g, *r, m.label(), th, s, f.spec.zip_method == m, hot == Hot::FormMethod(i), f.spec.level != Level::Store);
+    let chosen = method_index(&f.spec);
+    for (i, (r, m)) in l.methods.iter().zip(method_labels(f.spec.kind)).enumerate() {
+        chip(g, *r, m, th, s, chosen == Some(i), hot == Hot::FormMethod(i), f.spec.level != Level::Store);
     }
     if l.solid.w > 0.0 {
         tick(g, l.solid, &tr("Solid: compress the files together (smaller archive)"), th, s, f.spec.solid, hot == Hot::FormSolid);

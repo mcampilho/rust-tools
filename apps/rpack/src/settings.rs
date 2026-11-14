@@ -1,7 +1,7 @@
 //! User preferences in `settings.ini`. Missing or invalid values fall back
 //! to defaults.
 
-use crate::create::{Kind, Level, Spec, ZipMethod};
+use crate::create::{Kind, Level, SevenMethod, Spec, ZipMethod};
 use crate::extract::Overwrite;
 use crate::i18n::Lang;
 use crate::storage::Store;
@@ -53,6 +53,7 @@ impl Settings {
                 kind: s.get("new_kind").and_then(Kind::from_key).filter(|k| !k.needs_one_file()).unwrap_or(Kind::SevenZ),
                 level: s.get("new_level").and_then(|v| v.parse::<usize>().ok()).and_then(|i| Level::ALL.get(i).copied()).unwrap_or_default(),
                 zip_method: s.get("zip_method").and_then(|v| ZipMethod::ALL.into_iter().find(|m| m.label() == v)).unwrap_or_default(),
+                seven_method: s.get("seven_method").and_then(|v| SevenMethod::ALL.into_iter().find(|m| m.label() == v)).unwrap_or_default(),
                 solid: s.get("solid") != Some("no"),
             },
         }
@@ -71,6 +72,7 @@ impl Settings {
         s.set("new_kind", self.spec.kind.ext());
         s.set("new_level", Level::ALL.iter().position(|l| *l == self.spec.level).unwrap_or(3).to_string());
         s.set("zip_method", self.spec.zip_method.label());
+        s.set("seven_method", self.spec.seven_method.label());
         s.set("solid", if self.spec.solid { "yes" } else { "no" });
         s
     }
@@ -89,7 +91,7 @@ mod tests {
             overwrite: Overwrite::Skip,
             open_after: false,
             folder: Some(PathBuf::from("\\\\nas\\cópias de família")),
-            spec: Spec { kind: Kind::Tar(Some(crate::archive::Codec::Zstd)), level: Level::Ultra, zip_method: ZipMethod::Xz, solid: false },
+            spec: Spec { kind: Kind::Tar(Some(crate::archive::Codec::Zstd)), level: Level::Ultra, zip_method: ZipMethod::Xz, seven_method: SevenMethod::Ppmd, solid: false },
         };
         assert_eq!(Settings::load(&Store::parse(&s.to_store().serialize("rpack"))), s);
         let bad = Settings::load(&Store::parse("theme=??\nwindow=abc\nlanguage=xx-YY\nfolder=\nif_exists=maybe\n"));

@@ -68,6 +68,20 @@ fn zip_methods_and_single_files() {
         let l = open(&out, &Meter::default()).unwrap();
         assert!(test(&out, &l, &Meter::default()).unwrap().errors.is_empty(), "{m:?}");
     }
+    // Each 7z method, solid and not, reads back the same files.
+    for m in SevenMethod::ALL {
+        for solid in [true, false] {
+            let name = format!("{}-{solid}.7z", m.label());
+            let out = d.join(&name);
+            let spec = Spec { kind: Kind::SevenZ, seven_method: m, solid, level: Level::Fast, ..Spec::default() };
+            create(std::slice::from_ref(&src), &out, &spec, &Meter::default()).unwrap_or_else(|e| panic!("{name}: {e:?}"));
+            let l = open(&out, &Meter::default()).unwrap();
+            let x = d.join(format!("x-{name}"));
+            let r = extract(&out, &l, &Job { dest: x.clone(), wanted: None, strip: String::new(), overwrite: Overwrite::Replace }, &Meter::default()).unwrap();
+            assert!(r.errors.is_empty(), "{name}: {r:?}");
+            check(&x);
+        }
+    }
     let file = src.join("docs/text.txt");
     for kind in Kind::ALL.into_iter().filter(|k| k.needs_one_file()) {
         let out = d.join(suggested_name(std::slice::from_ref(&file), kind));

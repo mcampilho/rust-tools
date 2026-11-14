@@ -135,11 +135,19 @@ impl Shell {
                             f.spec.level = l;
                         }
                     }
-                    Hot::FormMethod(i) => {
-                        if let Some(&m) = rpack::create::ZipMethod::ALL.get(i) {
-                            f.spec.zip_method = m;
+                    Hot::FormMethod(i) => match f.spec.kind {
+                        rpack::create::Kind::Zip => {
+                            if let Some(&m) = rpack::create::ZipMethod::ALL.get(i) {
+                                f.spec.zip_method = m;
+                            }
                         }
-                    }
+                        rpack::create::Kind::SevenZ => {
+                            if let Some(&m) = rpack::create::SevenMethod::ALL.get(i) {
+                                f.spec.seven_method = m;
+                            }
+                        }
+                        _ => {}
+                    },
                     Hot::FormSolid => f.spec.solid = !f.spec.solid,
                     Hot::FormEach => f.each = !f.each,
                     _ => {}

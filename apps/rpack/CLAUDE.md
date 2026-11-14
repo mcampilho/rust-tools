@@ -45,7 +45,9 @@ que entre em pânico com um arquivo danificado termina a tarefa (`catch_unwind` 
 - `create.rs` — `Kind` (7z, zip, tar, tar.<codec>, um ficheiro comprimido), `Level` (Store…Ultra → 0–9, zstd 1–19),
   `ZipMethod`, `Spec`; `gather` (ficheiros e pastas, nomes a partir da pasta onde estão, ligações de fora),
   `suggested_name`, `create` (escreve `.<nome>.rpack-part` e só no fim muda o nome; parar ou erro apagam).
-  7z: LZMA2 com fios (`from_level_mt`), sólido em blocos de 256 MB (`Lazy` abre cada ficheiro na sua vez); xz com
+  7z: `SevenMethod` (2026-11-14, pedido do utilizador: escolher o método dentro do formato) LZMA2 com fios
+  (`from_level_mt`), LZMA, BZip2 ou PPMd (`settings` `seven_method`; a janela mostra os métodos do zip ou do 7z
+  por `view::method_labels`), sólido em blocos de 256 MB (`Lazy` abre cada ficheiro na sua vez); xz com
   `XzWriterMt` (precisa de `block_size`). Escrever brotli ficou de fora: o codificador pesa 1 MB.
 - `hash.rs` — `Algo` (11 hashes), `Hasher` (todos de uma vez, cada ficheiro lido uma vez; CRC-64 = CRC_64_XZ),
   `disk` (ficheiros e pastas, recursivo), `entries` (dentro de um arquivo), `sum_file` (formato `hash *nome`).

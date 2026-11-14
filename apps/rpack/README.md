@@ -85,7 +85,9 @@ right-click menu, as in 7-Zip or PeaZip:
   and, for one file, gz, xz, zst, bz2 or lz4. The name's extension follows.
 - **Level**: Store, Fastest, Fast, Normal, Maximum or Ultra (for 7z and xz the
   presets 0 to 9 of 7-Zip and xz; for zstd its levels 1 to 19).
-- **Method**, for zip: Deflate (every program opens it), Zstandard, XZ or BZip2.
+- **Method**, for zip: Deflate (every program opens it), Zstandard, XZ or BZip2;
+  for 7z: LZMA2 (the usual, using every processor core), LZMA, BZip2 or PPMd
+  (often the smallest for text). All of them open in 7-Zip.
 - **Solid** (7z, on by default): the files are compressed together in blocks of
   up to 256 MB, which makes smaller archives; off, each file alone.
 - **Each item into an archive of its own**, with several selected: each named
@@ -160,7 +162,7 @@ window shows how far they got, the file being read and the time so far.
 
 | Format | Reads | Writes | Methods |
 | --- | --- | --- | --- |
-| 7z | yes | yes | Reads LZMA, LZMA2, BZip2, PPMd, the BCJ filters, solid blocks; writes LZMA2 (solid or not) or Store |
+| 7z | yes | yes | Reads LZMA, LZMA2, BZip2, PPMd, the BCJ filters, solid blocks; writes LZMA2, LZMA, BZip2 or PPMd (solid or not) or Store |
 | zip, jar, apk, docx… | yes, zip64 too | yes | Reads Store, Deflate, Deflate64, BZip2, LZMA, XZ, Zstandard, PPMd, and the old Shrink, Reduce and Implode; writes Store, Deflate, Zstandard, XZ, BZip2 |
 | tar | yes | yes | ustar, GNU (long names, sparse), pax |
 | gz / tgz | yes | yes | gzip (several members as one) |
