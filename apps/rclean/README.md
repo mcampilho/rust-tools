@@ -12,8 +12,8 @@ repository root.
 `rclean.exe` is a single 1.8 MB executable: no installer, no runtime, no DLLs
 beyond those that ship with Windows. It makes no network connections and has
 no telemetry. It is being built in phases: it cleans temporary files, browser
-caches and the caches of package managers; broken shortcuts and invalid
-registry entries come next (see [Phases](#phases)).
+caches, the caches of package managers and broken shortcuts; invalid registry
+entries come next (see [Phases](#phases)).
 
 ## Use
 
@@ -79,6 +79,19 @@ through `pkexec` (it asks for the password); Flatpak's unused runtimes
 revisions (`snap remove <name> --revision=<n>`), both unticked at first. When
 a command does not work, the end says what it printed.
 
+### Broken shortcuts
+
+Shortcuts that open something gone, by where they are: the Start menu (yours,
+and everyone's with administrator rights), the desktop (yours, and everyone's),
+the taskbar and Quick Launch, Send To, and the recent items. On Linux, your
+menu entries (`.desktop` files in `~/.local/share/applications`), the desktop,
+autostart, and links to nothing in `~/.local/bin`. The details list each one
+and what it opened.
+
+A shortcut to the network, or to a drive that is not there now (a USB disk
+unplugged), is not called broken: nobody can tell. Broken shortcuts go to the
+Recycle Bin (the trash on Linux), so they can be put back.
+
 Items marked "administrator" need administrator rights: without them they
 are shown, dimmed, with **Restart as Administrator** above the list.
 
@@ -126,7 +139,7 @@ The output is `target\release-small\rclean.exe`.
 
 ## Linux
 
-One file of 5.5 MB. The items are the user's: temporary files in `/tmp` and
+One file of 5.6 MB. The items are the user's: temporary files in `/tmp` and
 `/var/tmp` (only yours, not changed for a day), thumbnails (`~/.cache/thumbnails`),
 Mesa and NVIDIA shader caches, the trash (`~/.local/share/Trash`), and the
 browsers' caches (in `~/.config` and `~/.cache`, Firefox also from Snap and
@@ -140,5 +153,6 @@ Flatpak), and the package managers above.
 2. Done: the caches of package managers, through their own commands: Scoop,
    Chocolatey, pip, npm, Yarn, pnpm, Go, NuGet, Cargo and vcpkg; apt, dnf,
    zypper, pacman, Flatpak and Snap on Linux.
-3. Broken shortcuts (Start menu, desktop, Linux `.desktop` files).
+3. Done: broken shortcuts (Start menu, desktop, taskbar, Send To, recent
+   items; Linux `.desktop` files and links), to the Recycle Bin.
 4. Invalid registry entries, saved to a `.reg` file before they are removed.

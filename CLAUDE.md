@@ -16,7 +16,7 @@ Monorepo (workspace Cargo) com nove aplicações, cada uma um único `.exe`, e o
 - `apps/runinst` — desinstalador: lista os programas de todos os utilizadores e os atalhos, desinstala e remove os
   restos; separadores para Scoop, Chocolatey, DISM, npm, pip, Cargo e vcpkg; em Linux, dpkg, rpm, Flatpak e Snap.
 - `apps/rclean` — limpador (em curso, por fases): temporários do sistema, caches dos browsers e dos gestores de pacotes,
-  apagados de vez depois de confirmar; a seguir atalhos e registo.
+  apagados de vez depois de confirmar, e atalhos inválidos (para a Reciclagem); a seguir o registo.
 
 Cada aplicação tem o seu `CLAUDE.md` com arquitetura e regras próprias.
 

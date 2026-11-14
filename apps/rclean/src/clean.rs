@@ -32,6 +32,8 @@ pub struct Found {
     /// The commands that clean it, when they are only known now (Snap's
     /// revisions).
     pub commands: Vec<crate::managers::Cmd>,
+    /// Broken shortcuts: each one, and what it opened.
+    pub links: Vec<(PathBuf, String)>,
 }
 
 impl Found {
@@ -92,6 +94,9 @@ pub fn analyse(t: &Target, stop: &AtomicBool) -> Found {
     }
     if t.kind == Kind::Command {
         return analyse_manager(t, stop);
+    }
+    if t.kind == Kind::Shortcuts {
+        return crate::shortcuts::analyse(t, stop);
     }
     #[cfg(unix)]
     let uid = my_uid();
@@ -198,6 +203,9 @@ pub fn clean(t: &Target, found: &Found, stop: &AtomicBool) -> Cleaned {
             c.failed = found.items.max(1);
         }
         return c;
+    }
+    if t.kind == Kind::Shortcuts {
+        return crate::shortcuts::clean(found, stop);
     }
     if t.kind == Kind::Command {
         // Its own commands; then what is left says what went.

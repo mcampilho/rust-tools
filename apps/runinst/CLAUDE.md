@@ -15,7 +15,7 @@ Funcionalidades no `README.md`.
 
 ```powershell
 ./dev.ps1 build --profile release-small -p runinst
-./dev.ps1 test -p runinst         # 42 testes (38 em Linux)
+./dev.ps1 test -p runinst         # 41 testes (37 em Linux)
 ./dev.ps1 clippy -p runinst --all-targets
 ./dev.ps1 test -p runinst --lib screenshots '--' --ignored   # apps/runinst/target/screens/*.png (com os programas deste PC)
 ./dev.ps1 test -p runinst --lib report '--' --ignored --nocapture   # contagens deste PC
@@ -62,7 +62,7 @@ apps (`D:\Portable\scoop`, ficheiros `scoop-manifest.json`); 102 atalhos; "Admin
   raiz ou `deprecated\`) → `ManifestRemoved` — o Scoop atual já não diz isto, os antigos diziam-no sempre que a
   instalação falhava; neste PC, 2026-11-13: 10 falhadas) e Chocolatey
   (`ChocolateyInstall`, `lib\<id>\<id>.nuspec`), lidos das pastas.
-- `shortcuts.rs` — leitor próprio de `.lnk` (MS-SHLLINK: LinkInfo com caminho local Unicode ou ANSI, caminho
+- `shortcuts.rs` — o leitor de `.lnk` passou para `rt_sys::lnk` em 2026-11-13 (o rclean também o usa) (MS-SHLLINK: LinkInfo com caminho local Unicode ou ANSI, caminho
   relativo, bloco de variáveis de ambiente; os atalhos "anunciados" do MSI não têm caminho), `read` (menu Iniciar e
   ambiente de trabalho de todos, do utilizador — o ambiente de trabalho pelo `User Shell Folders` — e dos outros
   perfis lidos), `match_programs` (pela pasta mais longa que contém o destino; senão pelo nome simplificado).

@@ -17,6 +17,8 @@ pub enum Group {
     Browser(&'static str),
     /// A package manager, by its name.
     Tool(&'static str),
+    /// Broken shortcuts.
+    Shortcuts,
 }
 
 /// Which files of a folder go.
@@ -57,6 +59,8 @@ pub enum Kind {
     /// Its own commands clean it (a package manager's); the places only say
     /// how much it holds.
     Command,
+    /// Shortcuts that open something gone, to the Recycle Bin.
+    Shortcuts,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -100,6 +104,29 @@ pub struct Env {
     pub cache: PathBuf,
     pub config: PathBuf,
     pub data: PathBuf,
+    /// The user's desktop folder (it may have moved, to OneDrive for one).
+    pub desktop: PathBuf,
+}
+
+/// The desktop folder: Windows' `User Shell Folders`, or Linux'
+/// `XDG_DESKTOP_DIR` in `user-dirs.dirs`; else `~/Desktop`.
+fn desktop_of(home: &Path, config: &Path) -> PathBuf {
+    #[cfg(windows)]
+    {
+        let _ = config;
+        use rt_sys::win::reg::{Key, Root, View};
+        const FOLDERS: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\User Shell Folders";
+        if let Some(d) = Key::open(Root::CurrentUser, FOLDERS, View::Bits64).and_then(|k| k.string("Desktop")) {
+            return PathBuf::from(rt_sys::win::reg::expand(&d));
+        }
+    }
+    #[cfg(not(windows))]
+    if let Some(d) = std::fs::read_to_string(config.join("user-dirs.dirs")).ok().and_then(|t| {
+        t.lines().find_map(|l| l.strip_prefix("XDG_DESKTOP_DIR=")).map(|v| v.trim().trim_matches('"').replace("$HOME", &home.to_string_lossy()))
+    }) {
+        return PathBuf::from(d);
+    }
+    home.join("Desktop")
 }
 
 impl Env {
@@ -107,14 +134,16 @@ impl Env {
     pub fn here() -> Env {
         let var = |v: &str| std::env::var_os(v).map(PathBuf::from).filter(|p| !p.as_os_str().is_empty());
         let home = var(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).unwrap_or_default();
+        let config = var("XDG_CONFIG_HOME").unwrap_or_else(|| home.join(".config"));
         Env {
+            desktop: desktop_of(&home, &config),
             local: var("LOCALAPPDATA").unwrap_or_else(|| home.join("AppData").join("Local")),
             roaming: var("APPDATA").unwrap_or_else(|| home.join("AppData").join("Roaming")),
             temp: if cfg!(windows) { var("TEMP").unwrap_or_else(std::env::temp_dir) } else { PathBuf::from("/tmp") },
             windows: var("SystemRoot").unwrap_or_else(|| PathBuf::from("C:\\Windows")),
             program_data: var("ProgramData").unwrap_or_else(|| PathBuf::from("C:\\ProgramData")),
             cache: var("XDG_CACHE_HOME").unwrap_or_else(|| home.join(".cache")),
-            config: var("XDG_CONFIG_HOME").unwrap_or_else(|| home.join(".config")),
+            config,
             data: var("XDG_DATA_HOME").unwrap_or_else(|| home.join(".local").join("share")),
             home,
         }
@@ -131,6 +160,7 @@ pub fn all(env: &Env) -> Vec<Target> {
     let mut out = if cfg!(windows) { windows(env) } else { linux(env) };
     out.extend(browsers(env, cfg!(windows)));
     out.extend(crate::managers::targets(env));
+    out.extend(if cfg!(windows) { crate::shortcuts::windows(env) } else { crate::shortcuts::linux(env) });
     out
 }
 

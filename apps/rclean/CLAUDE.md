@@ -1,7 +1,7 @@
 # rclean — limpador portátil em Rust
 
 Mostra quanto ocupam os ficheiros temporários do sistema e as caches dos browsers e apaga, de vez, o que o
-utilizador marca e confirma. Um único executável (1,8 MB em Windows, 5,5 MB em Linux). Pedido do utilizador
+utilizador marca e confirma. Um único executável (1,8 MB em Windows, 5,6 MB em Linux). Pedido do utilizador
 (2026-11-13): limpar temporários do Windows e dos browsers, caches dos gestores de pacotes (Scoop, Chocolatey, pip,
 npm, Cargo, vcpkg…), entradas inválidas do registo e atalhos inválidos. Decidido nesse dia: temporários e caches
 apagados de vez (não para a Reciclagem); caches dos gestores pelos comandos de cada um (pastas só onde não há
@@ -11,7 +11,7 @@ comando); começar pelos temporários e browsers. Funcionalidades no `README.md`
 
 ```powershell
 ./dev.ps1 build --profile release-small -p rclean
-./dev.ps1 test -p rclean         # 18 testes
+./dev.ps1 test -p rclean         # 20 testes
 ./dev.ps1 clippy -p rclean --all-targets
 ./dev.ps1 test -p rclean --lib screenshots '--' --ignored   # apps/rclean/target/screens/*.png (here.png analisa este PC a sério)
 ```
@@ -47,6 +47,14 @@ Em Linux (WSL, `CARGO_TARGET_DIR=$HOME/rt-target`) os mesmos com `cargo`.
   (o teste das traduções procura-os). Neste PC (2026-11-13): Scoop 40,3 GB de transferências e 27,2 GB em 132
   versões antigas, pip 1,52 GB, npm 823 MB, Cargo 999 MB; no WSL: Cargo 314 MB, apt 11,6 MB, Snap 105 MB.
   Comandos de limpeza não experimentados a sério.
+- `shortcuts.rs` — fase 3 (2026-11-13): `Group::Shortcuts`, `Kind::Shortcuts`. Windows: `.lnk` lidos com
+  `rt_sys::lnk::target_of` (o leitor do runinst passou para o `rt-sys`) no menu Iniciar (o do utilizador e, `admin`, o
+  de todos), ambiente de trabalho (`Env::desktop` pelo `User Shell Folders`; o público com `admin`), Quick Launch/barra
+  de tarefas, SendTo e Recent (`Filter::Prefix("")` = só a própria pasta). `checkable`: nunca rede (`\\`) nem disco
+  que não existe agora. Linux: `.desktop` (`broken_desktop`: `TryExec`, senão a 1.ª palavra do `Exec` depois de
+  `env` e `NOME=valor`, absoluta ou no `PATH`; `Type=Link` nunca), ligações partidas (`~/.local/bin`, ambiente de
+  trabalho por `XDG_DESKTOP_DIR`), autostart. `Found::links` (atalho, destino) nos detalhes (até 60). Remoção com
+  `rt_sys::recycle` (Reciclagem/lixo). Neste PC: 31 itens recentes e 1 atalho do ambiente de trabalho partidos.
 - `procs.rs` — processos a correr (ToolHelp; `/proc/*/comm` em Linux, nomes cortados a 15): browser aberto → aviso.
 - `app.rs` — `Item` (alvo, marca, `State`: `Waiting`, `Analysing`, `Found`, `Cleaning`, `Cleaned`, `NeedsAdmin` —
   não marcável, desmarcado e não guardado), `Row::Group`/`Row::Item`, marcas por item e grupo (`group_tick`),
@@ -70,7 +78,7 @@ Medido neste PC (2026-11-13, sem administrador): temporários 3,24 GB em 11 760 
    browsers; analisar, marcar, limpar.
 2. Feito (2026-11-13): caches dos gestores de pacotes pelos seus comandos (Scoop, Chocolatey, pip, npm, Yarn, pnpm,
    Go, NuGet; Cargo e vcpkg por pastas; apt, dnf, zypper, pacman, Flatpak, Snap).
-3. Atalhos inválidos (pode partilhar o leitor de `.lnk` do runinst, a passar para um crate).
+3. Feito (2026-11-13): atalhos inválidos, para a Reciclagem.
 4. Entradas inválidas do registo, com cópia `.reg` antes (como os restos do runinst).
 
 ## Regras

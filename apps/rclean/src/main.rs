@@ -175,7 +175,14 @@ impl Shell {
             return;
         }
         let (n, bytes) = work.iter().fold((0, 0), |(n, b), (_, _, f)| (n + f.count(), b + f.bytes));
-        let mut text = tf("{} in {} files will be deleted for good:", &[&format::size(bytes), &format::count(n)]);
+        let shortcuts = work.iter().any(|(_, t, _)| t.kind == rclean::targets::Kind::Shortcuts);
+        let mut text = if shortcuts && work.iter().all(|(_, t, _)| t.kind == rclean::targets::Kind::Shortcuts) {
+            tf("{} broken shortcuts will go to the Recycle Bin:", &[&format::count(n)])
+        } else if shortcuts {
+            tf("{} in {} files will be cleaned (broken shortcuts to the Recycle Bin, the rest for good):", &[&format::size(bytes), &format::count(n)])
+        } else {
+            tf("{} in {} files will be deleted for good:", &[&format::size(bytes), &format::count(n)])
+        };
         text += "\n\n";
         text += &work
             .iter()

@@ -8,6 +8,7 @@ pub mod i18n;
 pub mod managers;
 pub mod procs;
 pub mod settings;
+pub mod shortcuts;
 pub mod storage;
 pub mod targets;
 pub mod ui;

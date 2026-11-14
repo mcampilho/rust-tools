@@ -12,7 +12,7 @@ correm na raiz do repositório.
 O `rclean.exe` é um único executável de 1,8 MB: sem instalador, sem runtime,
 sem DLLs além das que vêm com o Windows. Não faz ligações à rede e não tem
 telemetria. Está a ser feito por fases: limpa os ficheiros temporários, as
-caches dos browsers e as dos gestores de pacotes; os atalhos inválidos e as
+caches dos browsers e as dos gestores de pacotes, e os atalhos inválidos; as
 entradas inválidas do registo vêm a seguir (ver [Fases](#fases)).
 
 ## Utilização
@@ -80,6 +80,20 @@ revisões antigas do Snap (`snap remove <nome> --revision=<n>`), ambos
 desmarcados à partida. Quando um comando não funciona, o resumo final diz o
 que ele escreveu.
 
+### Atalhos inválidos
+
+Atalhos que abrem algo que já não existe, por sítio: o menu Iniciar (o seu, e o
+de todos com direitos de administrador), o ambiente de trabalho (o seu, e o de
+todos), a barra de tarefas e a Iniciação rápida, Enviar para, e os itens
+recentes. Em Linux, as suas entradas do menu (ficheiros `.desktop` em
+`~/.local/share/applications`), o ambiente de trabalho, o arranque automático
+e as ligações para nada em `~/.local/bin`. Os detalhes mostram cada um e o que
+abria.
+
+Um atalho para a rede, ou para um disco que não está ligado agora (um disco
+USB desligado), não conta como inválido: ninguém pode saber. Os atalhos
+inválidos vão para a Reciclagem (o lixo em Linux), para poderem ser repostos.
+
 Os itens marcados "administrador" precisam de direitos de administrador: sem
 eles aparecem a cinzento, com **Reiniciar como administrador** por cima da
 lista.
@@ -129,7 +143,7 @@ O resultado é `target\release-small\rclean.exe`.
 
 ## Linux
 
-Um ficheiro de 5,5 MB. Os itens são do utilizador: ficheiros temporários em
+Um ficheiro de 5,6 MB. Os itens são do utilizador: ficheiros temporários em
 `/tmp` e `/var/tmp` (só os seus, sem alterações há um dia), miniaturas
 (`~/.cache/thumbnails`), caches de shaders do Mesa e da NVIDIA, o lixo
 (`~/.local/share/Trash`) e as caches dos browsers (em `~/.config` e `~/.cache`;
@@ -143,6 +157,7 @@ o Firefox também do Snap e do Flatpak), e os gestores de pacotes acima.
 2. Feito: as caches dos gestores de pacotes, pelos comandos de cada um: Scoop,
    Chocolatey, pip, npm, Yarn, pnpm, Go, NuGet, Cargo e vcpkg; apt, dnf,
    zypper, pacman, Flatpak e Snap em Linux.
-3. Atalhos inválidos (menu Iniciar, ambiente de trabalho, ficheiros `.desktop`
-   do Linux).
+3. Feito: atalhos inválidos (menu Iniciar, ambiente de trabalho, barra de
+   tarefas, Enviar para, itens recentes; ficheiros `.desktop` e ligações do
+   Linux), para a Reciclagem.
 4. Entradas inválidas do registo, guardadas num `.reg` antes de saírem.

@@ -94,6 +94,7 @@ pub fn group_label(g: Group) -> String {
         Group::System if cfg!(windows) => "Windows".into(),
         Group::System => "Linux".into(),
         Group::Browser(name) | Group::Tool(name) => name.to_string(),
+        Group::Shortcuts => tr("Broken shortcuts"),
     }
 }
 
@@ -479,6 +480,24 @@ fn details_lines(app: &App) -> Vec<(String, u8)> {
                 if cmds.iter().any(|c| c.root) {
                     out.push((tr("It needs root: pkexec asks for the password."), 3));
                 }
+            } else if it.target.kind == Kind::Shortcuts {
+                for pl in &it.target.places {
+                    out.push((pl.dir.to_string_lossy().into_owned(), 2));
+                }
+                out.push((if cfg!(windows) { tr("Shortcuts go to the Recycle Bin, where they can be put back.") } else { tr("Shortcuts go to the trash, where they can be put back.") }, 3));
+                // Each one, and what it opened.
+                let links = it.found().map(|f| f.links.as_slice()).unwrap_or(&[]);
+                if !links.is_empty() {
+                    out.push((tr("Shortcuts found"), 1));
+                }
+                for (link, gone) in links.iter().take(60) {
+                    let name = link.file_name().map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+                    out.push((name, 2));
+                    out.push((format!("→ {gone}"), 3));
+                }
+                if links.len() > 60 {
+                    out.push((tf("and {} more", &[&format::count(links.len() as u64 - 60)]), 3));
+                }
             } else {
                 for pl in &it.target.places {
                     out.push((pl.dir.to_string_lossy().into_owned(), 2));
@@ -502,10 +521,15 @@ pub fn details_height(g: &mut Gfx, app: &App, l: &Layout, s: f32) -> f32 {
     let mut h = 16.0 * s;
     for (text, kind) in details_lines(app) {
         let (size, font) = line_style(kind, s);
-        let n = if kind == 2 && !text.contains(['\\', '/']) { wrap_words(g, &text, w, size, font).len() } else { 1 };
+        let n = if kind == 0 || is_path(&text) { 1 } else { wrap_words(g, &text, w, size, font).len() };
         h += n as f32 * size * 1.45 + if kind <= 1 { 10.0 * s } else { 2.0 * s };
     }
     h
+}
+
+/// A path (or what a shortcut opened): one line, cut in the middle.
+fn is_path(text: &str) -> bool {
+    text.starts_with("→ ") || text.contains(['\\', '/']) && !text.contains(' ')
 }
 
 fn line_style(kind: u8, s: f32) -> (f32, FontId) {
@@ -536,7 +560,7 @@ fn draw_details(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32) {
             y += 8.0 * s;
         }
         // Paths are cut in the middle; sentences wrap.
-        let lines = if text.contains(['\\', '/']) && !text.contains(' ') || kind == 0 {
+        let lines = if is_path(&text) || kind == 0 {
             vec![if kind == 0 { ellipsize(g, &text, w, size, font) } else { ellipsize_middle(g, &text, w, size, font) }]
         } else {
             wrap_words(g, &text, w, size, font)
