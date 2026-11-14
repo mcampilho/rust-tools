@@ -36,6 +36,11 @@ impl Shell {
             let full = Rect::new(0.0, 0.0, w.get() as f32, h.get() as f32);
             (*panel, *ok) = rt_gfx::dialog::draw_message(&mut self.gfx, full, &style, scale, title, text);
         }
+        #[cfg(windows)]
+        if let Some(p) = &mut self.assoc {
+            let full = Rect::new(0.0, 0.0, w.get() as f32, h.get() as f32);
+            p.draw(&mut self.gfx, full, theme.dark, Some(self.accent), scale);
+        }
         if let Ok(mut buf) = win.surface.buffer_mut() {
             self.gfx.copy_to(&mut buf);
             let _ = buf.present();

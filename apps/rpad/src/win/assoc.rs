@@ -5,7 +5,11 @@
 pub use rt_sys::win::assoc::{list, open_default_apps, Defaults, Error, Status};
 use rt_sys::win::assoc::{Keys, Spec};
 
-const SPEC: Spec = Spec {
+/// Types rpad edits but should not open by default unless the user ticks
+/// them: a double click on an Internet shortcut must open the browser.
+const NOT_BY_DEFAULT: &[&str] = &[".url"];
+
+static SPEC: Spec = Spec {
     name: "rpad",
     description: "A portable text and code editor.",
     exts: &[
@@ -14,6 +18,8 @@ const SPEC: Spec = Spec {
         (".md", "rpad.md"),
         (".markdown", "rpad.md"),
         (".ini", "rpad.config"),
+        (".inf", "rpad.config"),
+        (".url", "rpad.config"),
         (".cfg", "rpad.config"),
         (".conf", "rpad.config"),
         (".toml", "rpad.config"),
@@ -48,6 +54,11 @@ const SPEC: Spec = Spec {
     ],
 };
 
+/// rpad's file types, for the Default app panel (`rt_ui::assoc`).
+pub fn spec() -> &'static Spec {
+    &SPEC
+}
+
 /// The extensions rpad registers for.
 pub fn extensions() -> Vec<&'static str> {
     SPEC.exts.iter().map(|(e, _)| *e).collect()
@@ -61,8 +72,10 @@ pub fn register(exe: &str, verb: &str) -> Result<(), Error> {
     rt_sys::win::assoc::register(&SPEC, &Keys::user(SPEC.name), exe, verb)
 }
 
+/// rpad as the default editor of every type but [`NOT_BY_DEFAULT`].
 pub fn associate(exe: &str, verb: &str) -> Result<Defaults, Error> {
-    rt_sys::win::assoc::associate(&SPEC, &Keys::user(SPEC.name), exe, verb)
+    let want: Vec<&str> = extensions().into_iter().filter(|e| !NOT_BY_DEFAULT.contains(e)).collect();
+    rt_sys::win::assoc::set_defaults(&SPEC, &Keys::user(SPEC.name), exe, verb, &want)
 }
 
 pub fn unregister() -> Result<(), Error> {

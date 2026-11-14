@@ -125,12 +125,15 @@ rights) and points to the `rview.exe` you run it from:
   `.log`, `.csv` and `.tsv` files, and rview to their "Open with" list.
   Unchecking it (or `--unregister`) removes everything rview added,
   including defaults, and restores the previous ones.
-- *Set as Default Viewer* / `--associate`: also registers rview in
-  Windows' Default apps and makes it the default for the types where no
-  default was chosen by you. Windows protects the defaults you picked
-  yourself (for example a PDF reader or browser); rview does not override
-  them, but opens Settings › Default apps and lists those types so you can
-  pick rview there.
+- *Set as Default Viewer* opens a panel with every type rview reads and the
+  program that opens each one now. Tick the types rview should open and
+  press **Apply**: rview becomes their default (and is registered in
+  Windows' Default apps); a type you untick gets its previous program back.
+  Windows protects the defaults you picked yourself (marked "your choice",
+  for example a PDF reader or browser) and rview never overrides them: the
+  **Open with…** button of a type opens Windows' own window, where you pick
+  rview and "Always". **Default apps…** opens Windows Settings.
+  `--associate` does the same for every type without asking.
 
 If you move `rview.exe`, the menu item shows unchecked; check it again to
 point the entries at the new location. From a console, the command-line

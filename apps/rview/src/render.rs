@@ -42,6 +42,10 @@ impl Shell {
         if let Some(d) = &mut self.dialog {
             d.draw(&mut self.gfx, full, &theme.dialog_style(), s);
         }
+        #[cfg(windows)]
+        if let Some(p) = &mut self.assoc {
+            p.draw(&mut self.gfx, full, dark, rt_sys::accent().map(rt_gfx::Color::rgb), s);
+        }
         let Some(win) = &mut self.win else { return };
         rt_ui::window::present(&mut win.surface, &self.gfx);
         self.gfx.trim_cache();

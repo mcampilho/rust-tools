@@ -30,7 +30,10 @@ Correm na raiz do repositório. Saída: `target\release\rview.exe`. Rust 1.88+, 
 - `view.rs`, `main.rs` — vista, janela, input, modo `--tray`. O `impl Shell` está repartido por `input.rs`, `menus.rs` e `render.rs`; a base da janela, os menus desenhados e o painel de mensagem vêm do `rt-ui`.
 - `win/` — Win32 de `rt-sys` (menus escuros, diálogos, tray) com a identidade do rview, mais `clipboard.rs`
   (o `Payload` em vários formatos) e `assoc.rs` (os tipos de ficheiro do rview para `rt_sys::win::assoc`, que
-  escreve as associações só em HKCU e tem os testes).
+  escreve as associações só em HKCU e tem os testes). "Definir como visualizador predefinido" abre o painel
+  `rt_ui::assoc::AssocPanel` (2026-11-14, pedido do utilizador): tipos a marcar, quem abre cada um (e se é
+  escolha do utilizador, `UserChoice`, que nunca se muda), "Abrir com…" (`SHOpenWithDialog`), Aplicar
+  (`set_defaults`); `Shell::assoc`, `modal()`. O `--associate` continua a fazer todos.
 - `linux/` — Clipboard (arboard: texto com HTML, ou imagem), e o resto de `rt-sys`: diálogo Abrir (zenity ou
   kdialog), tema, links, e o modo residente com socket Unix e ícone StatusNotifierItem.
 - `ui/menu.rs` — menus desenhados na janela (`rt-gfx`), só fora do Windows. Em Linux, `cfg(not(windows))`

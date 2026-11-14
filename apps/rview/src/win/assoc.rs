@@ -5,7 +5,7 @@
 pub use rt_sys::win::assoc::{list, open_default_apps, Error, Status};
 use rt_sys::win::assoc::{Keys, Spec};
 
-const SPEC: Spec = Spec {
+static SPEC: Spec = Spec {
     name: "rview",
     description: "A small, fast, portable document viewer.",
     exts: &[
@@ -27,6 +27,11 @@ const SPEC: Spec = Spec {
         ("rview.csv", "CSV Document"),
     ],
 };
+
+/// rview's file types, for the Default app panel (`rt_ui::assoc`).
+pub fn spec() -> &'static Spec {
+    &SPEC
+}
 
 /// The supported extensions.
 pub fn extensions() -> Vec<&'static str> {

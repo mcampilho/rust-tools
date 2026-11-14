@@ -14,6 +14,10 @@ rt-sys = { path = "../rt-sys" }
 winit = { version = "0.30", default-features = false, features = ["rwh_06"] }
 softbuffer = { version = "0.4", default-features = false }
 
+[dev-dependencies]
+# PNG output for the picture test of the Default app panel.
+tiny-skia = { version = "0.11", default-features = false, features = ["std", "simd", "png-format"] }
+
 # X11 and Wayland both: the same executable runs on either.
 [target.'cfg(target_os = "linux")'.dependencies]
 winit = { version = "0.30", default-features = false, features = ["rwh_06", "x11", "wayland", "wayland-dlopen", "wayland-csd-adwaita"] }

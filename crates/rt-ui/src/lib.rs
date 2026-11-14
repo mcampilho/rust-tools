@@ -14,6 +14,8 @@ pub mod message;
 pub mod window;
 
 #[cfg(windows)]
+pub mod assoc;
+#[cfg(windows)]
 pub mod explorer;
 #[cfg(not(windows))]
 pub mod resident;

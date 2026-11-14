@@ -113,6 +113,9 @@ struct Shell {
     /// "Open with rview" is registered for this rview.exe.
     #[cfg(windows)]
     integrated: bool,
+    /// The Default app panel (File › Windows Integration).
+    #[cfg(windows)]
+    assoc: Option<rt_ui::assoc::AssocPanel>,
     /// Time and place of the last click, and how many came in a row.
     last_click: Option<(Instant, f32, f32, u32)>,
     /// Menus drawn in the window.
@@ -283,7 +286,11 @@ impl Shell {
             #[cfg(windows)]
             Command::ExplorerMenu => self.integration(if self.integrated { Integration::Unregister } else { Integration::Register }),
             #[cfg(windows)]
-            Command::DefaultViewer => self.integration(Integration::Associate),
+            Command::DefaultViewer => {
+                self.assoc = Some(rt_ui::assoc::AssocPanel::new(win::assoc::spec(), &tr("Open with rview")));
+                self.drag = None;
+                self.redraw();
+            }
             Command::Shortcuts => self.info(&tr("Keyboard shortcuts"), &shortcuts_text()),
             Command::About => {
                 let version = [env!("CARGO_PKG_VERSION")];
@@ -386,6 +393,25 @@ impl Shell {
             w.window.focus_window();
         }
         self.hidden = false;
+        self.redraw();
+    }
+
+    /// A panel over the document (a message, the Default app panel) takes
+    /// the mouse and the keys.
+    fn modal(&self) -> bool {
+        #[cfg(windows)]
+        if self.assoc.is_some() {
+            return true;
+        }
+        self.dialog.is_some()
+    }
+
+    /// The Default app panel closes: the menu shows what it changed.
+    #[cfg(windows)]
+    fn close_assoc(&mut self) {
+        self.assoc = None;
+        self.integrated = integrated_here();
+        self.menu_dirty = true;
         self.redraw();
     }
 
@@ -669,6 +695,13 @@ impl ApplicationHandler<UserEvent> for Shell {
             WindowEvent::CursorMoved { position, .. } => {
                 let (x, y) = (position.x as f32, position.y as f32);
                 self.cursor = Some((x, y));
+                #[cfg(windows)]
+                if let Some(p) = &mut self.assoc {
+                    if p.pointer(x, y) {
+                        self.redraw();
+                    }
+                    return;
+                }
                 #[cfg(not(windows))]
                 self.menu_pointer(el, x, y);
                 match &mut self.drag {
@@ -707,6 +740,16 @@ impl ApplicationHandler<UserEvent> for Shell {
             WindowEvent::MouseInput { state, button: MouseButton::Left, .. } => match state {
                 ElementState::Pressed => {
                     let Some((x, y)) = self.cursor else { return };
+                    #[cfg(windows)]
+                    if let Some(p) = &mut self.assoc {
+                        let hwnd = self.win.as_ref().map_or(std::ptr::null_mut(), |w| w.hwnd);
+                        match p.click(hwnd, x, y) {
+                            rt_ui::assoc::Outcome::Close => self.close_assoc(),
+                            rt_ui::assoc::Outcome::Redraw => self.redraw(),
+                            rt_ui::assoc::Outcome::Nothing => {}
+                        }
+                        return;
+                    }
                     if let Some(d) = &self.dialog {
                         if d.closes_at(x, y) {
                             self.dialog = None;
@@ -747,7 +790,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     self.update_hover();
                 }
             },
-            WindowEvent::MouseInput { state, button: MouseButton::Middle, .. } if self.dialog.is_none() => match state {
+            WindowEvent::MouseInput { state, button: MouseButton::Middle, .. } if !self.modal() => match state {
                 ElementState::Pressed => {
                     if let Some((x, y)) = self.cursor.filter(|(x, y)| self.viewer.in_view(*x, *y) && self.viewer.scrollbar_at(*x, *y).is_none()) {
                         self.start_pan(x, y);
@@ -764,12 +807,23 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.menu.close();
                 self.redraw();
             }
-            WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Right, .. } if self.dialog.is_none() => {
+            WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Right, .. } if !self.modal() => {
                 if self.cursor.is_some_and(|(x, y)| self.viewer.in_view(x, y)) && matches!(self.viewer.state, view::State::Ready(_)) {
                     self.context_menu(el);
                 }
             }
-            WindowEvent::MouseWheel { .. } if self.dialog.is_some() => {}
+            #[cfg(windows)]
+            WindowEvent::MouseWheel { delta, .. } if self.assoc.is_some() => {
+                let s = self.scale();
+                let lines = match delta {
+                    MouseScrollDelta::LineDelta(_, y) => -y,
+                    MouseScrollDelta::PixelDelta(p) => -p.y as f32 / (30.0 * s),
+                };
+                if self.assoc.as_mut().is_some_and(|p| p.wheel(lines, s)) {
+                    self.redraw();
+                }
+            }
+            WindowEvent::MouseWheel { .. } if self.modal() => {}
             #[cfg(not(windows))]
             WindowEvent::MouseWheel { delta, .. } if self.menu.is_open() => {
                 let down = match delta {
@@ -1014,6 +1068,8 @@ fn main() {
         dialog: help.then(|| Message::new("rview", USAGE)),
         #[cfg(windows)]
         integrated: integrated_here(),
+        #[cfg(windows)]
+        assoc: None,
         last_click: None,
         #[cfg(not(windows))]
         menu: ui::menu::Menu::default(),

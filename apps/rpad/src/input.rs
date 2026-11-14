@@ -4,6 +4,13 @@ use super::*;
 
 impl Shell {
     pub(super) fn key(&mut self, el: &ActiveEventLoop, event: &winit::event::KeyEvent) {
+        #[cfg(windows)]
+        if let Some(p) = &mut self.assoc {
+            if p.key(&event.logical_key) == rt_ui::assoc::Outcome::Close {
+                self.close_assoc();
+            }
+            return;
+        }
         if self.dialog.is_some() {
             if matches!(event.logical_key, WKey::Named(NamedKey::Escape | NamedKey::Enter | NamedKey::Space)) {
                 self.dialog = None;
@@ -80,6 +87,17 @@ impl Shell {
 
     pub(super) fn mouse_press(&mut self, el: &ActiveEventLoop, button: MouseButton) {
         let Some((x, y)) = self.cursor else { return };
+        #[cfg(windows)]
+        if let Some(p) = &mut self.assoc {
+            if button == MouseButton::Left {
+                match p.click(self.host.hwnd, x, y) {
+                    rt_ui::assoc::Outcome::Close => self.close_assoc(),
+                    rt_ui::assoc::Outcome::Redraw => self.redraw(),
+                    rt_ui::assoc::Outcome::Nothing => {}
+                }
+            }
+            return;
+        }
         // The OK button, or a click outside the message, closes it.
         if let Some((_, _, panel, ok)) = &self.dialog {
             if ok.contains(x, y) || !panel.contains(x, y) {
@@ -179,6 +197,18 @@ impl Shell {
 
     pub(super) fn wheel(&mut self, delta: MouseScrollDelta) {
         let Some((x, y)) = self.cursor else { return };
+        #[cfg(windows)]
+        if let Some(p) = &mut self.assoc {
+            let s = self.win.as_ref().map_or(1.0, |w| w.window.scale_factor() as f32);
+            let lines = match delta {
+                MouseScrollDelta::LineDelta(_, l) => -l,
+                MouseScrollDelta::PixelDelta(d) => -(d.y as f32) / (30.0 * s),
+            };
+            if p.wheel(lines, s) {
+                self.redraw();
+            }
+            return;
+        }
         let line_h = self.app.layout.line_h.max(1.0);
         let lines = match delta {
             MouseScrollDelta::LineDelta(_, l) => -l * 3.0,
@@ -225,7 +255,7 @@ impl Shell {
     pub(super) fn update_cursor_icon(&mut self) {
         let icon = match self.cursor {
             // A message (About, the shortcuts) is over the editor.
-            _ if self.dialog.is_some() => CursorIcon::Default,
+            _ if self.dialog.is_some() || self.panel_open() => CursorIcon::Default,
             Some((x, y)) => {
                 let l = &self.app.layout;
                 let in_text = l.rect.contains(x, y) && x >= l.text_x - 2.0 && !l.vscroll.contains(x, y);

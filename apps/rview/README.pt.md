@@ -127,12 +127,16 @@ administrador) e aponta para o `rview.exe` a partir do qual é executado:
   `.html`, `.htm`, `.txt`, `.log`, `.csv` e `.tsv`, e o rview à lista "Abrir
   com". Desmarcar (ou `--unregister`) remove tudo o que o rview acrescentou,
   incluindo predefinições, e repõe as anteriores.
-- *Definir como visualizador predefinido* / `--associate`: regista também o
-  rview nas Aplicações predefinidas do Windows e torna-o a predefinição dos
-  tipos em que não escolheu nenhuma. O Windows protege as predefinições que
-  escolheu (por exemplo um leitor de PDF ou um navegador); o rview não as
-  altera, mas abre Definições › Aplicações predefinidas e indica esses tipos
-  para poder escolher lá o rview.
+- *Definir como visualizador predefinido* abre um painel com todos os tipos que o
+  rview lê e o programa que abre cada um agora. Marque os tipos que o rview deve
+  abrir e carregue em **Aplicar**: o rview passa a ser a predefinição deles (e
+  fica registado nas Aplicações predefinidas do Windows); um tipo desmarcado
+  volta ao programa anterior. O Windows protege as predefinições que escolheu
+  (marcadas "escolha sua", por exemplo um leitor de PDF ou um navegador) e o
+  rview nunca as altera: o botão **Abrir com…** de um tipo abre a janela do
+  próprio Windows, onde escolhe o rview e "Sempre". **Aplicações
+  predefinidas…** abre as Definições do Windows. O `--associate` faz o mesmo
+  para todos os tipos, sem perguntar.
 
 Se mover o `rview.exe`, o item do menu aparece desmarcado; marque-o outra vez
 para apontar as entradas para o novo local. Numa consola, as opções da linha

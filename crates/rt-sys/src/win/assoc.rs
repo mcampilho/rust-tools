@@ -60,15 +60,30 @@ pub enum Status {
     Elsewhere,
 }
 
-/// What [`associate`] could do per extension.
+/// What [`associate`] and [`set_defaults`] could do per extension.
 #[derive(Debug, Default)]
 pub struct Defaults {
     /// The app became the default.
     pub set: Vec<&'static str>,
     /// The app already was the default.
     pub already: Vec<&'static str>,
-    /// The user chose another app; only they can change it (in Settings).
+    /// The user's own choice (`UserChoice`) is in the way: another app where
+    /// the app was wanted, or the app where it was not. Only they can change
+    /// it ("Open with", or Settings).
     pub user_choice: Vec<&'static str>,
+    /// No longer the app's: the previous default came back.
+    pub released: Vec<&'static str>,
+}
+
+/// Who opens a file type now.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Current {
+    /// The app. `protected`: the user chose it (`UserChoice`).
+    Ours { protected: bool },
+    /// Another program, by the name Windows gives it.
+    Other { name: String, protected: bool },
+    /// No program.
+    Nothing,
 }
 
 pub type Error = u32;
@@ -214,6 +229,21 @@ pub fn register(spec: &Spec, keys: &Keys, exe: &str, verb: &str) -> Result<(), E
 /// every type without a user choice. The previous default of such a type
 /// (if any) is kept and restored by [`unregister`].
 pub fn associate(spec: &Spec, keys: &Keys, exe: &str, verb: &str) -> Result<Defaults, Error> {
+    let all: Vec<&str> = spec.exts.iter().map(|(e, _)| *e).collect();
+    set_defaults(spec, keys, exe, verb, &all)
+}
+
+/// Whether a ProgID names the app for `ext` (its own, or its Applications entry).
+fn is_ours(spec: &Spec, ext: &str, progid: &str) -> bool {
+    let own = spec.exts.iter().find(|(e, _)| e.eq_ignore_ascii_case(ext)).map_or("", |(_, p)| *p);
+    (!own.is_empty() && progid.eq_ignore_ascii_case(own)) || progid.eq_ignore_ascii_case(&format!("Applications\\{}.exe", spec.name))
+}
+
+/// Like [`associate`], for the extensions in `want` only: the app becomes
+/// their default where Windows allows it, and stops being the default of
+/// the others (their previous default comes back). The user's own choices
+/// are never touched.
+pub fn set_defaults(spec: &Spec, keys: &Keys, exe: &str, verb: &str, want: &[&str]) -> Result<Defaults, Error> {
     register(spec, keys, exe, verb)?;
     let cap = format!("{}\\Capabilities", keys.app);
     set_str(&cap, Some("ApplicationName"), spec.name)?;
@@ -223,30 +253,83 @@ pub fn associate(spec: &Spec, keys: &Keys, exe: &str, verb: &str) -> Result<Defa
         set_str(&format!("{cap}\\FileAssociations"), Some(ext), progid)?;
     }
     set_str(&keys.registered, Some(spec.name), &cap)?;
-    let app_key = format!("Applications\\{}.exe", spec.name);
+    let backup = format!("{}\\Backup", keys.app);
     let mut d = Defaults::default();
     for (ext, progid) in spec.exts {
-        let ours = |s: &str| s.eq_ignore_ascii_case(progid) || s.eq_ignore_ascii_case(&app_key);
+        let wanted = want.iter().any(|w| w.eq_ignore_ascii_case(ext));
+        let ours = |s: &str| is_ours(spec, ext, s);
+        let key = format!("{}\\{ext}", keys.classes);
         match get_str(&format!("{}\\{ext}\\UserChoice", keys.file_exts), Some("ProgId")) {
-            Some(c) if ours(&c) => d.already.push(ext),
-            Some(_) => d.user_choice.push(ext),
-            None => {
-                let key = format!("{}\\{ext}", keys.classes);
-                match get_str(&key, None) {
-                    Some(c) if ours(&c) => d.already.push(ext),
-                    prev => {
-                        if let Some(p) = prev.filter(|p| !p.is_empty()) {
-                            set_str(&format!("{}\\Backup", keys.app), Some(ext), &p)?;
-                        }
-                        set_str(&key, None, progid)?;
-                        d.set.push(ext);
-                    }
+            Some(c) if ours(&c) == wanted => {
+                if wanted {
+                    d.already.push(ext);
                 }
             }
+            Some(_) => d.user_choice.push(ext),
+            None => match get_str(&key, None) {
+                Some(c) if ours(&c) => {
+                    if wanted {
+                        d.already.push(ext);
+                    } else {
+                        match get_str(&backup, Some(ext)) {
+                            Some(prev) => set_str(&key, None, &prev)?,
+                            None => delete_value(&key, "")?,
+                        }
+                        delete_value(&backup, ext)?;
+                        d.released.push(ext);
+                    }
+                }
+                prev if wanted => {
+                    if let Some(p) = prev.filter(|p| !p.is_empty()) {
+                        set_str(&backup, Some(ext), &p)?;
+                    }
+                    set_str(&key, None, progid)?;
+                    d.set.push(ext);
+                }
+                _ => {}
+            },
         }
     }
     notify();
     Ok(d)
+}
+
+/// Who opens `ext` now, as far as the user's settings (`keys`) say; the
+/// name of another program comes from Windows.
+pub fn current(spec: &Spec, keys: &Keys, ext: &str) -> Current {
+    let choice = get_str(&format!("{}\\{ext}\\UserChoice", keys.file_exts), Some("ProgId")).filter(|c| !c.is_empty());
+    let protected = choice.is_some();
+    let progid = choice.clone().or_else(|| get_str(&format!("{}\\{ext}", keys.classes), None).filter(|c| !c.is_empty()));
+    if progid.as_deref().is_some_and(|p| is_ours(spec, ext, p)) {
+        return Current::Ours { protected };
+    }
+    match friendly_name(ext).or(choice) {
+        Some(name) => Current::Other { name, protected },
+        None => Current::Nothing,
+    }
+}
+
+/// The name of the program that opens `ext`, as Windows shows it.
+fn friendly_name(ext: &str) -> Option<String> {
+    use windows_sys::Win32::UI::Shell::{AssocQueryStringW, ASSOCF_INIT_IGNOREUNKNOWN, ASSOCF_NOTRUNCATE, ASSOCSTR_FRIENDLYAPPNAME};
+    let e = wide(ext);
+    let mut buf = vec![0u16; 512];
+    let mut len = buf.len() as u32;
+    // SAFETY: `buf` holds `len` characters; the extension is NUL-terminated.
+    let hr = unsafe { AssocQueryStringW(ASSOCF_INIT_IGNOREUNKNOWN | ASSOCF_NOTRUNCATE, ASSOCSTR_FRIENDLYAPPNAME, e.as_ptr(), null(), buf.as_mut_ptr(), &mut len) };
+    (hr == 0).then(|| from_wide(&buf)).filter(|n| !n.is_empty())
+}
+
+/// Windows' own "Open with" window for `ext`, where the user picks the
+/// program and "Always use this app" (the only way to change their own
+/// choice). Waits until it closes; false when nothing was chosen.
+pub fn open_with(hwnd: super::HWND, ext: &str) -> bool {
+    use windows_sys::Win32::UI::Shell::{SHOpenWithDialog, OAIF_ALLOW_REGISTRATION, OAIF_REGISTER_EXT, OPENASINFO};
+    let e = wide(ext);
+    let info = OPENASINFO { pcszFile: e.as_ptr(), pcszClass: null(), oaifInFlags: OAIF_ALLOW_REGISTRATION | OAIF_REGISTER_EXT };
+    // SAFETY: `info` and the string it points to live through the call.
+    let hr = unsafe { SHOpenWithDialog(hwnd, &info) };
+    hr == 0
 }
 
 /// Removes everything [`register`] and [`associate`] wrote, restoring the
@@ -392,6 +475,27 @@ mod tests {
         // A second run finds everything in place.
         let again = associate(&SPEC, &keys, exe, "Open with rview").unwrap();
         assert!(again.set.is_empty() && again.already.len() == SPEC.exts.len() - 1);
+        assert_eq!(current(&SPEC, &keys, ".md"), Current::Ours { protected: false });
+        assert!(matches!(current(&SPEC, &keys, ".pdf"), Current::Other { protected: true, .. }));
+
+        // Only .md and .csv wanted: .txt gets its previous default back, .md
+        // has none to come back to, and the user's .pdf stays theirs.
+        let some = set_defaults(&SPEC, &keys, exe, "Open with rview", &[".csv"]).unwrap();
+        assert_eq!(some.already, vec![".csv"]);
+        assert!(some.released.contains(&".txt") && some.released.contains(&".md"));
+        assert_eq!(get_str(&format!("{}\\.txt", keys.classes), None).as_deref(), Some("txtfile"));
+        assert_eq!(get_str(&format!("{}\\.md", keys.classes), None), None);
+        assert!(!matches!(current(&SPEC, &keys, ".txt"), Current::Ours { .. }));
+        // Wanted again: the backup is made anew.
+        let back = set_defaults(&SPEC, &keys, exe, "Open with rview", &[".txt", ".csv"]).unwrap();
+        assert_eq!(back.set, vec![".txt"]);
+        // The user's choice of the app itself is theirs too: it stays (and
+        // their other app for .pdf is in nobody's way when .pdf is not wanted).
+        set_str(&format!("{}\\.md\\UserChoice", keys.file_exts), Some("ProgId"), "Applications\\rview.exe").unwrap();
+        assert_eq!(current(&SPEC, &keys, ".md"), Current::Ours { protected: true });
+        let kept = set_defaults(&SPEC, &keys, exe, "Open with rview", &[".txt", ".csv"]).unwrap();
+        assert_eq!(kept.user_choice, vec![".md"]);
+        delete_tree(&format!("{}\\.md", keys.file_exts)).unwrap();
 
         unregister(&SPEC, &keys).unwrap();
         assert_eq!(status(&SPEC, &keys, exe), Status::Off);

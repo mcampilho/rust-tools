@@ -80,15 +80,20 @@ the current user only (no administrator rights) and points to the
 `rpad.exe` you run it from:
 
 - *Explorer Context Menu* / `--register`: adds "Edit with rpad" to the
-  right-click menu of text, Markdown, configuration (`.ini`, `.toml`,
-  `.json`, `.yaml`...), XML and source files (`.rs`, `.py`, `.js`, `.c`,
-  `.cs`, `.ps1`, `.sh`...), and rpad to their "Open with" list. Unchecking it
-  (or `--unregister`) removes everything rpad added, including defaults,
-  and restores the previous ones.
-- *Set as Default Editor* / `--associate`: also registers rpad in Windows'
-  Default apps and makes it the default for the types where you chose no
-  default yourself. Those you chose are left alone: Settings › Default apps
-  opens, listing them, so you can pick rpad there.
+  right-click menu of text, Markdown, configuration (`.ini`, `.inf`, `.url`,
+  `.toml`, `.json`, `.yaml`...), XML and source files (`.rs`, `.py`, `.js`,
+  `.c`, `.cs`, `.ps1`, `.sh`...), and rpad to their "Open with" list.
+  Unchecking it (or `--unregister`) removes everything rpad added, including
+  defaults, and restores the previous ones.
+- *Set as Default Editor* opens a panel with every type and the program that
+  opens each one now. Tick the types rpad should open and press **Apply**:
+  rpad becomes their default (and is registered in Windows' Default apps); a
+  type you untick gets its previous program back. Windows protects the
+  defaults you chose yourself (marked "your choice") and rpad never overrides
+  them: the **Open with…** button of a type opens Windows' own window, where
+  you pick rpad and "Always". **Default apps…** opens Windows Settings.
+  `--associate` does the same for every type but `.url` (a double click on
+  an Internet shortcut should open the browser).
 
 If you move `rpad.exe`, the menu item shows unchecked; check it again to
 point the entries at the new location.

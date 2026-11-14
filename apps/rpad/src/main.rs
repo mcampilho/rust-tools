@@ -205,6 +205,9 @@ struct Shell {
     /// The message shown over the window (About, the help...), and where
     /// its panel and OK button were drawn.
     dialog: Option<(String, String, Rect, Rect)>,
+    /// The Default app panel (File › Windows Integration).
+    #[cfg(windows)]
+    assoc: Option<rt_ui::assoc::AssocPanel>,
 }
 
 fn theme_for(pref: ThemePref) -> Option<WinTheme> {
@@ -272,10 +275,14 @@ impl Shell {
         }
         #[cfg(windows)]
         {
+            if cmd == Command::DefaultEditor {
+                self.assoc = Some(rt_ui::assoc::AssocPanel::new(win::assoc::spec(), &i18n::tr("Edit with rpad")));
+                self.editor_drag = false;
+                return self.redraw();
+            }
             let action = match cmd {
                 Command::ExplorerMenu if self.app.explorer_menu => Some(Integration::Unregister),
                 Command::ExplorerMenu => Some(Integration::Register),
-                Command::DefaultEditor => Some(Integration::Associate),
                 _ => None,
             };
             if let Some(a) = action {
@@ -290,6 +297,24 @@ impl Shell {
         }
         self.app.dispatch(cmd, &self.host);
         self.after_action(el);
+    }
+
+    /// The Default app panel is over the window (Windows).
+    fn panel_open(&self) -> bool {
+        #[cfg(windows)]
+        return self.assoc.is_some();
+        #[cfg(not(windows))]
+        false
+    }
+
+    /// The Default app panel closes: the menu shows what it changed.
+    #[cfg(windows)]
+    fn close_assoc(&mut self) {
+        self.assoc = None;
+        self.app.explorer_menu = integrated_here();
+        self.app.menu_dirty = true;
+        self.update_cursor_icon();
+        self.redraw();
     }
 
     fn after_action(&mut self, el: &ActiveEventLoop) {
@@ -813,6 +838,13 @@ impl ApplicationHandler<UserEvent> for Shell {
             WindowEvent::CursorMoved { position, .. } => {
                 let (x, y) = (position.x as f32, position.y as f32);
                 self.cursor = Some((x, y));
+                #[cfg(windows)]
+                if let Some(p) = &mut self.assoc {
+                    if p.pointer(x, y) {
+                        self.redraw();
+                    }
+                    return;
+                }
                 if self.editor_drag {
                     if self.app.mouse_drag(x, y) {
                         self.redraw();
@@ -1097,6 +1129,8 @@ fn main() {
         #[cfg(not(windows))]
         shell: None,
         dialog: None,
+        #[cfg(windows)]
+        assoc: None,
     };
     if let Err(e) = event_loop.run_app(&mut shell) {
         eprintln!("rpad: {e}");

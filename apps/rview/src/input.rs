@@ -10,6 +10,13 @@ impl Shell {
     }
 
     pub(super) fn key(&mut self, el: &ActiveEventLoop, event: &winit::event::KeyEvent) {
+        #[cfg(windows)]
+        if let Some(p) = &mut self.assoc {
+            if p.key(&event.logical_key) == rt_ui::assoc::Outcome::Close {
+                self.close_assoc();
+            }
+            return;
+        }
         if self.dialog.is_some() {
             if Message::closes_on(&event.logical_key) {
                 self.dialog = None;
@@ -82,7 +89,7 @@ impl Shell {
     }
 
     pub(super) fn update_hover(&mut self) {
-        let (link, icon) = match (self.cursor.filter(|_| self.dialog.is_none()), &self.drag) {
+        let (link, icon) = match (self.cursor.filter(|_| !self.modal()), &self.drag) {
             (_, Some(Drag::Pan { .. })) => (None, CursorIcon::Grabbing),
             (_, Some(Drag::Select)) => (None, self.cursor_icon),
             (Some((x, y)), _) => match self.viewer.link_at(x, y) {

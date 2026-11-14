@@ -83,14 +83,19 @@ para o utilizador atual (sem direitos de administrador) e aponta para o
 
 - *Menu de contexto do Explorador* / `--register`: acrescenta "Editar com o rpad"
   ao menu do botão direito dos ficheiros de texto, Markdown, configuração (`.ini`,
-  `.toml`, `.json`, `.yaml`...), XML e código (`.rs`, `.py`, `.js`, `.c`, `.cs`,
-  `.ps1`, `.sh`...), e o rpad à lista "Abrir com". Desmarcá-lo (ou `--unregister`)
-  tira tudo o que o rpad acrescentou, incluindo as predefinições, e repõe as
-  anteriores.
-- *Definir como editor predefinido* / `--associate`: regista também o rpad nas
-  Aplicações predefinidas do Windows e torna-o a predefinição dos tipos onde não
-  escolheste nenhuma. As que escolheste ficam como estão: abrem-se as Definições ›
-  Aplicações predefinidas, com a lista desses tipos, para escolheres lá o rpad.
+  `.inf`, `.url`, `.toml`, `.json`, `.yaml`...), XML e código (`.rs`, `.py`, `.js`,
+  `.c`, `.cs`, `.ps1`, `.sh`...), e o rpad à lista "Abrir com". Desmarcá-lo (ou
+  `--unregister`) tira tudo o que o rpad acrescentou, incluindo as predefinições, e
+  repõe as anteriores.
+- *Definir como editor predefinido* abre um painel com todos os tipos e o programa
+  que abre cada um agora. Marca os tipos que o rpad deve abrir e carrega em
+  **Aplicar**: o rpad passa a ser a predefinição deles (e fica registado nas
+  Aplicações predefinidas do Windows); um tipo desmarcado volta ao programa
+  anterior. O Windows protege as predefinições que escolheste (marcadas "escolha
+  sua") e o rpad nunca as altera: o botão **Abrir com…** de um tipo abre a janela do
+  próprio Windows, onde escolhes o rpad e "Sempre". **Aplicações predefinidas…**
+  abre as Definições do Windows. O `--associate` faz o mesmo para todos os tipos
+  menos o `.url` (um duplo clique num atalho de Internet deve abrir o navegador).
 
 Se moveres o `rpad.exe`, o item do menu aparece desmarcado; marca-o de novo para
 as entradas apontarem para o novo local.
