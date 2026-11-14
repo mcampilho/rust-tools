@@ -95,6 +95,7 @@ pub fn group_label(g: Group) -> String {
         Group::System => "Linux".into(),
         Group::Browser(name) | Group::Tool(name) => name.to_string(),
         Group::Shortcuts => tr("Broken shortcuts"),
+        Group::Registry => tr("Registry"),
     }
 }
 
@@ -201,6 +202,8 @@ fn check_box(g: &mut Gfx, x: f32, cy: f32, th: &Theme, s: f32, state: Tick, usab
 fn counts(it: &Item) -> (String, String) {
     match &it.state {
         State::Found(f) | State::Cleaning(f) if f.unknown => ("?".into(), "?".into()),
+        // Registry entries: how many, no size.
+        State::Found(f) | State::Cleaning(f) if it.target.kind == Kind::Registry => (format::count(f.count()), String::new()),
         State::Found(f) | State::Cleaning(f) => (format::count(f.count()), format::size(f.bytes)),
         State::Analysing => ("…".into(), "…".into()),
         _ => (String::new(), String::new()),
@@ -451,11 +454,14 @@ fn details_lines(app: &App) -> Vec<(String, u8)> {
             let it = &app.items[i];
             out.push((format!("{} — {}", group_label(it.target.group), tr(it.target.name)), 0));
             out.push((tr(it.target.about), 2));
+            if let (Kind::Registry, Some(f)) = (it.target.kind, it.found().filter(|f| f.count() > 0)) {
+                out.push((tf("{} entries", &[&format::count(f.count())]), 2));
+            }
             let note = note_text(it);
             if !note.is_empty() {
                 out.push((note, 2));
             }
-            if let Some(f) = it.found().filter(|f| f.count() > 0) {
+            if let Some(f) = it.found().filter(|f| f.count() > 0 && it.target.kind != Kind::Registry) {
                 out.push((tf("{} in {} files", &[&format::size(f.bytes), &format::count(f.count())]), 2));
             }
             if it.open {
@@ -464,7 +470,10 @@ fn details_lines(app: &App) -> Vec<(String, u8)> {
             if let State::Cleaned(Cleaned { error: Some(e), .. }) = &it.state {
                 out.push((e.clone(), 3));
             }
-            out.push((tr("Where"), 1));
+            // Registry entries have no folders: what was found is listed instead.
+            if it.target.kind != Kind::Registry {
+                out.push((tr("Where"), 1));
+            }
             if it.target.kind == Kind::RecycleBin {
                 out.push((tr("The Recycle Bin of every drive."), 3));
             }
@@ -479,6 +488,23 @@ fn details_lines(app: &App) -> Vec<(String, u8)> {
                 out.extend(cmds.iter().map(|c| (c.text(), 3)));
                 if cmds.iter().any(|c| c.root) {
                     out.push((tr("It needs root: pkexec asks for the password."), 3));
+                }
+            } else if it.target.kind == Kind::Registry {
+                out.push((tr("Everything is saved to a .reg file before it is deleted: open that file to put it back."), 3));
+                let entries = it.found().map(|f| f.entries.as_slice()).unwrap_or(&[]);
+                if !entries.is_empty() {
+                    out.push((tr("Entries found"), 1));
+                }
+                for (e, why) in entries.iter().take(60) {
+                    let key = match &e.value {
+                        Some(v) => format!("{} › {}", e.key, if v.is_empty() { "@" } else { v }),
+                        None => e.key.clone(),
+                    };
+                    out.push((format!("→ {key}"), 2));
+                    out.push((why.clone(), 3));
+                }
+                if entries.len() > 60 {
+                    out.push((tf("and {} more", &[&format::count(entries.len() as u64 - 60)]), 3));
                 }
             } else if it.target.kind == Kind::Shortcuts {
                 for pl in &it.target.places {
@@ -581,6 +607,7 @@ pub fn status_text(app: &App) -> (String, String) {
         Some(n) => n,
         None => match app.selected_item() {
             Some(it) => match it.found() {
+                Some(f) if it.target.kind == Kind::Registry => format!("{}: {}", tr(it.target.name), tf("{} entries", &[&format::count(f.count())])),
                 Some(f) => format!("{}: {}", tr(it.target.name), tf("{} in {} files", &[&format::size(f.bytes), &format::count(f.count())])),
                 None => tr(it.target.name),
             },

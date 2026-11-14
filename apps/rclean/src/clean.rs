@@ -34,6 +34,8 @@ pub struct Found {
     pub commands: Vec<crate::managers::Cmd>,
     /// Broken shortcuts: each one, and what it opened.
     pub links: Vec<(PathBuf, String)>,
+    /// Invalid registry entries: each one, and what it named that is gone.
+    pub entries: Vec<(rt_sys::regfile::Entry, String)>,
 }
 
 impl Found {
@@ -97,6 +99,9 @@ pub fn analyse(t: &Target, stop: &AtomicBool) -> Found {
     }
     if t.kind == Kind::Shortcuts {
         return crate::shortcuts::analyse(t, stop);
+    }
+    if t.kind == Kind::Registry {
+        return crate::registry::analyse(t);
     }
     #[cfg(unix)]
     let uid = my_uid();
@@ -193,7 +198,12 @@ fn walk(places: &[Place], uid: Option<u32>, list: bool, f: &mut Found, stop: &At
 }
 
 /// Deletes what `found` lists (for good), then the folders left empty.
-pub fn clean(t: &Target, found: &Found, stop: &AtomicBool) -> Cleaned {
+/// `backups`: the folder for this cleaning's `.reg` files (registry entries
+/// are saved there first, one file per target).
+pub fn clean(t: &Target, found: &Found, stop: &AtomicBool, backups: &Path) -> Cleaned {
+    if t.kind == Kind::Registry {
+        return crate::registry::clean(found, &backups.join(format!("{}.reg", t.id)));
+    }
     let mut c = Cleaned::default();
     if t.kind == Kind::RecycleBin {
         if empty_recycle_bin() {
@@ -331,7 +341,7 @@ mod tests {
         let f = analyse(&t, &stop);
         assert_eq!((f.files.len(), f.bytes, f.unreadable), (4, 167, 0), "{:?}", f.files);
         assert_eq!(f.dirs, [cache.join("a").join("b"), cache.join("a")], "the deepest first");
-        let c = clean(&t, &f, &stop);
+        let c = clean(&t, &f, &stop, &root);
         assert_eq!((c.files, c.bytes, c.failed), (4, 167, 0));
         assert!(cache.is_dir() && std::fs::read_dir(&cache).unwrap().next().is_none(), "the place itself stays, empty");
         assert!(other.join("iconcache_16.db").exists() && fresh.join("in-use.tmp").exists());

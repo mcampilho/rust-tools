@@ -19,6 +19,8 @@ pub enum Group {
     Tool(&'static str),
     /// Broken shortcuts.
     Shortcuts,
+    /// Invalid registry entries (Windows).
+    Registry,
 }
 
 /// Which files of a folder go.
@@ -61,6 +63,8 @@ pub enum Kind {
     Command,
     /// Shortcuts that open something gone, to the Recycle Bin.
     Shortcuts,
+    /// Registry entries naming what is gone, saved to a `.reg` file first.
+    Registry,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -161,6 +165,9 @@ pub fn all(env: &Env) -> Vec<Target> {
     out.extend(browsers(env, cfg!(windows)));
     out.extend(crate::managers::targets(env));
     out.extend(if cfg!(windows) { crate::shortcuts::windows(env) } else { crate::shortcuts::linux(env) });
+    if cfg!(windows) {
+        out.extend(crate::registry::targets());
+    }
     out
 }
 

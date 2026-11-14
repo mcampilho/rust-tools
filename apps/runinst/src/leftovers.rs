@@ -304,14 +304,8 @@ pub fn size_of(path: &Path, limit: usize) -> u64 {
 /// A value saved as a `.reg` line: `"name"="text"`, or `hex(2):` for an
 /// expandable one.
 pub fn reg_value_line(name: &str, data: &str, expand: bool) -> String {
-    let esc = |s: &str| s.replace('\\', "\\\\").replace('"', "\\\"");
-    let n = if name.is_empty() { "@".to_string() } else { format!("\"{}\"", esc(name)) };
-    if expand {
-        let bytes: Vec<String> = data.encode_utf16().chain(std::iter::once(0)).flat_map(|u| u.to_le_bytes()).map(|b| format!("{b:02x}")).collect();
-        format!("{n}=hex(2):{}", bytes.join(","))
-    } else {
-        format!("{n}=\"{}\"", esc(data))
-    }
+    use rt_sys::regfile::{value_line, Data};
+    value_line(name, &if expand { Data::Expand(data.to_string()) } else { Data::Str(data.to_string()) })
 }
 
 /// What the search needs to know.
@@ -562,27 +556,12 @@ mod lin {
 mod win {
     use super::*;
     use crate::inventory::Source;
-    use rt_sys::win::reg::{Key, Root, Value, View};
+    use rt_sys::regfile::{delete_key, delete_value, encode, export_key, export_value, key_exists, run_hidden, split_key, HEADER};
+    use rt_sys::win::reg::{Key, Value, View};
     use std::sync::atomic::{AtomicBool, Ordering};
 
     fn env(v: &str) -> Option<PathBuf> {
         std::env::var_os(v).map(PathBuf::from).filter(|p| !p.as_os_str().is_empty())
-    }
-
-    /// `HKEY_LOCAL_MACHINE\SOFTWARE\X` → the root and the rest.
-    pub fn split_key(path: &str) -> Option<(Root, &str)> {
-        let (root, rest) = path.split_once('\\')?;
-        let r = match root.to_uppercase().as_str() {
-            "HKEY_LOCAL_MACHINE" | "HKLM" => Root::LocalMachine,
-            "HKEY_CURRENT_USER" | "HKCU" => Root::CurrentUser,
-            "HKEY_USERS" | "HKU" => Root::Users,
-            _ => return None,
-        };
-        Some((r, rest))
-    }
-
-    fn key_exists(path: &str) -> bool {
-        split_key(path).is_some_and(|(r, rest)| Key::open(r, rest, View::Bits64).is_some())
     }
 
     /// The desktop user's `Software` key, as written.
@@ -1126,41 +1105,12 @@ mod win {
         finish(scan.orphans(stop))
     }
 
-    fn hidden(args: &[&str]) -> Result<(), String> {
-        run_hidden("reg.exe", args)
-    }
-
-    /// Runs a tool of Windows without a window; its message when it fails.
-    fn run_hidden(exe: &str, args: &[&str]) -> Result<(), String> {
-        use std::os::windows::process::CommandExt;
-        const NO_WINDOW: u32 = 0x0800_0000;
-        let o = std::process::Command::new(exe).args(args).creation_flags(NO_WINDOW).stdin(std::process::Stdio::null()).output().map_err(|e| e.to_string())?;
-        if o.status.success() {
-            Ok(())
-        } else {
-            let mut t = String::from_utf8_lossy(&o.stderr).trim().to_string();
-            if t.is_empty() {
-                t = String::from_utf8_lossy(&o.stdout).trim().to_string();
-            }
-            Err(t)
-        }
-    }
-
-    /// A `.reg` file as `reg export` writes it: UTF-16 with its header.
-    fn read_reg(path: &Path) -> Option<String> {
-        let b = std::fs::read(path).ok()?;
-        let u: Vec<u16> = b.as_chunks::<2>().0.iter().map(|c| u16::from_le_bytes(*c)).collect();
-        let s = String::from_utf16_lossy(&u);
-        Some(s.trim_start_matches('\u{feff}').to_string())
-    }
-
-    const HEADER: &str = "Windows Registry Editor Version 5.00";
-
+    /// Saves keys and values to `backup` (through `rt_sys::regfile`, as rclean
+    /// does), services' keys too, tasks' files beside it; then removes.
     pub fn remove(items: &[Leftover], backup: &Path) -> Vec<Removed> {
         let mut results: Vec<Removed> = vec![Ok(()); items.len()];
         // First the copy of every key and value.
         let mut text = format!("{HEADER}\r\n");
-        let tmp = std::env::temp_dir().join(format!("runinst-{}.reg", std::process::id()));
         let mut saved = vec![false; items.len()];
         // Tasks: their files beside the `.reg` (`schtasks /Create /XML` puts one back).
         let task_dir = backup.with_extension("tasks");
@@ -1174,28 +1124,27 @@ mod win {
                         Err(e) => results[i] = Err(e.to_string()),
                     }
                 }
-                Kind::Key | Kind::Service => match hidden(&["export", &l.path, &tmp.to_string_lossy(), "/y", "/reg:64"]).and_then(|_| read_reg(&tmp).ok_or_else(|| "export".to_string())) {
+                Kind::Key | Kind::Service => match export_key(&l.path) {
                     Ok(t) => {
-                        text += t.trim_start().trim_start_matches(HEADER).trim_start_matches(['\r', '\n']);
-                        text += "\r\n";
+                        text += &t;
                         saved[i] = true;
                     }
                     Err(e) => results[i] = Err(e),
                 },
                 Kind::Value => {
                     let (Some((r, rest)), Some(name)) = (split_key(&l.path), &l.value) else { continue };
-                    let expand = matches!(Key::open(r, rest, View::Bits64).and_then(|k| k.value(name)), Some(Value::Expand(_)));
-                    text += &format!("[{}]\r\n{}\r\n\r\n", l.path, reg_value_line(name, l.data.as_deref().unwrap_or(""), expand));
+                    // As stored (any type); else from the text read.
+                    text += &export_value(&l.path, name).unwrap_or_else(|| {
+                        let expand = matches!(Key::open(r, rest, View::Bits64).and_then(|k| k.value(name)), Some(Value::Expand(_)));
+                        format!("[{}]\r\n{}\r\n\r\n", l.path, reg_value_line(name, l.data.as_deref().unwrap_or(""), expand))
+                    });
                     saved[i] = true;
                 }
                 _ => {}
             }
         }
-        let _ = std::fs::remove_file(&tmp);
         if items.iter().zip(&saved).any(|(l, s)| *s && l.kind != Kind::Task) {
-            let mut bytes = vec![0xFF, 0xFE];
-            bytes.extend(text.encode_utf16().flat_map(|u| u.to_le_bytes()));
-            let written = backup.parent().map_or(Ok(()), std::fs::create_dir_all).and_then(|_| std::fs::write(backup, bytes));
+            let written = backup.parent().map_or(Ok(()), std::fs::create_dir_all).and_then(|_| std::fs::write(backup, encode(&text)));
             if let Err(e) = written {
                 // No copy, no deleting.
                 for (i, s) in saved.iter_mut().enumerate() {
@@ -1208,12 +1157,11 @@ mod win {
         }
         for (i, l) in items.iter().enumerate() {
             results[i] = match l.kind {
-                Kind::Key if saved[i] => hidden(&["delete", &l.path, "/f", "/reg:64"]),
+                Kind::Key if saved[i] => delete_key(&l.path),
                 // Its key went with another one ticked.
                 Kind::Value if saved[i] && !key_exists(&l.path) => Ok(()),
                 Kind::Value if saved[i] => match l.value.as_deref() {
-                    Some("") => hidden(&["delete", &l.path, "/ve", "/f", "/reg:64"]),
-                    Some(n) => hidden(&["delete", &l.path, "/v", n, "/f", "/reg:64"]),
+                    Some(n) => delete_value(&l.path, n),
                     None => Err("no value".into()),
                 },
                 // Stopped first (it may not be running), then deleted; one

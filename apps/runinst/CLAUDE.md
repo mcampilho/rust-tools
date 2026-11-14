@@ -100,7 +100,7 @@ apps (`D:\Portable\scoop`, ficheiros `scoop-manifest.json`); 102 atalhos; "Admin
   `HKLM\SOFTWARE` (+ WOW6432Node) e `HKU\<sid>\Software` (`Settings`), valores `Run`, a entrada `Uninstall` se o
   desinstalador sumiu, Scoop (pasta e `persist`), Everything (`rt_scan::everything::search`, `folder:wfn:"nome"`,
   `Elsewhere`, não marcado). `admin`: o que precisa de direitos que o runinst não tem (não se pode marcar).
-  `win::remove`: `reg export /reg:64` de cada chave e linhas `.reg` próprias para valores (`reg_value_line`, `hex(2)`
+  `win::remove` (desde 2026-11-14 pelo `rt_sys::regfile`, partilhado com o rclean): `reg export /reg:64` de cada chave e linhas `.reg` próprias para valores (`reg_value_line`, `hex(2)`
   nos expansíveis) num só `.reg` UTF-16 (`backups\leftovers <data>.reg` na pasta das definições); sem cópia não se
   apaga; depois `reg delete`, e `rt_sys::recycle` para ficheiros e pastas. `win::Scan` lê uma vez os sítios, o que
   fica (`Keep`), os serviços (`Services\*\ImagePath`, `image_file`: `\??\`, `\SystemRoot\`, `system32\`) e as

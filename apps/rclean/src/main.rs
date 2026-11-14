@@ -90,6 +90,8 @@ struct Shell {
     stop: Arc<AtomicBool>,
     /// When the work started, for what turns while it runs.
     started: Option<std::time::Instant>,
+    /// Where this cleaning saved registry entries.
+    backups: Option<std::path::PathBuf>,
     #[cfg(not(windows))]
     menu: rclean::ui::menu::Menu,
 }
@@ -196,6 +198,10 @@ impl Shell {
             text += "\n\n";
             text += &tr("* Open now: close it first to clean everything; files in use are left as they are.");
         }
+        if work.iter().any(|(_, t, _)| t.kind == rclean::targets::Kind::Registry) {
+            text += "\n\n";
+            text += &tr("Registry entries are saved to a .reg file first, to put them back if need be.");
+        }
         if !self.confirm(&tr("Clean"), &text) {
             return;
         }
@@ -207,6 +213,21 @@ impl Shell {
             self.app.items[*i].state = State::Cleaning(f.clone());
         }
         self.start_busy(true, work.len());
+        // Registry entries are saved first: `backups\registry <date>\<id>.reg`
+        // beside the settings.
+        let stamp = {
+            let t = rt_sys::local_time();
+            format!("{:04}-{:02}-{:02} {:02}{:02}{:02}", t.year, t.month, t.day, t.hour, t.minute, t.second)
+        };
+        let backups = self
+            .location
+            .dir
+            .clone()
+            .or_else(|| std::env::current_exe().ok().and_then(|e| e.parent().map(|p| p.to_path_buf())))
+            .unwrap_or_else(std::env::temp_dir)
+            .join("backups")
+            .join(format!("registry {stamp}"));
+        self.backups = work.iter().any(|(_, t, _)| t.kind == rclean::targets::Kind::Registry).then(|| backups.clone());
         let (proxy, stop) = (self.proxy.clone(), self.stop.clone());
         std::thread::spawn(move || {
             for (i, t, f) in work {
@@ -214,7 +235,7 @@ impl Shell {
                     break;
                 }
                 let _ = proxy.send_event(UserEvent::Starting(gen, i));
-                let c = clean::clean(&t, &f, &stop);
+                let c = clean::clean(&t, &f, &stop, &backups);
                 let _ = proxy.send_event(UserEvent::Cleaned(gen, i, c));
             }
             let _ = proxy.send_event(UserEvent::Finished(gen, true));
@@ -254,6 +275,10 @@ impl Shell {
             if c.failed > 0 {
                 text += "\n\n";
                 text += &tf("{} files were in use or could not be deleted, and stayed.", &[&format::count(c.failed)]);
+            }
+            if let Some(dir) = self.backups.take().filter(|d| d.is_dir()) {
+                text += "\n\n";
+                text += &tf("The registry entries were saved in {} first: open the .reg files there to put them back.", &[&dir.display().to_string()]);
             }
             // What a package manager's command said when it did not work.
             let errors: Vec<String> = self
@@ -702,6 +727,7 @@ fn main() {
         dialog: help.then(|| Message::new("rclean", USAGE)),
         stop: Arc::new(AtomicBool::new(false)),
         started: None,
+        backups: None,
         #[cfg(not(windows))]
         menu: rclean::ui::menu::Menu::default(),
     };

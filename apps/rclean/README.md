@@ -9,11 +9,10 @@ deletes what you tick, after asking.
 rclean is part of [rust-tools](../../README.md). Commands below run from the
 repository root.
 
-`rclean.exe` is a single 1.8 MB executable: no installer, no runtime, no DLLs
+`rclean.exe` is a single 1.9 MB executable: no installer, no runtime, no DLLs
 beyond those that ship with Windows. It makes no network connections and has
-no telemetry. It is being built in phases: it cleans temporary files, browser
-caches, the caches of package managers and broken shortcuts; invalid registry
-entries come next (see [Phases](#phases)).
+no telemetry. It cleans temporary files, browser caches, the caches of package
+managers, broken shortcuts and invalid registry entries (see [Phases](#phases)).
 
 ## Use
 
@@ -92,6 +91,28 @@ A shortcut to the network, or to a drive that is not there now (a USB disk
 unplugged), is not called broken: nobody can tell. Broken shortcuts go to the
 Recycle Bin (the trash on Linux), so they can be put back.
 
+### Invalid registry entries (Windows)
+
+Entries that name a file or folder that is gone:
+
+| Item | Where | Administrator |
+| --- | --- | --- |
+| Uninstall entries | `Uninstall` entries whose uninstaller and folder are gone (not Windows Installer's) | yours: no; the system's: yes |
+| Startup entries | `Run` and `RunOnce` values whose program is gone | yours: no; the system's: yes |
+| Program paths | `App Paths` whose program is gone | yes |
+| Names of programs | `MuiCache`: names Explorer kept of programs gone | no |
+| Open with | `Classes\Applications` whose programs are all gone | no |
+| Shared files | `SharedDLLs` counts of files gone | yes |
+| Installer folders | Windows Installer's list of folders, those gone | yes |
+| Fonts | fonts whose file is gone | yes |
+
+Only full paths on a drive that is there are checked: never relative names
+(`rundll32.exe`), the network, or a drive unplugged; a 32-bit entry's
+`System32` is looked for in `SysWOW64` too. Every entry is saved first to a
+`.reg` file, in `backups\registry <date>` beside the settings (one file per
+item); the end of the cleaning says where. Double-click a file to put its
+entries back. The details list each entry and what it named.
+
 Items marked "administrator" need administrator rights: without them they
 are shown, dimmed, with **Restart as Administrator** above the list.
 
@@ -155,4 +176,6 @@ Flatpak), and the package managers above.
    zypper, pacman, Flatpak and Snap on Linux.
 3. Done: broken shortcuts (Start menu, desktop, taskbar, Send To, recent
    items; Linux `.desktop` files and links), to the Recycle Bin.
-4. Invalid registry entries, saved to a `.reg` file before they are removed.
+4. Done: invalid registry entries (uninstall, startup, App Paths, MuiCache,
+   Open with, SharedDLLs, Installer folders, fonts), saved to a `.reg` file
+   before they are removed.

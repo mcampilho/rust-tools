@@ -9,11 +9,11 @@ que marcar, depois de perguntar.
 O rclean faz parte do [rust-tools](../../README.pt.md). Os comandos abaixo
 correm na raiz do repositório.
 
-O `rclean.exe` é um único executável de 1,8 MB: sem instalador, sem runtime,
+O `rclean.exe` é um único executável de 1,9 MB: sem instalador, sem runtime,
 sem DLLs além das que vêm com o Windows. Não faz ligações à rede e não tem
-telemetria. Está a ser feito por fases: limpa os ficheiros temporários, as
-caches dos browsers e as dos gestores de pacotes, e os atalhos inválidos; as
-entradas inválidas do registo vêm a seguir (ver [Fases](#fases)).
+telemetria. Limpa os ficheiros temporários, as caches dos browsers e as dos
+gestores de pacotes, os atalhos inválidos e as entradas inválidas do registo
+(ver [Fases](#fases)).
 
 ## Utilização
 
@@ -94,6 +94,29 @@ Um atalho para a rede, ou para um disco que não está ligado agora (um disco
 USB desligado), não conta como inválido: ninguém pode saber. Os atalhos
 inválidos vão para a Reciclagem (o lixo em Linux), para poderem ser repostos.
 
+### Entradas inválidas do registo (Windows)
+
+Entradas que nomeiam um ficheiro ou uma pasta que já não existe:
+
+| Item | Onde | Administrador |
+| --- | --- | --- |
+| Entradas de desinstalação | entradas `Uninstall` cujo desinstalador e pasta já não existem (não as do Windows Installer) | as suas: não; as do sistema: sim |
+| Entradas de arranque | valores `Run` e `RunOnce` cujo programa já não existe | as suas: não; as do sistema: sim |
+| Caminhos de programas | `App Paths` cujo programa já não existe | sim |
+| Nomes de programas | `MuiCache`: nomes que o Explorador guardou de programas que já não existem | não |
+| Abrir com | `Classes\Applications` cujos programas já não existem todos | não |
+| Ficheiros partilhados | contagens `SharedDLLs` de ficheiros que já não existem | sim |
+| Pastas do instalador | a lista de pastas do Windows Installer, as que já não existem | sim |
+| Tipos de letra | tipos de letra cujo ficheiro já não existe | sim |
+
+Só se verificam caminhos completos num disco que está lá: nunca nomes sem
+caminho (`rundll32.exe`), a rede, nem um disco desligado; o `System32` de uma
+entrada de 32 bits procura-se também no `SysWOW64`. Cada entrada é guardada
+primeiro num ficheiro `.reg`, em `backups\registry <data>` ao lado das
+definições (um ficheiro por item); o fim da limpeza diz onde. Um duplo clique
+no ficheiro repõe as suas entradas. Os detalhes mostram cada entrada e o que
+nomeava.
+
 Os itens marcados "administrador" precisam de direitos de administrador: sem
 eles aparecem a cinzento, com **Reiniciar como administrador** por cima da
 lista.
@@ -160,4 +183,6 @@ o Firefox também do Snap e do Flatpak), e os gestores de pacotes acima.
 3. Feito: atalhos inválidos (menu Iniciar, ambiente de trabalho, barra de
    tarefas, Enviar para, itens recentes; ficheiros `.desktop` e ligações do
    Linux), para a Reciclagem.
-4. Entradas inválidas do registo, guardadas num `.reg` antes de saírem.
+4. Feito: entradas inválidas do registo (desinstalação, arranque, App Paths,
+   MuiCache, Abrir com, SharedDLLs, pastas do instalador, tipos de letra),
+   guardadas num `.reg` antes de saírem.

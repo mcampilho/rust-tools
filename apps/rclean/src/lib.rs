@@ -7,6 +7,7 @@ pub mod commands;
 pub mod i18n;
 pub mod managers;
 pub mod procs;
+pub mod registry;
 pub mod settings;
 pub mod shortcuts;
 pub mod storage;

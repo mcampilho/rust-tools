@@ -1,7 +1,7 @@
 # rclean — limpador portátil em Rust
 
 Mostra quanto ocupam os ficheiros temporários do sistema e as caches dos browsers e apaga, de vez, o que o
-utilizador marca e confirma. Um único executável (1,8 MB em Windows, 5,6 MB em Linux). Pedido do utilizador
+utilizador marca e confirma. Um único executável (1,9 MB em Windows, 5,6 MB em Linux). Pedido do utilizador
 (2026-11-13): limpar temporários do Windows e dos browsers, caches dos gestores de pacotes (Scoop, Chocolatey, pip,
 npm, Cargo, vcpkg…), entradas inválidas do registo e atalhos inválidos. Decidido nesse dia: temporários e caches
 apagados de vez (não para a Reciclagem); caches dos gestores pelos comandos de cada um (pastas só onde não há
@@ -11,7 +11,7 @@ comando); começar pelos temporários e browsers. Funcionalidades no `README.md`
 
 ```powershell
 ./dev.ps1 build --profile release-small -p rclean
-./dev.ps1 test -p rclean         # 20 testes
+./dev.ps1 test -p rclean         # 21 testes
 ./dev.ps1 clippy -p rclean --all-targets
 ./dev.ps1 test -p rclean --lib screenshots '--' --ignored   # apps/rclean/target/screens/*.png (here.png analisa este PC a sério)
 ```
@@ -55,6 +55,17 @@ Em Linux (WSL, `CARGO_TARGET_DIR=$HOME/rt-target`) os mesmos com `cargo`.
   `env` e `NOME=valor`, absoluta ou no `PATH`; `Type=Link` nunca), ligações partidas (`~/.local/bin`, ambiente de
   trabalho por `XDG_DESKTOP_DIR`), autostart. `Found::links` (atalho, destino) nos detalhes (até 60). Remoção com
   `rt_sys::recycle` (Reciclagem/lixo). Neste PC: 31 itens recentes e 1 atalho do ambiente de trabalho partidos.
+- `registry.rs` — fase 4 (2026-11-14, só Windows): `Group::Registry`, `Kind::Registry`, um alvo por tipo (`id` diz
+  qual; `win::find`): `Uninstall` (HKCU e, `admin`, HKLM 64/32; `UninstallString` por `command_file` e
+  `InstallLocation` ambos desaparecidos; nunca `WindowsInstaller=1`), `Run`/`RunOnce` (idem), `App Paths` (`admin`),
+  `MuiCache` (`mui_program`: `….FriendlyAppName`/`.ApplicationCompany`, nunca `@…`), `Classes\Applications` (todos os
+  verbos sem programa), `SharedDLLs`, `Installer\Folders` (sem `Config.Msi`), `Fonts` (relativos em `%windir%\Fonts`).
+  `gone`: só caminhos absolutos num disco presente (`shortcuts::checkable`), no 32 bits o `System32` também em
+  `SysWOW64`. `Found::entries` (`regfile::Entry`, o que nomeava). Limpar: `rt_sys::regfile::save_then_delete` para
+  `<definições>\backups\registry <data>\<id>.reg` (o `clean` recebe a pasta da limpeza; o resumo diz onde). O
+  `regfile` (linhas `.reg` de todos os tipos, `export_key`/`export_value`, apagar) passou a ser partilhado com os
+  restos do runinst. Teste real `cleans_a_startup_entry` (ignorado: escreve no `Run` do HKCU). Neste PC (sem
+  administrador) não há nada: MuiCache com 271 valores, todos existentes (verificado à parte).
 - `procs.rs` — processos a correr (ToolHelp; `/proc/*/comm` em Linux, nomes cortados a 15): browser aberto → aviso.
 - `app.rs` — `Item` (alvo, marca, `State`: `Waiting`, `Analysing`, `Found`, `Cleaning`, `Cleaned`, `NeedsAdmin` —
   não marcável, desmarcado e não guardado), `Row::Group`/`Row::Item`, marcas por item e grupo (`group_tick`),
@@ -79,7 +90,7 @@ Medido neste PC (2026-11-13, sem administrador): temporários 3,24 GB em 11 760 
 2. Feito (2026-11-13): caches dos gestores de pacotes pelos seus comandos (Scoop, Chocolatey, pip, npm, Yarn, pnpm,
    Go, NuGet; Cargo e vcpkg por pastas; apt, dnf, zypper, pacman, Flatpak, Snap).
 3. Feito (2026-11-13): atalhos inválidos, para a Reciclagem.
-4. Entradas inválidas do registo, com cópia `.reg` antes (como os restos do runinst).
+4. Feito (2026-11-14): entradas inválidas do registo, com cópia `.reg` antes (`rt_sys::regfile`, partilhado com o runinst).
 
 ## Regras
 

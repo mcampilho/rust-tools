@@ -69,7 +69,7 @@ pub fn linux(e: &Env) -> Vec<Target> {
 
 /// Whether a target can be told to be gone: not on the network, and its
 /// drive (Windows) is there.
-fn checkable(t: &Path) -> bool {
+pub fn checkable(t: &Path) -> bool {
     let s = t.to_string_lossy();
     if s.starts_with("\\\\") || s.starts_with("//") || !t.is_absolute() {
         return false;
