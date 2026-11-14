@@ -102,6 +102,9 @@ descarregadas são verificadas: o que não for uma imagem, ou for menor do que
   `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` (só o utilizador atual);
   desmarcar tira-o. No Linux é **Iniciar ao entrar na sessão**, um ficheiro em
   `~/.config/autostart`.
+- **?** (à direita dos separadores) e **Acerca do rwall** no menu do ícone
+  mostram a versão do rwall. O rwall não tem atalhos de teclado além de escrever
+  nas caixas (Enter, Esc, Ctrl+V), por isso não tem uma lista deles.
 
 ## Fundo dinâmico (Windows)
 

@@ -145,7 +145,7 @@ lista.
 | ↑ ↓ PgUp PgDn Home End | Mover na lista |
 | Espaço | Marcar ou desmarcar a linha selecionada |
 | Ctrl+A | Marcar tudo |
-| Ctrl+E | Abrir a pasta |
+| Ctrl+E | Abrir a pasta no Explorador |
 | Ctrl+Shift+C | Copiar os detalhes |
 | F1 | Atalhos de teclado |
 

@@ -13,13 +13,15 @@ pub enum TrayCmd {
     Exit,
     /// Pauses or resumes the dynamic wallpaper (Windows).
     LivePause,
+    /// About rwall itself (its version), in the window.
+    AboutApp,
 }
 
 /// The text of [`TrayCmd::LivePause`] while paused.
 pub const RESUME: &str = "&Resume the dynamic wallpaper";
 
 impl TrayCmd {
-    pub const ALL: [TrayCmd; 6] = [TrayCmd::Next, TrayCmd::About, TrayCmd::Settings, TrayCmd::ShowFile, TrayCmd::Exit, TrayCmd::LivePause];
+    pub const ALL: [TrayCmd; 7] = [TrayCmd::Next, TrayCmd::About, TrayCmd::Settings, TrayCmd::ShowFile, TrayCmd::Exit, TrayCmd::LivePause, TrayCmd::AboutApp];
 
     /// The untranslated label, with its `&` access key.
     pub fn key(self) -> &'static str {
@@ -30,6 +32,7 @@ impl TrayCmd {
             TrayCmd::ShowFile => "Show the picture &file",
             TrayCmd::Exit => "E&xit",
             TrayCmd::LivePause => "&Pause the dynamic wallpaper",
+            TrayCmd::AboutApp => "About r&wall",
         }
     }
 
@@ -58,7 +61,7 @@ pub fn tray_menu() -> Vec<M<TrayCmd>> {
     if cfg!(windows) {
         m.push(M::Item(TrayCmd::LivePause));
     }
-    m.extend([M::Item(TrayCmd::Settings), M::Item(TrayCmd::ShowFile), M::Sep, M::Item(TrayCmd::Exit)]);
+    m.extend([M::Item(TrayCmd::Settings), M::Item(TrayCmd::ShowFile), M::Sep, M::Item(TrayCmd::AboutApp), M::Item(TrayCmd::Exit)]);
     m
 }
 

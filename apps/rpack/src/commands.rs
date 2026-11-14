@@ -93,7 +93,7 @@ impl Command {
             Hash(ALL_HASHES) => "&All Hashes",
             Hash(i) => return Err(Algo::ALL.get(i as usize).map_or("", |a| a.name()).to_string()),
             SaveHashes => "&Save Hashes...",
-            Reveal => "Show in File &Manager",
+            Reveal => if cfg!(windows) { "Sho&w in Explorer" } else { "Show in File &Manager" },
             CopyPath => "&Copy Path",
             Recycle if cfg!(windows) => "Move to Recycle &Bin",
             Recycle => "Mo&ve to Trash",

@@ -227,7 +227,7 @@ either.
   quiet and modify ones), the registry key, its shortcuts, and every value of
   the entry.
 - The buttons above the list, the **Program** menu and the right-click menu:
-  Uninstall, Uninstall Quietly, Modify or Repair, Open the Install Folder
+  Uninstall, Uninstall Quietly, Modify or Repair, Open Folder in Explorer
   (Ctrl+E), Copy the Name (Ctrl+C), the Uninstall Command, the Registry Key,
   All the Details (Ctrl+Shift+C), Select All (Ctrl+A).
 - With several programs selected, the details show how many, their size and

@@ -69,6 +69,8 @@ pub enum Hit {
     KeepLess,
     KeepMore,
     Autostart,
+    /// About rwall itself (the "?" at the right of the tabs).
+    AppAbout,
     /// Turns the dynamic wallpaper on or off.
     LiveOn,
     LiveKind(Kind),
@@ -287,13 +289,23 @@ pub fn draw(g: &mut Gfx, m: &Model, t: &Theme, s: f32, full: Rect) -> Drawn {
         p.hit(r, Hit::Tab(tab));
         tx += tw + p.px(4.0);
     }
-    // For all of rwall, not one tab: at the right of the tabs.
+    // For all of rwall, not one tab, at the right of the tabs: About rwall
+    // (a round "?"), then starting with Windows.
+    let ib = p.px(26.0);
+    let ir = Rect::new(x + w - ib, bar.y + (bar.h - ib) / 2.0 + p.px(2.0), ib, ib);
+    if p.hot == Some(Hit::AppAbout) {
+        p.g.fill_rrect(ir, ib / 2.0, t.hover);
+    }
+    p.g.stroke_rrect(ir, ib / 2.0, 1.0, if p.hot == Some(Hit::AppAbout) { t.accent } else { t.border });
+    p.g.text_in("?", ir, p.px(13.0), FontId::Semibold, t.dim, Align::Center);
+    p.hit(ir, Hit::AppAbout);
+    let right = ir.x - p.px(8.0);
     let text = autostart_label();
-    let room = x + w - tx - p.px(8.0);
+    let room = right - tx - p.px(8.0);
     let want = p.g.measure(&text, p.px(12.5), FontId::Regular) + p.px(34.0);
     let cw = want.min(room);
     if cw > p.px(60.0) {
-        p.choice(x + w - cw, bar.y + (bar.h - p.px(26.0)) / 2.0 + p.px(2.0), cw, &text, m.autostart, false, Hit::Autostart);
+        p.choice(right - cw, bar.y + (bar.h - p.px(26.0)) / 2.0 + p.px(2.0), cw, &text, m.autostart, false, Hit::Autostart);
     }
     p.g.set_clip(None);
     Drawn { hits: p.hits, content_h }
@@ -728,7 +740,7 @@ mod tests {
         // Elsewhere than Windows, only a word.
         let m = Model { widgets: WidgetsModel::default(), ..model(&st, Tab::Widgets) };
         let d = draw(&mut g, &m, &Theme::new(false, None), 1.0, Rect::new(0.0, 0.0, 620.0, 1000.0));
-        assert_eq!(d.hits.iter().filter(|(_, h)| !matches!(h, Hit::Tab(_) | Hit::Autostart)).count(), 0);
+        assert_eq!(d.hits.iter().filter(|(_, h)| !matches!(h, Hit::Tab(_) | Hit::Autostart | Hit::AppAbout)).count(), 0);
     }
 
     #[test]
@@ -795,6 +807,6 @@ mod tests {
         // Elsewhere than Windows, only a word.
         let m = Model { live: LiveModel::default(), ..model(&st, Tab::Dynamic) };
         let d = draw(&mut g, &m, &Theme::new(false, None), 1.0, Rect::new(0.0, 0.0, 620.0, 1000.0));
-        assert_eq!(d.hits.iter().filter(|(_, h)| !matches!(h, Hit::Tab(_) | Hit::Autostart)).count(), 0);
+        assert_eq!(d.hits.iter().filter(|(_, h)| !matches!(h, Hit::Tab(_) | Hit::Autostart | Hit::AppAbout)).count(), 0);
     }
 }

@@ -65,7 +65,7 @@ impl Command {
             CopyPath => "&Copy Path",
             Delete => "&Delete...",
             OpenItem => "&Open",
-            Reveal => "Show in File &Manager",
+            Reveal => if cfg!(windows) { "Show in &Explorer" } else { "Show in File &Manager" },
             ZoomIn => "Zoom &In",
             ZoomOut => "Zoom O&ut",
             ZoomTop => "Zoom to &Top",

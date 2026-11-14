@@ -100,6 +100,9 @@ pictures are checked: anything that is not a picture, or is smaller than
   `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` (current user only);
   unticking it removes it. On Linux it is **Start when I log in**, a file in
   `~/.config/autostart`.
+- **?** (at the right of the tabs) and **About rwall** in the tray menu show
+  rwall's version. rwall has no keyboard shortcuts beyond typing in its boxes
+  (Enter, Esc, Ctrl+V), so it has no list of them.
 
 ## Dynamic wallpaper (Windows)
 

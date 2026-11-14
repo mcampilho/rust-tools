@@ -139,7 +139,7 @@ are shown, dimmed, with **Restart as Administrator** above the list.
 | ↑ ↓ PgUp PgDn Home End | Move in the list |
 | Space | Tick or untick the row selected |
 | Ctrl+A | Tick everything |
-| Ctrl+E | Open the folder |
+| Ctrl+E | Open the folder in Explorer |
 | Ctrl+Shift+C | Copy the details |
 | F1 | Keyboard shortcuts |
 

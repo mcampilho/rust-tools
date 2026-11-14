@@ -11,7 +11,7 @@ pub mod settings;
 
 use crate::doc::{After, Buffer, Edit, IndentCfg, Kind, Sel};
 use crate::i18n::{tf, tr};
-use crate::io::encoding::{Enc, Eol};
+use crate::io::encoding::Enc;
 use crate::io::file::{self, LoadError};
 use crate::search::files::Hit;
 use crate::storage::Location;
@@ -1034,7 +1034,7 @@ impl App {
             },
             // The window does these (Windows only).
             ExplorerMenu | DefaultEditor => {}
-            Shortcuts => self.open_shortcuts_doc(),
+            Shortcuts => host.info(&tr("Keyboard shortcuts"), &shortcuts_text()),
             About => host.info(
                 &tr("About rpad"),
                 &tf(
@@ -1416,15 +1416,26 @@ impl App {
         }
     }
 
-    fn open_shortcuts_doc(&mut self) {
-        let title = tr("rpad keyboard shortcuts");
-        let underline = |t: &str| "=".repeat(t.chars().count().max(3));
-        let mut text = format!("{title}\n{}\n\n", underline(&title));
+}
+
+/// The keyboard shortcuts, as the message panel shows them (`keys\twhat`,
+/// like the other apps): the keys of one command together.
+pub fn shortcuts_text() -> String {
+    {
+        let mut rows: Vec<(String, Command)> = Vec::new();
         for (k, c) in commands::BINDINGS {
-            text.push_str(&format!("{k:<20} {}\n", c.plain_label()));
+            match rows.iter_mut().find(|(_, x)| x == c) {
+                Some((keys, _)) => {
+                    keys.push_str(", ");
+                    keys.push_str(k);
+                }
+                None => rows.push((k.to_string(), *c)),
+            }
         }
-        let editor = tr("Editor");
-        text.push_str(&format!("\n{editor}\n{}\n", "-".repeat(editor.chars().count().max(3))));
+        let mut text: String = rows.iter().map(|(k, c)| format!("{k}\t{}\n", c.plain_label())).collect();
+        text.push('\n');
+        text.push_str(&tr("Editor"));
+        text.push('\n');
         for (k, what) in [
             ("Ctrl+Click", "Add a caret"),
             ("Alt+Drag", "Column (rectangular) selection"),
@@ -1435,12 +1446,13 @@ impl App {
             ("Esc", "Back to a single caret / close panels"),
             ("Tab / Shift+Tab", "Indent / outdent selected lines"),
         ] {
-            text.push_str(&format!("{k:<20} {}\n", tr(what)));
+            text.push_str(&format!("{k}\t{}\n", tr(what)));
         }
-        let mut d = Doc::with_buffer(Buffer::new(&text), None, tr("Keyboard shortcuts"), Enc::Utf8, Eol::platform(), Lang::Plain);
-        d.view_only = true;
-        self.insert_doc(d);
+        text.trim_end().to_string()
     }
+}
+
+impl App {
 
     // ------------------------------------------------------------ XML
 

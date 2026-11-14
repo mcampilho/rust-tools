@@ -50,7 +50,7 @@ Building it needs Rust 1.92 or newer.
   does not follow later changes. The language comes from `LC_ALL`, `LC_MESSAGES` or
   `LANG`. Settings go in `~/.config/rview`.
 - **Differences.** Dropping a file on the window works on X11, not on Wayland. Links
-  and *Show in Folder* use `xdg-open`, for web and mail links only.
+  and *Show in File Manager* use `xdg-open`, for web and mail links only.
 
 Checked under WSL2 on X11: PDF pages, including ones with LaTeX fonts, selecting and
 copying their text, Alt+drag, Markdown with a PNG image, menus and context menu, copy

@@ -51,7 +51,7 @@ precisa do Rust 1.92 ou mais recente.
   alterações posteriores. O idioma vem de `LC_ALL`, `LC_MESSAGES` ou `LANG`. As
   definições ficam em `~/.config/rview`.
 - **Diferenças.** Largar um ficheiro na janela funciona em X11, não em Wayland. As
-  ligações e *Mostrar na pasta* usam `xdg-open`, só para ligações web e de correio.
+  ligações e *Mostrar no gestor de ficheiros* usam `xdg-open`, só para ligações web e de correio.
 
 Verificado no WSL2 em X11: páginas PDF, incluindo com tipos de letra LaTeX, selecionar
 e copiar o texto, Alt+arrastar, Markdown com uma imagem PNG, menus e menu de contexto,

@@ -150,3 +150,7 @@ Move {} to the trash?		{} in den Papierkorb verschieben?	¿Mover {} a la papeler
 Choose where to put the archive		Wählen Sie, wohin das Archiv kommt	Elija dónde poner el archivo comprimido	Choisissez où placer l’archive	Scegli dove mettere l’archivio	アーカイブの保存先を選択してください	Escolha onde colocar o arquivo compactado	Escolha onde pôr o arquivo	选择压缩包的保存位置
 Extract to “{}”		Nach „{}“ entpacken	Extraer en «{}»	Extraire dans « {} »	Estrai in “{}”	“{}” に展開	Extrair para “{}”		解压到“{}”
 Add to “{}”		Zu „{}“ hinzufügen	Añadir a «{}»	Ajouter à « {} »	Aggiungi a “{}”	“{}” に追加	Adicionar a “{}”		添加到“{}”
+Show in &Explorer		Im &Explorer anzeigen	Mostrar en el &Explorador	Aff&icher dans l’Explorateur	&Mostra in Esplora file	エクスプローラーで表示(&E)	Mostrar no &Explorador		在资源管理器中显示(&E)
+Open Folder in &Explorer		Ordner im &Explorer öffnen	Abrir carpeta en el &Explorador	Ouvrir le dossier dans l’&Explorateur	Apri cartella in &Esplora file	エクスプローラーでフォルダーを開く(&E)	Abrir pasta no &Explorador		在资源管理器中打开文件夹(&E)
+Open Folder in File &Manager		Ordner im &Dateimanager öffnen	Abrir carpeta en el &explorador de archivos	Ouvrir le dossier dans le &gestionnaire de fichiers	Apri cartella nel &gestore file	ファイル マネージャーでフォルダーを開く(&M)	Abrir pasta no &gerenciador de arquivos	Abrir pasta no &gestor de ficheiros	在文件管理器中打开文件夹(&M)
+Sho&w in Explorer		Im E&xplorer anzeigen	Mostrar en el E&xplorador	Afficher dans l’E&xplorateur	Mostra in Esplora fi&le	エクスプローラーで表示(&W)	Mostrar no E&xplorador	Mostrar no E&xplorador	在资源管理器中显示(&W)

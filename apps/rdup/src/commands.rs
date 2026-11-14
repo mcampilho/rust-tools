@@ -67,7 +67,7 @@ impl Command {
             Exit => "E&xit",
             CopyPath => "&Copy Path",
             OpenItem => "&Open",
-            Reveal => "Show in File &Manager",
+            Reveal => if cfg!(windows) { "Show in &Explorer" } else { "Show in File &Manager" },
             ToggleMark => "Mar&k or Unmark",
             KeepNewest => "Keep the &Newest",
             KeepOldest => "Keep the &Oldest",

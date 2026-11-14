@@ -146,7 +146,7 @@ Wayland, and needs glibc 2.34 or newer (Ubuntu 22.04, Debian 12, Fedora 35).
   does not follow later changes. The accent colour is the default one. The language
   comes from `LC_ALL`, `LC_MESSAGES` or `LANG`.
 - **Differences.** Dropping files on the window works on X11, not on Wayland.
-  *Show in Explorer* opens the folder with `xdg-open`.
+  *Show in File Manager* opens the folder with `xdg-open`.
 
 Checked under WSL2 on X11: drawing, menus with keyboard and mouse, context menus,
 copy, Save As and Open, a second launch that hands over its file, and resident mode.

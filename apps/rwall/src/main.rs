@@ -97,6 +97,12 @@ struct Shell {
     proxy: EventLoopProxy<UserEvent>,
     visible: bool,
     system_dark: bool,
+    /// The theme last given to Windows' popup menus (the title bar's, the tray's).
+    #[cfg(windows)]
+    popup_dark: Option<bool>,
+    /// A message over the window (About rwall), and where the pointer is.
+    message: Option<rt_ui::Message>,
+    mouse: (f32, f32),
     accent: Option<Color>,
     thumb: Option<tiny_skia::Pixmap>,
     busy: bool,
@@ -338,7 +344,22 @@ impl Shell {
             TrayCmd::ShowFile => self.show_file(),
             TrayCmd::Exit => self.quit(el),
             TrayCmd::LivePause => self.toggle_live_pause(),
+            TrayCmd::AboutApp => {
+                self.show();
+                self.about_app();
+            }
         }
+    }
+
+    /// About rwall itself, over the window.
+    fn about_app(&mut self) {
+        let text = tf(
+            "rwall {}\n\nChanges the desktop wallpaper with pictures from the web or your folders, and adds a dynamic wallpaper and desktop widgets, written in Rust.\nNo telemetry: it only downloads the pictures and the weather you turn on.\n\nMIT License.",
+            &[env!("CARGO_PKG_VERSION")],
+        );
+        self.message = Some(rt_ui::Message::new(&tr("About rwall"), &text));
+        self.hot = None;
+        self.redraw();
     }
 
     fn pick_folder(&self) -> Option<PathBuf> {
@@ -411,6 +432,12 @@ impl Shell {
     }
 
     fn paint(&mut self) {
+        // Windows' own popup menus (the title bar's) follow the theme too.
+        #[cfg(windows)]
+        if self.popup_dark != Some(self.dark()) {
+            self.popup_dark = Some(self.dark());
+            rt_sys::win::darkmode::popup_menus(self.dark());
+        }
         let theme = Theme::new(self.dark(), self.accent);
         let s = self.scale();
         let status = self.status();
@@ -456,6 +483,10 @@ impl Shell {
         if self.scroll > max {
             self.scroll = max;
             w.window.request_redraw();
+        }
+        if let Some(m) = &mut self.message {
+            let style = rt_gfx::dialog::DialogStyle { dark: theme.dark, text: theme.text, dim: theme.dim, border: theme.border };
+            m.draw(&mut self.gfx, full, &style, s);
         }
         rt_ui::window::present(&mut w.surface, &self.gfx);
     }
@@ -714,6 +745,13 @@ impl ApplicationHandler<UserEvent> for Shell {
                     self.redraw();
                 }
             }
+            WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, .. } if self.message.is_some() => {
+                let (x, y) = self.mouse;
+                if self.message.as_ref().is_some_and(|m| m.closes_at(x, y)) {
+                    self.message = None;
+                    self.redraw();
+                }
+            }
             WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, .. } => {
                 let hit = self.hot;
                 if !matches!(hit, Some(Hit::Field(_))) {
@@ -883,6 +921,10 @@ fn main() {
         proxy: event_loop.create_proxy(),
         visible: false,
         system_dark: rt_sys::system_dark().unwrap_or(false),
+        #[cfg(windows)]
+        popup_dark: None,
+        message: None,
+        mouse: (-1.0, -1.0),
         accent: rt_sys::accent().map(Color::rgb),
         thumb: None,
         busy: false,

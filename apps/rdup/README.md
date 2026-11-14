@@ -57,7 +57,7 @@ the file it is reading; **Stop** (Esc) ends the search.
 The result lists the groups of copies, largest waste first. Each group has a
 title row (the name, how many copies, their size and the space that would be
 freed by keeping only one) and a row per copy, with its folder, size and date.
-**Open** (Ctrl+Enter), **Show in File Manager** (Ctrl+E) and **Copy Path**
+**Open** (Ctrl+Enter), **Show in Explorer** (Ctrl+E; Show in File Manager on Linux) and **Copy Path**
 (Ctrl+C) act on the selected copy, also from its context menu. The status bar
 sums it all up: groups, copies, space that could be freed, files compared, time,
 and how the drives were read. **New Search** (Ctrl+N) goes back to the drives.
@@ -99,7 +99,7 @@ common. A pair inside a pair with as much in common or more is left out:
 when `C:\Photos` and `D:\Backup\Photos` are the same, `C:\Photos\2024` and
 `D:\Backup\Photos\2024` are too. Identical folders inside two that are only
 similar are shown, so each lower share shows all that a higher one does, and
-more. **Open**, **Show in File Manager** and **Copy Path** act on the
+more. **Open**, **Show in Explorer** and **Copy Path** act on the
 selected folder.
 
 The filters choose the files that count in a folder, but not the smallest

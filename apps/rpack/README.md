@@ -61,7 +61,7 @@ right-click menu, as in 7-Zip or PeaZip:
 - on disk: Open; for archives, Extract (each beside itself), Extract Here,
   Extract to "*name*" (a folder named after it), Extract to Folder, Test; Add
   to Archive, Add to "*name*.7z", Add to "*name*.zip", Add Each to Its Own
-  Archive; Calculate Hashes; Show in File Manager, Copy Path, Move to Recycle
+  Archive; Calculate Hashes; Show in Explorer (Show in File Manager on Linux), Copy Path, Move to Recycle
   Bin (Delete);
 - inside an archive: Open, Extract, Extract to Folder, Calculate Hashes, Copy
   Path.

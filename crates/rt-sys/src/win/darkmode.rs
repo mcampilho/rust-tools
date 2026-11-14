@@ -138,6 +138,12 @@ fn set_app_mode(dark: Option<bool>) {
     }
 }
 
+/// Popup menus only (the title bar's menu, context menus), for a window
+/// without a menu bar.
+pub fn popup_menus(dark: bool) {
+    set_app_mode(Some(dark));
+}
+
 /// Applies the menu theme: dark colours for the menu bar (None = system
 /// style) and the matching popup-menu mode.
 pub fn apply(hwnd: HWND, colors: Option<MenuColors>) {

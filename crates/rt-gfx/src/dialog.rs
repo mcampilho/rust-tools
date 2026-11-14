@@ -82,40 +82,98 @@ pub fn ellipsize_middle(g: &mut Gfx, s: &str, max: f32, px: f32, font: FontId) -
     out
 }
 
+/// The rows of a message at one letter size, in as many columns as it needs
+/// (up to three) and the window allows.
+struct MessageRows {
+    /// (key, text); a heading among keys is a text starting with `\u{1}`.
+    rows: Vec<(String, String)>,
+    /// The key column's width (0: no keys).
+    col: f32,
+    columns: usize,
+    /// The panel's width, the letter size and the line height.
+    w: f32,
+    px: f32,
+    lh: f32,
+    /// Rows that fit in one column.
+    fit: usize,
+}
+
+#[allow(clippy::too_many_arguments)]
+fn message_rows(g: &mut Gfx, text: &str, px: f32, s: f32, full: Rect, pad: f32, gap: f32, chrome: f32) -> MessageRows {
+    let lh = (px * 1.55).round();
+    let fit = (((full.h - 16.0 * s - chrome) / lh).floor() as usize).max(1);
+    // Two-column rows: the key column fits the widest key.
+    let key_w = text.lines().filter_map(|l| l.split_once('\t')).map(|(k, _)| g.measure(k, px, FontId::Bold)).fold(0.0f32, f32::max);
+    let rows_for = |g: &mut Gfx, inner: f32| {
+        let col = if key_w > 0.0 { (key_w + 20.0 * s).min(inner * 0.55) } else { 0.0 };
+        let mut rows: Vec<(String, String)> = Vec::new();
+        for line in text.lines() {
+            match line.split_once('\t') {
+                Some((k, v)) => {
+                    // A key too wide for its column: its text on the next line.
+                    let alone = g.measure(k, px, FontId::Bold) > col - 10.0 * s;
+                    if alone {
+                        rows.push((k.to_string(), String::new()));
+                    }
+                    for (i, part) in wrap_words(g, v, inner - col, px, FontId::Regular).into_iter().enumerate() {
+                        rows.push((if i == 0 && !alone { k.to_string() } else { String::new() }, part));
+                    }
+                }
+                // Among keys, a line of its own is a heading.
+                None if col > 0.0 && !line.trim().is_empty() => rows.push((String::new(), format!("\u{1}{line}"))),
+                None => {
+                    for part in wrap_words(g, line, inner, px, FontId::Regular) {
+                        rows.push((String::new(), part));
+                    }
+                }
+            }
+        }
+        (rows, col)
+    };
+    let mut w = (600.0 * s).min(full.w - 32.0 * s).max(200.0 * s);
+    let (mut rows, mut col) = rows_for(g, w - 2.0 * pad);
+    let mut columns = 1;
+    for n in [2usize, 3] {
+        if rows.len() <= fit * columns {
+            break;
+        }
+        let wide = (n as f32 * 420.0 * s).min(full.w - 32.0 * s);
+        let inner = (wide - 2.0 * pad - (n - 1) as f32 * gap) / n as f32;
+        if inner < 230.0 * s {
+            break;
+        }
+        (rows, col) = rows_for(g, inner);
+        w = wide;
+        columns = n;
+    }
+    MessageRows { rows, col, columns, w, px, lh, fit }
+}
+
 /// Draws a message panel over `full`, dimming what is behind it. Returns
 /// (panel, OK button), for clicks.
 pub fn draw_message(g: &mut Gfx, full: Rect, st: &DialogStyle, s: f32, title: &str, text: &str) -> (Rect, Rect) {
     g.fill_rect(full, Color::rgba(0x000000, if st.dark { 0x90 } else { 0x60 }));
     let pad = (24.0 * s).round();
-    let px = 13.5 * s;
-    let lh = (px * 1.55).round();
     let title_px = 17.0 * s;
-    let w = (600.0 * s).min(full.w - 32.0 * s).max(200.0 * s);
-    let inner = w - 2.0 * pad;
-    // Two-column rows: the key column fits the widest key.
-    let key_w = text
-        .lines()
-        .filter_map(|l| l.split_once('\t'))
-        .map(|(k, _)| g.measure(k, px, FontId::Bold))
-        .fold(0.0f32, f32::max);
-    let col = if key_w > 0.0 { (key_w + 20.0 * s).min(inner * 0.55) } else { 0.0 };
-    let mut rows: Vec<(String, String)> = Vec::new();
-    for line in text.lines() {
-        match line.split_once('\t') {
-            Some((k, v)) => {
-                for (i, part) in wrap_words(g, v, inner - col, px, FontId::Regular).into_iter().enumerate() {
-                    rows.push((if i == 0 { k.to_string() } else { String::new() }, part));
-                }
-            }
-            None => {
-                for part in wrap_words(g, line, inner, px, FontId::Regular) {
-                    rows.push((String::new(), part));
-                }
-            }
+    let gap = (28.0 * s).round();
+    let btn_h = (32.0 * s).round();
+    let chrome = pad + title_px * 1.6 + 8.0 * s + 18.0 * s + btn_h + pad;
+    // A long list (keyboard shortcuts) that does not fit in height goes side
+    // by side, in two or three columns, when the window is wide enough; and
+    // if even so it does not fit, in smaller letters.
+    let mut fitted = None;
+    for size in [13.5, 12.5, 11.5, 10.5] {
+        let l = message_rows(g, text, size * s, s, full, pad, gap, chrome);
+        let fits = l.rows.len() <= l.fit * l.columns;
+        fitted = Some(l);
+        if fits {
+            break;
         }
     }
-    let btn_h = (32.0 * s).round();
-    let h = (pad + title_px * 1.6 + 8.0 * s + rows.len() as f32 * lh + 18.0 * s + btn_h + pad).min(full.h - 16.0 * s);
+    let Some(MessageRows { rows, col, columns, w, px, lh, .. }) = fitted else { return (Rect::default(), Rect::default()) };
+    let inner = (w - 2.0 * pad - (columns - 1) as f32 * gap) / columns as f32;
+    let per_column = rows.len().div_ceil(columns).max(1);
+    let h = (chrome + per_column.min(rows.len()) as f32 * lh).min(full.h - 16.0 * s);
     let panel = Rect::new(
         ((full.w - w) / 2.0).round(),
         ((full.h - h) / 2.0).round().max(8.0 * s),
@@ -140,15 +198,26 @@ pub fn draw_message(g: &mut Gfx, full: Rect, st: &DialogStyle, s: f32, title: &s
     y += title_px * 1.6 + 8.0 * s;
     let (asc, _) = g.metrics(px, FontId::Regular);
     let bottom = panel.bottom() - pad - btn_h - 18.0 * s;
-    for (k, v) in rows {
-        if y + lh > bottom + 1.0 {
-            break;
+    let top = y;
+    for (i, (k, v)) in rows.into_iter().enumerate() {
+        let c = i / per_column;
+        if i % per_column == 0 {
+            y = top;
         }
+        if y + lh > bottom + 1.0 {
+            continue;
+        }
+        let x = panel.x + pad + c as f32 * (inner + gap);
         let base = (y + (lh + asc) / 2.0 - px * 0.15).round();
         if !k.is_empty() {
-            g.text(&k, panel.x + pad, base, px, FontId::Bold, st.text);
+            g.text(&k, x, base, px, FontId::Bold, st.text);
         }
-        g.text(&v, panel.x + pad + col, base, px, FontId::Regular, if col > 0.0 { st.dim } else { st.text });
+        if col > 0.0 && k.is_empty() && v.starts_with('\u{1}') {
+            // A heading among the keys ("Editor"): across the columns, bold.
+            g.text(&v[1..], x, base, px, FontId::Bold, st.text);
+        } else {
+            g.text(&v, x + col, base, px, FontId::Regular, if col > 0.0 { st.dim } else { st.text });
+        }
         y += lh;
     }
     let bw = (88.0 * s).round();

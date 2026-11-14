@@ -159,6 +159,7 @@ impl Shell {
                 };
                 self.save();
             }
+            Hit::AppAbout => self.about_app(),
             Hit::Autostart => match rwall::autostart::set(!self.autostart) {
                 Ok(()) => self.autostart = rwall::autostart::enabled(),
                 Err(e) => self.error = Some(tf("Cannot change how rwall starts: {}", &[&e])),
@@ -208,6 +209,13 @@ impl Shell {
     }
 
     pub(super) fn key(&mut self, el: &ActiveEventLoop, event: &winit::event::KeyEvent) {
+        if self.message.is_some() {
+            if rt_ui::Message::closes_on(&event.logical_key) {
+                self.message = None;
+                self.redraw();
+            }
+            return;
+        }
         if let Some(f) = self.focus {
             match &event.logical_key {
                 WKey::Named(NamedKey::Enter | NamedKey::Escape | NamedKey::Tab) => self.unfocus(),
@@ -246,7 +254,9 @@ impl Shell {
     }
 
     pub(super) fn pointer(&mut self, x: f32, y: f32) {
-        let hot = self.drawn.hit(x, y);
+        self.mouse = (x, y);
+        // Nothing under a message is lit.
+        let hot = if self.message.is_some() { None } else { self.drawn.hit(x, y) };
         if hot != self.hot {
             self.hot = hot;
             self.redraw();

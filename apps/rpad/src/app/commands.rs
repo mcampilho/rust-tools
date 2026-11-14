@@ -176,7 +176,7 @@ impl Command {
             CloseOthers => "Close Ot&hers",
             CloseAll => "Close A&ll",
             CopyPath => "Copy Full &Path",
-            RevealInExplorer => "Show in &Explorer",
+            RevealInExplorer => if cfg!(windows) { "Show in &Explorer" } else { "Show in File &Manager" },
             Exit => "E&xit",
             Undo => "&Undo",
             Redo => "&Redo",

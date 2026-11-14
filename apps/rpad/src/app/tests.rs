@@ -3,6 +3,7 @@
 
 use super::*;
 use crate::app::input::{Key, KeyInput};
+use crate::io::encoding::Eol;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 
@@ -765,4 +766,27 @@ fn goto_line_palette_moves_while_typing() {
     app.dispatch(Command::GotoLine, &h);
     app.text_input("3", &h);
     assert_eq!(app.doc().buf.line_of(app.doc().buf.primary_sel().head), 2);
+}
+
+/// The keyboard shortcuts in the message panel, to look at:
+/// `cargo test -p rpad shortcuts_panel -- --ignored` → `target/screens/shortcuts-*.png`.
+#[test]
+#[ignore]
+fn shortcuts_panel() {
+    let Ok(mut g) = rt_gfx::gfx::Gfx::new() else { return };
+    let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target").join("screens");
+    std::fs::create_dir_all(&out).unwrap();
+    for (name, w, h, dark) in [("shortcuts-wide", 1300u32, 760u32, false), ("shortcuts-small", 900, 600, true)] {
+        g.resize(w, h);
+        g.clear(rt_gfx::gfx::Color::rgb(if dark { 0x1E1E1E } else { 0xFFFFFF }));
+        let st = rt_gfx::dialog::DialogStyle {
+            dark,
+            text: rt_gfx::gfx::Color::rgb(if dark { 0xE4E4E4 } else { 0x1B1B1B }),
+            dim: rt_gfx::gfx::Color::rgb(0x8A8A8A),
+            border: rt_gfx::gfx::Color::rgb(0x7A7A7A),
+        };
+        let full = rt_gfx::gfx::Rect::new(0.0, 0.0, w as f32, h as f32);
+        rt_gfx::dialog::draw_message(&mut g, full, &st, 1.0, &tr("Keyboard shortcuts"), &shortcuts_text());
+        g.pix.save_png(out.join(format!("{name}.png"))).unwrap();
+    }
 }

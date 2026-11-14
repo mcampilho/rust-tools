@@ -46,7 +46,7 @@ impl Command {
         Ok(match self {
             Open => "&Open...",
             Reload => "&Reload",
-            OpenFolder => "Show in &Folder",
+            OpenFolder => if cfg!(windows) { "Show in &Explorer" } else { "Show in File &Manager" },
             Close => "&Close",
             Exit => "E&xit",
             Copy => "&Copy",

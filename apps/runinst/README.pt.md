@@ -257,7 +257,7 @@ A barra de estado conta os programas mostrados, o tamanho e os atalhos.
 | Delete | Desinstalar os programas selecionados (no separador Restos: remover os marcados) |
 | Shift+Delete | Desinstalá-los sem perguntas |
 | F5 | Ler os programas de novo |
-| Ctrl+E | Abrir a pasta de instalação |
+| Ctrl+E | Abrir a pasta no Explorador |
 | Ctrl+C | Copiar o nome |
 | Ctrl+Shift+C | Copiar todos os detalhes |
 | Ctrl+S | Guardar a lista como CSV |

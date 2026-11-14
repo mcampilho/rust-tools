@@ -94,8 +94,94 @@ pub fn save_file(hwnd: HWND, suggested: &str, dir: Option<&Path>, filter: &str) 
     Some(PathBuf::from(from_wide(&buf)))
 }
 
-/// Folder picker.
+/// Folder picker: Windows' own file dialog choosing a folder (it follows the
+/// system's light or dark theme), or the old folder tree where that dialog
+/// cannot be made.
 pub fn pick_folder(hwnd: HWND, title: &str) -> Option<PathBuf> {
+    match item_dialog_folder(hwnd, title) {
+        Ok(chosen) => chosen,
+        Err(()) => tree_folder(hwnd, title),
+    }
+}
+
+/// The Common Item Dialog (`IFileOpenDialog`) with `FOS_PICKFOLDERS`, called
+/// through its COM table (windows-sys has the functions, not the
+/// interfaces). Err when it cannot be made; Ok(None) when cancelled.
+fn item_dialog_folder(hwnd: HWND, title: &str) -> Result<Option<PathBuf>, ()> {
+    use std::ffi::c_void;
+    use windows_sys::core::{GUID, HRESULT, PCWSTR, PWSTR};
+    use windows_sys::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CoTaskMemFree, CoUninitialize, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED};
+    const CLSID_FILE_OPEN_DIALOG: GUID = GUID::from_u128(0xDC1C5A9C_E88A_4DDE_A5A1_60F82A20AEF7);
+    const IID_IFILE_OPEN_DIALOG: GUID = GUID::from_u128(0xD57C7288_D4AD_4768_BE02_9D969532D960);
+    const FOS_NOCHANGEDIR: u32 = 0x8;
+    const FOS_PICKFOLDERS: u32 = 0x20;
+    const FOS_FORCEFILESYSTEM: u32 = 0x40;
+    const SIGDN_FILESYSPATH: u32 = 0x8005_8000;
+    // The slots used, in the order of IUnknown, IModalWindow, IFileDialog
+    // (Shobjidl.h) and IShellItem.
+    type Release = unsafe extern "system" fn(*mut c_void) -> u32;
+    type Show = unsafe extern "system" fn(*mut c_void, HWND) -> HRESULT;
+    type SetOptions = unsafe extern "system" fn(*mut c_void, u32) -> HRESULT;
+    type GetOptions = unsafe extern "system" fn(*mut c_void, *mut u32) -> HRESULT;
+    type SetTitle = unsafe extern "system" fn(*mut c_void, PCWSTR) -> HRESULT;
+    type GetResult = unsafe extern "system" fn(*mut c_void, *mut *mut c_void) -> HRESULT;
+    type GetDisplayName = unsafe extern "system" fn(*mut c_void, u32, *mut PWSTR) -> HRESULT;
+    /// The function in slot `i` of a COM object's table.
+    ///
+    /// SAFETY (callers): `obj` is a live COM object whose table has slot `i`
+    /// with the signature `T`.
+    unsafe fn slot<T: Copy>(obj: *mut c_void, i: usize) -> T {
+        let table = *(obj as *const *const usize);
+        std::mem::transmute_copy(&*table.add(i))
+    }
+    // SAFETY: COM on this (the window's) thread; balanced below when this
+    // call started it (S_OK or S_FALSE), left alone when another mode is on.
+    let init = unsafe { CoInitializeEx(std::ptr::null(), COINIT_APARTMENTTHREADED as u32) };
+    let result = (|| {
+        let mut dlg: *mut c_void = std::ptr::null_mut();
+        // SAFETY: known class and interface ids; `dlg` receives the object.
+        let hr = unsafe { CoCreateInstance(&CLSID_FILE_OPEN_DIALOG, std::ptr::null_mut(), CLSCTX_INPROC_SERVER, &IID_IFILE_OPEN_DIALOG, &mut dlg) };
+        if hr < 0 || dlg.is_null() {
+            return Err(());
+        }
+        // SAFETY: `dlg` is an IFileOpenDialog: slots 2 Release, 3 Show,
+        // 9 SetOptions, 10 GetOptions, 17 SetTitle, 20 GetResult; the strings
+        // outlive the calls; every object got is released once.
+        unsafe {
+            let mut opts = 0u32;
+            slot::<GetOptions>(dlg, 10)(dlg, &mut opts);
+            slot::<SetOptions>(dlg, 9)(dlg, opts | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_NOCHANGEDIR);
+            let t = wide(title);
+            slot::<SetTitle>(dlg, 17)(dlg, t.as_ptr());
+            let shown = slot::<Show>(dlg, 3)(dlg, hwnd);
+            let mut chosen = None;
+            if shown >= 0 {
+                let mut item: *mut c_void = std::ptr::null_mut();
+                if slot::<GetResult>(dlg, 20)(dlg, &mut item) >= 0 && !item.is_null() {
+                    // IShellItem: slot 5 GetDisplayName.
+                    let mut name: PWSTR = std::ptr::null_mut();
+                    if slot::<GetDisplayName>(item, 5)(item, SIGDN_FILESYSPATH, &mut name) >= 0 && !name.is_null() {
+                        let len = (0..).take_while(|&i| *name.add(i) != 0).count();
+                        chosen = Some(PathBuf::from(String::from_utf16_lossy(std::slice::from_raw_parts(name, len))));
+                        CoTaskMemFree(name as *const c_void);
+                    }
+                    slot::<Release>(item, 2)(item);
+                }
+            }
+            slot::<Release>(dlg, 2)(dlg);
+            Ok(chosen)
+        }
+    })();
+    if init >= 0 {
+        // SAFETY: balances the CoInitializeEx above.
+        unsafe { CoUninitialize() };
+    }
+    result
+}
+
+/// The old folder tree (`SHBrowseForFolder`), where the dialog above cannot
+/// be made.
+fn tree_folder(hwnd: HWND, title: &str) -> Option<PathBuf> {
     use windows_sys::Win32::System::Com::CoTaskMemFree;
     use windows_sys::Win32::UI::Shell::{SHBrowseForFolderW, SHGetPathFromIDListW, BIF_NEWDIALOGSTYLE, BIF_RETURNONLYFSDIRS, BROWSEINFOW};
     let t = wide(title);

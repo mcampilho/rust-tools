@@ -64,7 +64,7 @@ no menu do botão direito, como no 7-Zip ou no PeaZip:
   aqui, Extrair para "*nome*" (uma pasta com o nome dele), Extrair para uma
   pasta, Testar; Adicionar a um arquivo, Adicionar a "*nome*.7z", Adicionar a
   "*nome*.zip", Adicionar cada um a um arquivo individual; Calcular hashes;
-  Mostrar no gestor de ficheiros, Copiar caminho, Mover para a Reciclagem
+  Mostrar no Explorador (Mostrar no gestor de ficheiros em Linux), Copiar caminho, Mover para a Reciclagem
   (Delete);
 - dentro de um arquivo: Abrir, Extrair, Extrair para uma pasta, Calcular
   hashes, Copiar caminho.

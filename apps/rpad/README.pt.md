@@ -150,7 +150,7 @@ precisa da glibc 2.34 ou mais recente (Ubuntu 22.04, Debian 12, Fedora 35).
   alterações posteriores. A cor de destaque é a predefinida. O idioma vem de `LC_ALL`,
   `LC_MESSAGES` ou `LANG`.
 - **Diferenças.** Largar ficheiros na janela funciona em X11, não em Wayland.
-  *Mostrar no Explorador* abre a pasta com `xdg-open`.
+  *Mostrar no gestor de ficheiros* abre a pasta com `xdg-open`.
 
 Verificado no WSL2 em X11: desenho, menus com teclado e rato, menus de contexto, cópia,
 Guardar como e Abrir, segundo arranque que passa o ficheiro, e modo residente. O

@@ -224,6 +224,8 @@ impl Shell {
 
     pub(super) fn update_cursor_icon(&mut self) {
         let icon = match self.cursor {
+            // A message (About, the shortcuts) is over the editor.
+            _ if self.dialog.is_some() => CursorIcon::Default,
             Some((x, y)) => {
                 let l = &self.app.layout;
                 let in_text = l.rect.contains(x, y) && x >= l.text_x - 2.0 && !l.vscroll.contains(x, y);

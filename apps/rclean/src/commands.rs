@@ -45,7 +45,7 @@ impl Command {
             TickAll => "Tick &All",
             UntickAll => "&Untick All",
             TickDefaults => "Tick the U&sual Ones",
-            OpenFolder => "Open the &Folder",
+            OpenFolder => if cfg!(windows) { "Open Folder in &Explorer" } else { "Open Folder in File &Manager" },
             CopyDetails => "Copy the &Details",
             Theme(0) => "Use &System Setting",
             Theme(1) => "&Light",

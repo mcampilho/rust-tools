@@ -60,7 +60,7 @@ que está a ler; **Parar** (Esc) termina a procura.
 O resultado mostra os grupos de cópias, primeiro os que desperdiçam mais espaço.
 Cada grupo tem uma linha de título (o nome, quantas cópias, o seu tamanho e o
 espaço que se libertaria guardando só uma) e uma linha por cópia, com a pasta, o
-tamanho e a data. **Abrir** (Ctrl+Enter), **Mostrar no gestor de ficheiros**
+tamanho e a data. **Abrir** (Ctrl+Enter), **Mostrar no Explorador** (no gestor de ficheiros em Linux)
 (Ctrl+E) e **Copiar caminho** (Ctrl+C) atuam sobre a cópia selecionada, também a
 partir do menu de contexto. A barra de estado resume tudo: grupos, cópias, espaço
 que se pode libertar, ficheiros comparados, tempo e a forma como os discos foram
@@ -102,7 +102,7 @@ libertaria guardando só uma; duas pastas semelhantes, com o que têm em comum. 
 par dentro de outro com tanto ou mais em comum fica de fora: quando `C:\Fotos` e
 `D:\Cópia\Fotos` são iguais, `C:\Fotos\2024` e `D:\Cópia\Fotos\2024` também o
 são. As pastas idênticas dentro de duas só semelhantes aparecem, por isso cada
-percentagem mais baixa mostra tudo o que a mais alta mostra, e mais. **Abrir**, **Mostrar no gestor de ficheiros** e **Copiar caminho** atuam
+percentagem mais baixa mostra tudo o que a mais alta mostra, e mais. **Abrir**, **Mostrar no Explorador** (no gestor de ficheiros em Linux) e **Copiar caminho** atuam
 sobre a pasta selecionada.
 
 Os filtros escolhem os ficheiros que contam numa pasta, mas não o tamanho
