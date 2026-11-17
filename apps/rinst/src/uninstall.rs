@@ -32,7 +32,7 @@ pub enum Plan {
         hidden: bool,
         env: Vec<(String, String)>,
     },
-    /// Remove a Store or MSIX package for the user running runinst.
+    /// Remove a Store or MSIX package for the user running rinst.
     Package(String),
     /// It cannot be done from here: why.
     Cannot(String),
@@ -81,7 +81,7 @@ fn hidden(file: &str, params: &str, elevate: bool, env: Vec<(String, String)>) -
     Plan::Run { file: file.to_string(), params: params.to_string(), elevate, hidden: true, env }
 }
 
-/// What to do to uninstall (or change) `p`. `admin`: runinst has
+/// What to do to uninstall (or change) `p`. `admin`: rinst has
 /// administrator rights.
 /// Whether "Modify or Repair" can do anything for `p`.
 pub fn can_modify(p: &Program) -> bool {
@@ -146,7 +146,7 @@ pub fn plan(p: &Program, how: How, admin: bool, me: &Me) -> Plan {
         _ => {}
     }
     // A Store or MSIX package: removed by the package manager of Windows,
-    // for the user runinst runs as.
+    // for the user rinst runs as.
     if let Some(full) = &p.package {
         if how == How::Modify {
             return Plan::Cannot(NO_UNINSTALLER.into());
@@ -540,7 +540,7 @@ mod tests {
         let mut other = p.clone();
         other.scope = Scope::User { name: "Ana".into(), current: false };
         assert_eq!(plan(&other, How::Normal, true, &me), Plan::Cannot(OTHER_USER.into()));
-        // A package of the desktop's user: from runinst as that user only.
+        // A package of the desktop's user: from rinst as that user only.
         let pk = Program { package: Some("A_1_x64__z".into()), scope: Scope::User { name: "me".into(), current: true }, sources: vec![Source::Store], ..Program::default() };
         assert_eq!(plan(&pk, How::Normal, false, &me), Plan::Package("A_1_x64__z".into()));
         let as_admin = Me { runs_as: false, ..me.clone() };

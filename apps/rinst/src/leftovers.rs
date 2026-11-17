@@ -1254,7 +1254,7 @@ mod tests {
 
     /// What would be offered for each program of this PC, were it gone
     /// (its own folders count, since it is not installed then):
-    /// `cargo test -p runinst --lib leftovers_here -- --ignored --nocapture`.
+    /// `cargo test -p rinst --lib leftovers_here -- --ignored --nocapture`.
     #[test]
     #[ignore]
     #[cfg(windows)]
@@ -1262,7 +1262,7 @@ mod tests {
         let inv = crate::inventory::read();
         let sc = crate::shortcuts::read(&inv.me, &inv.other_users);
         let stop = std::sync::atomic::AtomicBool::new(false);
-        let filter = std::env::var("RUNINST_ONLY").unwrap_or_default().to_lowercase();
+        let filter = std::env::var("RINST_ONLY").unwrap_or_default().to_lowercase();
         for (i, p) in inv.programs.iter().enumerate() {
             if !p.visible() || !p.name.to_lowercase().contains(&filter) {
                 continue;
@@ -1279,16 +1279,16 @@ mod tests {
     }
 
     /// Removes a key, a value and a folder made for the test, and puts the
-    /// registry back from the copy (writes to HKCU\Software\runinst-test):
-    /// `cargo test -p runinst --lib removes_and_saves -- --ignored`.
+    /// registry back from the copy (writes to HKCU\Software\rinst-test):
+    /// `cargo test -p rinst --lib removes_and_saves -- --ignored`.
     #[test]
     #[ignore]
     #[cfg(windows)]
     fn removes_and_saves() {
         use rt_sys::win::reg::{Key, Root, View};
         let reg = |args: &[&str]| assert!(std::process::Command::new("reg.exe").args(args).output().unwrap().status.success(), "{args:?}");
-        reg(&["add", "HKCU\\Software\\runinst-test\\Sub", "/v", "Path", "/d", "C:\\a \"b\"", "/f"]);
-        reg(&["add", "HKCU\\Software\\runinst-test", "/v", "Run", "/t", "REG_EXPAND_SZ", "/d", "%SystemRoot%\\x.exe", "/f"]);
+        reg(&["add", "HKCU\\Software\\rinst-test\\Sub", "/v", "Path", "/d", "C:\\a \"b\"", "/f"]);
+        reg(&["add", "HKCU\\Software\\rinst-test", "/v", "Run", "/t", "REG_EXPAND_SZ", "/d", "%SystemRoot%\\x.exe", "/f"]);
         let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target").join("leftovers-remove");
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("f.txt"), "x").unwrap();
@@ -1306,21 +1306,21 @@ mod tests {
             doubt: false,
         };
         let items = [
-            l(Kind::Value, "HKEY_CURRENT_USER\\Software\\runinst-test", Some("Run"), Some("%SystemRoot%\\x.exe")),
-            l(Kind::Key, "HKEY_CURRENT_USER\\Software\\runinst-test\\Sub", None, None),
+            l(Kind::Value, "HKEY_CURRENT_USER\\Software\\rinst-test", Some("Run"), Some("%SystemRoot%\\x.exe")),
+            l(Kind::Key, "HKEY_CURRENT_USER\\Software\\rinst-test\\Sub", None, None),
             l(Kind::Folder, &dir.to_string_lossy(), None, None),
         ];
         let r = remove(&items, &backup);
         assert!(r.iter().all(Result::is_ok), "{r:?}");
         assert!(!dir.exists());
-        let k = Key::open(Root::CurrentUser, "Software\\runinst-test", View::Bits64).unwrap();
+        let k = Key::open(Root::CurrentUser, "Software\\rinst-test", View::Bits64).unwrap();
         assert!(k.subkeys().is_empty() && k.values().is_empty());
         // The copy puts them back.
         reg(&["import", &backup.to_string_lossy()]);
-        let k = Key::open(Root::CurrentUser, "Software\\runinst-test", View::Bits64).unwrap();
+        let k = Key::open(Root::CurrentUser, "Software\\rinst-test", View::Bits64).unwrap();
         assert_eq!(k.sub("Sub", View::Bits64).and_then(|s| s.string("Path")).as_deref(), Some("C:\\a \"b\""));
         assert!(matches!(k.value("Run"), Some(rt_sys::win::reg::Value::Expand(s)) if s == "%SystemRoot%\\x.exe"));
-        reg(&["delete", "HKCU\\Software\\runinst-test", "/f"]);
+        reg(&["delete", "HKCU\\Software\\rinst-test", "/f"]);
     }
 
     #[test]
@@ -1337,7 +1337,7 @@ mod tests {
     }
 
     /// What "Find leftovers of removed programs" offers on this PC:
-    /// `cargo test -p runinst --lib orphans_here -- --ignored --nocapture`.
+    /// `cargo test -p rinst --lib orphans_here -- --ignored --nocapture`.
     #[test]
     #[ignore]
     fn orphans_here() {
@@ -1350,7 +1350,7 @@ mod tests {
             installed.extend(crate::linux_pkgs::flatpak(&inv.me.name).unwrap_or_default());
             installed.extend(crate::linux_pkgs::snap().unwrap_or_default());
         }
-        let admin = std::env::var("RUNINST_ADMIN").is_ok();
+        let admin = std::env::var("RINST_ADMIN").is_ok();
         let cx = Context { me: &inv.me, admin, installed: &installed, shortcuts: &sc };
         let t = std::time::Instant::now();
         let found = find_orphans(&cx, &std::sync::atomic::AtomicBool::new(false));

@@ -1,6 +1,6 @@
 //! Registry keys and values saved to a `.reg` file before they are deleted
 //! (double-click the file to put them back), and the deleting. Used by
-//! runinst's leftovers and rclean's registry cleaning.
+//! rinst's leftovers and rclean's registry cleaning.
 //!
 //! The lines of a `.reg` file are plain text, written (and tested) on any
 //! system; exporting and deleting are Windows' (`reg.exe`, 64-bit view).

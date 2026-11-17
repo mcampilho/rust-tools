@@ -14,5 +14,5 @@ pub mod storage;
 pub mod targets;
 pub mod ui;
 
-// Sizes and counts as shown, shared with rsize, rdup and runinst.
+// Sizes and counts as shown, shared with rsize, rdup and rinst.
 pub use rt_scan::format;

@@ -2761,6 +2761,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
+name = "rinst"
+version = "0.1.0"
+dependencies = [
+ "accesskit",
+ "accesskit_winit",
+ "rt-build",
+ "rt-core",
+ "rt-gfx",
+ "rt-scan",
+ "rt-sys",
+ "rt-ui",
+ "softbuffer",
+ "tiny-skia",
+ "windows",
+ "windows-sys 0.59.0",
+ "winit",
+]
+
+[[package]]
 name = "ropey"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2903,25 +2922,6 @@ dependencies = [
  "rt-sys",
  "softbuffer",
  "tiny-skia",
- "winit",
-]
-
-[[package]]
-name = "runinst"
-version = "0.1.0"
-dependencies = [
- "accesskit",
- "accesskit_winit",
- "rt-build",
- "rt-core",
- "rt-gfx",
- "rt-scan",
- "rt-sys",
- "rt-ui",
- "softbuffer",
- "tiny-skia",
- "windows",
- "windows-sys 0.59.0",
  "winit",
 ]
 

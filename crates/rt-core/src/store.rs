@@ -92,6 +92,24 @@ impl Store {
     }
 }
 
+/// The user's settings folder: `%APPDATA%` on Windows, `$XDG_CONFIG_HOME`
+/// (`~/.config`) elsewhere.
+fn user_base() -> Option<PathBuf> {
+    if cfg!(windows) {
+        std::env::var_os("APPDATA").map(PathBuf::from)
+    } else {
+        std::env::var_os("XDG_CONFIG_HOME")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
+    }
+}
+
+/// Gives `from` the name `to`, if it is there and nothing is called `to`
+/// yet; true if it did.
+pub fn rename_once(from: &Path, to: &Path) -> bool {
+    from.exists() && !to.exists() && std::fs::rename(from, to).is_ok()
+}
+
 /// What an app stores and how it is found.
 #[derive(Debug, Clone, Copy)]
 pub struct Place {
@@ -129,14 +147,7 @@ impl Location {
                 };
             }
         }
-        let base = if cfg!(windows) {
-            std::env::var_os("APPDATA").map(PathBuf::from)
-        } else {
-            std::env::var_os("XDG_CONFIG_HOME")
-                .map(PathBuf::from)
-                .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
-        };
-        match base {
+        match user_base() {
             Some(b) => Location {
                 place,
                 dir: Some(b.join(place.app)),
@@ -145,6 +156,19 @@ impl Location {
             },
             None => Location::nowhere(place),
         }
+    }
+
+    /// Like [`Location::detect`], for an app that was called `old` before:
+    /// its portable marker and its settings folder take the new name, once,
+    /// when nothing has the new name yet.
+    pub fn detect_renamed(place: Place, old: &str) -> Location {
+        if let Some(d) = std::env::current_exe().ok().and_then(|p| p.parent().map(Path::to_path_buf)) {
+            rename_once(&d.join(format!("{old}.portable")), &d.join(format!("{}.portable", place.app)));
+        }
+        if let Some(b) = user_base() {
+            rename_once(&b.join(old), &b.join(place.app));
+        }
+        Location::detect(place)
     }
 
     /// A fixed folder (tests, or a folder chosen by the app).
@@ -258,6 +282,22 @@ mod tests {
         let h: Vec<_> = back.get_all("history").collect();
         assert_eq!(h, vec!["2 + 3 =\t5\t5", "a\\b\nc"]);
         assert_eq!(back.get("missing"), None);
+    }
+
+    #[test]
+    fn an_old_name_is_taken_once() {
+        let dir = std::env::temp_dir().join(format!("rt-core-rename-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("old")).unwrap();
+        std::fs::write(dir.join("old").join("settings.ini"), "a=1").unwrap();
+        assert!(rename_once(&dir.join("old"), &dir.join("new")));
+        assert!(dir.join("new").join("settings.ini").exists() && !dir.join("old").exists());
+        // Nothing to take, or the new one is there already: nothing moves.
+        assert!(!rename_once(&dir.join("old"), &dir.join("new")));
+        std::fs::create_dir_all(dir.join("old")).unwrap();
+        assert!(!rename_once(&dir.join("old"), &dir.join("new")));
+        assert!(dir.join("old").exists());
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

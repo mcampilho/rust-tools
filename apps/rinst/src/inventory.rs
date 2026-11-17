@@ -1,6 +1,6 @@
 //! The programs installed, as Windows lists them for "Apps and features":
 //! the `Uninstall` keys of the system (64-bit and 32-bit views), of the user
-//! running runinst, and of every other user whose key can be read: those with
+//! running rinst, and of every other user whose key can be read: those with
 //! a session open under `HKEY_USERS`, and, with administrator rights, the
 //! others from their `NTUSER.DAT`.
 //!
@@ -15,7 +15,7 @@ pub enum Scope {
     /// Every user (the system's keys).
     #[default]
     Machine,
-    /// One user: their name, and whether it is the user running runinst.
+    /// One user: their name, and whether it is the user running rinst.
     User { name: String, current: bool },
 }
 
@@ -135,7 +135,7 @@ impl Program {
 }
 
 /// The user whose programs are "mine": the one logged on to the desktop,
-/// even when runinst runs as another account (an administrator's, asked for
+/// even when rinst runs as another account (an administrator's, asked for
 /// by Windows when it was restarted with administrator rights).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Me {
@@ -143,7 +143,7 @@ pub struct Me {
     pub name: String,
     /// Their profile folder.
     pub home: Option<PathBuf>,
-    /// runinst runs as this user (not as another account).
+    /// rinst runs as this user (not as another account).
     pub runs_as: bool,
 }
 
@@ -291,7 +291,7 @@ pub fn add_packages(programs: &mut Vec<Program>, packages: Vec<crate::appx::Pack
 pub use imp::{me, read};
 
 #[cfg(not(windows))]
-/// The user running runinst.
+/// The user running rinst.
 pub fn me() -> Me {
     let home = std::env::var_os("HOME").map(PathBuf::from);
     Me { sid: String::new(), name: std::env::var("USER").unwrap_or_default(), home, runs_as: true }
@@ -376,7 +376,7 @@ mod imp {
         let mut seen = std::collections::HashSet::new();
         inv.programs.retain(|p| seen.insert((p.key.rsplit('\\').next().unwrap_or("").to_string(), p.name.clone(), p.version.clone())));
         // The desktop's user: HKEY_CURRENT_USER, or their key under
-        // HKEY_USERS when runinst runs as another account.
+        // HKEY_USERS when rinst runs as another account.
         let me = inv.me.sid.clone();
         let scope = Scope::User { name: inv.me.name.clone(), current: true };
         // A few 32-bit installers write under the user's own WOW6432Node.

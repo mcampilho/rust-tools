@@ -1,5 +1,5 @@
 //! Shortcuts on the Start menu and on the desktop: for every user (the
-//! shared folders, readable by anyone), for the user running runinst, and,
+//! shared folders, readable by anyone), for the user running rinst, and,
 //! with administrator rights, in the other users' profiles. Each is read
 //! from its `.lnk` file (the Shell Link format, read here without COM), and
 //! matched to the program it belongs to.
@@ -69,7 +69,7 @@ pub fn read(me: &Me, others: &[(String, PathBuf)]) -> Vec<Shortcut> {
         walk(&public.join("Desktop"), Place::Desktop, &Scope::Machine, &mut out);
     }
     let mine = Scope::User { name: me.name.clone(), current: true };
-    // runinst may run as another account: the desktop user's folders then
+    // rinst may run as another account: the desktop user's folders then
     // come from their profile, not from this process's variables.
     let appdata = if me.runs_as { env("APPDATA") } else { me.home.as_ref().map(|h| h.join("AppData\\Roaming")) };
     if let Some(ad) = appdata {
@@ -210,7 +210,7 @@ mod tests {
         assert_eq!(m, vec![vec![0], vec![1], vec![2], vec![3]]);
     }
 
-    /// What this computer has: `cargo test -p runinst --lib report -- --ignored --nocapture`.
+    /// What this computer has: `cargo test -p rinst --lib report -- --ignored --nocapture`.
     #[cfg(windows)]
     #[test]
     #[ignore]

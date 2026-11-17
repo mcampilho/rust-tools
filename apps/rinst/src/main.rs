@@ -1,4 +1,4 @@
-//! runinst: a portable uninstaller.
+//! rinst: a portable uninstaller.
 //!
 //! The window is driven by winit and drawn on the CPU (tiny-skia + ab_glyph)
 //! into a softbuffer surface. The programs and their shortcuts are read on a
@@ -6,14 +6,14 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use runinst::app::{App, Col, Found, Whose};
-use runinst::commands::{self, Command};
-use runinst::i18n::{self, tf, tr};
-use runinst::settings::Settings;
-use runinst::storage;
-use runinst::ui::gfx::{Color, Gfx, Rect};
-use runinst::ui::theme::Theme;
-use runinst::ui::view::{self, Hot, Layout};
+use rinst::app::{App, Col, Found, Whose};
+use rinst::commands::{self, Command};
+use rinst::i18n::{self, tf, tr};
+use rinst::settings::Settings;
+use rinst::storage;
+use rinst::ui::gfx::{Color, Gfx, Rect};
+use rinst::ui::theme::Theme;
+use rinst::ui::view::{self, Hot, Layout};
 use rt_ui::Message;
 use std::collections::HashMap;
 use std::num::NonZeroU32;
@@ -45,14 +45,14 @@ enum UserEvent {
     /// The uninstalling queue.
     Job(uninstalling::JobMsg),
     /// What the programs uninstalled left behind.
-    Leftovers(Vec<runinst::leftovers::Leftover>),
+    Leftovers(Vec<rinst::leftovers::Leftover>),
     /// How removing the leftovers ticked went (their indexes), and the
     /// `.reg` file with the keys.
-    Removed(Vec<(usize, runinst::leftovers::Removed)>, std::path::PathBuf),
+    Removed(Vec<(usize, rinst::leftovers::Removed)>, std::path::PathBuf),
     /// What `winget list` said (None: winget is not there, or failed).
-    Winget(u64, Option<Vec<runinst::winget::Row>>),
+    Winget(u64, Option<Vec<rinst::winget::Row>>),
     /// The tabs of DISM and the development tools that are there.
-    Tools(u64, Vec<(runinst::app::Tab, Vec<runinst::inventory::Program>)>),
+    Tools(u64, Vec<(rinst::app::Tab, Vec<rinst::inventory::Program>)>),
     #[cfg(windows)]
     Win(rt_sys::win::WinMsg),
     /// The tray icon and other launches (Linux).
@@ -67,7 +67,7 @@ impl From<accesskit_winit::Event> for UserEvent {
 }
 
 #[cfg(windows)]
-const IDENT: rt_sys::win::Ident = rt_sys::win::Ident { name: "runinst", copydata: 0x524E_494E }; // "RNIN"
+const IDENT: rt_sys::win::Ident = rt_sys::win::Ident { name: "rinst", copydata: 0x524E_494E }; // "RNIN"
 
 struct Win {
     window: Rc<Window>,
@@ -105,9 +105,9 @@ struct Shell {
     /// The icons read so far, by program index.
     icons: HashMap<usize, Pixmap>,
     /// winget's answer when it came before the list.
-    pending_winget: Option<Option<Vec<runinst::winget::Row>>>,
+    pending_winget: Option<Option<Vec<rinst::winget::Row>>>,
     /// The tools' tabs when they came before the list.
-    pending_tools: Option<Vec<(runinst::app::Tab, Vec<runinst::inventory::Program>)>>,
+    pending_tools: Option<Vec<(rinst::app::Tab, Vec<rinst::inventory::Program>)>>,
     /// Running with administrator rights: every user can be read.
     admin: bool,
     dialog: Option<Message>,
@@ -118,13 +118,13 @@ struct Shell {
     /// When the queue started, for what turns while it runs.
     job_started: Option<std::time::Instant>,
     #[cfg(not(windows))]
-    menu: runinst::ui::menu::Menu,
+    menu: rinst::ui::menu::Menu,
     /// Resident mode (`--tray`): closing the window hides it to the
     /// notification area.
     tray: bool,
     hidden: bool,
     maximize_on_show: bool,
-    /// Starts with the session (as `runinst --tray`).
+    /// Starts with the session (as `rinst --tray`).
     autostart: bool,
     #[cfg(not(windows))]
     resident: Option<rt_sys::linux::shell::Shell>,
@@ -186,7 +186,7 @@ impl Shell {
         // winget takes seconds: on a thread of its own, joined when it answers.
         let p2 = proxy.clone();
         std::thread::spawn(move || {
-            let rows = runinst::winget::run().map(|t| runinst::winget::parse(&t));
+            let rows = rinst::winget::run().map(|t| rinst::winget::parse(&t));
             let _ = p2.send_event(UserEvent::Winget(gen, rows));
         });
         // DISM, npm and pip take a second or more too.
@@ -194,20 +194,20 @@ impl Shell {
         let p3 = proxy.clone();
         let admin = self.admin;
         std::thread::spawn(move || {
-            let tools = runinst::tools::read_all(&runinst::inventory::me(), admin);
+            let tools = rinst::tools::read_all(&rinst::inventory::me(), admin);
             let _ = p3.send_event(UserEvent::Tools(gen, tools));
         });
         std::thread::spawn(move || {
-            let inv = runinst::inventory::read();
-            let shortcuts = runinst::shortcuts::read(&inv.me, &inv.other_users);
+            let inv = rinst::inventory::read();
+            let shortcuts = rinst::shortcuts::read(&inv.me, &inv.other_users);
             let mut found = Found::new(inv, shortcuts);
-            let scoop = runinst::managers::scoop_all(&found.inv.me);
+            let scoop = rinst::managers::scoop_all(&found.inv.me);
             found.scoop = (!scoop.is_empty()).then_some(scoop);
-            found.chocolatey = runinst::managers::choco_root().map(|r| runinst::managers::choco_packages(&r));
+            found.chocolatey = rinst::managers::choco_root().map(|r| rinst::managers::choco_packages(&r));
             #[cfg(not(windows))]
             {
-                found.flatpak = runinst::linux_pkgs::flatpak(&found.inv.me.name);
-                found.snap = runinst::linux_pkgs::snap();
+                found.flatpak = rinst::linux_pkgs::flatpak(&found.inv.me.name);
+                found.snap = rinst::linux_pkgs::snap();
             }
             let wanted: Vec<IconOf> = found
                 .inv
@@ -229,7 +229,7 @@ impl Shell {
 
     fn update_title(&self) {
         let Some(w) = &self.win else { return };
-        let title = if self.admin { format!("runinst ({})", tr("Administrator")) } else { "runinst".to_string() };
+        let title = if self.admin { format!("rinst ({})", tr("Administrator")) } else { "rinst".to_string() };
         if w.window.title() != title {
             w.window.set_title(&title);
         }
@@ -239,7 +239,7 @@ impl Shell {
 
     fn command(&mut self, el: &ActiveEventLoop, cmd: Command) {
         // Delete on the leftovers removes them.
-        let leftovers_tab = self.app.tab == runinst::app::Tab::Leftovers;
+        let leftovers_tab = self.app.tab == rinst::app::Tab::Leftovers;
         let cmd = match cmd {
             Command::Uninstall | Command::UninstallQuiet if leftovers_tab => Command::RemoveLeftovers,
             Command::OpenFolder if leftovers_tab => Command::OpenLeftover,
@@ -264,14 +264,14 @@ impl Shell {
                 }
             }
             Command::Export => self.export(),
-            Command::Uninstall => self.uninstall(runinst::uninstall::How::Normal),
-            Command::UninstallQuiet => self.uninstall(runinst::uninstall::How::Quiet),
-            Command::Modify => self.uninstall(runinst::uninstall::How::Modify),
+            Command::Uninstall => self.uninstall(rinst::uninstall::How::Normal),
+            Command::UninstallQuiet => self.uninstall(rinst::uninstall::How::Quiet),
+            Command::Modify => self.uninstall(rinst::uninstall::How::Modify),
             Command::SelectAll => self.app.select_all(),
             Command::Exit => self.quit(el),
-            Command::Autostart => match rt_sys::autostart::set("runinst", !self.autostart) {
-                Ok(()) => self.autostart = rt_sys::autostart::enabled("runinst"),
-                Err(e) => self.info("runinst", &tf("Cannot change how it starts: {}", &[&e])),
+            Command::Autostart => match rt_sys::autostart::set("rinst", !self.autostart) {
+                Ok(()) => self.autostart = rt_sys::autostart::enabled("rinst"),
+                Err(e) => self.info("rinst", &tf("Cannot change how it starts: {}", &[&e])),
             },
             Command::OpenLeftover => {
                 if let Some(dir) = self.leftover_folder() {
@@ -337,10 +337,10 @@ impl Shell {
             Command::Shortcuts => self.info(&tr("Keyboard shortcuts"), &shortcuts_text()),
             Command::About => {
                 let text = tf(
-                    "runinst {}\n\nLists the programs installed for every user, with their shortcuts, written in Rust.\nNo telemetry, no network access.\n\nMIT License.",
+                    "rinst {}\n\nLists the programs installed for every user, with their shortcuts, written in Rust.\nNo telemetry, no network access.\n\nMIT License.",
                     &[env!("CARGO_PKG_VERSION")],
                 );
-                self.info(&tr("About runinst"), &text);
+                self.info(&tr("About rinst"), &text);
             }
         }
         self.menu_dirty = true;
@@ -362,7 +362,7 @@ impl Shell {
 
     fn enabled(&self, c: Command) -> bool {
         let sel = self.app.selected();
-        let leftovers_tab = self.app.tab == runinst::app::Tab::Leftovers;
+        let leftovers_tab = self.app.tab == rinst::app::Tab::Leftovers;
         let lo_idle = self.app.leftovers.as_ref().is_some_and(|l| !l.searching && !l.removing);
         match c {
             #[cfg(windows)]
@@ -456,7 +456,7 @@ impl Shell {
             w.window.focus_window();
         }
         let was_hidden = std::mem::take(&mut self.hidden);
-        self.autostart = rt_sys::autostart::enabled("runinst");
+        self.autostart = rt_sys::autostart::enabled("rinst");
         self.menu_dirty = true;
         let leftovers_busy = self.app.leftovers.as_ref().is_some_and(|l| l.searching || l.removing);
         if was_hidden && self.job.is_none() && self.app.busy.is_none() && !leftovers_busy {
@@ -467,7 +467,7 @@ impl Shell {
 
     /// Writes the list shown to a CSV file the user chooses.
     fn export(&mut self) {
-        let name = "runinst-programs.csv";
+        let name = "rinst-programs.csv";
         #[cfg(windows)]
         let chosen = self.win.as_ref().and_then(|w| {
             let filter = rt_sys::win::dialogs::filter(&[(tr("CSV files"), "*.csv")]);
@@ -489,16 +489,16 @@ impl Shell {
     fn open_window(&mut self, el: &ActiveEventLoop) -> bool {
         let (w, h, maximized) = self.settings.window.unwrap_or((1200.0, 760.0, false));
         let attrs = Window::default_attributes()
-            .with_title("runinst")
+            .with_title("rinst")
             .with_inner_size(LogicalSize::new(w.max(560.0), h.max(400.0)))
             .with_min_inner_size(LogicalSize::new(560.0, 400.0))
             // Maximizing shows the window on Windows: a resident start, which
             // stays hidden, maximizes when it is first shown.
             .with_maximized(maximized && !self.tray)
-            .with_window_icon(rt_ui::window::icon(runinst::ui::appicon::render))
+            .with_window_icon(rt_ui::window::icon(rinst::ui::appicon::render))
             .with_theme(Some(rt_ui::window::theme(self.dark())))
             .with_visible(false);
-        let Some((window, surface)) = rt_ui::window::create(el, attrs, "runinst") else { return false };
+        let Some((window, surface)) = rt_ui::window::create(el, attrs, "rinst") else { return false };
         let adapter = accesskit_winit::Adapter::with_event_loop_proxy(el, &window, self.proxy.clone());
         #[cfg(windows)]
         let hwnd = rt_ui::window::hwnd_of(&window);
@@ -515,7 +515,7 @@ impl Shell {
             );
             if self.tray {
                 rt_sys::win::set_resident(hwnd, &IDENT);
-                rt_sys::win::tray::show(hwnd, "runinst");
+                rt_sys::win::tray::show(hwnd, "rinst");
             }
         }
         self.maximize_on_show = maximized && self.tray;
@@ -554,7 +554,7 @@ fn read_icons(gen: u64, wanted: Vec<IconOf>, proxy: &EventLoopProxy<UserEvent>) 
                 .entry(from.clone())
                 .or_insert_with(|| match &from {
                     IconFrom::File(f, n) => rt_sys::win::icon::extract(f, *n),
-                    IconFrom::App(a) => runinst::appx::icon(a, 32),
+                    IconFrom::App(a) => rinst::appx::icon(a, 32),
                 })
                 .clone();
             if let Some((w, h, px)) = got {
@@ -573,11 +573,11 @@ fn read_icons(gen: u64, wanted: Vec<IconOf>, proxy: &EventLoopProxy<UserEvent>) 
 }
 
 /// The folder of a program: its install folder, or its uninstaller's.
-fn folder_of(p: &runinst::inventory::Program) -> Option<PathBuf> {
+fn folder_of(p: &rinst::inventory::Program) -> Option<PathBuf> {
     p.location
         .clone()
         .filter(|l| l.is_dir())
-        .or_else(|| p.uninstall.as_deref().and_then(runinst::inventory::command_file).and_then(|f| f.parent().map(Path::to_path_buf)).filter(|d| d.is_absolute() && d.is_dir()))
+        .or_else(|| p.uninstall.as_deref().and_then(rinst::inventory::command_file).and_then(|f| f.parent().map(Path::to_path_buf)).filter(|d| d.is_absolute() && d.is_dir()))
 }
 
 /// Opens a folder in the file manager.
@@ -609,7 +609,7 @@ fn shortcuts_text() -> String {
 }
 
 /// Starts resident mode on Linux: without an icon, a hidden window could not
-/// be reached or closed, so runinst then runs as a normal window.
+/// be reached or closed, so rinst then runs as a normal window.
 #[cfg(not(windows))]
 fn start_resident(shell: &mut Shell) {
     let proxy = std::sync::Mutex::new(shell.proxy.clone());
@@ -618,7 +618,7 @@ fn start_resident(shell: &mut Shell) {
             let _ = p.send_event(UserEvent::Shell(m));
         }
     });
-    shell.resident = rt_ui::resident::start("runinst", runinst::ui::appicon::render, tr("Open runinst"), tr("Exit"), send);
+    shell.resident = rt_ui::resident::start("rinst", rinst::ui::appicon::render, tr("Open rinst"), tr("Exit"), send);
     shell.tray = shell.resident.is_some();
 }
 
@@ -729,7 +729,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             #[cfg(windows)]
             UserEvent::Win(rt_sys::win::WinMsg::Tray(rt_sys::win::tray::TrayEvent::Menu)) => {
                 if let Some(hwnd) = self.win.as_ref().map(|w| w.hwnd) {
-                    match rt_sys::win::tray::menu(hwnd, &tr("Open runinst"), &tr("Exit")) {
+                    match rt_sys::win::tray::menu(hwnd, &tr("Open rinst"), &tr("Exit")) {
                         Some(1) => self.show(el),
                         Some(2) => self.quit(el),
                         _ => {}
@@ -824,7 +824,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
             WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Right, .. } if self.dialog.is_none() => {
                 if let Hot::Row(i) = self.hot {
-                    if self.app.tab == runinst::app::Tab::Leftovers {
+                    if self.app.tab == rinst::app::Tab::Leftovers {
                         return;
                     }
                     // A row outside the selection: it alone; inside: the selection stays.
@@ -893,7 +893,7 @@ impl ApplicationHandler<UserEvent> for Shell {
     }
 }
 
-const USAGE: &str = "runinst [--tray] [--new-window]
+const USAGE: &str = "rinst [--tray] [--new-window]
 
   Lists the programs installed on this computer: for every user (the
   system's), for you, and, with administrator rights, for every other user;
@@ -901,15 +901,15 @@ const USAGE: &str = "runinst [--tray] [--new-window]
   the shortcuts that belong to them on the Start menu and the desktop.
 
   --tray        Stay resident in the notification area: closing the window
-                hides it, and the icon (or starting runinst again) shows it,
+                hides it, and the icon (or starting rinst again) shows it,
                 reading the programs again. Exit from the icon's menu or
                 File > Exit. File > Start with Windows starts it this way
                 with the session.
-  --new-window  Open a separate window even when runinst is resident.
+  --new-window  Open a separate window even when rinst is resident.
 
-Settings are stored in the user's settings folder (%APPDATA%\\runinst on
-Windows, ~/.config/runinst on Linux), or next to the program when a file
-named runinst.portable exists there (portable mode).";
+Settings are stored in the user's settings folder (%APPDATA%\\rinst on
+Windows, ~/.config/rinst on Linux), or next to the program when a file
+named rinst.portable exists there (portable mode).";
 
 fn main() {
     let raw: Vec<String> = std::env::args().skip(1).collect();
@@ -925,29 +925,31 @@ fn main() {
     }
     let tray = raw.iter().any(|a| a == "--tray" || a == "/tray") && !help;
     let new_window = raw.iter().any(|a| a == "--new-window") || help;
-    // A resident runinst shows itself instantly.
+    // A resident rinst shows itself instantly.
     #[cfg(windows)]
     if !new_window && rt_sys::win::hand_off(&IDENT, &[], false, false) {
         return;
     }
     #[cfg(not(windows))]
-    if !new_window && rt_sys::linux::shell::hand_off("runinst", &[], false) {
+    if !new_window && rt_sys::linux::shell::hand_off("rinst", &[], false) {
         return;
     }
     let mut location = storage::detect();
+    // Started with the session under the old name: now under the new one.
+    let _ = rt_sys::autostart::rename(storage::OLD_NAME, "rinst");
     let store = location.load();
     let settings = Settings::load(&store);
     let gfx = match Gfx::new() {
         Ok(g) => g,
         Err(e) => {
-            eprintln!("runinst: {e}");
+            eprintln!("rinst: {e}");
             std::process::exit(1);
         }
     };
     let event_loop = match EventLoop::<UserEvent>::with_user_event().build() {
         Ok(el) => el,
         Err(e) => {
-            eprintln!("runinst: cannot start the event loop: {e}");
+            eprintln!("rinst: cannot start the event loop: {e}");
             std::process::exit(1);
         }
     };
@@ -983,17 +985,17 @@ fn main() {
         #[cfg(windows)]
         admin: rt_sys::win::elevated(),
         #[cfg(not(windows))]
-        admin: runinst::linux_pkgs::is_root(),
-        dialog: help.then(|| Message::new("runinst", USAGE)),
+        admin: rinst::linux_pkgs::is_root(),
+        dialog: help.then(|| Message::new("rinst", USAGE)),
         job: None,
         report: None,
         job_started: None,
         #[cfg(not(windows))]
-        menu: runinst::ui::menu::Menu::default(),
+        menu: rinst::ui::menu::Menu::default(),
         tray,
         hidden: false,
         maximize_on_show: false,
-        autostart: rt_sys::autostart::enabled("runinst"),
+        autostart: rt_sys::autostart::enabled("rinst"),
         #[cfg(not(windows))]
         resident: None,
     };
@@ -1003,6 +1005,6 @@ fn main() {
         shell.refresh();
     }
     if let Err(e) = event_loop.run_app(&mut shell) {
-        eprintln!("runinst: {e}");
+        eprintln!("rinst: {e}");
     }
 }

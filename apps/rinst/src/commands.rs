@@ -6,12 +6,12 @@ use crate::i18n::{tr, Lang};
 pub enum Command {
     /// Reads the programs again.
     Refresh,
-    /// Starts runinst again with administrator rights, to read every user.
+    /// Starts rinst again with administrator rights, to read every user.
     #[cfg(windows)]
     RestartAdmin,
     /// Writes the list shown to a CSV file.
     Export,
-    /// Starts runinst resident with the session (`--tray`).
+    /// Starts rinst resident with the session (`--tray`).
     Autostart,
     Exit,
     /// Uninstalls the programs selected, one after another.
@@ -100,7 +100,7 @@ impl Command {
             UiLanguage(0) => "Use &System Setting",
             UiLanguage(i) => return Err(Lang::ALL.get(i as usize - 1).map_or("", |l| l.native_name()).to_string()),
             Shortcuts => "&Keyboard Shortcuts",
-            About => "&About runinst",
+            About => "&About rinst",
         })
     }
 

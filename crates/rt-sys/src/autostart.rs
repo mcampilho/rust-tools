@@ -38,6 +38,16 @@ pub fn set(app: &str, on: bool) -> Result<(), String> {
     }
 }
 
+/// For an app that was called `old` before: if `old` started with the
+/// session, the new name does instead (pointing at this program).
+pub fn rename(old: &str, new: &str) -> Result<(), String> {
+    if imp::get(old).is_none() {
+        return Ok(());
+    }
+    imp::remove(old)?;
+    set(new, true)
+}
+
 #[cfg(windows)]
 mod imp {
     use crate::win::{from_wide, wide};
@@ -130,6 +140,14 @@ mod tests {
         set(app, false).unwrap();
         assert!(!enabled(app));
         set(app, false).unwrap();
+        // A new name takes over from the old one.
+        let new = "rt-autostart-test-new";
+        set(app, true).unwrap();
+        rename(app, new).unwrap();
+        assert!(!enabled(app) && enabled(new));
+        rename(app, new).unwrap();
+        assert!(enabled(new));
+        set(new, false).unwrap();
     }
 
     #[test]

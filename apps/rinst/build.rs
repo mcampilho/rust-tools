@@ -8,8 +8,8 @@ mod appicon;
 
 fn main() {
     rt_build::windows_resources(&rt_build::Resources {
-        name: "runinst",
-        description: "runinst Uninstaller",
+        name: "rinst",
+        description: "rinst Uninstaller",
         icon: appicon::render,
         icon_source: "src/ui/appicon.rs",
         manifest: true,

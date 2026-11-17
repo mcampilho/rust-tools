@@ -64,7 +64,7 @@ pub struct Leftovers {
 
 impl Leftovers {
     /// What was found, ticked as its group says (not what needs rights
-    /// runinst does not have).
+    /// rinst does not have).
     pub fn new(items: Vec<Leftover>) -> Leftovers {
         let ticked = items.iter().map(|l| l.group.ticked_at_first() && !l.admin && !l.doubt).collect();
         let failed = vec![None; items.len()];
@@ -83,7 +83,7 @@ pub enum Whose {
     All,
     /// Installed for every user.
     Everyone,
-    /// For the user running runinst only.
+    /// For the user running rinst only.
     Mine,
     /// For other users only.
     Others,
@@ -507,7 +507,7 @@ impl App {
     }
 
     /// Whether the box of the list index `i` can be ticked (a leftover that
-    /// needs rights runinst lacks cannot).
+    /// needs rights rinst lacks cannot).
     pub fn can_tick(&self, i: usize) -> bool {
         self.tab != Tab::Leftovers || self.leftover(i).is_some_and(|l| !l.admin) && self.leftovers.as_ref().is_some_and(|l| !l.removing)
     }

@@ -670,7 +670,7 @@ pub fn draw(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, hot: Hot, ic
         let text = if cfg!(windows) {
             tr("No program matches.")
         } else {
-            tr("runinst lists the programs of Windows; Linux packages come in a later version.")
+            tr("rinst lists the programs of Windows; Linux packages come in a later version.")
         };
         g.text_in(&text, l.list, 15.0 * s, FontId::Regular, th.dim, Align::Center);
     }
@@ -1018,7 +1018,7 @@ mod screenshots {
     use std::path::PathBuf;
 
     /// Draws the window to `target/screens/*.png` for a visual check:
-    /// `cargo test -p runinst --lib screenshots -- --ignored`.
+    /// `cargo test -p rinst --lib screenshots -- --ignored`.
     #[test]
     #[ignore]
     fn screenshots() {

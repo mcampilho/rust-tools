@@ -48,7 +48,7 @@ Em Linux (WSL, `CARGO_TARGET_DIR=$HOME/rt-target`) os mesmos com `cargo`.
   versões antigas, pip 1,52 GB, npm 823 MB, Cargo 999 MB; no WSL: Cargo 314 MB, apt 11,6 MB, Snap 105 MB.
   Comandos de limpeza não experimentados a sério.
 - `shortcuts.rs` — fase 3 (2026-11-13): `Group::Shortcuts`, `Kind::Shortcuts`. Windows: `.lnk` lidos com
-  `rt_sys::lnk::target_of` (o leitor do runinst passou para o `rt-sys`) no menu Iniciar (o do utilizador e, `admin`, o
+  `rt_sys::lnk::target_of` (o leitor do rinst passou para o `rt-sys`) no menu Iniciar (o do utilizador e, `admin`, o
   de todos), ambiente de trabalho (`Env::desktop` pelo `User Shell Folders`; o público com `admin`), Quick Launch/barra
   de tarefas, SendTo e Recent (`Filter::Prefix("")` = só a própria pasta). `checkable`: nunca rede (`\\`) nem disco
   que não existe agora. Linux: `.desktop` (`broken_desktop`: `TryExec`, senão a 1.ª palavra do `Exec` depois de
@@ -64,7 +64,7 @@ Em Linux (WSL, `CARGO_TARGET_DIR=$HOME/rt-target`) os mesmos com `cargo`.
   `SysWOW64`. `Found::entries` (`regfile::Entry`, o que nomeava). Limpar: `rt_sys::regfile::save_then_delete` para
   `<definições>\backups\registry <data>\<id>.reg` (o `clean` recebe a pasta da limpeza; o resumo diz onde). O
   `regfile` (linhas `.reg` de todos os tipos, `export_key`/`export_value`, apagar) passou a ser partilhado com os
-  restos do runinst. Teste real `cleans_a_startup_entry` (ignorado: escreve no `Run` do HKCU). Neste PC (sem
+  restos do rinst. Teste real `cleans_a_startup_entry` (ignorado: escreve no `Run` do HKCU). Neste PC (sem
   administrador) não há nada: MuiCache com 271 valores, todos existentes (verificado à parte).
 - `procs.rs` — processos a correr (ToolHelp; `/proc/*/comm` em Linux, nomes cortados a 15): browser aberto → aviso.
 - `app.rs` — `Item` (alvo, marca, `State`: `Waiting`, `Analysing`, `Found`, `Cleaning`, `Cleaned`, `NeedsAdmin` —
@@ -91,7 +91,7 @@ Medido neste PC (2026-11-13, sem administrador): temporários 3,24 GB em 11 760 
 2. Feito (2026-11-13): caches dos gestores de pacotes pelos seus comandos (Scoop, Chocolatey, pip, npm, Yarn, pnpm,
    Go, NuGet; Cargo e vcpkg por pastas; apt, dnf, zypper, pacman, Flatpak, Snap).
 3. Feito (2026-11-13): atalhos inválidos, para a Reciclagem.
-4. Feito (2026-11-14): entradas inválidas do registo, com cópia `.reg` antes (`rt_sys::regfile`, partilhado com o runinst).
+4. Feito (2026-11-14): entradas inválidas do registo, com cópia `.reg` antes (`rt_sys::regfile`, partilhado com o rinst).
 
 ## Regras
 

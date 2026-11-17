@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 /// global one (`SCOOP_GLOBAL`, or `C:\ProgramData\scoop`), those that exist.
 pub fn scoop_roots(me: &crate::inventory::Me) -> Vec<(PathBuf, bool)> {
     let env = |v: &str| std::env::var_os(v).map(PathBuf::from).filter(|p| !p.as_os_str().is_empty());
-    // When runinst runs as another account, its variables are that
+    // When rinst runs as another account, its variables are that
     // account's: the desktop user's `SCOOP` is in their registry.
     let user_var = if me.runs_as { env("SCOOP") } else { user_variable(me, "SCOOP") };
     let user = user_var.or_else(|| me.home.as_ref().map(|h| h.join("scoop")));
@@ -178,7 +178,7 @@ mod tests {
     use super::*;
 
     fn scratch(name: &str) -> PathBuf {
-        let d = std::env::temp_dir().join(format!("runinst-test-{}-{name}", std::process::id()));
+        let d = std::env::temp_dir().join(format!("rinst-test-{}-{name}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         d

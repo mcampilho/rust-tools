@@ -1,5 +1,5 @@
 //! Localization of the user interface into ten locales (see `rt-core`).
-//! runinst's own strings are in `strings.txt`: one row per string, keyed by
+//! rinst's own strings are in `strings.txt`: one row per string, keyed by
 //! the US English text, tab-separated. The strings of sizes are in the
 //! common table of `rt-core`.
 

@@ -67,7 +67,7 @@ mod tests {
     #[test]
     fn round_trip_and_bad_values() {
         let s = Settings { theme: 2, language: Some(Lang::PtPT), window: Some((900.0, 700.0, true)), whose: Whose::Others, show_system: true, show_updates: false };
-        assert_eq!(Settings::load(&Store::parse(&s.to_store().serialize("runinst"))), s);
+        assert_eq!(Settings::load(&Store::parse(&s.to_store().serialize("rinst"))), s);
         let bad = Settings::load(&Store::parse("theme=??\nwindow=abc\nlanguage=xx-YY\nwhose=9\n"));
         assert_eq!(bad, Settings::default());
     }

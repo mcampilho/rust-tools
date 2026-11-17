@@ -95,7 +95,7 @@ Open-Meteo (geocodificação e previsão) para o widget de meteorologia, escolhi
 - `autostart.rs` — chama o `rt_sys::autostart` (desde 2026-11-14 partilhado por todas as aplicações):
   `HKCU\…\CurrentVersion\Run\rwall = "<exe>" --tray`; Linux `~/.config/autostart/rwall.desktop`.
 - `net.rs` — `split_url`, `encode`, `get(url, limite)` → corpo + URL final (`WINHTTP_OPTION_URL`).
-- `json.rs` — reexporta o leitor de JSON (sem serde, com limite de profundidade), que passou para `rt_core::json` em 2026-11-13 (o runinst também o usa).
+- `json.rs` — reexporta o leitor de JSON (sem serde, com limite de profundidade), que passou para `rt_core::json` em 2026-11-13 (o rinst também o usa).
 - `settings.rs` — `settings.ini` (`rt_core::store`): frequência, fontes, pastas (`folder=` repetido), posição,
   `keep`, `last_period`, `next_source`, `current.*`, `shown=` (histórico, 200).
 - `ui/view.rs` — a janela de definições numa só função `draw`, que devolve os retângulos clicáveis (`Hit`) e a

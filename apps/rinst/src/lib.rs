@@ -1,4 +1,4 @@
-//! runinst: a portable uninstaller. The library holds everything but the
+//! rinst: a portable uninstaller. The library holds everything but the
 //! window (`main.rs`), so it can be tested without one.
 
 pub mod app;

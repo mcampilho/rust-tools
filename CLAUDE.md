@@ -14,7 +14,7 @@ Monorepo (workspace Cargo) com nove aplicações, cada uma um único `.exe`, e o
   transparente por ecrã.
 - `apps/rpack` — arquivador com navegador de ficheiros (em curso, por fases): cria 7z, zip e tar; abre, testa e
   extrai zip, 7z, tar e ficheiros comprimidos; hashes.
-- `apps/runinst` — desinstalador: lista os programas de todos os utilizadores e os atalhos, desinstala e remove os
+- `apps/rinst` — desinstalador: lista os programas de todos os utilizadores e os atalhos, desinstala e remove os
   restos; separadores para Scoop, Chocolatey, DISM, npm, pip, Cargo e vcpkg; em Linux, dpkg, rpm, Flatpak e Snap.
 - `apps/rclean` — limpador: temporários do sistema, caches dos browsers e dos gestores de pacotes, apagados de vez
   depois de confirmar; atalhos inválidos (para a Reciclagem); entradas inválidas do registo (cópia `.reg` antes).
@@ -35,7 +35,7 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
 ## Regras comuns
 
 - "Pronto" = sem avisos, clippy limpo, testes a passar.
-- Perfis só na raiz do `Cargo.toml`. rcalc, rpad, rsize, rdup, runinst e rclean usam `release-small` (`panic = "abort"`);
+- Perfis só na raiz do `Cargo.toml`. rcalc, rpad, rsize, rdup, rinst e rclean usam `release-small` (`panic = "abort"`);
   o rview, o rwall e o rpack usam sempre `release`, porque precisam de `catch_unwind`.
 - Compilar para distribuição com `./dev.ps1 dist`, que escolhe o perfil de cada aplicação.
 - `README.md` e `README.pt.md` são atualizados em conjunto, na raiz e em cada aplicação.
@@ -83,7 +83,7 @@ colidirem (testes em Windows e no WSL).
 O código comum está em `crates/` (ver `crates/README.pt.md`): `rt-core` (traduções, definições, árvore de
 menus), `rt-gfx` (desenho, texto, menus desenhados), `rt-sys` (Windows e Linux), `rt-scan` (leitura dos
 discos: Everything, MFT do NTFS, pasta a pasta; a árvore `model`, `volumes` e `format`; usado pelo rsize e
-pelo rdup; o runinst usa a pesquisa livre `everything::search` para os restos), `rt-ui` (base da janela: criar a janela, tema, menus desenhados, painel de mensagem, modo residente em Linux, menu do Explorador, painel "Aplicação predefinida por tipo de ficheiro" `assoc` do rview e do rpad, controlos das páginas de definições), `rt-syntax` (realce) e `rt-build` (recursos do `.exe`). As aplicações guardam módulos pequenos com o mesmo nome de antes
+pelo rdup; o rinst usa a pesquisa livre `everything::search` para os restos), `rt-ui` (base da janela: criar a janela, tema, menus desenhados, painel de mensagem, modo residente em Linux, menu do Explorador, painel "Aplicação predefinida por tipo de ficheiro" `assoc` do rview e do rpad, controlos das páginas de definições), `rt-syntax` (realce) e `rt-build` (recursos do `.exe`). As aplicações guardam módulos pequenos com o mesmo nome de antes
 (`ui/gfx.rs`, `storage.rs`, `win/mod.rs`, `linux/mod.rs`...) que reexportam dos crates e lhes dão a
 identidade da aplicação. Uma correção num destes assuntos faz-se no crate, uma vez.
 

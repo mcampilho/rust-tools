@@ -1,4 +1,4 @@
-# runinst
+# rinst
 
 Um desinstalador portátil para Windows, escrito em Rust. Lista os programas
 instalados no computador para todos os utilizadores (do registo, do Windows
@@ -10,33 +10,38 @@ vários seguidos, e depois encontra o que deixaram para trás.
 
 [English version](README.md)
 
-O runinst faz parte do [rust-tools](../../README.pt.md). Os comandos abaixo
+O rinst faz parte do [rust-tools](../../README.pt.md). Os comandos abaixo
 correm na raiz do repositório.
 
-O `runinst.exe` é um único executável de 2,1 MB: sem instalador, sem runtime,
+O `rinst.exe` é um único executável de 2,1 MB: sem instalador, sem runtime,
 sem DLLs além das que vêm com o Windows. Não faz ligações à rede e não tem
 telemetria. Lista, desinstala e remove os restos, também de programas
 removidos antes; as funcionalidades opcionais do Windows e os pacotes do npm,
 do pip, do Cargo e do vcpkg têm separadores próprios.
 
+O rinst chamava-se **runinst** até novembro de 2026. No primeiro arranque fica com
+as definições do runinst (a pasta de definições `runinst`, ou a marca
+`runinst.portable` ao lado do programa) e, se o runinst iniciava com o Windows,
+passa a ser ele a iniciar.
+
 ## Utilização
 
 ```text
-runinst [--tray] [--new-window]
+rinst [--tray] [--new-window]
 ```
 
-**Modo residente:** `runinst --tray` arranca escondido na área de notificação, sem
-ler nada até ser mostrado. Voltar a arrancar o runinst ou clicar no ícone mostra a
+**Modo residente:** `rinst --tray` arranca escondido na área de notificação, sem
+ler nada até ser mostrado. Voltar a arrancar o rinst ou clicar no ícone mostra a
 janela e lê outra vez os programas (a não ser que esteja a desinstalar); fechar a
 janela só a esconde, e uma desinstalação continua. Para sair, usa-se o menu do ícone
-ou Ficheiro › Sair. `--new-window` abre uma janela à parte mesmo com o runinst
+ou Ficheiro › Sair. `--new-window` abre uma janela à parte mesmo com o rinst
 residente. **Ficheiro › Iniciar com o Windows** (Iniciar ao entrar na sessão, em
 Linux) arranca-o assim com a sessão, só para o utilizador atual (a chave Run, ou
-`~/.config/autostart/runinst.desktop`); escolhê-lo outra vez desliga-o.
+`~/.config/autostart/rinst.desktop`); escolhê-lo outra vez desliga-o.
 
 ### O que é listado
 
-O runinst junta numa só lista, sem repetidos, o que o Windows e as suas
+O rinst junta numa só lista, sem repetidos, o que o Windows e as suas
 ferramentas sabem dos programas instalados; a coluna **Origem** diz onde cada
 um foi encontrado:
 
@@ -74,7 +79,7 @@ Para quem:
   se puderam ler, com **Reiniciar como administrador**.
 
 Quando o Windows pede a palavra-passe de um administrador (outra conta), o
-runinst corre como essa conta mas continua a saber que o utilizador do ambiente
+rinst corre como essa conta mas continua a saber que o utilizador do ambiente
 de trabalho é você: os seus programas, atalhos e Scoop continuam seus, e não
 aparecem repetidos.
 
@@ -85,7 +90,7 @@ versão e os autores. São lidos das pastas, sem correr o `scoop` nem o `choco`.
 
 Os atalhos são lidos do menu Iniciar e do ambiente de trabalho de todos
 (`C:\ProgramData\…\Start Menu`, `C:\Users\Public\Desktop`), seus e, com
-direitos de administrador, dos outros utilizadores. O runinst lê cada ficheiro
+direitos de administrador, dos outros utilizadores. O rinst lê cada ficheiro
 `.lnk` por si, e liga cada atalho ao seu programa pela pasta do que ele abre (a
 pasta de instalação do programa, ou a pasta do ícone ou do desinstalador), ou
 senão pelo nome. Um atalho cujo destino já não existe aparece a laranja.
@@ -106,7 +111,7 @@ ferramenta existe:
 - **pip**: os pacotes do primeiro Python no `PATH` (`python3`, `py`, `python`):
   `pip list`. Os pacotes de que outros precisam são componentes do sistema (vêm
   com **Componentes do sistema**); também os que o gestor de pacotes de um
-  sistema lá pôs (em Linux), que o runinst não remove. Desinstalados com `pip
+  sistema lá pôs (em Linux), que o rinst não remove. Desinstalados com `pip
   uninstall`, reparados com `pip install --force-reinstall`.
 - **Cargo**: o que o `cargo install` pôs em `~/.cargo/bin` (`.crates2.json`),
   com a origem e o tamanho dos programas; `cargo uninstall`, e reparados com
@@ -125,7 +130,7 @@ caixa do cabeçalho marca todos os mostrados ou desmarca todos). As marcas ficam
 quando a pesquisa muda, para encontrar os programas um a um e marcar cada um;
 enquanto houver marcados, os botões agem sobre eles. Depois escolha
 **Desinstalar** (Delete) ou **Desinstalar sem perguntas** (Shift+Delete), nos
-botões por cima da lista, no menu **Programa** ou no do botão direito. O runinst
+botões por cima da lista, no menu **Programa** ou no do botão direito. O rinst
 diz quais vão ser desinstalados e quais não podem, e pergunta antes. Depois corre
 um desinstalador de cada vez e espera que termine, junto com os processos que
 ele lança (muitos desinstaladores copiam-se para a pasta temporária e lançam
@@ -147,7 +152,7 @@ O que corre:
 
 Um desinstalador que precisa de direitos de administrador recebe a pergunta do
 Windows. Os programas instalados para outro utilizador desinstalam-se na conta
-dele; as suas apps da Loja também, quando o runinst corre como outra conta.
+dele; as suas apps da Loja também, quando o rinst corre como outra conta.
 **Modificar ou reparar** corre o comando de alteração do programa
 (`ModifyPath`, ou a manutenção do Windows Installer); numa app do Scoop,
 `scoop install` de novo quando a instalação falhou, senão `scoop reset` (de
@@ -165,7 +170,7 @@ forma).
 
 ### Restos
 
-Depois de desinstalar, o runinst procura o que os programas deixaram para trás
+Depois de desinstalar, o rinst procura o que os programas deixaram para trás
 e mostra-o num separador **Restos** (fica no separador onde estava; fechar a
 lista volta a ele):
 
@@ -194,11 +199,11 @@ lista volta a ele):
 
 Nada que um programa ainda instalado use é oferecido: nem a pasta dele, nem o
 que está lá dentro, nem o que a contém; nunca as pastas do Windows, um perfil ou
-um disco. O que precisa de direitos de administrador que o runinst não tem
+um disco. O que precisa de direitos de administrador que o rinst não tem
 aparece a cinzento e não se pode marcar.
 
 Marque o que deve sair (um clique na caixa, ou Espaço) e escolha **Remover os
-marcados** (Delete). O runinst pergunta antes. As chaves e valores do registo,
+marcados** (Delete). O rinst pergunta antes. As chaves e valores do registo,
 e as chaves dos serviços, são guardados num ficheiro `.reg` na pasta das
 definições (`backups\leftovers <data>.reg`): faça duplo clique nele para os
 repor. Um serviço é depois parado e apagado (`sc delete`); o ficheiro de uma
@@ -276,19 +281,19 @@ A barra de estado conta os programas mostrados, o tamanho e os atalhos.
 
 As definições (tema, língua, tamanho da janela, de quem são os programas
 mostrados, componentes do sistema e atualizações) ficam em
-`%APPDATA%\runinst\settings.ini`. Com um ficheiro chamado `runinst.portable` ao
-lado do `runinst.exe`, ficam aí (modo portátil).
+`%APPDATA%\rinst\settings.ini`. Com um ficheiro chamado `rinst.portable` ao
+lado do `rinst.exe`, ficam aí (modo portátil).
 
 ## Compilar
 
 ```powershell
-./dev.ps1 build --profile release-small -p runinst
-./dev.ps1 test -p runinst
-./dev.ps1 clippy -p runinst --all-targets
-./dev.ps1 test -p runinst --lib report '--' --ignored --nocapture   # o que este computador tem
+./dev.ps1 build --profile release-small -p rinst
+./dev.ps1 test -p rinst
+./dev.ps1 clippy -p rinst --all-targets
+./dev.ps1 test -p rinst --lib report '--' --ignored --nocapture   # o que este computador tem
 ```
 
-O resultado é `target\release-small\runinst.exe`.
+O resultado é `target\release-small\rinst.exe`.
 
 ## Linux
 
@@ -307,7 +312,7 @@ Um ficheiro de 5,9 MB. Em vez dos programas do Windows, lista os pacotes:
 Desinstalar corre `apt-get remove` (ou `dpkg --remove` sem o apt), `dnf`,
 `zypper` ou `rpm -e`, `flatpak uninstall` e `snap remove`. Estes precisam de
 root: o `pkexec` pede a palavra-passe numa janela própria (se não existir,
-inicie o runinst como root). **Modificar ou reparar** instala o pacote de novo
+inicie o rinst como root). **Modificar ou reparar** instala o pacote de novo
 (`apt-get install --reinstall`, `dnf reinstall`, `flatpak install
 --reinstall`); o Snap não tem esse comando.
 

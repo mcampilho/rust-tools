@@ -90,7 +90,7 @@ impl Shell {
             focus = NodeId(6);
         }
         let mut r = Node::new(Role::Window);
-        r.set_label("runinst");
+        r.set_label("rinst");
         r.set_children(children);
         nodes.push((root, r));
         TreeUpdate { nodes, tree: Some(TreeInfo::new(root)), tree_id: TreeId::ROOT, focus }

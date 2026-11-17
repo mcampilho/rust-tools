@@ -1,4 +1,4 @@
-# runinst
+# rinst
 
 A portable uninstaller for Windows, written in Rust. It lists the programs
 installed on the computer for every user (from the registry, Windows Installer,
@@ -9,34 +9,39 @@ and uninstalls them, one or several in a row, then finds what they left behind.
 
 [Versão portuguesa](README.pt.md)
 
-runinst is part of [rust-tools](../../README.md). Commands below run from the
+rinst is part of [rust-tools](../../README.md). Commands below run from the
 repository root.
 
-`runinst.exe` is a single 2.1 MB executable: no installer, no runtime, no DLLs
+`rinst.exe` is a single 2.1 MB executable: no installer, no runtime, no DLLs
 beyond those that ship with Windows. It makes no network connections and has
 no telemetry. It lists, uninstalls and removes the leftovers, also of
 programs removed before; the optional features of Windows and the packages of
 npm, pip, Cargo and vcpkg have tabs of their own.
 
+rinst was called **runinst** until November 2026. The first time it starts, it
+takes over runinst's settings (the `runinst` settings folder, or the
+`runinst.portable` marker beside the program) and, if runinst started with
+Windows, starts with Windows instead.
+
 ## Use
 
 ```text
-runinst [--tray] [--new-window]
+rinst [--tray] [--new-window]
 ```
 
-**Resident mode:** `runinst --tray` starts hidden in the notification area,
-reading nothing until shown. Launching runinst again or clicking the tray icon
+**Resident mode:** `rinst --tray` starts hidden in the notification area,
+reading nothing until shown. Launching rinst again or clicking the tray icon
 shows the window and reads the programs again (unless an uninstalling is
 running); closing the window only hides it, and an uninstalling goes on. Quit
 from the tray icon's menu or File › Exit. `--new-window` opens a separate
-window even when runinst is resident. **File › Start with Windows** (Start
+window even when rinst is resident. **File › Start with Windows** (Start
 When I Log In on Linux) starts it this way with the session, for the current
-user only (the Run key, or `~/.config/autostart/runinst.desktop`); choosing it
+user only (the Run key, or `~/.config/autostart/rinst.desktop`); choosing it
 again turns it off.
 
 ### What is listed
 
-runinst joins in one list, without repeats, what Windows and its tools know
+rinst joins in one list, without repeats, what Windows and its tools know
 of the programs installed; the **Source** column says where each was found:
 
 - **Registry**: the `Uninstall` entries ("Apps and features"), the same as
@@ -71,7 +76,7 @@ For whom:
   administrator rights: without them, a line above the list names the users
   who could not be read, with **Restart as Administrator**.
 
-When Windows asks for an administrator's password (another account), runinst
+When Windows asks for an administrator's password (another account), rinst
 runs as that account but still knows you as the user of the desktop: your
 programs, shortcuts and Scoop stay yours, and are not listed twice.
 
@@ -83,7 +88,7 @@ without running `scoop` or `choco`.
 
 Shortcuts are read from the Start menu and the desktop of everyone
 (`C:\ProgramData\…\Start Menu`, `C:\Users\Public\Desktop`), of you, and, with
-administrator rights, of the other users. runinst reads each `.lnk` file
+administrator rights, of the other users. rinst reads each `.lnk` file
 itself, and ties each shortcut to its program by the folder of what it opens
 (the program's install folder, or the folder of its icon or of its
 uninstaller), or else by its name. A shortcut whose target is gone is shown in
@@ -105,7 +110,7 @@ their tool is there:
 - **pip**: the packages of the first Python on the `PATH` (`python3`, `py`,
   `python`): `pip list`. The packages others need are system components (shown
   with **System Components**); so are those a system's package manager put there
-  (on Linux), which runinst does not remove. Uninstalled with `pip uninstall`,
+  (on Linux), which rinst does not remove. Uninstalled with `pip uninstall`,
   repaired with `pip install --force-reinstall`.
 - **Cargo**: what `cargo install` put in `~/.cargo/bin` (`.crates2.json`), with
   where it came from and the size of its programs; `cargo uninstall`, and
@@ -124,7 +129,7 @@ header ticks all shown or unticks all). Ticks stay while the search changes,
 so you can find programs one by one and tick each; while any are ticked, the
 buttons act on them. Then choose
 **Uninstall** (Delete) or **Uninstall Quietly** (Shift+Delete), from the
-buttons above the list, the **Program** menu or the right-click menu. runinst
+buttons above the list, the **Program** menu or the right-click menu. rinst
 says which will be uninstalled and which cannot, and asks first. Then it runs
 one uninstaller at a time and waits until it ends, together with the processes
 it starts (many uninstallers copy themselves to the temporary folder and start
@@ -146,7 +151,7 @@ What it runs:
 
 An uninstaller that needs administrator rights gets Windows' question.
 Programs installed for another user are uninstalled from their own account;
-so are your Store apps when runinst runs as another account.
+so are your Store apps when rinst runs as another account.
 **Modify or Repair** runs the program's change command (`ModifyPath`, or
 Windows Installer's maintenance); for a Scoop app, `scoop install` again when its
 install failed, else `scoop reset` (its shims, shortcuts and current version
@@ -163,7 +168,7 @@ gone: left by a program removed some other way).
 
 ### Leftovers
 
-After the programs are uninstalled, runinst looks for what they left behind
+After the programs are uninstalled, rinst looks for what they left behind
 and shows it in a **Leftovers** tab (it stays on the tab you were on; closing
 the list goes back to it):
 
@@ -191,11 +196,11 @@ the list goes back to it):
 
 Nothing a program still installed uses is offered: not its folder, nothing in
 it, nothing holding it; never Windows' folders, a profile or a drive. What needs
-administrator rights runinst does not have is shown greyed, and cannot be
+administrator rights rinst does not have is shown greyed, and cannot be
 ticked.
 
 Tick what should go (a click on the box, or Space) and choose **Remove the
-Ticked Ones** (Delete). runinst asks first. Registry keys and values, and the
+Ticked Ones** (Delete). rinst asks first. Registry keys and values, and the
 keys of services, are saved to a `.reg` file in the settings folder
 (`backups\leftovers <date>.reg`): double-click it to put them back. A service
 is then stopped and deleted (`sc delete`); a task's file is copied to
@@ -270,20 +275,20 @@ The status bar counts the programs shown, their size and the shortcuts.
 ## Settings
 
 Settings (theme, language, window size, whose programs are shown, system
-components and updates) are kept in `%APPDATA%\runinst\settings.ini`. With a
-file named `runinst.portable` beside `runinst.exe`, they are kept there instead
+components and updates) are kept in `%APPDATA%\rinst\settings.ini`. With a
+file named `rinst.portable` beside `rinst.exe`, they are kept there instead
 (portable mode).
 
 ## Build
 
 ```powershell
-./dev.ps1 build --profile release-small -p runinst
-./dev.ps1 test -p runinst
-./dev.ps1 clippy -p runinst --all-targets
-./dev.ps1 test -p runinst --lib report '--' --ignored --nocapture   # what this computer has
+./dev.ps1 build --profile release-small -p rinst
+./dev.ps1 test -p rinst
+./dev.ps1 clippy -p rinst --all-targets
+./dev.ps1 test -p rinst --lib report '--' --ignored --nocapture   # what this computer has
 ```
 
-The output is `target\release-small\runinst.exe`.
+The output is `target\release-small\rinst.exe`.
 
 ## Linux
 
@@ -302,7 +307,7 @@ One file of 5.9 MB. It lists the packages instead of Windows' programs:
 Uninstalling runs `apt-get remove` (or `dpkg --remove` without apt), `dnf`,
 `zypper` or `rpm -e`, `flatpak uninstall` and `snap remove`. These need root:
 `pkexec` asks for the password in a window of its own (when it is not there,
-start runinst as root). **Modify or Repair** installs the package again
+start rinst as root). **Modify or Repair** installs the package again
 (`apt-get install --reinstall`, `dnf reinstall`, `flatpak install
 --reinstall`); Snap has no such command.
 

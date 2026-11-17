@@ -196,7 +196,7 @@ pub type FlatpakFiles = (Option<PathBuf>, Option<i64>);
 pub type SnapFile = (Option<u64>, Option<i64>);
 
 /// What `flatpak list --columns=FLATPAK_COLUMNS` prints (`runtime`: the
-/// list of runtimes). `me`: the user running runinst; `installed`: where an
+/// list of runtimes). `me`: the user running rinst; `installed`: where an
 /// app's files are, and when it was installed.
 pub fn parse_flatpak(text: &str, runtime: bool, me: &str, installed: &dyn Fn(&str, &str) -> FlatpakFiles) -> Vec<Program> {
     text.lines()
@@ -275,7 +275,7 @@ pub fn parse_snap(text: &str, file: &dyn Fn(&str, &str) -> SnapFile) -> Vec<Prog
         .collect()
 }
 
-/// Whether runinst runs as root (its effective user is 0).
+/// Whether rinst runs as root (its effective user is 0).
 pub fn is_root() -> bool {
     std::fs::read_to_string("/proc/self/status")
         .ok()
@@ -449,7 +449,7 @@ Architecture: amd64
         assert!(ps[1].system && value(&ps[1], "URL").is_none());
     }
 
-    /// What this system has: `cargo test -p runinst --lib packages_here -- --ignored --nocapture`.
+    /// What this system has: `cargo test -p rinst --lib packages_here -- --ignored --nocapture`.
     #[test]
     #[ignore]
     #[cfg(not(windows))]

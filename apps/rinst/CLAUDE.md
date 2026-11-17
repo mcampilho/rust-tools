@@ -1,4 +1,4 @@
-# runinst — desinstalador portátil em Rust
+# rinst — desinstalador portátil em Rust
 
 Lista os programas instalados para todos os utilizadores (sistema, o atual e, como administrador, os outros), com os
 atalhos do menu Iniciar e do ambiente de trabalho que lhes pertencem. Um único executável (2,1 MB em Windows; 5,9 MB em
@@ -11,24 +11,30 @@ administrador), com privilégios tudo. Depois (2026-11-13): botão e menu para d
 nem separadores perdidos quando elevado com outra conta (`Me`: o utilizador da sessão do ambiente de trabalho).
 Funcionalidades no `README.md`.
 
+Chamava-se **runinst** até 2026-11-17 (pedido do utilizador). Pasta, crate, `.exe`, IDENT, textos e etiquetas de
+release (`rinst-v*`) passaram a rinst; no primeiro arranque, `storage::detect` (`Location::detect_renamed` do
+`rt-core`) dá o nome novo à marca `runinst.portable` e à pasta `%APPDATA%\runinst` (`~/.config/runinst`), e o
+`main` passa o "Iniciar com o Windows" (`rt_sys::autostart::rename`). As notas abaixo de antes dessa data falam do
+mesmo programa.
+
 ## Comandos
 
 ```powershell
-./dev.ps1 build --profile release-small -p runinst
-./dev.ps1 test -p runinst         # 41 testes (37 em Linux)
-./dev.ps1 clippy -p runinst --all-targets
-./dev.ps1 test -p runinst --lib screenshots '--' --ignored   # apps/runinst/target/screens/*.png (com os programas deste PC)
-./dev.ps1 test -p runinst --lib report '--' --ignored --nocapture   # contagens deste PC
-./dev.ps1 test -p runinst --lib leftovers_here '--' --ignored --nocapture   # restos de cada programa, se desaparecesse ($env:RUNINST_ONLY filtra)
-./dev.ps1 test -p runinst --lib removes_and_saves '--' --ignored   # remove e repõe HKCU\Software\runinst-test (escreve no registo)
-./dev.ps1 test -p runinst --lib orphans_here '--' --ignored --nocapture   # o que "Procurar restos" oferece aqui ($env:RUNINST_ADMIN)
-./dev.ps1 test -p runinst --lib tools_here '--' --ignored --nocapture     # separadores DISM/npm/pip/Cargo/vcpkg deste PC
+./dev.ps1 build --profile release-small -p rinst
+./dev.ps1 test -p rinst         # 41 testes (37 em Linux)
+./dev.ps1 clippy -p rinst --all-targets
+./dev.ps1 test -p rinst --lib screenshots '--' --ignored   # apps/rinst/target/screens/*.png (com os programas deste PC)
+./dev.ps1 test -p rinst --lib report '--' --ignored --nocapture   # contagens deste PC
+./dev.ps1 test -p rinst --lib leftovers_here '--' --ignored --nocapture   # restos de cada programa, se desaparecesse ($env:RINST_ONLY filtra)
+./dev.ps1 test -p rinst --lib removes_and_saves '--' --ignored   # remove e repõe HKCU\Software\rinst-test (escreve no registo)
+./dev.ps1 test -p rinst --lib orphans_here '--' --ignored --nocapture   # o que "Procurar restos" oferece aqui ($env:RINST_ADMIN)
+./dev.ps1 test -p rinst --lib tools_here '--' --ignored --nocapture     # separadores DISM/npm/pip/Cargo/vcpkg deste PC
 ```
 
-Se o `target\release-small\runinst.exe` estiver aberto, compilar com `--target-dir target\alt` (ou `alt2`, se esse
+Se o `target\release-small\rinst.exe` estiver aberto, compilar com `--target-dir target\alt` (ou `alt2`, se esse
 também estiver aberto).
 
-Em Linux (WSL, com `CARGO_TARGET_DIR=$HOME/rt-target`): `cargo test -p runinst --lib packages_here -- --ignored
+Em Linux (WSL, com `CARGO_TARGET_DIR=$HOME/rt-target`): `cargo test -p rinst --lib packages_here -- --ignored
 --nocapture` (pacotes deste sistema), `orphans_here` também, e `screenshots` usa os pacotes reais.
 
 Medido em 2026-11-13 neste PC (sem administrador): 112 entradas (31 visíveis) de registo, Windows Installer e
@@ -79,7 +85,7 @@ apps (`D:\Portable\scoop`, ficheiros `scoop-manifest.json`); 102 atalhos; "Admin
   `/VERYSILENT` no Inno, `msiexec /X{código} /qn`; `Modify`: `ModifyPath` ou `msiexec /I`, só se `can_modify` — Scoop: `scoop install [--global] <app>` se `Problem::InstallFailed` (o Scoop limpa a instalação falhada), senão `scoop reset <app>` (pedido 2026-11-13; antes o
   Scoop/Chocolatey desinstalava, erro visto nesse dia); nunca Chocolatey/winget/Loja, nem com `NoModify` e `NoRepair`; o botão fica ligado com um programa
   selecionado e explica quando não pode (o utilizador achou-o "sempre inativo": neste PC só 6 de 31 têm comando); Loja: `RemovePackageAsync`, só
-  para o utilizador com que o runinst corre; Scoop: `powershell scoop.ps1 uninstall` com `SCOOP`; Chocolatey: `choco
+  para o utilizador com que o rinst corre; Scoop: `powershell scoop.ps1 uninstall` com `SCOOP`; Chocolatey: `choco
   uninstall -y`, com direitos; só winget: `winget uninstall --id`; `Cannot` com o motivo: outro utilizador, sem
   comando, `NoRemove`) e `carry_out` (`ShellExecuteExW`, `runas` quando precisa; espera pelo processo e pelos
   descendentes por `CreateToolhelp32Snapshot`, porque muitos desinstaladores se copiam para o TEMP e saem; as linhas de
@@ -99,7 +105,7 @@ apps (`D:\Portable\scoop`, ficheiros `scoop-manifest.json`); 102 atalhos; "Admin
   (Local/Roaming/LocalLow → `Settings`, não marcado), `AppData\Local\Programs`, menus Iniciar, chaves em
   `HKLM\SOFTWARE` (+ WOW6432Node) e `HKU\<sid>\Software` (`Settings`), valores `Run`, a entrada `Uninstall` se o
   desinstalador sumiu, Scoop (pasta e `persist`), Everything (`rt_scan::everything::search`, `folder:wfn:"nome"`,
-  `Elsewhere`, não marcado). `admin`: o que precisa de direitos que o runinst não tem (não se pode marcar).
+  `Elsewhere`, não marcado). `admin`: o que precisa de direitos que o rinst não tem (não se pode marcar).
   `win::remove` (desde 2026-11-14 pelo `rt_sys::regfile`, partilhado com o rclean): `reg export /reg:64` de cada chave e linhas `.reg` próprias para valores (`reg_value_line`, `hex(2)`
   nos expansíveis) num só `.reg` UTF-16 (`backups\leftovers <data>.reg` na pasta das definições); sem cópia não se
   apaga; depois `reg delete`, e `rt_sys::recycle` para ficheiros e pastas. `win::Scan` lê uma vez os sítios, o que
@@ -180,7 +186,7 @@ apps (`D:\Portable\scoop`, ficheiros `scoop-manifest.json`); 102 atalhos; "Admin
 
 ## Regras
 
-- Fora dos restos, o runinst não escreve no registo nem apaga ficheiros: só corre os desinstaladores, sempre depois
+- Fora dos restos, o rinst não escreve no registo nem apaga ficheiros: só corre os desinstaladores, sempre depois
   de perguntar. Nos restos: só o que o utilizador marca e confirma; o registo é guardado num `.reg` antes (sem cópia
   não se apaga), os ficheiros vão para a Reciclagem; nunca pastas do Windows, perfis, discos, `Program Files`
   inteiro, nem o que é (ou tem, ou está dentro de) um programa ainda instalado (`Keep`). Definições do utilizador e

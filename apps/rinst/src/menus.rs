@@ -17,7 +17,7 @@ impl Shell {
     #[cfg(not(windows))]
     pub(super) fn context_menu(&mut self, _el: &ActiveEventLoop, tree: Vec<commands::M>) {
         let me = &*self;
-        let items = runinst::ui::menu::build(tree, &|c| me.checked(c), &|c| me.enabled(c));
+        let items = rinst::ui::menu::build(tree, &|c| me.checked(c), &|c| me.enabled(c));
         let at = self.cursor.unwrap_or((0.0, 0.0));
         self.menu.open(None, items, at, false);
         self.redraw();
@@ -33,7 +33,7 @@ impl Shell {
             Step::Open { index, keyboard } => {
                 let Some((_, tree)) = commands::menu_tree().into_iter().nth(index) else { return true };
                 let me = &*self;
-                let items = runinst::ui::menu::build(tree, &|c| me.checked(c), &|c| me.enabled(c));
+                let items = rinst::ui::menu::build(tree, &|c| me.checked(c), &|c| me.enabled(c));
                 rt_ui::menus::open(&mut self.menu, index, items, keyboard);
                 self.redraw();
             }
@@ -91,7 +91,7 @@ impl Shell {
             return;
         }
         self.menu_rebuild = false;
-        self.menu.titles = commands::menu_tree().iter().map(|(title, _)| runinst::ui::menu::Title::new(&tr(title))).collect();
+        self.menu.titles = commands::menu_tree().iter().map(|(title, _)| rinst::ui::menu::Title::new(&tr(title))).collect();
         self.redraw();
     }
 

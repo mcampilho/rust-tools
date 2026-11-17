@@ -4,9 +4,9 @@
 //! again, and a report of what is gone and what is still there.
 
 use super::*;
-use runinst::app::Mark;
-use runinst::leftovers;
-use runinst::uninstall::{self, How, Outcome, Plan};
+use rinst::app::Mark;
+use rinst::leftovers;
+use rinst::uninstall::{self, How, Outcome, Plan};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -25,7 +25,7 @@ pub(super) struct Job {
     /// there), and how it went.
     pub items: Vec<(String, String, Option<Outcome>)>,
     /// The programs, in the same order (to look for their leftovers).
-    pub programs: Vec<runinst::inventory::Program>,
+    pub programs: Vec<rinst::inventory::Program>,
     pub modify: bool,
 }
 
@@ -37,8 +37,8 @@ fn reason_text(why: &str) -> String {
         uninstall::NO_REMOVE => tr("it says it cannot be removed"),
         uninstall::NO_MODIFY => tr("it has no command to change or repair it"),
         uninstall::OTHER_MANAGER => tr("it was installed by the system's package manager: remove it there"),
-        uninstall::NEEDS_ROOT => tr("it needs root, and pkexec was not found: start runinst as root"),
-        uninstall::NOT_ELEVATED_PACKAGE => tr("Store apps are removed for the user runinst runs as: start runinst without administrator rights"),
+        uninstall::NEEDS_ROOT => tr("it needs root, and pkexec was not found: start rinst as root"),
+        uninstall::NOT_ELEVATED_PACKAGE => tr("Store apps are removed for the user rinst runs as: start rinst without administrator rights"),
         other => other.to_string(),
     }
 }
@@ -69,9 +69,9 @@ impl Shell {
         if plans.is_empty() {
             return;
         }
-        let progs: Vec<runinst::inventory::Program> = chosen.iter().map(|p| (*p).clone()).collect();
+        let progs: Vec<rinst::inventory::Program> = chosen.iter().map(|p| (*p).clone()).collect();
         let (can, cannot): (Vec<_>, Vec<_>) = plans.into_iter().zip(progs).partition(|((_, _, p), _)| !matches!(p, Plan::Cannot(_)));
-        let programs: Vec<runinst::inventory::Program> = can.iter().chain(cannot.iter()).map(|(_, p)| p.clone()).collect();
+        let programs: Vec<rinst::inventory::Program> = can.iter().chain(cannot.iter()).map(|(_, p)| p.clone()).collect();
         let can: Vec<(String, String, Plan)> = can.into_iter().map(|(x, _)| x).collect();
         let cannot: Vec<(String, String, Plan)> = cannot.into_iter().map(|(x, _)| x).collect();
         let cannot_text: Vec<String> = cannot
@@ -114,7 +114,7 @@ impl Shell {
             (n.clone(), k.clone(), Some(Outcome::Cannot(why)))
         }));
         let queue = can.iter().map(|(n, k, _)| (k.clone(), n.clone(), Mark::Waiting)).collect();
-        self.app.busy = Some(runinst::app::Busy {
+        self.app.busy = Some(rinst::app::Busy {
             items: queue,
             phase: 0.0,
             name: can[0].0.clone(),
@@ -200,9 +200,9 @@ impl Shell {
         let Some(found) = &self.app.found else { return };
         // A dpkg package whose settings are all that is left is gone.
         let still = |key: &str, name: &str| {
-            runinst::app::Tab::LISTS
+            rinst::app::Tab::LISTS
                 .iter()
-                .any(|&t| found.list(t).iter().any(|p| p.key == key && p.name == name && !p.problems.contains(&runinst::inventory::Problem::ConfigOnly)))
+                .any(|&t| found.list(t).iter().any(|p| p.key == key && p.name == name && !p.problems.contains(&rinst::inventory::Problem::ConfigOnly)))
         };
         let (mut gone, mut there, mut failed, mut skipped) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
         let mut restart = false;
@@ -220,7 +220,7 @@ impl Shell {
                     } else {
                         gone.push(format!("  {name}"));
                         // Features and the tools' packages leave nothing of their own name.
-                        use runinst::inventory::Source;
+                        use rinst::inventory::Source;
                         if !matches!(prog.sources.first(), Some(Source::Dism | Source::Npm | Source::Pip | Source::Cargo | Source::Vcpkg)) {
                             removed.push(prog.clone());
                         }
@@ -248,14 +248,14 @@ impl Shell {
             parts.push(tr("Restart Windows to finish."));
         }
         if !removed.is_empty() {
-            parts.push(tr("runinst is now looking for what they left behind: see the Leftovers tab."));
+            parts.push(tr("rinst is now looking for what they left behind: see the Leftovers tab."));
             self.look_for_leftovers(removed);
         }
         self.info(&tr("Uninstall"), &parts.join("\n\n"));
     }
 
     /// Looks, on a thread, for what the programs uninstalled left behind.
-    fn look_for_leftovers(&mut self, gone: Vec<runinst::inventory::Program>) {
+    fn look_for_leftovers(&mut self, gone: Vec<rinst::inventory::Program>) {
         self.search_leftovers(Some(gone));
     }
 
@@ -267,16 +267,16 @@ impl Shell {
 
     /// Looks on a thread: for the leftovers of `gone`, or (None) of programs
     /// removed before.
-    fn search_leftovers(&mut self, gone: Option<Vec<runinst::inventory::Program>>) {
+    fn search_leftovers(&mut self, gone: Option<Vec<rinst::inventory::Program>>) {
         let Some(found) = &self.app.found else { return };
         let me = found.inv.me.clone();
-        let installed: Vec<runinst::inventory::Program> =
-            runinst::app::Tab::LISTS.iter().flat_map(|&t| found.list(t).iter().cloned()).collect();
+        let installed: Vec<rinst::inventory::Program> =
+            rinst::app::Tab::LISTS.iter().flat_map(|&t| found.list(t).iter().cloned()).collect();
         let shortcuts = found.shortcuts.clone();
         let admin = self.admin;
         let proxy = self.proxy.clone();
         let asked = gone.is_none();
-        self.app.set_leftovers(Some(runinst::app::Leftovers { searching: true, ..Default::default() }), asked);
+        self.app.set_leftovers(Some(rinst::app::Leftovers { searching: true, ..Default::default() }), asked);
         std::thread::spawn(move || {
             let stop = AtomicBool::new(false);
             let cx = leftovers::Context { me: &me, admin, installed: &installed, shortcuts: &shortcuts };
@@ -293,7 +293,7 @@ impl Shell {
     pub(super) fn leftovers_found(&mut self, items: Vec<leftovers::Leftover>) {
         if items.is_empty() {
             // Asked for and looked at: say so.
-            let watching = self.app.tab == runinst::app::Tab::Leftovers;
+            let watching = self.app.tab == rinst::app::Tab::Leftovers;
             self.app.set_leftovers(None, false);
             self.app.note = Some(tr("Nothing was left behind."));
             if watching {
@@ -301,7 +301,7 @@ impl Shell {
             }
         } else {
             let keep_tab = self.app.tab;
-            self.app.leftovers = Some(runinst::app::Leftovers::new(items));
+            self.app.leftovers = Some(rinst::app::Leftovers::new(items));
             self.app.tab = keep_tab;
             self.app.rebuild();
         }
@@ -344,7 +344,7 @@ impl Shell {
         let backup = dir.join(format!("leftovers {stamp}.reg"));
         let mut text = tf("{} leftovers will be removed:", &[&items.len().to_string()]);
         text += "\n\n";
-        let list: Vec<String> = items.iter().take(12).map(|l| format!("  {}", runinst::ui::leftovers_view::what(l))).collect();
+        let list: Vec<String> = items.iter().take(12).map(|l| format!("  {}", rinst::ui::leftovers_view::what(l))).collect();
         text += &list.join("\n");
         if items.len() > 12 {
             text += &format!("\n  {}", tf("and {} more", &[&(items.len() - 12).to_string()]));
@@ -386,7 +386,7 @@ impl Shell {
                     keys |= matches!(lo.items[i].kind, leftovers::Kind::Key | leftovers::Kind::Value);
                 }
                 Err(e) => {
-                    failed.push(format!("  {}: {e}", runinst::ui::leftovers_view::what(&lo.items[i])));
+                    failed.push(format!("  {}: {e}", rinst::ui::leftovers_view::what(&lo.items[i])));
                     lo.failed[i] = Some(e);
                     lo.ticked[i] = false;
                 }

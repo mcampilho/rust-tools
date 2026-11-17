@@ -41,7 +41,7 @@ pub fn real_file(file: &Path) -> PathBuf {
 }
 
 /// For whom a package in `path` is: everyone in the system's folders, else
-/// the user running runinst.
+/// the user running rinst.
 fn scope_of(path: &str, me: &str) -> Scope {
     let p = path.replace('\\', "/").to_lowercase();
     let system = ["/usr/", "/opt/", "c:/program files", "c:/programdata"].iter().any(|s| p.starts_with(s));
@@ -395,13 +395,13 @@ fn dism(admin: bool) -> Vec<Program> {
 mod tests {
     use super::*;
 
-    /// What this computer has: `cargo test -p runinst --lib tools_here -- --ignored --nocapture`.
+    /// What this computer has: `cargo test -p rinst --lib tools_here -- --ignored --nocapture`.
     #[test]
     #[ignore]
     fn tools_here() {
         let t = std::time::Instant::now();
         let me = crate::inventory::me();
-        let all = read_all(&me, std::env::var("RUNINST_ADMIN").is_ok());
+        let all = read_all(&me, std::env::var("RINST_ADMIN").is_ok());
         println!("{} tabs in {:?}", all.len(), t.elapsed());
         for (tab, list) in all {
             println!("{tab:?}: {} ({} shown)", list.len(), list.iter().filter(|p| p.visible()).count());
