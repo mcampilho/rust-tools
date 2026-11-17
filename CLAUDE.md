@@ -42,7 +42,13 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
 - Textos visíveis ficam no `strings.txt` de cada aplicação, nunca no código de desenho.
 - Sem rede, sem telemetria, sem biblioteca de interface. Exceção aprovada em 2026-11-11: o rwall descarrega
   imagens (só GET às fontes que o utilizador liga; WinHTTP no Windows, `curl` no Linux) e, desde 2026-11-12, a
-  meteorologia da Open-Meteo para o widget de meteorologia. Nenhuma outra.
+  meteorologia da Open-Meteo para o widget de meteorologia. E, desde 2026-11-17, "Procurar atualizações…" em todas
+  (pedido do utilizador): só quando o utilizador escolhe, GET à API de releases do GitHub e ao pacote e ao
+  `SHA256SUMS.txt` do release (`rt_sys::update`, `rt_sys::net` — o cliente HTTPS que era do rwall —,
+  `rt_ui::update` para os diálogos; instalado pelo Scoop → `scoop update <app>`). Nenhuma outra.
+- Bucket do Scoop na pasta `bucket/` (desde 2026-11-17): um manifesto por app com release (rpack, rinst e rclean
+  entram com o primeiro), `checkver` pelo `tag_name` dos releases e `autoupdate` com a soma do `SHA256SUMS.txt`;
+  depois de um release, `checkver.ps1 -Dir bucket -Update`.
 - `rustfmt.toml`: `max_width = 140`.
 
 ## Verificação automática

@@ -283,3 +283,4 @@ Acrylic		Acryl	Acrílico	Acrylique	Acrilico	アクリル	Acrílico	Acrílico	亚
 Tint:		Tönung:	Tinte:	Teinte :	Tinta:	色合い:	Tonalidade:	Tonalidade:	色调：
 none with this look		bei diesem Aussehen keine	ninguno con este aspecto	aucune avec cette apparence	nessuna con questo aspetto	この見た目ではなし	nenhuma com esta aparência	nenhuma com este aspeto	此外观无色调
 No screen found.		Kein Bildschirm gefunden.	No se encontró ninguna pantalla.	Aucun écran trouvé.	Nessuno schermo trovato.	画面が見つかりません。	Nenhuma tela encontrada.	Nenhum ecrã encontrado.	未找到屏幕。
+Check for &Updates...		Nach &Updates suchen...	Buscar act&ualizaciones...	Rechercher des mises à &jour...	Verifica a&ggiornamenti...	更新の確認(&U)...	Verificar atuali&zações...	Procurar at&ualizações...	检查更新(&U)...

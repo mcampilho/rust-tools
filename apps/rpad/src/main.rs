@@ -19,6 +19,7 @@ mod search;
 mod storage;
 mod syntax;
 mod tools;
+mod trace;
 mod ui;
 #[cfg(windows)]
 mod win;
@@ -50,6 +51,8 @@ enum UserEvent {
     A11y(accesskit_winit::Event),
     /// Background work finished (search in files, match counting).
     Wake,
+    /// A step of Check for Updates.
+    Update(rt_ui::update::Step),
     #[cfg(windows)]
     Win(win::WinMsg),
     #[cfg(not(windows))]
@@ -263,8 +266,22 @@ impl Shell {
         self.blink_at = Instant::now();
     }
 
+    /// Where Check for Updates sends its steps.
+    fn update_sender(&self) -> Box<dyn Fn(rt_ui::update::Step) + Send> {
+        let p = std::sync::Mutex::new(self.proxy.clone());
+        Box::new(move |s| {
+            if let Ok(p) = p.lock() {
+                let _ = p.send_event(UserEvent::Update(s));
+            }
+        })
+    }
+
     /// Runs a command and applies its window-level side effects.
     fn command(&mut self, el: &ActiveEventLoop, cmd: Command) {
+        if cmd == Command::CheckUpdates {
+            rt_ui::update::check("rpad", env!("CARGO_PKG_VERSION"), self.update_sender());
+            return self.after_action(el);
+        }
         if cmd == Command::Autostart {
             if let Err(e) = rt_sys::autostart::set("rpad", !self.app.autostart) {
                 self.host.info("rpad", &i18n::tf("Cannot change how it starts: {}", &[&e]));
@@ -436,11 +453,16 @@ impl Shell {
     }
 
     fn open_files(&mut self, el: &ActiveEventLoop, paths: &[PathBuf]) {
+        let log = self.app.location.dir.clone();
+        if !paths.is_empty() {
+            trace::note(log.as_deref(), &format!("received {} (hidden: {}, tabs: {})", trace::paths(paths), self.hidden, self.app.docs.len()));
+        }
         if self.hidden {
             self.show(el);
         }
         for p in paths {
-            self.app.open_arg(p, &self.host);
+            let ok = self.app.open_arg(p, &self.host);
+            trace::note(log.as_deref(), &format!("{} {} (tabs: {}, active: {})", if ok { "opened" } else { "NOT opened" }, p.display(), self.app.docs.len(), self.app.active));
         }
         if let Some(w) = &self.win {
             w.window.focus_window();
@@ -751,6 +773,18 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.app.pump();
                 self.redraw();
             }
+            UserEvent::Update(s) => {
+                let who = rt_ui::update::Who {
+                    app: "rpad",
+                    version: env!("CARGO_PKG_VERSION"),
+                    #[cfg(windows)]
+                    hwnd: self.host.hwnd,
+                };
+                // The quit asks about unsaved documents first (or keeps them for recovery).
+                if rt_ui::update::step(&who, s, self.update_sender()) == rt_ui::update::Next::Quit {
+                    self.quit(el);
+                }
+            }
             #[cfg(not(windows))]
             UserEvent::Shell(linux::shell::Msg::Open(paths)) => self.open_files(el, &paths),
             #[cfg(not(windows))]
@@ -988,6 +1022,8 @@ to the program when a file named rpad.portable exists there (portable mode).";
 
 fn main() {
     let raw: Vec<String> = std::env::args().skip(1).collect();
+    // What an update left behind.
+    rt_sys::update::clean_old();
     // The help goes to the console it was asked from; without one, rpad
     // starts and shows it in its own window, in its theme.
     let help = raw.iter().any(|a| a == "--help" || a == "-h" || a == "/?");
@@ -1040,7 +1076,20 @@ fn main() {
             win::hand_off_to_existing(&files, false);
             return;
         }
-        if win::hand_off_to_existing(&files, settings.single_instance && !tray) {
+        let any = settings.single_instance && !tray;
+        let log = location.dir.clone();
+        if !files.is_empty() {
+            let to = match win::instance_state(any) {
+                Some((pid, visible, minimized)) => format!("rpad {pid} (visible: {visible}, minimized: {minimized})"),
+                None => "no rpad running".into(),
+            };
+            trace::note(log.as_deref(), &format!("launched with {}; to {to}", trace::paths(&files)));
+        }
+        let handed = win::hand_off_to_existing(&files, any);
+        if !files.is_empty() {
+            trace::note(log.as_deref(), if handed { "handed off" } else { "not handed off: this rpad opens them" });
+        }
+        if handed {
             return;
         }
     }

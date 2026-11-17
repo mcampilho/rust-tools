@@ -1273,7 +1273,16 @@ fn settings(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors) {
         "rcalc {} — a portable calculator written in Rust. Its design is inspired by Windows Calculator; it is an independent project and is not affiliated with or endorsed by Microsoft.",
         &[env!("CARGO_PKG_VERSION")],
     );
-    y += ui.paragraph(&about, Rect::new(x, y, w, 0.0), 14.0, FontId::Regular, t.text) + ui.px(24.0);
+    y += ui.paragraph(&about, Rect::new(x, y, w, 0.0), 14.0, FontId::Regular, t.text) + ui.px(8.0);
+    // Asks GitHub only when pressed.
+    ui.button(Button::new(
+        Action::CheckUpdates,
+        Rect::new(x, y, w.min(ui.px(260.0)), ui.px(36.0)),
+        "Check for updates",
+        Content::Text("Check for updates", 14.0, FontId::Regular),
+        Style::Subtle,
+    ));
+    y += ui.px(36.0) + ui.px(24.0);
     ui.set_clip(None);
     ui.scroll_area(ScrollId::Settings, view, y - start_y, offset);
 }

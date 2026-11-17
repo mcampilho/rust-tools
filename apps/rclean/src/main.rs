@@ -33,6 +33,8 @@ mod menus;
 mod render;
 
 enum UserEvent {
+    /// A step of Check for Updates.
+    Update(rt_ui::update::Step),
     A11y(accesskit_winit::Event),
     /// The work of this generation starts on an item.
     Starting(u64, usize),
@@ -367,6 +369,7 @@ impl Shell {
                 self.apply_language();
             }
             Command::Shortcuts => self.info(&tr("Keyboard shortcuts"), &shortcuts_text()),
+            Command::CheckUpdates => rt_ui::update::check("rclean", env!("CARGO_PKG_VERSION"), self.update_sender()),
             Command::About => {
                 let text = tf(
                     "rclean {}\n\nCleans the temporary files of the system and the caches of the browsers and package managers, written in Rust.\nNo telemetry, no network access.\n\nMIT License.",
@@ -427,6 +430,16 @@ impl Shell {
         {
             rt_sys::linux::dialogs::confirm(title, text)
         }
+    }
+
+    /// Where Check for Updates sends its steps.
+    fn update_sender(&self) -> Box<dyn Fn(rt_ui::update::Step) + Send> {
+        let p = std::sync::Mutex::new(self.proxy.clone());
+        Box::new(move |s| {
+            if let Ok(p) = p.lock() {
+                let _ = p.send_event(UserEvent::Update(s));
+            }
+        })
     }
 
     fn quit(&mut self, el: &ActiveEventLoop) {
@@ -665,6 +678,17 @@ impl ApplicationHandler<UserEvent> for Shell {
             UserEvent::Shell(rt_sys::linux::shell::Msg::Open(_)) => self.show(el),
             #[cfg(not(windows))]
             UserEvent::Shell(rt_sys::linux::shell::Msg::Quit) => self.quit(el),
+            UserEvent::Update(s) => {
+                let who = rt_ui::update::Who {
+                    app: "rclean",
+                    version: env!("CARGO_PKG_VERSION"),
+                    #[cfg(windows)]
+                    hwnd: self.win.as_ref().map_or(std::ptr::null_mut(), |w| w.hwnd),
+                };
+                if rt_ui::update::step(&who, s, self.update_sender()) == rt_ui::update::Next::Quit {
+                    self.quit(el);
+                }
+            }
             UserEvent::A11y(ev) => match ev.window_event {
                 accesskit_winit::WindowEvent::ActionRequested(req) if req.action == accesskit::Action::Click => {
                     let id = req.target_node.0;
@@ -810,6 +834,8 @@ named rclean.portable exists there (portable mode).";
 
 fn main() {
     let raw: Vec<String> = std::env::args().skip(1).collect();
+    // What an update left behind.
+    rt_sys::update::clean_old();
     let help = raw.iter().any(|a| a == "--help" || a == "-h" || a == "/?");
     #[cfg(windows)]
     if help && rt_sys::win::print_to_console(USAGE) {

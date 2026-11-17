@@ -48,6 +48,8 @@ use rt_ui::Message;
 use winit::window::{CursorIcon, Fullscreen, Theme as WinTheme, Window, WindowId};
 
 enum UserEvent {
+    /// A step of Check for Updates.
+    Update(rt_ui::update::Step),
     A11y(accesskit_winit::Event),
     /// The media worker has results.
     Wake,
@@ -292,6 +294,7 @@ impl Shell {
                 self.redraw();
             }
             Command::Shortcuts => self.info(&tr("Keyboard shortcuts"), &shortcuts_text()),
+            Command::CheckUpdates => rt_ui::update::check("rview", env!("CARGO_PKG_VERSION"), self.update_sender()),
             Command::About => {
                 let version = [env!("CARGO_PKG_VERSION")];
                 let text = if cfg!(windows) {
@@ -349,6 +352,16 @@ impl Shell {
         } else {
             self.quit(el);
         }
+    }
+
+    /// Where Check for Updates sends its steps.
+    fn update_sender(&self) -> Box<dyn Fn(rt_ui::update::Step) + Send> {
+        let p = std::sync::Mutex::new(self.proxy.clone());
+        Box::new(move |s| {
+            if let Ok(p) = p.lock() {
+                let _ = p.send_event(UserEvent::Update(s));
+            }
+        })
     }
 
     fn quit(&mut self, el: &ActiveEventLoop) {
@@ -651,6 +664,17 @@ impl ApplicationHandler<UserEvent> for Shell {
                         Some(2) => self.quit(el),
                         _ => {}
                     }
+                }
+            }
+            UserEvent::Update(s) => {
+                let who = rt_ui::update::Who {
+                    app: "rview",
+                    version: env!("CARGO_PKG_VERSION"),
+                    #[cfg(windows)]
+                    hwnd: self.win.as_ref().map_or(std::ptr::null_mut(), |w| w.hwnd),
+                };
+                if rt_ui::update::step(&who, s, self.update_sender()) == rt_ui::update::Next::Quit {
+                    self.quit(el);
                 }
             }
             UserEvent::A11y(ev) => {
@@ -965,6 +989,8 @@ named rview.portable exists there (portable mode).";
 
 fn main() {
     let raw: Vec<String> = std::env::args().skip(1).collect();
+    // What an update left behind.
+    rt_sys::update::clean_old();
     // The help goes to the console it was asked from; without one, rview
     // starts and shows it in its own window, in its theme.
     let help = raw.iter().any(|a| a == "--help" || a == "-h" || a == "/?");

@@ -118,6 +118,8 @@ pub enum Action {
     CalcKey(bool),
     /// Start rcalc resident (`--tray`) with the session, or not.
     Autostart(bool),
+    /// Ask GitHub for a newer rcalc (the window does it).
+    CheckUpdates,
     Copy,
     Paste,
     /// Inert element (labels, modal scrim without action).
@@ -379,6 +381,7 @@ impl App {
                 Ok(()) => self.autostart = rt_sys::autostart::enabled("rcalc"),
                 Err(e) => self.toast = Some(i18n::tf("Cannot change how it starts: {}", &[&e])),
             },
+            Action::CheckUpdates => {}
             Action::Copy => self.copy(),
             Action::Paste => self.paste(),
             Action::None => {}

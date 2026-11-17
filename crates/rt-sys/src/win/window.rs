@@ -196,6 +196,24 @@ fn find_instance(ident: &Ident, resident_only: bool) -> HWND {
     found.0
 }
 
+/// The process [`hand_off`] would send to (a resident instance first; any
+/// one if `any`), and whether its window is visible and minimized.
+pub fn instance_state(ident: &Ident, any: bool) -> Option<(u32, bool, bool)> {
+    let mut target = find_instance(ident, true);
+    if target.is_null() && any {
+        target = find_instance(ident, false);
+    }
+    if target.is_null() {
+        return None;
+    }
+    let mut pid = 0;
+    // SAFETY: queries on a window handle found just now.
+    unsafe {
+        GetWindowThreadProcessId(target, &mut pid);
+        Some((pid, IsWindowVisible(target) != 0, IsIconic(target) != 0))
+    }
+}
+
 /// True if a resident (tray) instance is running.
 pub fn resident_running(ident: &Ident) -> bool {
     !find_instance(ident, true).is_null()

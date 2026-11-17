@@ -147,6 +147,8 @@ pub enum Command {
     DefaultEditor,
     // Help
     Shortcuts,
+    /// Asks GitHub for a newer version (only when chosen).
+    CheckUpdates,
     About,
 }
 
@@ -292,6 +294,7 @@ impl Command {
             ExplorerMenu => "&Explorer Context Menu",
             DefaultEditor => "Set as &Default Editor...",
             Shortcuts => "&Keyboard Shortcuts",
+            CheckUpdates => "Check for &Updates...",
             About => "&About rpad",
         })
     }
@@ -668,7 +671,7 @@ pub fn menu_tree(recent: &[std::path::PathBuf]) -> Vec<(&'static str, Vec<M>)> {
                 Item(OpenDataFolder),
             ],
         ),
-        ("&Help", vec![Item(Shortcuts), Item(About)]),
+        ("&Help", vec![Item(Shortcuts), Item(CheckUpdates), Sep, Item(About)]),
     ]
 }
 

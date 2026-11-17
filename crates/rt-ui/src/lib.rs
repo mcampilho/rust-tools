@@ -11,6 +11,7 @@
 pub mod controls;
 pub mod menus;
 pub mod message;
+pub mod update;
 pub mod window;
 
 #[cfg(windows)]

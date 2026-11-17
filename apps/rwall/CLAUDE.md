@@ -94,7 +94,8 @@ Open-Meteo (geocodificação e previsão) para o widget de meteorologia, escolhi
   gsettings (GNOME/Cinnamon, `picture-uri` e `picture-uri-dark`), feh.
 - `autostart.rs` — chama o `rt_sys::autostart` (desde 2026-11-14 partilhado por todas as aplicações):
   `HKCU\…\CurrentVersion\Run\rwall = "<exe>" --tray`; Linux `~/.config/autostart/rwall.desktop`.
-- `net.rs` — `split_url`, `encode`, `get(url, limite)` → corpo + URL final (`WINHTTP_OPTION_URL`).
+- `net.rs` — `get(url, limite)` com o User-Agent do rwall; o cliente (WinHTTP/`curl`, `split_url`, `encode`) passou
+  para `rt_sys::net` em 2026-11-17, porque "Procurar atualizações…" das outras aplicações também o usa.
 - `json.rs` — reexporta o leitor de JSON (sem serde, com limite de profundidade), que passou para `rt_core::json` em 2026-11-13 (o rinst também o usa).
 - `settings.rs` — `settings.ini` (`rt_core::store`): frequência, fontes, pastas (`folder=` repetido), posição,
   `keep`, `last_period`, `next_source`, `current.*`, `shown=` (histórico, 200).

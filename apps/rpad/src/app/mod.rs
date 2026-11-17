@@ -1036,7 +1036,7 @@ impl App {
                 None => host.info(&tr("Settings folder"), &tr("No settings folder is available on this system.")),
             },
             // The window does these (Windows only).
-            ExplorerMenu | DefaultEditor | Autostart => {}
+            ExplorerMenu | DefaultEditor | Autostart | CheckUpdates => {}
             Shortcuts => host.info(&tr("Keyboard shortcuts"), &shortcuts_text()),
             About => host.info(
                 &tr("About rpad"),

@@ -1,0 +1,35 @@
+{
+    "version": "1.2.1",
+    "description": "Portable document viewer for PDF, Markdown, HTML, text and CSV",
+    "homepage": "https://github.com/mcampilho/rust-tools/tree/master/apps/rview",
+    "license": "MIT",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/mcampilho/rust-tools/releases/download/rview-v1.2.1/rview-1.2.1-windows-x86_64.zip",
+            "hash": "3e93610d29c90abf5ac3477d82b109cc250c6e2130601ad4e220ebfbac9a3e0a",
+            "extract_dir": "rview-1.2.1-windows-x86_64"
+        }
+    },
+    "bin": "rview.exe",
+    "shortcuts": [
+        [
+            "rview.exe",
+            "rview"
+        ]
+    ],
+    "checkver": {
+        "url": "https://api.github.com/repos/mcampilho/rust-tools/releases",
+        "regex": "\"tag_name\":\\s*\"rview-v([\\d.]+)\""
+    },
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/mcampilho/rust-tools/releases/download/rview-v$version/rview-$version-windows-x86_64.zip",
+                "extract_dir": "rview-$version-windows-x86_64"
+            }
+        },
+        "hash": {
+            "url": "$baseurl/SHA256SUMS.txt"
+        }
+    }
+}

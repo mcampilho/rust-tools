@@ -69,6 +69,31 @@ Para publicar uma versão, define-a em `apps/<ferramenta>/Cargo.toml` e envia um
 como `rview-v1.1.0`. O [workflow de release](.github/workflows/release.yml) testa e
 compila essa ferramenta e publica-a com a soma SHA-256 e a proveniência da compilação.
 
+### Com o Scoop
+
+O repositório é também um bucket do [Scoop](https://scoop.sh) (a pasta `bucket`):
+
+```powershell
+scoop bucket add rust-tools https://github.com/mcampilho/rust-tools
+scoop install rpad
+```
+
+Os manifestos sabem onde está cada versão nova e tiram a soma do `SHA256SUMS.txt`
+do release. Depois de um release, `checkver.ps1 -Dir bucket -Update` (da pasta `bin`
+do próprio Scoop) atualiza-os. O rpack, o rinst e o rclean entram no bucket com o
+seu primeiro release.
+
+### Atualizações
+
+Cada ferramenta pode procurar uma versão mais recente de si própria, só quando
+pedes: **Ajuda › Procurar atualizações…** (rcalc: Definições › Acerca de; rwall: o
+menu do ícone da área de notificação). Pergunta ao GitHub pelos releases da
+ferramenta. Se houver uma versão mais recente, diz qual é e pergunta antes de
+descarregar. A transferência é conferida com a soma SHA-256 publicada e posta no
+lugar do programa, e escolhes quando iniciar a versão nova. Uma ferramenta
+instalada pelo Scoop propõe antes `scoop update <ferramenta>`, para o Scoop saber
+que versão está instalada. Mais nada vai à rede.
+
 ## Linux
 
 Os pacotes para Linux precisam da glibc 2.35 ou mais recente (2.34 no rcalc e no

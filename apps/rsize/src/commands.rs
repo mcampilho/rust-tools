@@ -44,6 +44,8 @@ pub enum Command {
     /// 0 follows the system, 1.. index into `Lang::ALL` + 1.
     UiLanguage(u8),
     Shortcuts,
+    /// Asks GitHub for a newer version (only when chosen).
+    CheckUpdates,
     About,
 }
 
@@ -85,6 +87,7 @@ impl Command {
             UiLanguage(0) => "Use &System Setting",
             UiLanguage(i) => return Err(Lang::ALL.get(i as usize - 1).map_or("", |l| l.native_name()).to_string()),
             Shortcuts => "&Keyboard Shortcuts",
+            CheckUpdates => "Check for &Updates...",
             About => "&About rsize",
         })
     }
@@ -181,7 +184,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
                 Sub("Display &Language", langs),
             ],
         ),
-        ("&Help", vec![Item(Shortcuts), Item(About)]),
+        ("&Help", vec![Item(Shortcuts), Item(CheckUpdates), Sep, Item(About)]),
     ]
 }
 

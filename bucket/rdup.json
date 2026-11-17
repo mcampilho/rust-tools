@@ -1,0 +1,35 @@
+{
+    "version": "0.1.1",
+    "description": "Portable duplicate file and folder finder",
+    "homepage": "https://github.com/mcampilho/rust-tools/tree/master/apps/rdup",
+    "license": "MIT",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/mcampilho/rust-tools/releases/download/rdup-v0.1.1/rdup-0.1.1-windows-x86_64.zip",
+            "hash": "03435c7ed5420bc464d1cc5fe011172a09450c62f545d87f64a7673dfc93918a",
+            "extract_dir": "rdup-0.1.1-windows-x86_64"
+        }
+    },
+    "bin": "rdup.exe",
+    "shortcuts": [
+        [
+            "rdup.exe",
+            "rdup"
+        ]
+    ],
+    "checkver": {
+        "url": "https://api.github.com/repos/mcampilho/rust-tools/releases",
+        "regex": "\"tag_name\":\\s*\"rdup-v([\\d.]+)\""
+    },
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/mcampilho/rust-tools/releases/download/rdup-v$version/rdup-$version-windows-x86_64.zip",
+                "extract_dir": "rdup-$version-windows-x86_64"
+            }
+        },
+        "hash": {
+            "url": "$baseurl/SHA256SUMS.txt"
+        }
+    }
+}

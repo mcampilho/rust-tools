@@ -68,6 +68,31 @@ To publish a version, set it in `apps/<tool>/Cargo.toml` and push a tag such as
 `rview-v1.1.0`. The [release workflow](.github/workflows/release.yml) then tests
 and builds that tool, and publishes it with its SHA-256 sum and build provenance.
 
+### With Scoop
+
+The repository is also a [Scoop](https://scoop.sh) bucket (the `bucket` folder):
+
+```powershell
+scoop bucket add rust-tools https://github.com/mcampilho/rust-tools
+scoop install rpad
+```
+
+The manifests know where each new version is and take its sum from the
+release's `SHA256SUMS.txt`. After a release, `checkver.ps1 -Dir bucket -Update`
+(from Scoop's own `bin` folder) brings them up to date. rpack, rinst and rclean
+join the bucket with their first release.
+
+### Updates
+
+Each tool can look for a newer version of itself, only when you ask: **Help ›
+Check for Updates…** (rcalc: Settings › About; rwall: the notification-area
+icon's menu). It asks GitHub for the tool's releases. If there is a newer one, it
+says so and asks before downloading. The download is checked against the
+published SHA-256 sum, then put in place of the program, and you choose when to
+start the new version. A tool installed with Scoop offers `scoop update <tool>`
+instead, so that Scoop keeps track of the version. Nothing else goes to the
+network.
+
 ## Linux
 
 The Linux packages need glibc 2.35 or newer (2.34 for rcalc and rpad) and run on

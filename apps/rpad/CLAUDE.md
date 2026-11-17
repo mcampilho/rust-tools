@@ -37,6 +37,10 @@ Correm na raiz do repositório. Saída: `target\release-small\rpad.exe`. Rust 1.
   (`NOT_BY_DEFAULT`: o duplo clique num atalho de Internet abre o navegador). "Iniciar com o Windows"
   (`Command::Autostart`, `rt_sys::autostart`) também é tratado no `main.rs`; fica nesse submenu (no Linux em
   Ferramentas › Preferências) porque todas as letras dele já são teclas de acesso no menu Ficheiro.
+- `trace.rs` (2026-11-17, provisório): `handoff.log` na pasta das definições regista cada arranque com ficheiros (para
+  que rpad vão, visível/minimizado, se foram entregues) e o que a janela aberta recebeu e abriu. O utilizador viu
+  ficheiros do menu de contexto não abrirem ("nada, nem separador") com o rpad aberto e minimizado; a causa ainda
+  não foi encontrada no código. Tirar quando estiver resolvido.
 - `Host::info` não abre caixa do sistema: a mensagem (About, `--help` sem consola...) é desenhada na janela,
   com o tema (`Shell::dialog`, `rt_gfx::dialog::draw_message`). `--tray` com a janela maximizada da última
   vez: maximiza só ao mostrar (`maximize_on_show`), porque maximizar mostra a janela no Windows.

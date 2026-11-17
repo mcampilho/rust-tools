@@ -44,6 +44,8 @@ mod live_tab;
 mod widgets_tab;
 
 enum UserEvent {
+    /// A step of Check for Updates.
+    Update(rt_ui::update::Step),
     /// A change of wallpaper ended.
     Changed(Result<Box<Done>, String>),
     /// The current picture was set again (a new position).
@@ -353,7 +355,18 @@ impl Shell {
                 self.show();
                 self.about_app();
             }
+            TrayCmd::CheckUpdates => rt_ui::update::check("rwall", env!("CARGO_PKG_VERSION"), self.update_sender()),
         }
+    }
+
+    /// Where Check for Updates sends its steps.
+    fn update_sender(&self) -> Box<dyn Fn(rt_ui::update::Step) + Send> {
+        let p = std::sync::Mutex::new(self.proxy.clone());
+        Box::new(move |s| {
+            if let Ok(p) = p.lock() {
+                let _ = p.send_event(UserEvent::Update(s));
+            }
+        })
     }
 
     /// About rwall itself, over the window.
@@ -688,6 +701,17 @@ impl ApplicationHandler<UserEvent> for Shell {
 
     fn user_event(&mut self, el: &ActiveEventLoop, event: UserEvent) {
         match event {
+            UserEvent::Update(s) => {
+                let who = rt_ui::update::Who {
+                    app: "rwall",
+                    version: env!("CARGO_PKG_VERSION"),
+                    #[cfg(windows)]
+                    hwnd: self.win.as_ref().map_or(std::ptr::null_mut(), |w| w.hwnd),
+                };
+                if rt_ui::update::step(&who, s, self.update_sender()) == rt_ui::update::Next::Quit {
+                    self.quit(el);
+                }
+            }
             UserEvent::Changed(r) => self.changed(r),
             UserEvent::Applied(r) => {
                 if let Err(e) = r {
@@ -903,6 +927,8 @@ fn auto() -> i32 {
 
 fn main() {
     let raw: Vec<String> = std::env::args().skip(1).collect();
+    // What an update left behind.
+    rt_sys::update::clean_old();
     if raw.iter().any(|a| a == "--help" || a == "-h" || a == "/?") {
         #[cfg(windows)]
         rt_sys::win::report("rwall", USAGE);

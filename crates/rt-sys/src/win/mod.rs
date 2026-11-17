@@ -16,7 +16,7 @@ pub mod reg;
 pub mod tray;
 pub mod window;
 
-pub use window::{hand_off, resident_running, set_mnemonics, set_resident, subclass, Ident, WinMsg};
+pub use window::{hand_off, instance_state, resident_running, set_mnemonics, set_resident, subclass, Ident, WinMsg};
 /// The window handle type of these functions.
 pub use windows_sys::Win32::Foundation::HWND;
 

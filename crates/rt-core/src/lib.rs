@@ -12,5 +12,6 @@
 pub mod i18n;
 pub mod json;
 pub mod menu;
+pub mod sha256;
 pub mod store;
 pub mod textedit;

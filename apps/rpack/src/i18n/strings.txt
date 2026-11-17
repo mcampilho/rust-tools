@@ -159,3 +159,4 @@ Start &When I Log In		Beim Anmelden s&tarten	&Iniciar al iniciar sesión	Démarr
 Cannot change how it starts: {}		Die Startart lässt sich nicht ändern: {}	No se puede cambiar cómo se inicia: {}	Impossible de changer le démarrage : {}	Impossibile cambiare l’avvio: {}	起動方法を変更できません: {}	Não é possível mudar como inicia: {}	Não é possível mudar a forma de arranque: {}	无法更改启动方式：{}
 Exit		Beenden	Salir	Quitter	Esci	終了	Sair	Sair	退出
 Open rpack		rpack öffnen	Abrir rpack	Ouvrir rpack	Apri rpack	rpack を開く	Abrir o rpack	Abrir o rpack	打开 rpack
+Check for &Updates...		Nach &Updates suchen...	Buscar act&ualizaciones...	Rechercher des mises à &jour...	Verifica a&ggiornamenti...	更新の確認(&U)...	Verificar at&ualizações...	Procurar at&ualizações...	检查更新(&U)...

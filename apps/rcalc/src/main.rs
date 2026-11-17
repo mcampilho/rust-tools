@@ -23,6 +23,8 @@ use winit::window::{Theme as WinTheme, Window, WindowId, WindowLevel};
 
 enum UserEvent {
     A11y(accesskit_winit::Event),
+    /// A step of Check for Updates.
+    Update(rt_ui::update::Step),
     #[cfg(any(windows, target_os = "linux"))]
     Shell(rcalc::shell::ShellEvent),
 }
@@ -113,7 +115,21 @@ impl Shell {
         changed
     }
 
+    /// Where Check for Updates sends its steps.
+    fn update_sender(&self) -> Box<dyn Fn(rt_ui::update::Step) + Send> {
+        let p = std::sync::Mutex::new(self.proxy.clone());
+        Box::new(move |s| {
+            if let Ok(p) = p.lock() {
+                let _ = p.send_event(UserEvent::Update(s));
+            }
+        })
+    }
+
     fn dispatch(&mut self, action: Action) {
+        if action == Action::CheckUpdates {
+            rt_ui::update::check("rcalc", env!("CARGO_PKG_VERSION"), self.update_sender());
+            return;
+        }
         let before = self.app.overlay;
         self.app.apply(&action);
         let after = self.app.overlay;
@@ -569,6 +585,23 @@ impl ApplicationHandler<UserEvent> for Shell {
     fn user_event(&mut self, _el: &ActiveEventLoop, event: UserEvent) {
         let ev = match event {
             UserEvent::A11y(ev) => ev,
+            UserEvent::Update(s) => {
+                let who = rt_ui::update::Who {
+                    app: "rcalc",
+                    version: env!("CARGO_PKG_VERSION"),
+                    #[cfg(windows)]
+                    hwnd: self.win.as_ref().map_or(std::ptr::null_mut(), |w| rt_ui::window::hwnd_of(&w.window)),
+                };
+                if rt_ui::update::step(&who, s, self.update_sender()) == rt_ui::update::Next::Quit {
+                    self.save();
+                    #[cfg(any(windows, target_os = "linux"))]
+                    {
+                        self.shell = None;
+                    }
+                    _el.exit();
+                }
+                return;
+            }
             #[cfg(any(windows, target_os = "linux"))]
             UserEvent::Shell(rcalc::shell::ShellEvent::Activate) => return self.show_window(_el),
             #[cfg(any(windows, target_os = "linux"))]
@@ -721,6 +754,8 @@ const USAGE: &str = "rcalc [--tray] [--new-window]
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    // What an update left behind.
+    rt_sys::update::clean_old();
     // The help goes to the console it was asked from; without one, rcalc
     // starts and shows it over the calculator, in its theme.
     let help = args.iter().any(|a| a == "--help" || a == "-h" || a == "/?");

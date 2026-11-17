@@ -32,6 +32,11 @@ pub fn hand_off_to_existing(paths: &[PathBuf], any: bool) -> bool {
     rt_sys::win::hand_off(&IDENT, paths, any, true)
 }
 
+/// The rpad a hand-off would go to: process id, visible, minimized.
+pub fn instance_state(any: bool) -> Option<(u32, bool, bool)> {
+    rt_sys::win::instance_state(&IDENT, any)
+}
+
 pub fn get_clipboard() -> Option<String> {
     rt_sys::clipboard_text()
 }

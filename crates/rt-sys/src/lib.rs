@@ -16,7 +16,9 @@
 pub mod linux;
 pub mod autostart;
 pub mod lnk;
+pub mod net;
 pub mod regfile;
+pub mod update;
 #[cfg(windows)]
 pub mod win;
 
