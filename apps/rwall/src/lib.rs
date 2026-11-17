@@ -14,6 +14,7 @@ pub mod schedule;
 pub mod settings;
 pub mod sources;
 pub mod storage;
+pub mod taskbar;
 pub mod ui;
 pub mod wallpaper;
 pub mod widgets;

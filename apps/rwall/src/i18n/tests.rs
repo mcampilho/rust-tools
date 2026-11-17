@@ -148,7 +148,9 @@ fn window_renders_fully_translated() {
         set_lang(l);
         take_misses();
         let currents = [None, Some(Current { title: "T".into(), credit: "C".into(), source: "bing".into(), link: "https://x".into(), ..Current::default() })];
-        for (current, tab) in currents.into_iter().zip([Tab::Static, Tab::Dynamic]).chain([(None, Tab::Dynamic), (None, Tab::Widgets)]) {
+        let screens = [crate::taskbar::Screen { id: "DISPLAY1".into(), primary: true, width: 1920, height: 1080 }, crate::taskbar::Screen { id: "DISPLAY2".into(), primary: false, width: 1280, height: 1024 }];
+        st.taskbar.set("DISPLAY1", crate::taskbar::Style { look: crate::taskbar::Look::Acrylic, tint: 40 });
+        for (current, tab) in currents.into_iter().zip([Tab::Static, Tab::Dynamic]).chain([(None, Tab::Dynamic), (None, Tab::Widgets), (None, Tab::Taskbar)]) {
             st.current = current;
             st.live.kind = if tab == Tab::Dynamic && st.current.is_none() { crate::live::Kind::Folder } else { crate::live::Kind::Scene };
             let m = Model {
@@ -164,6 +166,7 @@ fn window_renders_fully_translated() {
                 hot: None,
                 scroll: 0.0,
                 widgets: WidgetsModel { available: true, tray: false, status: &[], country: "PT" },
+                taskbar: crate::ui::view::TaskbarModel { available: true, screens: &screens, tray: false },
             };
             draw(&mut g, &m, &Theme::new(false, None), 1.0, Rect::new(0.0, 0.0, 640.0, 900.0));
             // The widgets themselves.
@@ -207,7 +210,8 @@ fn screenshots() {
     let out = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target").join("screens");
     std::fs::create_dir_all(&out).unwrap();
     let mut g = Gfx::new().unwrap();
-    let (w, h) = (640u32, 860u32);
+    // The window's size when it first opens.
+    let (w, h) = (700u32, 860u32);
     g.resize(w, h);
     let thumb = {
         let mut pm = tiny_skia::Pixmap::new(480, 270).unwrap();
@@ -254,7 +258,11 @@ fn screenshots() {
         (Lang::DeDE, false, "de-dynamic", Tab::Dynamic),
         (Lang::PtPT, false, "pt-widgets", Tab::Widgets),
         (Lang::EnUS, true, "en-widgets-dark", Tab::Widgets),
+        (Lang::PtPT, false, "pt-taskbar", Tab::Taskbar),
+        (Lang::EnUS, true, "en-taskbar-dark", Tab::Taskbar),
     ];
+    let screens = [crate::taskbar::Screen { id: "DISPLAY1".into(), primary: true, width: 1920, height: 1080 }, crate::taskbar::Screen { id: "DISPLAY2".into(), primary: false, width: 2560, height: 1440 }];
+    st.taskbar.set("DISPLAY1", crate::taskbar::Style { look: crate::taskbar::Look::Acrylic, tint: 40 });
     for (l, dark, name, tab) in shots {
         set_lang(l);
         let m = Model {
@@ -279,9 +287,11 @@ fn screenshots() {
                 Tab::Static => Hit::Next,
                 Tab::Dynamic => Hit::LiveNext,
                 Tab::Widgets => Hit::AddWidget(crate::widgets::WKind::Calendar),
+                Tab::Taskbar => Hit::BarLook(1, crate::taskbar::Look::Blur),
             }),
             scroll: 0.0,
             widgets: crate::ui::view::WidgetsModel { available: true, tray: false, status: if name == "pt-widgets" { &status } else { &[] }, country: "PT" },
+            taskbar: crate::ui::view::TaskbarModel { available: true, screens: &screens, tray: true },
         };
         draw(&mut g, &m, &Theme::new(dark, None), 1.0, Rect::new(0.0, 0.0, w as f32, h as f32));
         let mut buf = vec![0u32; (w * h) as usize];

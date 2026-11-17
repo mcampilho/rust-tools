@@ -6,8 +6,9 @@ every week, every month or every so many minutes. The pictures come from
 Bing's picture of the day, NASA's Astronomy Picture of the Day, Wallhaven,
 Lorem Picsum or your own folders. On Windows it can also play a **dynamic
 wallpaper** behind the desktop icons (a video, an animated GIF or WebP, or a
-scene drawn by rwall) and put **widgets** on the desktop: clocks, a calendar,
-sticky notes, annotations, the weather, fences and photos.
+scene drawn by rwall), put **widgets** on the desktop (clocks, a calendar,
+sticky notes, annotations, the weather, fences and photos) and make the
+**taskbar see-through**.
 
 [Versão portuguesa](README.pt.md)
 
@@ -192,6 +193,25 @@ every window.
 
 They cost little: nine widgets, three of them with seconds, use under 1 % of
 one processor core and about 36 MB.
+
+## See-through taskbar (Windows)
+
+The **Taskbar** tab gives the taskbar of each screen a look of its own:
+
+- **Normal**: as Windows draws it.
+- **Clear**: the wallpaper shows through, under the tint.
+- **Blurred**: the wallpaper blurred behind it.
+- **Acrylic**: blurred, with Windows' grain and the tint.
+
+The **tint** (0 to 100 %) darkens the bar on a dark theme and lightens it on a
+light one. The look lasts while rwall runs: with `--tray` all the time, without
+it while the settings window is open; then the bar is normal again. Explorer
+puts its own look back whenever it redraws the bar (the Start menu, a maximized
+window), so rwall sets it again a few times a second; that costs no processor
+time worth measuring.
+
+It works on Windows 10. Windows 11 draws its taskbar in a different way, and the
+look may not change there.
 
 ## How it works
 

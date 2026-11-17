@@ -137,6 +137,11 @@ struct Shell {
     widgets: Option<rwall::widgets::host::Host>,
     /// A word about some widgets (the weather), by id.
     widget_status: Vec<(u32, String)>,
+    /// Keeps the taskbars see-through (started when one is to be).
+    #[cfg(windows)]
+    taskbar: Option<rwall::taskbar::win::Keeper>,
+    /// The screens, for the Taskbar tab.
+    screens: Vec<rwall::taskbar::Screen>,
     /// What a text box held when it got the keyboard.
     focus_value: String,
     /// The notification-area icon and the socket for later launches (Linux).
@@ -409,6 +414,25 @@ impl Shell {
         self.hot = None;
     }
 
+    /// Gives the taskbars the looks of the settings (starting or ending
+    /// their thread), and reads the screens again.
+    fn apply_taskbar(&mut self) {
+        #[cfg(windows)]
+        {
+            self.screens = rwall::taskbar::win::screens();
+            if !self.settings.taskbar.any() {
+                self.taskbar = None;
+                return;
+            }
+            if self.taskbar.is_none() {
+                self.taskbar = rwall::taskbar::win::Keeper::start();
+            }
+            if let Some(k) = &self.taskbar {
+                k.set(self.settings.taskbar.screens.clone(), self.dark());
+            }
+        }
+    }
+
     fn quit(&mut self, el: &ActiveEventLoop) {
         self.unfocus();
         self.save();
@@ -418,6 +442,8 @@ impl Shell {
         {
             self.player = None;
             self.widgets = None;
+            // The taskbars are normal again.
+            self.taskbar = None;
         }
         #[cfg(windows)]
         if let Some(w) = &self.win {
@@ -476,6 +502,7 @@ impl Shell {
                 status: &self.widget_status,
                 country: &rwall::widgets::region::region().country,
             },
+            taskbar: view::TaskbarModel { available: cfg!(windows), screens: &self.screens, tray: self.tray },
         };
         self.drawn = view::draw(&mut self.gfx, &model, &theme, s, full);
         // Keep the scroll inside the content after a resize.
@@ -494,7 +521,7 @@ impl Shell {
     fn open_window(&mut self, el: &ActiveEventLoop) -> bool {
         let attrs = Window::default_attributes()
             .with_title("rwall")
-            .with_inner_size(LogicalSize::new(640.0, 760.0))
+            .with_inner_size(LogicalSize::new(700.0, 760.0))
             .with_min_inner_size(LogicalSize::new(500.0, 360.0))
             .with_window_icon(rt_ui::window::icon(rwall::ui::appicon::render))
             .with_theme(Some(rt_ui::window::theme(self.dark())))
@@ -652,6 +679,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             self.apply_live();
         }
         self.apply_widgets();
+        self.apply_taskbar();
         self.tick();
         if self.show_on_start {
             self.show();
@@ -701,6 +729,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     w.window.set_theme(Some(if self.dark() { WinTheme::Dark } else { WinTheme::Light }));
                 }
                 self.apply_widgets();
+                self.apply_taskbar();
                 self.redraw();
             }
             #[cfg(windows)]
@@ -734,6 +763,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 if dark != self.system_dark {
                     self.system_dark = dark;
                     self.apply_widgets();
+                    self.apply_taskbar();
                 }
                 self.redraw();
             }
@@ -951,6 +981,9 @@ fn main() {
         #[cfg(windows)]
         widgets: None,
         widget_status: Vec::new(),
+        #[cfg(windows)]
+        taskbar: None,
+        screens: Vec::new(),
         focus_value: String::new(),
         #[cfg(not(windows))]
         resident: None,

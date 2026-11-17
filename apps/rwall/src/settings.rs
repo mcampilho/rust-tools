@@ -101,6 +101,8 @@ pub struct Settings {
     pub live: LiveSettings,
     /// The desktop widgets.
     pub widgets: WidgetSettings,
+    /// The taskbar's look on each screen.
+    pub taskbar: crate::taskbar::TaskbarSettings,
 }
 
 impl Default for Settings {
@@ -123,6 +125,7 @@ impl Default for Settings {
             theme: 0,
             live: LiveSettings::default(),
             widgets: WidgetSettings::default(),
+            taskbar: crate::taskbar::TaskbarSettings::default(),
         }
     }
 }
@@ -160,6 +163,7 @@ impl Settings {
             theme: s.get("theme").and_then(|v| v.parse().ok()).filter(|t| *t <= 2).unwrap_or(0),
             live: LiveSettings::load(s),
             widgets: WidgetSettings::load(s),
+            taskbar: crate::taskbar::TaskbarSettings::load(s),
         }
     }
 
@@ -192,6 +196,7 @@ impl Settings {
         s.set("theme", self.theme.to_string());
         self.live.save(&mut s);
         self.widgets.save(&mut s);
+        self.taskbar.save(&mut s);
         for h in &self.history {
             s.push("shown", h.as_str());
         }
@@ -254,6 +259,7 @@ mod tests {
             ..Settings::default()
         };
         s.widgets.add(crate::widgets::WKind::Note).unwrap().text = "uma\nnota".into();
+        s.taskbar.set("DISPLAY2", crate::taskbar::Style { look: crate::taskbar::Look::Blur, tint: 20 });
         s.shown("a");
         s.shown("b");
         s.shown("a");

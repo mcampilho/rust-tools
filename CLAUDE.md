@@ -10,7 +10,8 @@ Monorepo (workspace Cargo) com nove aplicações, cada uma um único `.exe`, e o
 - `apps/rdup` — procurador de ficheiros duplicados (lê os discos com o `rt-scan`, como o rsize).
 - `apps/rwall` — muda o wallpaper a partir da área de notificação (Bing, NASA, Wallhaven, Picsum, pastas locais) e,
   no Windows, põe um fundo dinâmico atrás dos ícones (vídeo, GIF/WebP animado, cenas próprias) e widgets no ambiente de
-  trabalho (relógios, calendário, notas, anotações, meteorologia da Open-Meteo, fences, fotos).
+  trabalho (relógios, calendário, notas, anotações, meteorologia da Open-Meteo, fences, fotos) e barra de tarefas
+  transparente por ecrã.
 - `apps/rpack` — arquivador com navegador de ficheiros (em curso, por fases): cria 7z, zip e tar; abre, testa e
   extrai zip, 7z, tar e ficheiros comprimidos; hashes.
 - `apps/runinst` — desinstalador: lista os programas de todos os utilizadores e os atalhos, desinstala e remove os

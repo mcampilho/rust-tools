@@ -13,6 +13,28 @@ impl Shell {
                     self.scroll = 0.0;
                     self.focus = None;
                 }
+                if t == Tab::Taskbar {
+                    // A screen may have come or gone.
+                    self.apply_taskbar();
+                }
+            }
+            Hit::BarLook(i, look) => {
+                if let Some(id) = self.screens.get(i).map(|s| s.id.clone()) {
+                    let mut style = st.taskbar.get(&id);
+                    style.look = look;
+                    st.taskbar.set(&id, style);
+                    self.apply_taskbar();
+                    self.save();
+                }
+            }
+            Hit::BarLess(i) | Hit::BarMore(i) => {
+                if let Some(id) = self.screens.get(i).map(|s| s.id.clone()) {
+                    let mut style = st.taskbar.get(&id);
+                    style.step(matches!(h, Hit::BarMore(_)));
+                    st.taskbar.set(&id, style);
+                    self.apply_taskbar();
+                    self.save();
+                }
             }
             Hit::LiveOn => {
                 st.live.on = !st.live.on;

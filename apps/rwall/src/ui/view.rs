@@ -17,6 +17,7 @@ use crate::live::{Kind, LiveFit, PauseWhen, Scene};
 use crate::schedule::Frequency;
 use crate::settings::{Fit, Settings};
 use crate::sources::Source;
+use crate::taskbar::{Look, Screen};
 use crate::widgets::{WKind, Widget};
 use rt_gfx::dialog::{ellipsize, ellipsize_middle, wrap_words};
 
@@ -36,16 +37,18 @@ pub enum Tab {
     Static,
     Dynamic,
     Widgets,
+    Taskbar,
 }
 
 impl Tab {
-    pub const ALL: [Tab; 3] = [Tab::Static, Tab::Dynamic, Tab::Widgets];
+    pub const ALL: [Tab; 4] = [Tab::Static, Tab::Dynamic, Tab::Widgets, Tab::Taskbar];
 
     pub fn label(self) -> &'static str {
         match self {
             Tab::Static => "Static wallpaper",
             Tab::Dynamic => "Dynamic wallpaper",
             Tab::Widgets => "Widgets",
+            Tab::Taskbar => "Taskbar",
         }
     }
 }
@@ -98,6 +101,20 @@ pub enum Hit {
     WidgetMore(u32),
     /// °C (false) or °F (true).
     WidgetUnits(u32, bool),
+    /// The taskbar of a screen (by its place in the list): its look, its tint.
+    BarLook(usize, Look),
+    BarLess(usize),
+    BarMore(usize),
+}
+
+/// The taskbar, as the window shows it.
+#[derive(Default)]
+pub struct TaskbarModel<'a> {
+    /// Windows only.
+    pub available: bool,
+    pub screens: &'a [Screen],
+    /// Resident (`--tray`): the look stays when the window closes.
+    pub tray: bool,
 }
 
 /// The widgets, as the window shows them.
@@ -145,6 +162,7 @@ pub struct Model<'a> {
     pub scroll: f32,
     pub live: LiveModel<'a>,
     pub widgets: WidgetsModel<'a>,
+    pub taskbar: TaskbarModel<'a>,
 }
 
 /// Where the controls are, and how tall the content is (for scrolling).
@@ -264,6 +282,7 @@ pub fn draw(g: &mut Gfx, m: &Model, t: &Theme, s: f32, full: Rect) -> Drawn {
         Tab::Static => static_tab(&mut p, m, x, y0, w),
         Tab::Dynamic => dynamic_tab(&mut p, m, x, y0, w),
         Tab::Widgets => widgets_tab(&mut p, m, x, y0, w),
+        Tab::Taskbar => taskbar_tab(&mut p, m, x, y0, w),
     };
     let content_h = y + m.scroll - full.y;
 
@@ -275,7 +294,7 @@ pub fn draw(g: &mut Gfx, m: &Model, t: &Theme, s: f32, full: Rect) -> Drawn {
     let mut tx = x;
     for tab in Tab::ALL {
         let label = tr(tab.label());
-        let tw = p.g.measure(&label, p.px(13.0), FontId::Semibold) + p.px(24.0);
+        let tw = p.g.measure(&label, p.px(13.0), FontId::Semibold) + p.px(20.0);
         let r = Rect::new(tx, bar.y + p.px(6.0), tw, bar.h - p.px(6.0));
         let on = m.tab == tab;
         if p.hot == Some(Hit::Tab(tab)) && !on {
@@ -526,6 +545,55 @@ fn dynamic_tab(p: &mut Painter, m: &Model, x: f32, mut y: f32, w: f32) -> f32 {
     y + p.px(14.0)
 }
 
+/// The taskbar of each screen: returns the `y` under the last control.
+fn taskbar_tab(p: &mut Painter, m: &Model, x: f32, mut y: f32, w: f32) -> f32 {
+    let t = *p.t;
+    let tb = &m.taskbar;
+    let gap = p.px(18.0);
+    p.heading(&tr("A see-through taskbar"), x, y, w);
+    y += p.px(30.0);
+    if !tb.available {
+        return p.note(&tr("The see-through taskbar is available only on Windows for now."), x, y, w, false) + gap;
+    }
+    y = p.note(
+        &tr("Clear lets the wallpaper show through, Blurred blurs it, Acrylic adds Windows' grain. The tint darkens the bar on a dark theme and lightens it on a light one."),
+        x,
+        y,
+        w,
+        false,
+    );
+    let keep = if tb.tray {
+        tr("The taskbar is normal again when rwall ends.")
+    } else {
+        tr("The taskbar is normal again when this window closes; with rwall --tray it keeps its look.")
+    };
+    y = p.note(&keep, x, y, w, false) + gap;
+    for (i, sc) in tb.screens.iter().enumerate() {
+        let name = if sc.primary { tf("Screen {} (main)", &[&(i + 1).to_string()]) } else { tf("Screen {}", &[&(i + 1).to_string()]) };
+        p.heading(&format!("{name} · {} × {}", sc.width, sc.height), x, y, w);
+        y += p.px(30.0);
+        let st = m.settings.taskbar.get(&sc.id);
+        let looks: Vec<Button> = Look::ALL.into_iter().map(|l| (tr(l.label()), Hit::BarLook(i, l), true, st.look == l)).collect();
+        p.segments(x, y, w, &looks, 110.0);
+        y += p.px(36.0);
+        let label = tr("Tint:");
+        let lw = p.g.measure(&label, p.px(12.5), FontId::Regular).min(w * 0.5);
+        let c = if st.look.has_tint() { t.text } else { t.dim };
+        p.g.text_in(&label, Rect::new(x, y, lw, p.px(26.0)), p.px(12.5), FontId::Regular, c, Align::Left);
+        if st.look.has_tint() {
+            p.stepper(x + lw + p.px(10.0), y, &format!("{} %", st.tint), Hit::BarLess(i), Hit::BarMore(i));
+        } else {
+            let none = tr("none with this look");
+            p.label(&none, Rect::new(x + lw + p.px(10.0), y, w - lw - p.px(10.0), p.px(26.0)), 12.0, FontId::Italic, t.dim);
+        }
+        y += p.px(28.0) + gap;
+    }
+    if tb.screens.is_empty() {
+        y = p.note(&tr("No screen found."), x, y, w, true) + gap;
+    }
+    y
+}
+
 /// The widgets: returns the `y` under the last control.
 fn widgets_tab(p: &mut Painter, m: &Model, x: f32, mut y: f32, w: f32) -> f32 {
     let t = *p.t;
@@ -701,7 +769,32 @@ mod tests {
             scroll: 0.0,
             live: LiveModel { available: true, ..LiveModel::default() },
             widgets: WidgetsModel { available: true, ..WidgetsModel::default() },
+            taskbar: TaskbarModel { available: true, screens: &[], tray: false },
         }
+    }
+
+    #[test]
+    fn the_taskbar_tab() {
+        let Ok(mut g) = Gfx::new() else { return };
+        g.resize(620, 900);
+        let mut st = Settings::default();
+        st.taskbar.set("DISPLAY2", crate::taskbar::Style { look: Look::Acrylic, tint: 40 });
+        let screens = [
+            Screen { id: "DISPLAY1".into(), primary: true, width: 1920, height: 1080 },
+            Screen { id: "DISPLAY2".into(), primary: false, width: 2560, height: 1440 },
+        ];
+        let m = Model { taskbar: TaskbarModel { available: true, screens: &screens, tray: true }, ..model(&st, Tab::Taskbar) };
+        let d = draw(&mut g, &m, &Theme::new(false, None), 1.0, Rect::new(0.0, 0.0, 620.0, 900.0));
+        for h in [Hit::BarLook(0, Look::Blur), Hit::BarLook(1, Look::Normal), Hit::BarMore(1), Hit::BarLess(1), Hit::Tab(Tab::Taskbar)] {
+            let (r, _) = d.hits.iter().find(|(_, x)| *x == h).unwrap_or_else(|| panic!("{h:?} not drawn"));
+            assert_eq!(d.hit(r.x + r.w / 2.0, r.y + r.h / 2.0), Some(h));
+        }
+        // A normal bar has no tint to change.
+        assert!(!d.hits.iter().any(|(_, h)| matches!(h, Hit::BarMore(0) | Hit::BarLess(0))));
+        // Elsewhere than Windows, only a word.
+        let m = Model { taskbar: TaskbarModel::default(), ..model(&st, Tab::Taskbar) };
+        let d = draw(&mut g, &m, &Theme::new(false, None), 1.0, Rect::new(0.0, 0.0, 620.0, 900.0));
+        assert_eq!(d.hits.iter().filter(|(_, h)| !matches!(h, Hit::Tab(_) | Hit::Autostart | Hit::AppAbout)).count(), 0);
     }
 
     #[test]

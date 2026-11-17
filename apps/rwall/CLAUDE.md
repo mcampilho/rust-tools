@@ -20,6 +20,19 @@ das janelas) com a opção "Sempre visível" por widget; meteorologia da Open-Me
 aprovada, só GET); fence = caixa que mostra uma pasta (duplo clique abre, arrastar para fora e para dentro); anotação =
 texto solto sobre o fundo (as notas adesivas são papelinhos coloridos).
 
+Desde 2026-11-17 tem também uma **barra de tarefas transparente** (pedido do utilizador; só Windows), num quarto
+separador: por ecrã, Normal, Transparente, Desfocado ou Acrílico, com tonalidade 0–100 % (preta no tema escuro,
+branca no claro). `taskbar/mod.rs`: `Look`, `Style` (`accent` → estado DWM 0/2/3/4 e cor 0xAABBGGRR; acrílico
+nunca com alfa 0), `TaskbarSettings` (`taskbar=<ecrã>:<aspeto>:<tinta>`, só os não normais), `Screen`.
+`taskbar/win.rs`: `screens` (`EnumDisplayMonitors`, a principal primeiro, `DISPLAY1`…), `bars` (`Shell_TrayWnd` e
+`Shell_SecondaryTrayWnd`, ecrã por `MonitorFromWindow`), `Keeper` (fio que aplica
+`SetWindowCompositionAttribute`/`WCA_ACCENT_POLICY` a cada 100 ms, porque o Explorador repõe o seu aspeto; o
+`GetWindowCompositionAttribute` não lê janelas do Explorador; relê as barras a cada 2 s; ao parar põe as barras
+tocadas em normal). `Shell::apply_taskbar` (arranque, tema, separador, cliques), largado em `quit`. Verificado
+neste PC (Windows 10, um ecrã): `clear_white_for_two_seconds` lê píxeis da barra no ecrã, 47 → 221 → 47, e o fio
+gasta 0,00 % de um núcleo. Não verificado: vários ecrãs e o Windows 11 (a barra XAML pode ignorar isto). A janela
+passou a abrir com 700 px de largura (o quarto separador cortava "Iniciar com o Windows"; em alemão ainda corta).
+
 Três modos (pedido do utilizador, 2026-11-11, como as outras aplicações):
 - `rwall` — só a janela de definições; fechar termina; sem mudanças automáticas (a linha de estado diz que é
   preciso o `--tray`). "Imagem seguinte", posição, fontes e o resto funcionam.
@@ -31,7 +44,8 @@ Três modos (pedido do utilizador, 2026-11-11, como as outras aplicações):
 
 ```powershell
 ./dev.ps1 build --release -p rwall          # perfil release (com unwind): target\release\rwall.exe, ~3,7 MB
-./dev.ps1 test -p rwall                     # 53 testes no Windows
+./dev.ps1 test -p rwall                     # 59 testes no Windows
+./dev.ps1 test -p rwall --lib clear_white_for_two_seconds '--' --ignored --nocapture   # muda a barra de tarefas real 2 s
 ./dev.ps1 clippy -p rwall --all-targets
 ./dev.ps1 test -p rwall --lib screenshots '--' --ignored          # apps/rwall/target/screens/*.png
 ./dev.ps1 test -p rwall --lib live_services '--' --ignored --nocapture   # rede: uma imagem de cada serviço
@@ -165,7 +179,7 @@ reinício do Explorador — o utilizador estava a jogar e não se roubou o foco.
   `WallpaperStyle`) e repô-lo no fim; usar modo portátil (`rwall.portable` ao lado do `.exe`) e apagá-lo depois;
   preferir a compilação `release` (a de depuração abre uma consola) e não roubar o foco ao utilizador.
 - Qualquer texto visível novo precisa de linha completa em `strings.txt`.
-- `unsafe` só em `net.rs`, `wallpaper.rs`, `live/desktop.rs`, `live/player.rs`, `live/thumb.rs`,
+- `unsafe` só em `net.rs`, `wallpaper.rs`, `taskbar/win.rs`, `live/desktop.rs`, `live/player.rs`, `live/thumb.rs`,
   `widgets/host.rs` e `screen_size` no `main.rs` (chamadas Win32/COM), com `SAFETY`.
 - Widgets presos nunca acima das outras janelas; não roubar o foco (só uma nota em que se clica se ativa).
 - Fundo dinâmico: nunca pôr a janela acima da camada dos ícones; ao parar (e ao sair) repor sempre o fundo estático.

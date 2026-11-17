@@ -6,9 +6,9 @@ duas ou quatro vezes por dia, todas as semanas, todos os meses ou a cada tantos
 minutos. As imagens vêm da imagem do dia do Bing, da Astronomy Picture of the
 Day da NASA, do Wallhaven, do Lorem Picsum ou das suas pastas. No Windows pode
 também pôr um **fundo dinâmico** atrás dos ícones do ambiente de trabalho (um
-vídeo, um GIF ou WebP animado, ou uma cena desenhada pelo rwall) e **widgets**
-no ambiente de trabalho: relógios, calendário, notas adesivas, anotações,
-meteorologia, fences e fotos.
+vídeo, um GIF ou WebP animado, ou uma cena desenhada pelo rwall), **widgets**
+no ambiente de trabalho (relógios, calendário, notas adesivas, anotações,
+meteorologia, fences e fotos) e tornar a **barra de tarefas transparente**.
 
 [English version](README.md)
 
@@ -196,6 +196,25 @@ um pode, em vez disso, ficar **Sempre visível**, por cima de todas as janelas.
 
 Gastam pouco: nove widgets, três deles com segundos, usam menos de 1 % de um
 núcleo e cerca de 36 MB.
+
+## Barra de tarefas transparente (Windows)
+
+O separador **Barra de tarefas** dá à barra de cada ecrã um aspeto próprio:
+
+- **Normal**: como o Windows a desenha.
+- **Transparente**: deixa ver o fundo, por baixo da tonalidade.
+- **Desfocado**: o fundo desfocado por trás.
+- **Acrílico**: desfocado, com o grão do Windows e a tonalidade.
+
+A **tonalidade** (0 a 100 %) escurece a barra no tema escuro e aclara-a no
+claro. O aspeto dura enquanto o rwall corre: com `--tray` sempre, sem ele
+enquanto a janela das definições estiver aberta; depois a barra volta ao normal.
+O Explorador repõe o seu aspeto sempre que redesenha a barra (o menu Iniciar,
+uma janela maximizada), por isso o rwall volta a pô-lo algumas vezes por
+segundo; isso não gasta processador que se meça.
+
+Funciona no Windows 10. O Windows 11 desenha a barra de tarefas de outra
+maneira, e o aspeto pode não mudar lá.
 
 ## Como funciona
 
