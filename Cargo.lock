@@ -2713,7 +2713,7 @@ dependencies = [
 
 [[package]]
 name = "rdup-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "rt-cli",
  "rt-core",
@@ -2892,7 +2892,7 @@ dependencies = [
 
 [[package]]
 name = "rscoop-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "rt-cli",
  "rt-core",
@@ -2921,7 +2921,7 @@ dependencies = [
 
 [[package]]
 name = "rsize-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "rt-cli",
  "rt-scan",

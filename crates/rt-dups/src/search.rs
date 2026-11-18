@@ -309,7 +309,7 @@ pub fn find_with(
                     admin_would_help: scan.admin_would_help,
                     unreadable: scan.tree.unreadable(),
                 });
-                found.files += collect(&scan.tree, trees.len() as u32, &opts.filter, &mut files);
+                found.files += collect(&scan.tree, trees.len() as u32, &opts.filter, opts.hard_links, &mut files);
                 trees.push(scan.tree);
             }
             Err(e) => found.failed.push((root.clone(), e)),
@@ -529,8 +529,8 @@ fn skipped_at_root(name: &str) -> bool {
 
 /// Adds the files of `t` that the filter keeps to `out`. Returns how many
 /// files it looked at (not those in folders left out by name).
-fn collect(t: &Tree, tree: u32, f: &Filter, out: &mut Vec<Cand>) -> u64 {
-    walk(t, t.root(), f, &mut |id, n| {
+fn collect(t: &Tree, tree: u32, f: &Filter, links: bool, out: &mut Vec<Cand>) -> u64 {
+    walk_with(t, t.root(), f, links, &mut |id, n| {
         if n.size >= f.min_size {
             out.push(Cand { tree, id, size: n.size, mtime: n.mtime });
         }
@@ -542,6 +542,12 @@ fn collect(t: &Tree, tree: u32, f: &Filter, out: &mut Vec<Cand>) -> u64 {
 /// Folders left out by name are not entered, nor, at the root of a drive, the
 /// Recycle Bin and the system's folders. Returns how many files it looked at.
 pub(crate) fn walk(t: &Tree, start: Id, f: &Filter, visit: &mut dyn FnMut(Id, &Node)) -> u64 {
+    walk_with(t, start, f, false, visit)
+}
+
+/// [`walk`]; with `links`, the other names of a hard-linked file are visited
+/// too (the scan counted them as 0 bytes, so their length is read).
+fn walk_with(t: &Tree, start: Id, f: &Filter, links: bool, visit: &mut dyn FnMut(Id, &Node)) -> u64 {
     let drive = Path::new(t.name(t.root())).parent().is_none();
     let names = f.has_names();
     // Whether `start` or a folder it is in has one of the names to keep.
@@ -573,7 +579,18 @@ pub(crate) fn walk(t: &Tree, start: Id, f: &Filter, visit: &mut dyn FnMut(Id, &N
                 }
                 Kind::File => {
                     count += 1;
-                    if n.flags & F_HARDLINK != 0 || !f.keeps_any_size(n.size, n.mtime) || !f.keeps_ext(name) {
+                    let mut real;
+                    let mut n = n;
+                    if n.flags & F_HARDLINK != 0 {
+                        if !links {
+                            continue;
+                        }
+                        let Ok(meta) = std::fs::metadata(t.path(c)) else { continue };
+                        real = n.clone();
+                        real.size = meta.len();
+                        n = &real;
+                    }
+                    if !f.keeps_any_size(n.size, n.mtime) || !f.keeps_ext(name) {
                         continue;
                     }
                     if names {
@@ -1032,7 +1049,7 @@ mod tests {
         let s = rt_scan::scan(Path::new(&dir), &AtomicBool::new(false), &|_| {}).unwrap();
         println!("{:?}: {:?} in {:.2?}", dir, s.method, t0.elapsed());
         let mut files = Vec::new();
-        collect(&s.tree, 0, &Filter::min(min), &mut files);
+        collect(&s.tree, 0, &Filter::min(min), false, &mut files);
         files.sort_unstable_by_key(|c| c.size);
         let mut shared = Vec::new();
         for run in files.chunk_by(|a, b| a.size == b.size) {
@@ -1085,7 +1102,7 @@ mod tests {
         for (i, r) in roots.iter().enumerate() {
             let s = rt_scan::scan(r, &AtomicBool::new(false), &|_| {}).unwrap();
             println!("{}: {:?} in {:.2?}", r.display(), s.method, s.elapsed);
-            total += collect(&s.tree, i as u32, &Filter::default(), &mut files);
+            total += collect(&s.tree, i as u32, &Filter::default(), false, &mut files);
         }
         files.sort_unstable_by_key(|c| c.size);
         let mut shared = Vec::new();
