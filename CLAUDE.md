@@ -54,6 +54,9 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
 - Máx. 3 tags por push: o GitHub não dispara os workflows de mais do que três de uma vez (lançar com
   `gh workflow run release.yml -f tag=<tag>`). Reconstruir uma tag anterior a 2026-11-18 não funciona (sem o perfil
   no `Cargo.toml` nem `rust-toolchain.toml`).
+- Uma aplicação só de Windows declara `platforms = "windows"` em `[package.metadata.rust-tools]` (o rscoop-cli) e o
+  `release.yml` não faz o pacote Linux. As `-cli` não têm `build.rs`, por isso não há recurso de versão no `.exe`
+  (o passo "Check the executable" salta-as) e as notas do release dizem que se corre num terminal.
 - `README.md` e `README.pt.md` são atualizados em conjunto, na raiz e em cada aplicação.
 - Textos visíveis ficam no `strings.txt` de cada aplicação, nunca no código de desenho.
 - Sem rede, sem telemetria, sem biblioteca de interface. Exceção aprovada em 2026-11-11: o rwall descarrega

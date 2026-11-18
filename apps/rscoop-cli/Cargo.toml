@@ -9,6 +9,7 @@ license = "MIT"
 [package.metadata.rust-tools]
 # Read by dev.ps1 and release.yml. `release` unwinds (catch_unwind), `release-small` aborts.
 profile = "release-small"
+platforms = "windows"
 
 [dependencies]
 rt-core = { path = "../../crates/rt-core" }
