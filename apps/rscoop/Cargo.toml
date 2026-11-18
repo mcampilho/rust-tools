@@ -14,7 +14,7 @@ profile = "release-small"
 rt-core = { path = "../../crates/rt-core" }
 # Our own cache of what was read from files, and Scoop's own scoop.db.
 # Bundled: no SQLite library is needed on the machine.
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.43", features = ["bundled"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = [
