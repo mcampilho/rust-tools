@@ -1,0 +1,9 @@
+# The Rust version the workspace is built, tested and released with. CI reads
+# it from here (.github/actions/setup-rust); move it on purpose, in a commit of
+# its own, instead of finding out from a red build that `stable` moved.
+# `rust-version` in the Cargo.toml files is the oldest version that must still
+# compile (checked by the `msrv` job).
+[toolchain]
+channel = "1.100.0"
+components = ["clippy", "rustfmt"]
+profile = "minimal"

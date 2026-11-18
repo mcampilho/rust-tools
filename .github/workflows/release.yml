@@ -45,30 +45,17 @@ jobs:
             echo "::error::apps/$app/Cargo.toml has version $declared but the tag is $TAG"
             exit 1
           fi
-          # See the profiles in Cargo.toml: rview, rwall and rpack need panics to unwind.
-          case "$app" in
-            rview | rwall | rpack) profile=release ;;
-            *) profile=release-small ;;
-          esac
+          # The profile of each app is in its Cargo.toml ([package.metadata.rust-tools]).
+          profile=$(sed -n 's/^profile *= *"\(.*\)".*/\1/p' "apps/$app/Cargo.toml")
+          [ -n "$profile" ] || { echo "::error::apps/$app/Cargo.toml has no [package.metadata.rust-tools] profile (a tag from before it cannot be rebuilt)"; exit 1; }
           {
             echo "APP=$app"
             echo "VERSION=$version"
             echo "PROFILE=$profile"
           } >> "$GITHUB_ENV"
 
-      - uses: dtolnay/rust-toolchain@stable
-
-      - uses: Swatinem/rust-cache@v2
-
-      # build.rs needs rc.exe for the icon and version info, and without it
-      # would only warn. The runner has it, but not on PATH.
-      - name: Put rc.exe on PATH
-        shell: pwsh
-        run: |
-          $rc = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin\*\x64\rc.exe' |
-            Sort-Object FullName | Select-Object -Last 1
-          if (-not $rc) { throw 'rc.exe not found' }
-          $rc.DirectoryName | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+      # The Rust version is the one in rust-toolchain.toml; rc.exe is put on PATH.
+      - uses: ./.github/actions/setup-rust
 
       - name: Test
         run: cargo test -p "$APP" --locked
@@ -114,19 +101,15 @@ jobs:
       - name: Tool and profile from the tag
         run: |
           app="${TAG%%-v*}"
-          case "$app" in
-            rview | rwall | rpack) profile=release ;;
-            *) profile=release-small ;;
-          esac
+          profile=$(sed -n 's/^profile *= *"\(.*\)".*/\1/p' "apps/$app/Cargo.toml")
+          [ -n "$profile" ] || { echo "::error::apps/$app/Cargo.toml has no [package.metadata.rust-tools] profile"; exit 1; }
           {
             echo "APP=$app"
             echo "VERSION=${TAG#*-v}"
             echo "PROFILE=$profile"
           } >> "$GITHUB_ENV"
 
-      - uses: dtolnay/rust-toolchain@stable
-
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/setup-rust
 
       - name: Test
         run: cargo test -p "$APP" --locked

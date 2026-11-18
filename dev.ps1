@@ -11,12 +11,17 @@ if (-not $env:VCToolsInstallDir -and $envScript) {
 }
 
 if ($args[0] -eq 'dist') {
-    # Each app has its own profile: see Cargo.toml.
+    # Each app names its own profile in apps/<app>/Cargo.toml
+    # ([package.metadata.rust-tools]); release.yml reads the same line.
     New-Item -ItemType Directory -Force "$PSScriptRoot\dist" | Out-Null
-    foreach ($app in @(@('rcalc', 'release-small'), @('rpad', 'release-small'), @('rview', 'release'), @('rsize', 'release-small'), @('rdup', 'release-small'), @('rwall', 'release'), @('rpack', 'release'), @('rinst', 'release-small'), @('rclean', 'release-small'), @('rscoop', 'release-small'))) {
-        cargo build --profile $app[1] -p $app[0] --manifest-path "$PSScriptRoot\Cargo.toml"
+    foreach ($dir in Get-ChildItem "$PSScriptRoot\apps" -Directory) {
+        $app = $dir.Name
+        $line = Select-String -Path "$($dir.FullName)\Cargo.toml" -Pattern '^profile\s*=\s*"([^"]+)"' | Select-Object -First 1
+        if (-not $line) { Write-Error "apps/$app/Cargo.toml has no [package.metadata.rust-tools] profile"; exit 1 }
+        $profile = $line.Matches[0].Groups[1].Value
+        cargo build --profile $profile -p $app --manifest-path "$PSScriptRoot\Cargo.toml"
         if ($LASTEXITCODE) { exit $LASTEXITCODE }
-        Copy-Item "$PSScriptRoot\target\$($app[1])\$($app[0]).exe" "$PSScriptRoot\dist\"
+        Copy-Item "$PSScriptRoot\target\$profile\$app.exe" "$PSScriptRoot\dist\"
     }
     Get-ChildItem "$PSScriptRoot\dist\*.exe" | ForEach-Object { '{0,-10} {1,10:N0} bytes' -f $_.Name, $_.Length }
     exit 0

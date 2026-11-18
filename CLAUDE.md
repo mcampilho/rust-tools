@@ -40,7 +40,14 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
 - "Pronto" = sem avisos, clippy limpo, testes a passar.
 - Perfis só na raiz do `Cargo.toml`. rcalc, rpad, rsize, rdup, rinst e rclean usam `release-small` (`panic = "abort"`);
   o rview, o rwall e o rpack usam sempre `release`, porque precisam de `catch_unwind`.
+  O perfil de cada aplicação está num só sítio: `[package.metadata.rust-tools] profile = "…"` no seu `Cargo.toml`
+  (lido pelo `dev.ps1` e pelo `release.yml`). Uma aplicação nova tem de o declarar.
 - Compilar para distribuição com `./dev.ps1 dist`, que escolhe o perfil de cada aplicação.
+- Versão do Rust fixada em `rust-toolchain.toml` (o CI e os releases leem-na; mudar de propósito, num commit à parte).
+  O `rust-version` dos `Cargo.toml` é o mínimo, compilado pelo job `msrv`.
+- Máx. 3 tags por push: o GitHub não dispara os workflows de mais do que três de uma vez (lançar com
+  `gh workflow run release.yml -f tag=<tag>`). Reconstruir uma tag anterior a 2026-11-18 não funciona (sem o perfil
+  no `Cargo.toml` nem `rust-toolchain.toml`).
 - `README.md` e `README.pt.md` são atualizados em conjunto, na raiz e em cada aplicação.
 - Textos visíveis ficam no `strings.txt` de cada aplicação, nunca no código de desenho.
 - Sem rede, sem telemetria, sem biblioteca de interface. Exceção aprovada em 2026-11-11: o rwall descarrega
@@ -56,7 +63,7 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
 
 ## Verificação automática
 
-`.github/workflows/ci.yml` corre `cargo clippy --workspace --all-targets -- -D warnings` e `cargo test --workspace`, com `--locked`, em Windows e Linux (ubuntu-22.04, o mesmo das releases), a cada push ao `master` e em cada pull request. Um aviso do clippy falha o CI: é a regra `Pronto` desta página.
+`.github/workflows/ci.yml` corre `cargo clippy --workspace --all-targets -- -D warnings` e `cargo test --workspace`, com `--locked`, em Windows e Linux (ubuntu-22.04, o mesmo das releases), a cada push ao `master` e em cada pull request. Um aviso do clippy falha o CI: é a regra `Pronto` desta página. Além disso: `msrv` (`cargo check` com o maior `rust-version` declarado) e `audit` (`cargo deny check advisories`, também todas as segundas-feiras). O Dependabot (`.github/dependabot.yml`) propõe, por semana, crates e actions mais novos. A instalação do Rust, da cache e do `rc.exe` está em `.github/actions/setup-rust`.
 
 ## Releases
 

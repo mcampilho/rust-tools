@@ -1,0 +1,8 @@
+# cargo-deny: only the security advisories are checked for now (the `audit`
+# job of ci.yml). A license policy needs the list of licenses the dependencies
+# really use: add it in `[licenses]` before turning that check on.
+[advisories]
+version = 2
+yanked = "deny"
+# Add an advisory id here, with the reason, only when it does not apply.
+ignore = []

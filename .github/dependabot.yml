@@ -1,0 +1,20 @@
+# Weekly pull requests for newer crates and actions. Patch and minor updates of
+# the crates come in a single pull request; each major version has its own.
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      crates:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directories: [/, /.github/actions/setup-rust]
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

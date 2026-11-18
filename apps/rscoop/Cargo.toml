@@ -6,6 +6,10 @@ rust-version = "1.88"
 description = "Validates a Scoop installation, finds leftovers of an old Scoop root and repairs them"
 license = "MIT"
 
+[package.metadata.rust-tools]
+# Read by dev.ps1 and release.yml. `release` unwinds (catch_unwind), `release-small` aborts.
+profile = "release-small"
+
 [dependencies]
 rt-core = { path = "../../crates/rt-core" }
 # Our own cache of what was read from files, and Scoop's own scoop.db.

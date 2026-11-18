@@ -1,6 +1,7 @@
 # Checks every push to master and every pull request: clippy without
-# warnings and all the tests of the workspace, on Windows and Linux.
-# Releases are built by release.yml.
+# warnings and all the tests of the workspace, on Windows and Linux; that the
+# oldest Rust the crates declare still compiles them; and that no dependency
+# has a known security advisory. Releases are built by release.yml.
 name: ci
 
 on:
@@ -8,6 +9,9 @@ on:
     branches: [master]
   pull_request:
   workflow_dispatch:
+  # Advisories appear without anyone pushing.
+  schedule:
+    - cron: "17 6 * * 1"
 
 permissions:
   contents: read
@@ -31,25 +35,47 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: dtolnay/rust-toolchain@stable
+      # The version is the one in rust-toolchain.toml.
+      - uses: ./.github/actions/setup-rust
         with:
           components: clippy
-
-      - uses: Swatinem/rust-cache@v2
-
-      # build.rs needs rc.exe for the icon and version info. The runner has
-      # it, but not on PATH.
-      - name: Put rc.exe on PATH
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $rc = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin\*\x64\rc.exe' |
-            Sort-Object FullName | Select-Object -Last 1
-          if (-not $rc) { throw 'rc.exe not found' }
-          $rc.DirectoryName | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
 
       - name: Clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
       - name: Test
         run: cargo test --workspace --locked
+
+  # `rust-version` in the Cargo.toml files is a promise: build with it.
+  msrv:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Oldest version the crates declare
+        id: msrv
+        shell: bash
+        run: |
+          v=$(grep -h '^rust-version' apps/*/Cargo.toml crates/*/Cargo.toml | cut -d'"' -f2 | sort -V | tail -1)
+          [ -n "$v" ] || { echo "::error::no rust-version found"; exit 1; }
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          toolchain: ${{ steps.msrv.outputs.version }}
+
+      - name: Check
+        run: cargo check --workspace --locked
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check advisories

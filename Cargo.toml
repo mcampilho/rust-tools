@@ -9,7 +9,8 @@ resolver = "2"
 #   rpack for a damaged archive. It is
 #   the default so that a plain build is always safe.
 # - release-small: aborts, for rcalc and rpad, which come out about 20% smaller.
-# `./dev.ps1 dist` builds each app with the right one.
+# `./dev.ps1 dist` builds each app with the right one: each app names it in its
+# Cargo.toml, under [package.metadata.rust-tools] (release.yml reads it too).
 [profile.release]
 opt-level = 3
 lto = true

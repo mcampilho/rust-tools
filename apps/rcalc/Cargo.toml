@@ -6,6 +6,10 @@ rust-version = "1.88"
 description = "A portable, self-contained desktop calculator inspired by Windows Calculator"
 license = "MIT"
 
+[package.metadata.rust-tools]
+# Read by dev.ps1 and release.yml. `release` unwinds (catch_unwind), `release-small` aborts.
+profile = "release-small"
+
 [dependencies]
 rt-core = { path = "../../crates/rt-core" }
 rt-gfx = { path = "../../crates/rt-gfx" }

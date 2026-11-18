@@ -1,0 +1,49 @@
+# Installs the Rust version pinned in rust-toolchain.toml (or the one asked
+# for, such as the MSRV), the build cache and, on Windows, rc.exe on PATH.
+# Run it after checkout.
+name: Set up Rust
+description: Rust toolchain, cache and rc.exe
+
+inputs:
+  toolchain:
+    description: "A version to use instead of the one in rust-toolchain.toml (for example the MSRV)"
+    default: ""
+  components:
+    description: "Extra components, comma separated"
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Which version
+      id: version
+      shell: bash
+      env:
+        WANTED: ${{ inputs.toolchain }}
+      run: |
+        version="$WANTED"
+        if [ -z "$version" ]; then
+          version=$(sed -n 's/^channel *= *"\(.*\)".*/\1/p' rust-toolchain.toml)
+        fi
+        [ -n "$version" ] || { echo "::error::no version in rust-toolchain.toml"; exit 1; }
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+        # rust-toolchain.toml would win over the version installed below.
+        echo "RUSTUP_TOOLCHAIN=$version" >> "$GITHUB_ENV"
+
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ steps.version.outputs.version }}
+        components: ${{ inputs.components }}
+
+    - uses: Swatinem/rust-cache@v2
+
+    # build.rs needs rc.exe for the icon and version info, and without it
+    # would only warn. The runner has it, but not on PATH.
+    - name: Put rc.exe on PATH
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $rc = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin\*\x64\rc.exe' |
+          Sort-Object FullName | Select-Object -Last 1
+        if (-not $rc) { throw 'rc.exe not found' }
+        $rc.DirectoryName | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
