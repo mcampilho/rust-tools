@@ -1,13 +1,13 @@
 {
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Command-line checker for a Scoop installation: finds shims, links, shortcuts, registry entries and config files that still point to an old Scoop root, and repairs them",
     "homepage": "https://github.com/mcampilho/rust-tools/tree/master/apps/rscoop-cli",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/mcampilho/rust-tools/releases/download/rscoop-cli-v0.1.0/rscoop-cli-0.1.0-windows-x86_64.zip",
-            "hash": "48e087101d4eaa29993f266d083e9c3981a2cf76aee80453dc1f0d78f2197598",
-            "extract_dir": "rscoop-cli-0.1.0-windows-x86_64"
+            "url": "https://github.com/mcampilho/rust-tools/releases/download/rscoop-cli-v0.1.1/rscoop-cli-0.1.1-windows-x86_64.zip",
+            "hash": "2b5f342655fcd6a343408fdb26cabbc4b63adb649ce453f3ff2395dacff677b7",
+            "extract_dir": "rscoop-cli-0.1.1-windows-x86_64"
         }
     },
     "bin": "rscoop-cli.exe",
