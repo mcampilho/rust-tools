@@ -395,31 +395,12 @@ pub fn groups(folders: &[Folder], pairs: &[Pair], min: u16) -> Vec<Group> {
 }
 
 #[cfg(test)]
-pub(crate) mod tests {
+mod tests {
     use super::*;
-    use crate::search::tests::data;
     use crate::search::{find_with, Found, Options};
-    use rt_scan::testing::TempTree;
+    use crate::testing::{folder_sample, search_in};
     use rt_scan::Ways;
     use std::path::Path;
-
-    /// Photos, a backup of them, and an older copy with one file more.
-    pub(crate) fn folders(tag: &str) -> TempTree {
-        let tt = TempTree::new(tag);
-        for dir in ["photos/2024", "backup/photos/2024", "old/2024"] {
-            tt.write(&format!("{dir}/a.jpg"), &data(3000, 1));
-            tt.write(&format!("{dir}/b.jpg"), &data(4000, 2));
-        }
-        tt.write("photos/2024/note.txt", &data(100, 3));
-        tt.write("backup/photos/2024/renamed.txt", &data(100, 3));
-        tt.write("old/2024/extra.bin", &data(500, 4));
-        tt.write("unique.bin", &data(9000, 5));
-        tt
-    }
-
-    pub(crate) fn search(tt: &TempTree, min: u64) -> Found {
-        find_with(std::slice::from_ref(&tt.0), Ways::SYSTEM, Options::with(Filter::min(min)), &AtomicBool::new(false), &|_| {}).unwrap()
-    }
 
     fn names(f: &Found, g: &Group, root: &Path) -> Vec<String> {
         g.folders.iter().map(|&i| f.folders[i].path.strip_prefix(root).unwrap().to_string_lossy().replace('\\', "/")).collect()
@@ -427,11 +408,11 @@ pub(crate) mod tests {
 
     #[test]
     fn identical_and_similar_folders() {
-        let tt = folders("rdup-folders");
+        let tt = folder_sample("rdup-folders");
         let root = rt_scan::normalize(&tt.0);
         // Any size, and with the smaller files compared only in those folders.
         for min in [1, 1000] {
-            let f = search(&tt, min);
+            let f = search_in(&tt, min);
             let same = groups(&f.folders, &f.pairs, 1000);
             assert_eq!(same.len(), 1, "min {min}: {:?}", f.pairs);
             assert_eq!(names(&f, &same[0], &root), ["backup/photos", "photos"], "the outer pair; 2024 inside it is hidden");
@@ -449,7 +430,7 @@ pub(crate) mod tests {
             assert_eq!(inner.same_files, 3);
         }
         // Too little in common.
-        let f = search(&tt, 1);
+        let f = search_in(&tt, 1);
         assert!(f.pairs.iter().all(|p| p.permille >= MIN_PERMILLE));
         // Files only: no folders looked for.
         let opts = Options { files: true, folders: false, ..Options::default() };
@@ -481,8 +462,8 @@ pub(crate) mod tests {
         assert_eq!(shown(900), shown(1000));
         assert_eq!(shown(500), [vec![2, 3], vec![0, 1]]);
         // And on real folders: each share keeps what the one above showed.
-        let tt = folders("rdup-folders-shares");
-        let f = search(&tt, 1);
+        let tt = folder_sample("rdup-folders-shares");
+        let f = search_in(&tt, 1);
         let sets: Vec<Vec<Group>> = SHARES.iter().map(|&s| groups(&f.folders, &f.pairs, s)).collect();
         for w in sets.windows(2) {
             assert!(w[0].iter().all(|g| w[1].contains(g)), "{:?} in {:?}", w[0], w[1]);

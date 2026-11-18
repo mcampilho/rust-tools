@@ -1,0 +1,47 @@
+# rdup-cli texts: key, then English, European Portuguese and Spanish, separated by tabs.
+# Placeholders in braces are filled in by the program.
+err.unknown	unknown option '{opt}'	opção desconhecida '{opt}'	opción desconocida '{opt}'
+err.missing	option '{opt}' needs a value	a opção '{opt}' precisa de um valor	la opción '{opt}' necesita un valor
+err.value	'{value}' is not valid for '{opt}'	'{value}' não é válido para '{opt}'	'{value}' no es válido para '{opt}'
+err.choice	'{value}' is not valid for '{opt}' (use {choices})	'{value}' não é válido para '{opt}' (use {choices})	'{value}' no es válido para '{opt}' (use {choices})
+err.try	Try '{prog} --help' for more information.	Experimente '{prog} --help' para mais informação.	Pruebe '{prog} --help' para más información.
+err.access	cannot read '{path}': {reason}	não foi possível ler '{path}': {reason}	no se puede leer '{path}': {reason}
+warn.files	{n} files could not be read and were left out.	Não foi possível ler {n} ficheiros, que ficaram de fora.	No se pudieron leer {n} archivos, que quedaron fuera.
+warn.folders	{n} folders could not be read, so their files are missing.	Não foi possível ler {n} pastas, por isso faltam os seus ficheiros.	No se pudieron leer {n} carpetas, por lo que faltan sus archivos.
+progress.read	Reading… {files} files	A ler… {files} ficheiros	Leyendo… {files} archivos
+progress.edges	Comparing the first and last bytes… {done} of {total} files	A comparar os primeiros e últimos bytes… {done} de {total} ficheiros	Comparando los primeros y últimos bytes… {done} de {total} archivos
+progress.contents	Comparing the contents… {done} of {total}	A comparar os conteúdos… {done} de {total}	Comparando los contenidos… {done} de {total}
+group.each	{size} each:	{size} cada:	{size} cada uno:
+unit.bytes	bytes	bytes	bytes
+summary.none	No duplicates found.	Não foram encontrados duplicados.	No se encontraron duplicados.
+summary.some	{files} duplicate files (in {sets} sets), occupying {size}	{files} ficheiros duplicados (em {sets} conjuntos), a ocupar {size}	{files} archivos duplicados (en {sets} conjuntos), ocupando {size}
+help.usage	Usage	Utilização	Uso
+help.paths	PATH	CAMINHO	RUTA
+help.description	Finds files with the same contents in the folders given (all of them together, with their subfolders) and lists them in groups, the ones that waste the most space first. Files are compared by size, then by their first and last bytes, then by BLAKE3 hashes of the whole contents; empty files and hard links of the same file are not copies. It never deletes anything.	Procura ficheiros com o mesmo conteúdo nas pastas indicadas (todas em conjunto, com as suas subpastas) e lista-os em grupos, primeiro os que desperdiçam mais espaço. Os ficheiros são comparados pelo tamanho, depois pelos primeiros e últimos bytes e por fim por hashes BLAKE3 do conteúdo inteiro; ficheiros vazios e ligações físicas do mesmo ficheiro não são cópias. Nunca apaga nada.	Busca archivos con el mismo contenido en las carpetas indicadas (todas juntas, con sus subcarpetas) y los lista en grupos, primero los que desperdician más espacio. Los archivos se comparan por el tamaño, luego por sus primeros y últimos bytes y por último por hashes BLAKE3 del contenido entero; los archivos vacíos y los enlaces duros del mismo archivo no son copias. Nunca borra nada.
+help.options	Options	Opções	Opciones
+help.exit	Exit status: 0 searched (with or without duplicates), 1 something could not be read, 2 wrong usage.	Código de saída: 0 pesquisa feita (com ou sem duplicados), 1 não foi possível ler algo, 2 utilização errada.	Código de salida: 0 búsqueda hecha (con o sin duplicados), 1 no se pudo leer algo, 2 uso incorrecto.
+opt.recurse	accepted, as in fdupes: subfolders are always searched	aceite, como no fdupes: as subpastas são sempre pesquisadas	aceptada, como en fdupes: las subcarpetas siempre se buscan
+opt.noempty	accepted, as in fdupes: empty files are never compared	aceite, como no fdupes: os ficheiros vazios nunca são comparados	aceptada, como en fdupes: los archivos vacíos nunca se comparan
+opt.size	show the size of the files of each group	mostrar o tamanho dos ficheiros de cada grupo	mostrar el tamaño de los archivos de cada grupo
+opt.human	sizes as 1.5K, 23M, 4.0G	tamanhos como 1.5K, 23M, 4.0G	tamaños como 1.5K, 23M, 4.0G
+opt.summarize	only how many duplicates there are and the space they take	só quantos duplicados há e o espaço que ocupam	solo cuántos duplicados hay y el espacio que ocupan
+opt.sameline	a group per line, the files separated by spaces	um grupo por linha, com os ficheiros separados por espaços	un grupo por línea, con los archivos separados por espacios
+opt.omitfirst	leave out the first file of each group	omitir o primeiro ficheiro de cada grupo	omitir el primer archivo de cada grupo
+opt.quiet	no progress on the error output	sem progresso na saída de erros	sin progreso en la salida de errores
+opt.nohidden	leave out files and folders whose name starts with a dot	deixar de fora ficheiros e pastas cujo nome começa por ponto	dejar fuera archivos y carpetas cuyo nombre empieza por punto
+opt.min_size	only files of at least SIZE (such as 100KB or 1 MB)	só ficheiros de pelo menos TAMANHO (como 100KB ou 1 MB)	solo archivos de al menos TAMAÑO (como 100KB o 1 MB)
+opt.max_size	only files of at most SIZE	só ficheiros de no máximo TAMANHO	solo archivos de como máximo TAMAÑO
+opt.after	only files changed from DATE (2024-01-31, 31/01/2024, 2024-01 or 2024)	só ficheiros alterados a partir de DATA (2024-01-31, 31/01/2024, 2024-01 ou 2024)	solo archivos cambiados desde FECHA (2024-01-31, 31/01/2024, 2024-01 o 2024)
+opt.before	only files changed up to the end of DATE	só ficheiros alterados até ao fim de DATA	solo archivos cambiados hasta el final de FECHA
+opt.ext	only files with these extensions (jpg,png)	só ficheiros com estas extensões (jpg,png)	solo archivos con estas extensiones (jpg,png)
+opt.skip_ext	leave out files with these extensions (tmp,log)	deixar de fora ficheiros com estas extensões (tmp,log)	dejar fuera archivos con estas extensiones (tmp,log)
+opt.include	only files or folders whose name matches (* and ? allowed)	só ficheiros ou pastas cujo nome corresponde (* e ? permitidos)	solo archivos o carpetas cuyo nombre coincide (* y ? permitidos)
+opt.exclude	leave out files or folders whose name matches	deixar de fora ficheiros ou pastas cujo nome corresponde	dejar fuera archivos o carpetas cuyo nombre coincide
+opt.json	write a JSON list of the groups instead of text	escrever uma lista JSON dos grupos em vez de texto	escribir una lista JSON de los grupos en vez de texto
+opt.csv	write CSV, a row per file, instead of text	escrever CSV, uma linha por ficheiro, em vez de texto	escribir CSV, una fila por archivo, en vez de texto
+opt.no_index	read folder by folder, without the Everything index or the NTFS table	ler pasta a pasta, sem o índice do Everything nem a tabela NTFS	leer carpeta por carpeta, sin el índice de Everything ni la tabla NTFS
+opt.no_cache	do not use the cache of hashes (shared with rdup)	não usar a cache de hashes (partilhada com o rdup)	no usar la caché de hashes (compartida con rdup)
+opt.cache	keep the cache of hashes in FILE	guardar a cache de hashes em FICHEIRO	guardar la caché de hashes en ARCHIVO
+opt.lang	language of the messages: en, pt or es	língua das mensagens: en, pt ou es	idioma de los mensajes: en, pt o es
+opt.version	show the version	mostrar a versão	mostrar la versión
+opt.help	show this help	mostrar esta ajuda	mostrar esta ayuda

@@ -3,16 +3,13 @@
 
 pub mod actions;
 pub mod app;
-pub mod cache;
 pub mod commands;
-pub mod filter;
-pub mod folders;
 pub mod i18n;
-pub mod search;
 pub mod settings;
 pub mod storage;
 pub mod ui;
 
 // Reading the disk, and the formatting of sizes and dates, are shared with
 // rsize (crates/rt-scan).
+pub use rt_dups::{cache, filter, folders, search};
 pub use rt_scan::{format, volumes};

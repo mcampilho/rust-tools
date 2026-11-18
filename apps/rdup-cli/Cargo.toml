@@ -1,0 +1,17 @@
+[package]
+name = "rdup-cli"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.93"
+description = "Finds files with the same contents, like fdupes, reading NTFS volumes directly when it can"
+license = "MIT"
+
+[package.metadata.rust-tools]
+# Read by dev.ps1 and release.yml. `release` unwinds (catch_unwind), `release-small` aborts.
+profile = "release-small"
+
+[dependencies]
+rt-cli = { path = "../../crates/rt-cli" }
+rt-core = { path = "../../crates/rt-core" }
+rt-dups = { path = "../../crates/rt-dups" }
+rt-scan = { path = "../../crates/rt-scan" }

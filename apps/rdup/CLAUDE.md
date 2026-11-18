@@ -8,16 +8,22 @@ marca e confirma (Reciclagem ou uma pasta), nunca todas as cópias de um grupo. 
 
 ```powershell
 ./dev.ps1 build --profile release-small -p rdup
-./dev.ps1 test -p rdup         # 38 testes
+./dev.ps1 test -p rdup -p rt-dups   # 18 + 20 testes
 ./dev.ps1 clippy -p rdup --all-targets
 ./dev.ps1 test -p rdup --release --lib screenshots '--' --ignored   # páginas e ícone em apps/rdup/target/screens/*.png
-$env:RDUP_BENCH_DIR = 'C:\|D:\'; ./dev.ps1 test -p rdup --release --lib bench '--' --ignored --nocapture   # RDUP_MIN, RDUP_CACHE
-$env:RDUP_BENCH_DIR = 'E:\'; ./dev.ps1 test -p rdup --release --lib edges_rate '--' --ignored --nocapture   # passo 2 com 1/4/16 fios; RDUP_N, RDUP_SKIP, RDUP_MIN
+$env:RDUP_BENCH_DIR = 'C:\|D:\'; ./dev.ps1 test -p rt-dups --release --lib bench '--' --ignored --nocapture   # RDUP_MIN, RDUP_CACHE
+$env:RDUP_BENCH_DIR = 'E:\'; ./dev.ps1 test -p rt-dups --release --lib edges_rate '--' --ignored --nocapture   # passo 2 com 1/4/16 fios; RDUP_N, RDUP_SKIP, RDUP_MIN
 ```
 
 Correm na raiz do repositório. Saída: `target\release-small\rdup.exe` (perfil `release-small`).
 
 ## Arquitetura (`src/`)
+
+Desde 2026-11-18 o motor (`search.rs`, `cache.rs`, `folders.rs` e `filter.rs`) está no crate `crates/rt-dups`, partilhado
+com o `rdup-cli`: o `lib.rs` do rdup reexporta-os (`crate::search` continua a funcionar), os testes com pastas
+de exemplo usam `rt_dups::testing` (`sample`, `sys`, `data`, `folder_sample`, `search_in`) e os testes e as medições
+(`bench`, `edges_rate`, `size_profile`) desses módulos correm com `-p rt-dups`. Os módulos abaixo continuam a
+descrever o que cada um faz, onde quer que estejam.
 
 - Leitura dos discos: o crate `rt-scan` (o mesmo do rsize): índice do Everything → MFT do NTFS (administrador)
   → pasta a pasta. `lib.rs` reexporta `format` e `volumes` dele.
@@ -104,7 +110,7 @@ Correm na raiz do repositório. Saída: `target\release-small\rdup.exe` (perfil 
 - Nada é apagado de vez: só Reciclagem ou mover, sempre depois de confirmar, e nunca todas as cópias de um grupo
   (verificado em `toggle_mark`, nas regras e outra vez em `marked`). A confirmação usa os diálogos do sistema,
   que os testes não cobrem.
-- `unsafe` só para chamadas Win32 (`search.rs::identity`, `SetErrorMode` no `main`), com `SAFETY`.
+- `unsafe` só para chamadas Win32 (`SetErrorMode` no `main`; `identity` em `search.rs`, hoje no `rt-dups`), com `SAFETY`.
 - Qualquer string visível nova precisa de linha completa em `strings.txt`; teclas de acesso diferentes dentro de
   cada menu em todas as línguas (teste `access_keys_differ_within_each_menu`).
 - `README.md` e `README.pt.md` são atualizados em conjunto.

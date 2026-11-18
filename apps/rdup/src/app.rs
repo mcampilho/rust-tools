@@ -593,7 +593,7 @@ impl App {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::search::tests::{sample, sys};
+    use rt_dups::testing::{sample, sys};
 
     #[test]
     fn roots_are_chosen_and_taken_out() {
@@ -766,9 +766,9 @@ mod tests {
 
     #[test]
     fn the_folders_are_another_view() {
-        let tt = crate::folders::tests::folders("rdup-app-folders");
+        let tt = rt_dups::testing::folder_sample("rdup-app-folders");
         let mut app = App::new();
-        app.set_found(crate::folders::tests::search(&tt, 1));
+        app.set_found(rt_dups::testing::search_in(&tt, 1));
         assert_eq!(app.view, View::Files);
         assert_eq!(app.folder_groups.len(), 3, "identical, and two with 93 % in common");
         app.set_view(View::Folders);

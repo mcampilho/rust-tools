@@ -24,6 +24,9 @@ Monorepo (workspace Cargo) com nove aplicações, cada uma um único `.exe`, e o
 - `apps/rsize-cli` — linha de comandos, Windows e Linux (desde 2026-11-18): o `du` do rsize (`-h`, `-s`, `-d`, `-a`,
   `-c`, `--apparent-size`, mais `--top`, `--sort`, `--json`, `--csv`, `--no-index`); lê com o `rt-scan` (Everything →
   NTFS → pasta a pasta). Textos em en/pt/es pelo `rt-cli`.
+- `apps/rdup-cli` — linha de comandos, Windows e Linux (desde 2026-11-18): o `fdupes` do rdup (grupos de cópias, `-S`,
+  `-m`, `-1`, `-f`, filtros, `--json`, `--csv`, cache de hashes partilhada com o rdup). Só lista: não apaga nada.
+  Usa o motor do crate `rt-dups`.
 
 Cada aplicação tem o seu `CLAUDE.md` com arquitetura e regras próprias.
 
@@ -63,7 +66,7 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
   entram com o primeiro), `checkver` pelo `tag_name` dos releases e `autoupdate` com a soma do `SHA256SUMS.txt`;
   depois de um release, `checkver.ps1 -Dir bucket -Update`.
 - Aplicações só de linha de comandos (sem janela) levam o sufixo `-cli` na pasta, no crate e no `.exe`
-  (`rscoop-cli`, `rsize-cli`; previsto `rdup-cli`, ao estilo do `fdupes`). Partilham o crate `rt-cli` (textos
+  (`rscoop-cli`, `rsize-cli`, `rdup-cli`). Partilham o crate `rt-cli` (textos
   en/pt/es, língua, tamanhos como o `du`). Têm texto em en/pt/es,
   não têm modo residente, "Iniciar com o Windows" nem "Procurar atualizações…", e no bucket do Scoop ficam sem
   `shortcuts`. As pastas de dados mantêm o nome antigo (`%LOCALAPPDATA%\rscoop`) para não perder cache nem cópias.
@@ -110,7 +113,7 @@ colidirem (testes em Windows e no WSL).
 O código comum está em `crates/` (ver `crates/README.pt.md`): `rt-core` (traduções, definições, árvore de
 menus), `rt-gfx` (desenho, texto, menus desenhados), `rt-sys` (Windows e Linux), `rt-scan` (leitura dos
 discos: Everything, MFT do NTFS, pasta a pasta; a árvore `model`, `volumes` e `format`; usado pelo rsize e
-pelo rdup; o rinst usa a pesquisa livre `everything::search` para os restos), `rt-ui` (base da janela: criar a janela, tema, menus desenhados, painel de mensagem, modo residente em Linux, menu do Explorador, painel "Aplicação predefinida por tipo de ficheiro" `assoc` do rview e do rpad, controlos das páginas de definições), `rt-syntax` (realce), `rt-build` (recursos do `.exe`) e `rt-cli` (o que as aplicações `-cli` partilham: `Texts` en/pt/es, `language`, `table_problems`, `human`). As aplicações guardam módulos pequenos com o mesmo nome de antes
+pelo rdup; o rinst usa a pesquisa livre `everything::search` para os restos), `rt-ui` (base da janela: criar a janela, tema, menus desenhados, painel de mensagem, modo residente em Linux, menu do Explorador, painel "Aplicação predefinida por tipo de ficheiro" `assoc` do rview e do rpad, controlos das páginas de definições), `rt-syntax` (realce), `rt-build` (recursos do `.exe`) e `rt-dups` (a procura de duplicados do rdup e do rdup-cli: `search`, `cache`, `folders`, `filter`, `testing`) e `rt-cli` (o que as aplicações `-cli` partilham: `Texts` en/pt/es, `language`, `table_problems`, `human`). As aplicações guardam módulos pequenos com o mesmo nome de antes
 (`ui/gfx.rs`, `storage.rs`, `win/mod.rs`, `linux/mod.rs`...) que reexportam dos crates e lhes dão a
 identidade da aplicação. Uma correção num destes assuntos faz-se no crate, uma vez.
 

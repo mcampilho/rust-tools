@@ -1372,8 +1372,8 @@ mod screenshots {
         let Ok(mut g) = Gfx::new() else { return };
         let out = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target").join("screens");
         std::fs::create_dir_all(&out).unwrap();
-        let tt = crate::search::tests::sample("rdup-shots");
-        let found = crate::search::tests::sys(std::slice::from_ref(&tt.0)).unwrap();
+        let tt = rt_dups::testing::sample("rdup-shots");
+        let found = rt_dups::testing::sys(std::slice::from_ref(&tt.0)).unwrap();
         let (w, h) = (1100u32, 760u32);
         let full = Rect::new(0.0, 0.0, w as f32, h as f32);
         let gb = 1u64 << 30;
@@ -1498,8 +1498,8 @@ mod screenshots {
         set_lang(Lang::EnUS);
         app.show_start = false;
         // The folders.
-        let ft = crate::folders::tests::folders("rdup-shots-folders");
-        app.set_found(crate::folders::tests::search(&ft, 1000));
+        let ft = rt_dups::testing::folder_sample("rdup-shots-folders");
+        app.set_found(rt_dups::testing::search_in(&ft, 1000));
         app.set_view(View::Folders);
         app.select(4);
         app.toggle_mark(2).unwrap();
@@ -1512,12 +1512,12 @@ mod screenshots {
         set_lang(Lang::EnUS);
         // Copies in one folder: no folders to compare.
         let one = rt_scan::testing::TempTree::new("rdup-shots-one");
-        one.write("a.bin", &crate::search::tests::data(5000, 1));
-        one.write("b.bin", &crate::search::tests::data(5000, 1));
-        app.set_found(crate::search::tests::sys(std::slice::from_ref(&one.0)).unwrap());
+        one.write("a.bin", &rt_dups::testing::data(5000, 1));
+        one.write("b.bin", &rt_dups::testing::data(5000, 1));
+        app.set_found(rt_dups::testing::sys(std::slice::from_ref(&one.0)).unwrap());
         app.set_view(View::Folders);
         shot("folders-none", &app, false, Hot::None);
-        let empty = crate::search::tests::sys(&[tt.0.join("docs")]).unwrap();
+        let empty = rt_dups::testing::sys(&[tt.0.join("docs")]).unwrap();
         app.set_found(empty);
         shot("result-none", &app, false, Hot::None);
         // The icon, large and at the size of the title bar.

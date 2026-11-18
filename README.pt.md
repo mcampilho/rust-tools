@@ -19,12 +19,13 @@ a rede, para descarregar as imagens que põe no ambiente de trabalho.
 | [rclean](apps/rclean/README.pt.md) | Limpador: mostra quanto ocupam os ficheiros temporários do Windows ou do Linux, os relatórios de erros, as miniaturas, as caches de shaders, a Reciclagem e as caches dos browsers (Chrome, Edge, Brave, Vivaldi, Opera, Firefox…) e as dos gestores de pacotes (Scoop, pip, npm, Cargo, vcpkg, apt… pelos seus próprios comandos), e apaga de vez o que marcar, depois de perguntar; os atalhos inválidos (para a Reciclagem) e as entradas inválidas do registo (guardadas antes num `.reg`); sem tocar no histórico, nos cookies nem nas palavras-passe | 1,9 MB | 5,6 MB |
 | [rscoop-cli](apps/rscoop-cli/README.pt.md) | Verificador de uma instalação do [Scoop](https://scoop.sh), na linha de comandos: shims, ligações `current`, dados persistentes, instalações falhadas, atalhos do menu Iniciar, registo, variáveis e ficheiros de configuração estragados ou que ainda apontam para uma raiz antiga do Scoop (depois de mudar o Scoop de disco); o `--fix` corrige-os com cópia de segurança; uma cache SQLite dos ficheiros já lidos torna as corridas seguintes cerca de 15 vezes mais rápidas | 2,4 MB | – |
 | [rsize-cli](apps/rsize-cli/README.pt.md) | Uso do disco na linha de comandos, como o `du`: quanto espaço ocupam os ficheiros e as pastas de um caminho (no disco ou pelo comprimento), em bytes, KiB, MiB ou `1.5K`, com profundidade, totais, as N maiores, JSON e CSV; lê o NTFS diretamente ou o índice do Everything como o rsize | 0,5 MB | – |
+| [rdup-cli](apps/rdup-cli/README.pt.md) | Procura de duplicados na linha de comandos, como o `fdupes`: ficheiros com o mesmo conteúdo nas pastas e discos indicados em conjunto, listados em grupos (primeiro o maior desperdício) ou em resumo, JSON ou CSV, com filtros por tamanho, data, extensão e nome e a cache de hashes do rdup; nunca apaga nada | 0,8 MB | – |
 
 Todas desenham a sua própria interface no CPU (winit, softbuffer, tiny-skia e
 ab_glyph), sem GPU nem biblioteca de interface. Têm 10 idiomas e seguem o tema
 claro ou escuro do sistema. Podem também ficar residentes na área de notificação
 com `--tray`, e cada uma pode arrancar assim com o Windows (ou ao entrar na sessão,
-em Linux) a partir do seu menu ou das suas definições. O rscoop-cli e o rsize-cli são as exceções:
+em Linux) a partir do seu menu ou das suas definições. O rscoop-cli, o rsize-cli e o rdup-cli são as exceções:
 ferramentas de linha de comandos (o sufixo `-cli`), em inglês, português e espanhol.
 
 ## Compilar
@@ -56,9 +57,10 @@ Tools, se existir: o de `$env:RUST_TOOLS_MSVC_ENV`, ou o de
 | rclean | `cargo build --profile release-small -p rclean` | `target\release-small\rclean.exe` |
 | rscoop-cli | `cargo build --profile release-small -p rscoop-cli` | `target\release-small\rscoop-cli.exe` |
 | rsize-cli | `cargo build --profile release-small -p rsize-cli` | `target\release-small\rsize-cli.exe` |
+| rdup-cli | `cargo build --profile release-small -p rdup-cli` | `target\release-small\rdup-cli.exe` |
 
 Há dois perfis porque, num workspace, o `panic` não se pode definir por pacote.
-O `release-small` aborta em pânicos, o que torna o rcalc, o rpad, o rsize, o rdup, o rinst, o rclean, o rscoop-cli e o rsize-cli
+O `release-small` aborta em pânicos, o que torna o rcalc, o rpad, o rsize, o rdup, o rinst, o rclean, o rscoop-cli, o rsize-cli e o rdup-cli
 cerca de 20% mais pequenos. O rview precisa do `release`: apanha os pânicos da biblioteca de
 PDF, para que um PDF malformado não feche o programa. O rwall também o usa, pela
 mesma razão, com as imagens que vêm da internet, e o rpack com arquivos danificados. O `./dev.ps1 dist` escolhe
@@ -123,6 +125,7 @@ rust-tools/
 │  ├─ rcalc/
 │  ├─ rclean/
 │  ├─ rdup/
+│  ├─ rdup-cli/
 │  ├─ rpack/
 │  ├─ rpad/
 │  ├─ rsize/
@@ -134,6 +137,7 @@ rust-tools/
 └─ crates/         código partilhado pelas aplicações
    ├─ rt-cli/      o que as aplicações de linha de comandos partilham: textos en/pt/es, tamanhos como o `du`
    ├─ rt-core/     traduções, definições, árvore de menus
+   ├─ rt-dups/     procura de ficheiros e pastas duplicados: a pesquisa, a cache de hashes, os filtros
    ├─ rt-gfx/      desenho, disposição de texto, menus desenhados, painel de mensagens
    ├─ rt-scan/     leitura rápida dos discos: Everything, tabela NTFS, pasta a pasta
    ├─ rt-sys/      integração com Windows e Linux

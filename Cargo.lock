@@ -2698,9 +2698,9 @@ version = "0.2.0"
 dependencies = [
  "accesskit",
  "accesskit_winit",
- "blake3",
  "rt-build",
  "rt-core",
+ "rt-dups",
  "rt-gfx",
  "rt-scan",
  "rt-sys",
@@ -2709,6 +2709,16 @@ dependencies = [
  "tiny-skia",
  "windows-sys 0.59.0",
  "winit",
+]
+
+[[package]]
+name = "rdup-cli"
+version = "0.1.0"
+dependencies = [
+ "rt-cli",
+ "rt-core",
+ "rt-dups",
+ "rt-scan",
 ]
 
 [[package]]
@@ -2942,6 +2952,16 @@ dependencies = [
 [[package]]
 name = "rt-core"
 version = "0.1.0"
+
+[[package]]
+name = "rt-dups"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "rt-core",
+ "rt-scan",
+ "windows-sys 0.59.0",
+]
 
 [[package]]
 name = "rt-gfx"

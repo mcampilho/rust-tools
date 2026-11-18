@@ -147,8 +147,8 @@ fn pages_render_fully_translated() {
     let Ok(mut g) = Gfx::new() else { return };
     set_lang(Lang::DeDE);
     take_misses();
-    let tt = crate::search::tests::sample("rdup-i18n");
-    let found = crate::search::tests::sys(std::slice::from_ref(&tt.0)).unwrap();
+    let tt = rt_dups::testing::sample("rdup-i18n");
+    let found = rt_dups::testing::sys(std::slice::from_ref(&tt.0)).unwrap();
     let full = Rect::new(0.0, 0.0, 1000.0, 700.0);
     g.resize(1000, 700);
     let theme = Theme::new(false, None);
@@ -213,14 +213,14 @@ fn pages_render_fully_translated() {
     // The folders: none, then identical and similar ones.
     app.set_view(crate::app::View::Folders);
     draw(&app);
-    let ft = crate::folders::tests::folders("rdup-i18n-folders");
-    app.set_found(crate::folders::tests::search(&ft, 1000));
+    let ft = rt_dups::testing::folder_sample("rdup-i18n-folders");
+    app.set_found(rt_dups::testing::search_in(&ft, 1000));
     app.set_view(crate::app::View::Folders);
-    let mut only = crate::folders::tests::search(&ft, 1000);
+    let mut only = rt_dups::testing::search_in(&ft, 1000);
     only.look = [false, true];
     app.set_found(only);
     draw(&app);
-    app.set_found(crate::folders::tests::search(&ft, 1000));
+    app.set_found(rt_dups::testing::search_in(&ft, 1000));
     app.set_view(crate::app::View::Folders);
     for share in crate::folders::SHARES {
         app.set_share(share);

@@ -19,12 +19,13 @@ uses the network, to download the pictures it puts on the desktop.
 | [rclean](apps/rclean/README.md) | Cleaner: shows how much the temporary files of Windows or Linux, error reports, thumbnails, shader caches, the Recycle Bin and the browsers' caches (Chrome, Edge, Brave, Vivaldi, Opera, Firefox…) and the caches of package managers (Scoop, pip, npm, Cargo, vcpkg, apt… through their own commands) take, and deletes for good what you tick, after asking; broken shortcuts (to the Recycle Bin) and invalid registry entries (saved to a `.reg` file first); history, cookies and passwords are never touched | 1.9 MB | 5.6 MB |
 | [rscoop-cli](apps/rscoop-cli/README.md) | Command-line checker for a [Scoop](https://scoop.sh) installation: shims, `current` links, persisted data, failed installs, Start menu shortcuts, registry, variables and config files that are broken or still point to an old Scoop root (after moving Scoop to another drive); `--fix` repairs them with a backup; a SQLite cache of the files already read makes the next runs about 15 times faster | 2.4 MB | – |
 | [rsize-cli](apps/rsize-cli/README.md) | Command-line disk usage, like `du`: how much space the files and folders under a path take (on the disk or by length), as bytes, KiB, MiB or `1.5K`, with depth, totals, the N largest, JSON and CSV; reads NTFS directly or the Everything index like rsize | 0.5 MB | – |
+| [rdup-cli](apps/rdup-cli/README.md) | Command-line duplicate finder, like `fdupes`: files with the same contents in the folders and drives given together, listed in groups (the biggest waste first) or as a summary, JSON or CSV, with filters by size, date, extension and name and the cache of hashes of rdup; it never deletes anything | 0.8 MB | – |
 
 They all draw their own interface on the CPU (winit, softbuffer, tiny-skia and
 ab_glyph), with no GPU and no UI toolkit. They come in 10 languages and follow
 the system's light or dark theme. They can also stay resident in the
 notification area with `--tray`, and each can start that way with Windows (or
-when you log in, on Linux) from its own menu or settings. rscoop-cli and rsize-cli are the
+when you log in, on Linux) from its own menu or settings. rscoop-cli, rsize-cli and rdup-cli are the
 exceptions: command-line tools (the `-cli` suffix) in English, Portuguese and Spanish.
 
 ## Build
@@ -55,9 +56,10 @@ is one: from `$env:RUST_TOOLS_MSVC_ENV`, or from `\Portable\Tools\dev\msvc` on
 | rclean | `cargo build --profile release-small -p rclean` | `target\release-small\rclean.exe` |
 | rscoop-cli | `cargo build --profile release-small -p rscoop-cli` | `target\release-small\rscoop-cli.exe` |
 | rsize-cli | `cargo build --profile release-small -p rsize-cli` | `target\release-small\rsize-cli.exe` |
+| rdup-cli | `cargo build --profile release-small -p rdup-cli` | `target\release-small\rdup-cli.exe` |
 
 The two profiles exist because `panic` cannot be set per package in a workspace.
-`release-small` aborts on panic, which makes rcalc, rpad, rsize, rdup, rinst, rclean, rscoop-cli and rsize-cli about 20% smaller.
+`release-small` aborts on panic, which makes rcalc, rpad, rsize, rdup, rinst, rclean, rscoop-cli, rsize-cli and rdup-cli about 20% smaller.
 rview needs `release`: it catches a panic from the PDF library, so that a
 malformed PDF cannot close the program. rwall uses it too, for the same reason
 with pictures from the web, and rpack with damaged archives. `./dev.ps1 dist` picks the right profile
@@ -123,6 +125,7 @@ rust-tools/
 │  ├─ rcalc/
 │  ├─ rclean/
 │  ├─ rdup/
+│  ├─ rdup-cli/
 │  ├─ rpack/
 │  ├─ rpad/
 │  ├─ rsize/
@@ -134,6 +137,7 @@ rust-tools/
 └─ crates/         code shared by the apps
    ├─ rt-cli/      what the command-line apps share: texts in en/pt/es, sizes as `du` shows them
    ├─ rt-core/     translations, settings, menu tree
+   ├─ rt-dups/     finding duplicate files and folders: the search, the hash cache, the filters
    ├─ rt-gfx/      drawing, text layout, drawn menus, message panel
    ├─ rt-scan/     reading drives fast: Everything, the NTFS table, folder by folder
    ├─ rt-sys/      Windows and Linux integration
