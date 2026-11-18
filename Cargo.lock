@@ -2909,6 +2909,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsize-cli"
+version = "0.1.0"
+dependencies = [
+ "rt-cli",
+ "rt-scan",
+]
+
+[[package]]
 name = "rsqlite-vfs"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2922,6 +2930,13 @@ name = "rt-build"
 version = "0.1.0"
 dependencies = [
  "tiny-skia",
+]
+
+[[package]]
+name = "rt-cli"
+version = "0.1.0"
+dependencies = [
+ "rt-sys",
 ]
 
 [[package]]

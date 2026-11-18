@@ -1,0 +1,32 @@
+# rsize-cli texts: key, then English, European Portuguese and Spanish, separated by tabs.
+# Placeholders in braces are filled in by the program.
+err.unknown	unknown option '{opt}'	opção desconhecida '{opt}'	opción desconocida '{opt}'
+err.missing	option '{opt}' needs a value	a opção '{opt}' precisa de um valor	la opción '{opt}' necesita un valor
+err.number	'{value}' is not a valid number for '{opt}'	'{value}' não é um número válido para '{opt}'	'{value}' no es un número válido para '{opt}'
+err.choice	'{value}' is not valid for '{opt}' (use {choices})	'{value}' não é válido para '{opt}' (use {choices})	'{value}' no es válido para '{opt}' (use {choices})
+err.try	Try '{prog} --help' for more information.	Experimente '{prog} --help' para mais informação.	Pruebe '{prog} --help' para más información.
+err.access	cannot access '{path}': {reason}	não foi possível aceder a '{path}': {reason}	no se puede acceder a '{path}': {reason}
+warn.unreadable	{n} folders could not be read, so their sizes are missing.	Não foi possível ler {n} pastas, por isso faltam os seus tamanhos.	No se pudieron leer {n} carpetas, por lo que faltan sus tamaños.
+help.usage	Usage	Utilização	Uso
+help.paths	PATH	CAMINHO	RUTA
+help.description	Shows how much disk space the files and folders under each PATH (the current folder by default) take, like du. On NTFS it reads the volume's file table directly when run as administrator, or the Everything index when that is running; otherwise it reads folder by folder.	Mostra quanto espaço em disco ocupam os ficheiros e as pastas de cada CAMINHO (a pasta atual por omissão), como o du. Em NTFS lê diretamente a tabela de ficheiros do volume quando corre como administrador, ou o índice do Everything se estiver a correr; senão lê pasta a pasta.	Muestra cuánto espacio en disco ocupan los archivos y las carpetas de cada RUTA (la carpeta actual por omisión), como du. En NTFS lee directamente la tabla de archivos del volumen cuando se ejecuta como administrador, o el índice de Everything si está en marcha; si no, lee carpeta por carpeta.
+help.options	Options	Opções	Opciones
+help.exit	Exit status: 0 all read, 1 a path or some folders could not be read, 2 wrong usage.	Código de saída: 0 tudo lido, 1 não foi possível ler um caminho ou algumas pastas, 2 utilização errada.	Código de salida: 0 todo leído, 1 no se pudo leer una ruta o algunas carpetas, 2 uso incorrecto.
+opt.human	sizes as 1.5K, 23M, 4.0G (steps of 1024)	tamanhos como 1.5K, 23M, 4.0G (passos de 1024)	tamaños como 1.5K, 23M, 4.0G (pasos de 1024)
+opt.si	like -h, with steps of 1000	como -h, com passos de 1000	como -h, con pasos de 1000
+opt.bytes	sizes in bytes	tamanhos em bytes	tamaños en bytes
+opt.kib	sizes in KiB (the default)	tamanhos em KiB (a predefinição)	tamaños en KiB (el valor predeterminado)
+opt.mib	sizes in MiB	tamanhos em MiB	tamaños en MiB
+opt.summarize	only the total of each PATH	só o total de cada CAMINHO	solo el total de cada RUTA
+opt.all	show files too, not only folders	mostrar também os ficheiros, não só as pastas	mostrar también los archivos, no solo las carpetas
+opt.total	add a grand total at the end	acrescentar um total geral no fim	añadir un total general al final
+opt.depth	show folders down to N levels below each PATH	mostrar as pastas até N níveis abaixo de cada CAMINHO	mostrar las carpetas hasta N niveles bajo cada RUTA
+opt.apparent	the length of the files, not the space they take on the disk	o comprimento dos ficheiros, não o espaço que ocupam no disco	la longitud de los archivos, no el espacio que ocupan en el disco
+opt.sort	order inside each folder: size (the default) or name	ordem dentro de cada pasta: size (a predefinição) ou name	orden dentro de cada carpeta: size (el valor predeterminado) o name
+opt.top	only the N largest entries, largest first	só as N maiores entradas, da maior para a menor	solo las N entradas mayores, de la mayor a la menor
+opt.json	write a JSON list instead of text	escrever uma lista JSON em vez de texto	escribir una lista JSON en vez de texto
+opt.csv	write CSV instead of text	escrever CSV em vez de texto	escribir CSV en vez de texto
+opt.no_index	read folder by folder, without the Everything index or the NTFS table	ler pasta a pasta, sem o índice do Everything nem a tabela NTFS	leer carpeta por carpeta, sin el índice de Everything ni la tabla NTFS
+opt.lang	language of the messages: en, pt or es	língua das mensagens: en, pt ou es	idioma de los mensajes: en, pt o es
+opt.version	show the version	mostrar a versão	mostrar la versión
+opt.help	show this help	mostrar esta ajuda	mostrar esta ayuda

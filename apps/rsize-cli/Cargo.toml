@@ -1,0 +1,15 @@
+[package]
+name = "rsize-cli"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.93"
+description = "Shows how much disk space files and folders take, like du, reading NTFS volumes directly when it can"
+license = "MIT"
+
+[package.metadata.rust-tools]
+# Read by dev.ps1 and release.yml. `release` unwinds (catch_unwind), `release-small` aborts.
+profile = "release-small"
+
+[dependencies]
+rt-cli = { path = "../../crates/rt-cli" }
+rt-scan = { path = "../../crates/rt-scan" }

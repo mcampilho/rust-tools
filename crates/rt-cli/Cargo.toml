@@ -1,0 +1,11 @@
+[package]
+name = "rt-cli"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.93"
+description = "What the command-line rust-tools apps share: texts in English, Portuguese and Spanish, and sizes as du shows them"
+license = "MIT"
+publish = false
+
+[dependencies]
+rt-sys = { path = "../rt-sys" }
