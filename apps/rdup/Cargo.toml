@@ -2,7 +2,7 @@
 name = "rdup"
 version = "0.2.0"
 edition = "2021"
-rust-version = "1.88"
+rust-version = "1.93"
 description = "A portable duplicate file finder: files with the same contents on drives and folders"
 license = "MIT"
 

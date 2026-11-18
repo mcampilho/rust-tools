@@ -2,7 +2,7 @@
 name = "rt-ui"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.88"
+rust-version = "1.93"
 description = "The window shell shared by the rust-tools apps: window, theme, drawn menus' input, message panel, resident mode, Explorer menu"
 license = "MIT"
 publish = false

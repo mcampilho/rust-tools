@@ -2,7 +2,7 @@
 name = "rt-scan"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.88"
+rust-version = "1.93"
 description = "Reading folder trees fast (Everything, the NTFS table, or folder by folder), shared by the rust-tools apps"
 license = "MIT"
 publish = false

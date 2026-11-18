@@ -2,7 +2,7 @@
 name = "rt-core"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.88"
+rust-version = "1.93"
 description = "Translations, settings storage and the menu model shared by the rust-tools apps"
 license = "MIT"
 publish = false

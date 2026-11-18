@@ -4,5 +4,14 @@
 [advisories]
 version = 2
 yanked = "deny"
-# Add an advisory id here, with the reason, only when it does not apply.
-ignore = []
+# Only advisories with no fix to apply, and the reason. Look at them again when
+# the crate that brings them in moves on (Dependabot proposes it).
+ignore = [
+    # ab_glyph (text drawing in rt-gfx) uses owned_ttf_parser. No release of
+    # ab_glyph without it yet.
+    { id = "RUSTSEC-2026-0192", reason = "ttf-parser: unmaintained, comes from ab_glyph; no replacement released" },
+    # zbus (through accesskit_unix, Linux only, and the tray) uses these.
+    { id = "RUSTSEC-2026-0370", reason = "zvariant: unmaintained, comes from zbus (Linux only); no safe upgrade" },
+    { id = "RUSTSEC-2026-0371", reason = "zbus_names: unmaintained, comes from zbus (Linux only); no safe upgrade" },
+    { id = "RUSTSEC-2026-0372", reason = "zvariant_derive: unmaintained, comes from zbus (Linux only); no safe upgrade" },
+]

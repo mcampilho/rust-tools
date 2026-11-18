@@ -16,8 +16,13 @@ pub fn scratch(name: &str) -> PathBuf {
         .join(format!("{name}-{}-{}", std::process::id(), N.fetch_add(1, Ordering::Relaxed)));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    // Plain path text: no \\?\ prefix.
-    PathBuf::from(crate::paths::normpath(&dir.to_string_lossy()))
+    // Plain path text: no \\?\ prefix. (`normpath` writes Windows paths, so it
+    // is for Windows only: on Linux it would turn every `/` into `\`.)
+    if cfg!(windows) {
+        PathBuf::from(crate::paths::normpath(&dir.to_string_lossy()))
+    } else {
+        dir
+    }
 }
 
 #[cfg(windows)]

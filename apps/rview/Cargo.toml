@@ -2,7 +2,7 @@
 name = "rview"
 version = "1.3.0"
 edition = "2021"
-rust-version = "1.88"
+rust-version = "1.93"
 description = "A small, fast, portable viewer for PDF, Markdown, HTML, text and CSV documents"
 license = "MIT"
 
