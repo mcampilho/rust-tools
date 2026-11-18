@@ -46,6 +46,19 @@ jobs:
       - name: Test
         run: cargo test --workspace --locked
 
+  # The code follows rustfmt (rustfmt.toml). Run `cargo fmt --all` before a commit.
+  fmt:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          components: rustfmt
+
+      - name: Format
+        run: cargo fmt --all -- --check
+
   # `rust-version` in the Cargo.toml files is a promise: build with it.
   msrv:
     strategy:

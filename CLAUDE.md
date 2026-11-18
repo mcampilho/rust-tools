@@ -59,7 +59,10 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
 - Bucket do Scoop na pasta `bucket/` (desde 2026-11-17): um manifesto por app com release (rpack, rinst e rclean
   entram com o primeiro), `checkver` pelo `tag_name` dos releases e `autoupdate` com a soma do `SHA256SUMS.txt`;
   depois de um release, `checkver.ps1 -Dir bucket -Update`.
-- `rustfmt.toml`: `max_width = 140`.
+- `rustfmt.toml`: `max_width = 140` e `use_small_heuristics = "Max"`. O código segue o rustfmt (job `fmt` do CI):
+  `cargo fmt --all` antes de cada commit. Neste PC o `cargo-fmt` do rustup (sem toolchain) vem primeiro no PATH:
+  pôr `E:\Portable\scoop\apps\rust\current\bin` à frente. A reformatação de 2026-11-18 está em
+  `.git-blame-ignore-revs` (`git config blame.ignoreRevsFile .git-blame-ignore-revs`).
 
 ## Verificação automática
 
