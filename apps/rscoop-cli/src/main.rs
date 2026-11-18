@@ -1,4 +1,4 @@
-//! rscoop: validates a Scoop installation, finds what still points to an old
+//! rscoop-cli: validates a Scoop installation, finds what still points to an old
 //! Scoop root and, with --fix, repairs it. A Rust port of scoop-check, with a
 //! SQLite cache of the files already read.
 

@@ -1,4 +1,4 @@
-# rscoop
+# rscoop-cli
 
 *Read this in [Portuguese](README.pt.md).*
 
@@ -15,9 +15,9 @@ English, Portuguese and Spanish.
 ## Running
 
 ```bat
-rscoop
-rscoop --lang pt --skip configs
-rscoop --json > report.json
+rscoop-cli
+rscoop-cli --lang pt --skip configs
+rscoop-cli --json > report.json
 ```
 
 The exit code is 0 when nothing was found, 1 when there are errors or warnings (or, with
@@ -62,7 +62,7 @@ current root; its apps, shims and persist folder are checked too when it exists.
 ## Speed
 
 On a first run almost all the time goes into opening some 30 000 small files — and the
-antivirus reads each one on its first open. rscoop keeps a cache in
+antivirus reads each one on its first open. rscoop-cli keeps a cache in
 `%LOCALAPPDATA%\rscoop\cache.db` (SQLite): for each shim, shortcut, install/manifest JSON,
 `.reg` and config file, its size, its modification time and what was read from it (for
 config files only the paths found in them). A file whose size and time did not change is
@@ -78,7 +78,7 @@ On the installation it was written for (1 500 apps, 28 000 config files, a hard 
 | | First run | Next runs |
 |---|---|---|
 | Python `scoop-check` | 264 s | 264 s |
-| rscoop | 261 s | 17 s |
+| rscoop-cli | 261 s | 17 s |
 
 The config files are read on several threads. The first run is bound by the disk and the
 antivirus, like the Python version.
@@ -86,8 +86,8 @@ antivirus, like the Python version.
 ## Repairing
 
 ```bat
-rscoop --fix --dry-run
-rscoop --fix
+rscoop-cli --fix --dry-run
+rscoop-cli --fix
 ```
 
 Run `--dry-run` first to see the list. `--fix` then repairs, in this order:
@@ -103,12 +103,12 @@ Run `--dry-run` first to see the list. `--fix` then repairs, in this order:
 Every changed file is copied to the backup folder first (under a folder named after its
 drive), and changed registry values are written to `registry.json` there with their old
 and new values. Missing files that are not in another root cannot be repaired
-automatically; they stay in the report. Run rscoop again afterwards to see what is left.
+automatically; they stay in the report. Run rscoop-cli again afterwards to see what is left.
 
 ## Tests
 
 ```powershell
-./dev.ps1 test -p rscoop
+./dev.ps1 test -p rscoop-cli
 ```
 
 The tests build a fake Scoop tree (junctions, hard links, shims, shortcuts, `.reg` and
@@ -122,4 +122,4 @@ Portuguese and Spanish texts, separated by tabs.
 
 ## Linux
 
-Scoop is Windows only: on Linux rscoop only says so.
+Scoop is Windows only: on Linux rscoop-cli only says so.

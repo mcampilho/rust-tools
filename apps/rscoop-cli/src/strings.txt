@@ -1,4 +1,4 @@
-# rscoop texts: key, then English, European Portuguese and Spanish, separated by tabs.
+# rscoop-cli texts: key, then English, European Portuguese and Spanish, separated by tabs.
 # Placeholders in braces are filled in by the program.
 check.roots	Scoop roots and variables	Raízes e variáveis do Scoop	Raíces y variables de Scoop
 check.shims	Shims	Shims	Shims
@@ -97,7 +97,7 @@ fix.status.failed	Failed	Falhou	Falló
 fix.status.skipped	Skipped	Ignorado	Omitido
 fix.summary	Repaired: {done}, would repair: {planned}, failed: {failed}, skipped: {skipped}.	Corrigidos: {done}, a corrigir: {planned}, falhados: {failed}, ignorados: {skipped}.	Corregidos: {done}, por corregir: {planned}, fallidos: {failed}, omitidos: {skipped}.
 fix.backup	Backup of the changed files and values: {path}	Cópia dos ficheiros e valores alterados: {path}	Copia de los archivos y valores cambiados: {path}
-fix.rerun	Run rscoop again to see what is left.	Volte a correr o rscoop para ver o que falta.	Vuelva a ejecutar rscoop para ver lo que queda.
+fix.rerun	Run rscoop-cli again to see what is left.	Volte a correr o rscoop-cli para ver o que falta.	Vuelva a ejecutar rscoop-cli para ver lo que queda.
 fix.nothing	Nothing that can be repaired automatically.	Nada que se possa corrigir automaticamente.	Nada que se pueda corregir automáticamente.
 fix.error	Error: {error}	Erro: {error}	Error: {error}
 fix.no_version	No version folder to point 'current' to.	Não há pasta de versão para onde apontar o 'current'.	No hay carpeta de versión a la que apuntar 'current'.

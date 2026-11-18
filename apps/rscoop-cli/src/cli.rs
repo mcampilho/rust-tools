@@ -129,8 +129,13 @@ fn help(t: &T) -> String {
         ("-h, --help", t.get("cli.help").into()),
         ("-V, --version", t.get("cli.version").into()),
     ];
-    let mut s =
-        format!("{}: rscoop [{}]\n\n{}\n\n{}:\n", t.get("cli.usage"), t.get("cli.options"), t.get("cli.description"), t.get("cli.options"));
+    let mut s = format!(
+        "{}: rscoop-cli [{}]\n\n{}\n\n{}:\n",
+        t.get("cli.usage"),
+        t.get("cli.options"),
+        t.get("cli.description"),
+        t.get("cli.options")
+    );
     for (k, v) in rows {
         s += &format!("  {k:<20} {v}\n");
     }
@@ -178,7 +183,7 @@ pub fn run(
         return 0;
     }
     if o.version {
-        let _ = writeln!(out, "rscoop {}", env!("CARGO_PKG_VERSION"));
+        let _ = writeln!(out, "rscoop-cli {}", env!("CARGO_PKG_VERSION"));
         return 0;
     }
     let selected = split(&o.checks);

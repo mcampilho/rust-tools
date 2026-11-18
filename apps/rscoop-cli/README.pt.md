@@ -1,4 +1,4 @@
-# rscoop
+# rscoop-cli
 
 *Ler em [inglês](README.md).*
 
@@ -15,9 +15,9 @@ só executável de 2,4 MB; textos em inglês, português e espanhol.
 ## Como correr
 
 ```bat
-rscoop
-rscoop --lang pt --skip configs
-rscoop --json > relatorio.json
+rscoop-cli
+rscoop-cli --lang pt --skip configs
+rscoop-cli --json > relatorio.json
 ```
 
 O código de saída é 0 quando não se encontra nada, 1 quando há erros ou avisos (ou, com
@@ -62,7 +62,7 @@ raiz atual; as suas aplicações, shims e pasta persist também são verificados
 ## Rapidez
 
 Na primeira corrida quase todo o tempo vai para abrir uns 30 000 ficheiros pequenos — e o
-antivírus lê cada um na primeira abertura. O rscoop guarda uma cache em
+antivírus lê cada um na primeira abertura. O rscoop-cli guarda uma cache em
 `%LOCALAPPDATA%\rscoop\cache.db` (SQLite): para cada shim, atalho, JSON de instalação ou
 manifesto, `.reg` e ficheiro de configuração, o tamanho, a data de modificação e o que se
 leu dele (nos ficheiros de configuração, só os caminhos encontrados). Um ficheiro com o
@@ -80,7 +80,7 @@ disco rígido):
 | | Primeira corrida | Seguintes |
 |---|---|---|
 | `scoop-check` em Python | 264 s | 264 s |
-| rscoop | 261 s | 17 s |
+| rscoop-cli | 261 s | 17 s |
 
 Os ficheiros de configuração são lidos em várias threads. A primeira corrida depende do
 disco e do antivírus, como a versão em Python.
@@ -88,8 +88,8 @@ disco e do antivírus, como a versão em Python.
 ## Correções
 
 ```bat
-rscoop --fix --dry-run
-rscoop --fix
+rscoop-cli --fix --dry-run
+rscoop-cli --fix
 ```
 
 Corra primeiro com `--dry-run` para ver a lista. Depois o `--fix` corrige, por esta ordem:
@@ -105,13 +105,13 @@ Corra primeiro com `--dry-run` para ver a lista. Depois o `--fix` corrige, por e
 Cada ficheiro alterado é primeiro copiado para a pasta de cópias de segurança (dentro de
 uma pasta com o nome do disco), e os valores do registo alterados ficam em `registry.json`,
 com o valor antigo e o novo. Ficheiros em falta que não estão noutra raiz não se podem
-corrigir automaticamente e continuam no relatório. Volte a correr o rscoop no fim para ver
+corrigir automaticamente e continuam no relatório. Volte a correr o rscoop-cli no fim para ver
 o que falta.
 
 ## Testes
 
 ```powershell
-./dev.ps1 test -p rscoop
+./dev.ps1 test -p rscoop-cli
 ```
 
 Os testes criam uma árvore Scoop falsa (junções, ligações físicas, shims, atalhos,
@@ -125,4 +125,4 @@ português europeu e espanhol, separados por tabulações.
 
 ## Linux
 
-O Scoop só existe no Windows: em Linux o rscoop só diz isso.
+O Scoop só existe no Windows: em Linux o rscoop-cli só diz isso.

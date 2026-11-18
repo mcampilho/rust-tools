@@ -1,4 +1,4 @@
-# rscoop
+# rscoop-cli
 
 Ferramenta de linha de comandos (sem janela) que verifica uma instalação do Scoop e, com `--fix`, corrige o que
 aponta para uma raiz antiga. É o port em Rust de `E:\Projects\AI\Claude\scoop-check` (Python): mesmas verificações,

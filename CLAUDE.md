@@ -18,7 +18,7 @@ Monorepo (workspace Cargo) com nove aplicações, cada uma um único `.exe`, e o
   restos; separadores para Scoop, Chocolatey, DISM, npm, pip, Cargo e vcpkg; em Linux, dpkg, rpm, Flatpak e Snap.
 - `apps/rclean` — limpador: temporários do sistema, caches dos browsers e dos gestores de pacotes, apagados de vez
   depois de confirmar; atalhos inválidos (para a Reciclagem); entradas inválidas do registo (cópia `.reg` antes).
-- `apps/rscoop` — linha de comandos, só Windows (desde 2026-11-17): verifica uma instalação do Scoop e corrige o que
+- `apps/rscoop-cli` — linha de comandos, só Windows (desde 2026-11-17): verifica uma instalação do Scoop e corrige o que
   aponta para uma raiz antiga (`--fix`); port do `scoop-check` em Python, com cache SQLite (`rusqlite` bundled).
   Não tem janela nem `--tray`; textos só em en/pt/es.
 
@@ -59,6 +59,10 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
 - Bucket do Scoop na pasta `bucket/` (desde 2026-11-17): um manifesto por app com release (rpack, rinst e rclean
   entram com o primeiro), `checkver` pelo `tag_name` dos releases e `autoupdate` com a soma do `SHA256SUMS.txt`;
   depois de um release, `checkver.ps1 -Dir bucket -Update`.
+- Aplicações só de linha de comandos (sem janela) levam o sufixo `-cli` na pasta, no crate e no `.exe`
+  (`rscoop-cli`; previstos `rsize-cli`, ao estilo do `du`, e `rdup-cli`, ao estilo do `fdupes`). Têm texto em en/pt/es,
+  não têm modo residente, "Iniciar com o Windows" nem "Procurar atualizações…", e no bucket do Scoop ficam sem
+  `shortcuts`. As pastas de dados mantêm o nome antigo (`%LOCALAPPDATA%\rscoop`) para não perder cache nem cópias.
 - `rustfmt.toml`: `max_width = 140` e `use_small_heuristics = "Max"`. O código segue o rustfmt (job `fmt` do CI):
   `cargo fmt --all` antes de cada commit. Neste PC o `cargo-fmt` do rustup (sem toolchain) vem primeiro no PATH:
   pôr `E:\Portable\scoop\apps\rust\current\bin` à frente. A reformatação de 2026-11-18 está em
