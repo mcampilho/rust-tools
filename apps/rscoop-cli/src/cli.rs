@@ -170,7 +170,7 @@ pub fn run(
     err: &mut dyn Write,
     powershell: Option<PowerShellRunner>,
 ) -> i32 {
-    let t = T::new(&lang_from_args(args).unwrap_or_else(system_language));
+    let t = crate::text::texts(&lang_from_args(args).unwrap_or_else(system_language));
     let o = match parse(args, &t) {
         Ok(o) => o,
         Err(e) => {

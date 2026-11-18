@@ -23,6 +23,12 @@ pub struct Opts {
     pub quiet: bool,
     /// Leave out names that start with a dot.
     pub no_hidden: bool,
+    /// The names of a hard-linked file count as copies.
+    pub hard_links: bool,
+    /// Look for duplicate folders instead of files.
+    pub folders: bool,
+    /// The least share two folders have in common, in thousandths.
+    pub share: u16,
     pub min_size: Option<u64>,
     pub max_size: Option<u64>,
     pub after: Option<i64>,
@@ -52,6 +58,9 @@ impl Default for Opts {
             omit_first: false,
             quiet: false,
             no_hidden: false,
+            hard_links: false,
+            folders: false,
+            share: 1000,
             min_size: None,
             max_size: None,
             after: None,
@@ -180,6 +189,14 @@ pub fn parse(args: &[String]) -> Result<Opts, Error> {
                 "omitfirst" => o.omit_first = true,
                 "quiet" => o.quiet = true,
                 "nohidden" => o.no_hidden = true,
+                "hardlinks" => o.hard_links = true,
+                "folders" => o.folders = true,
+                "share" => {
+                    let v = value(inline, args, &mut i, &opt)?;
+                    let pct = v.trim_end_matches('%').parse::<u16>().ok().filter(|p| (50..=100).contains(p));
+                    o.share = pct.map(|p| p * 10).ok_or(Error::Value { opt: opt.clone(), value: v })?;
+                    o.folders = true;
+                }
                 "json" => o.format = Format::Json,
                 "csv" => o.format = Format::Csv,
                 "no-index" => o.no_index = true,
@@ -207,6 +224,8 @@ pub fn parse(args: &[String]) -> Result<Opts, Error> {
                     'f' => o.omit_first = true,
                     'q' => o.quiet = true,
                     'A' => o.no_hidden = true,
+                    'H' => o.hard_links = true,
+                    'D' => o.folders = true,
                     other => return Err(Error::Unknown(format!("-{other}"))),
                 }
             }
@@ -227,6 +246,9 @@ pub fn help(t: &Texts, prog: &str) -> String {
         ("-f, --omitfirst", "opt.omitfirst"),
         ("-q, --quiet", "opt.quiet"),
         ("-A, --nohidden", "opt.nohidden"),
+        ("-H, --hardlinks", "opt.hardlinks"),
+        ("-D, --folders", "opt.folders"),
+        ("    --share=PERCENT", "opt.share"),
         ("    --min-size=SIZE", "opt.min_size"),
         ("    --max-size=SIZE", "opt.max_size"),
         ("    --after=DATE", "opt.after"),

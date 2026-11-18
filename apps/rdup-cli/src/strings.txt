@@ -45,3 +45,8 @@ opt.cache	keep the cache of hashes in FILE	guardar a cache de hashes em FICHEIRO
 opt.lang	language of the messages: en, pt or es	língua das mensagens: en, pt ou es	idioma de los mensajes: en, pt o es
 opt.version	show the version	mostrar a versão	mostrar la versión
 opt.help	show this help	mostrar esta ajuda	mostrar esta ayuda
+opt.hardlinks	count the names of a hard-linked file as copies of one another	contar os nomes de um ficheiro com ligações físicas como cópias uns dos outros	contar los nombres de un archivo con enlaces físicos como copias entre sí
+opt.folders	look for duplicate folders instead of files (identical ones unless --share)	procurar pastas duplicadas em vez de ficheiros (idênticas, salvo com --share)	buscar carpetas duplicadas en vez de archivos (idénticas, salvo con --share)
+opt.share	with -D, also folders at least PERCENT alike (50 to 100) by their contents	com -D, também pastas com pelo menos PERCENT de semelhança (50 a 100) pelo conteúdo	con -D, también carpetas con al menos PERCENT de parecido (50 a 100) por su contenido
+group.similar	{share}% in common ({size}):	{share}% em comum ({size}):	{share}% en común ({size}):
+summary.folders	{n} duplicate folders (in {sets} sets), occupying {size}	{n} pastas duplicadas (em {sets} conjuntos), ocupando {size}	{n} carpetas duplicadas (en {sets} conjuntos), ocupando {size}

@@ -30,3 +30,8 @@ opt.no_index	read folder by folder, without the Everything index or the NTFS tab
 opt.lang	language of the messages: en, pt or es	língua das mensagens: en, pt ou es	idioma de los mensajes: en, pt o es
 opt.version	show the version	mostrar a versão	mostrar la versión
 opt.help	show this help	mostrar esta ajuda	mostrar esta ayuda
+opt.exclude	leave out files and folders whose name (or path) matches PATTERN (* and ?); may be repeated	ignorar ficheiros e pastas cujo nome (ou caminho) corresponda a PADRÃO (* e ?); pode repetir-se	omitir archivos y carpetas cuyo nombre (o ruta) coincida con PATRÓN (* y ?); puede repetirse
+opt.one_fs	stay on one file system (always so: folders on other file systems are counted, not entered)	ficar num só sistema de ficheiros (é sempre assim: as pastas de outros sistemas contam-se, não se abrem)	quedarse en un solo sistema de archivos (siempre es así: las carpetas de otros sistemas se cuentan, no se abren)
+opt.progress	show the progress on the error output, even when it is not a terminal	mostrar o progresso no canal de erros, mesmo que não seja um terminal	mostrar el progreso en la salida de error, aunque no sea un terminal
+opt.no_progress	never show the progress (it shows by default on a terminal)	nunca mostrar o progresso (por omissão mostra-se num terminal)	no mostrar nunca el progreso (por defecto se muestra en un terminal)
+progress	{files} files, {folders} folders, {size} read…	{files} ficheiros, {folders} pastas, {size} lidos…	{files} archivos, {folders} carpetas, {size} leídos…

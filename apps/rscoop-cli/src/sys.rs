@@ -265,24 +265,6 @@ pub fn stamp() -> String {
     format!("{y:04}{m:02}{d:02}-{:02}{:02}{:02}", rem / 3600, rem % 3600 / 60, rem % 60)
 }
 
-/// Language of the Windows user interface ("en", "pt", "es"...), or of LANG.
-pub fn ui_language() -> String {
-    #[cfg(windows)]
-    {
-        use windows_sys::Win32::Globalization::GetUserDefaultUILanguage;
-        // SAFETY: no arguments.
-        let id = unsafe { GetUserDefaultUILanguage() } & 0x3FF;
-        return match id {
-            0x16 => "pt",
-            0x0A => "es",
-            _ => "en",
-        }
-        .to_string();
-    }
-    #[allow(unreachable_code)]
-    std::env::var("LANG").unwrap_or_default().chars().take(2).collect::<String>().to_lowercase()
-}
-
 /// Tell running programs (Explorer) that the environment changed.
 pub fn broadcast_environment_change() {
     #[cfg(windows)]

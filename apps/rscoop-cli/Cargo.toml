@@ -13,6 +13,7 @@ platforms = "windows"
 
 [dependencies]
 rt-core = { path = "../../crates/rt-core" }
+rt-cli = { path = "../../crates/rt-cli" }
 # Our own cache of what was read from files, and Scoop's own scoop.db.
 # Bundled: no SQLite library is needed on the machine.
 rusqlite = { version = "0.43", features = ["bundled"] }

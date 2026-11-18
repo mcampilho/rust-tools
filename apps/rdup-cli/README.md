@@ -21,8 +21,8 @@ rdup-cli -f D:\Photos > extras.txt     :: leaving out the first of each group: t
 rdup-cli --ext jpg,png --json D:\ > copies.json
 ```
 
-Paths are shown in full. Empty files are never copies, and neither are the names of one file
-(hard links).
+Paths are shown as you typed the folder, plus what is below it. Empty files are never copies, and neither
+are the names of one file (hard links), unless you ask with `-H`.
 
 ### Options
 
@@ -36,6 +36,9 @@ Paths are shown in full. Empty files are never copies, and neither are the names
 | `-f`, `--omitfirst` | Leaves out the first file of each group. |
 | `-q`, `--quiet` | No progress. It is shown on the error output only when that is a terminal. |
 | `-A`, `--nohidden` | Leaves out files and folders whose name starts with a dot. |
+| `-H`, `--hardlinks` | The names of a hard-linked file count as copies of one another. |
+| `-D`, `--folders` | Duplicate folders instead of files: those whose files are the same, whatever their names. With `-S`, `-m`, `-1`, `-f`, `--json` and `--csv` as for files. |
+| `--share=PERCENT` | With `-D`, also folders that are at least PERCENT alike (50 to 100) by their contents, not only identical ones. |
 | `--min-size SIZE`, `--max-size SIZE` | Only files of at least or at most SIZE (`100KB`, `1 MB`, `1.5GB`). |
 | `--after DATE`, `--before DATE` | Only files changed from DATE, or up to the end of DATE (`2024-01-31`, `31/01/2024`, `2024-01`, `2024`). |
 | `--ext LIST`, `--skip-ext LIST` | Only files with these extensions (`jpg,png`), or leaving them out. |
@@ -61,12 +64,12 @@ the next search, here or in rdup, only reads what changed. `--no-cache` ignores 
 ## Differences from `fdupes`
 
 - Always recursive, and all the paths together: a copy in one is found in the others.
-- Hard links of one file are not copies (fdupes has `-H` to say so; there is no such option yet).
+- Hard links of one file are not copies unless `-H` says so, as in fdupes.
 - Always the same set of steps, so there is no `-p`/`-P` (permissions), `-o` (order) or `-t` (time).
 - Extras: `--min-size`, `--max-size`, `--after`, `--before`, `--ext`, `--skip-ext`, `--include`,
   `--exclude`, `--json`, `--csv`, `--no-index`, the cache of hashes.
 - Nothing is deleted or linked: no `-d`, `-N`, `-L` or `-B` yet. To remove copies, use rdup or the list from `-f`.
-- Not yet: duplicate folders (rdup finds them).
+- Duplicate folders (`-D`) come from the same search as rdup's Folders page: a folder inside another with as much in common is not repeated.
 
 ## Building and testing
 

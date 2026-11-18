@@ -35,7 +35,7 @@ fn run_here(args: &[String]) -> i32 {
 
 #[cfg(not(windows))]
 fn run_here(_args: &[String]) -> i32 {
-    let t = text::T::new(&text::system_language());
+    let t = text::texts(&text::system_language());
     eprintln!("{}", t.get("cli.not_windows"));
     2
 }

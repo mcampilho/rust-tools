@@ -65,7 +65,7 @@ fn cache_file(o: &Opts) -> Option<PathBuf> {
 
 fn search(o: &Opts, out: &mut dyn Write, err: &mut dyn Write, t: &Texts) -> i32 {
     let roots: Vec<PathBuf> = o.paths.iter().map(PathBuf::from).collect();
-    let opts = Options { filter: o.filter(), files: true, folders: false, cache: cache_file(o) };
+    let opts = Options { filter: o.filter(), files: !o.folders, folders: o.folders, cache: cache_file(o), hard_links: o.hard_links };
     let ways = if o.no_index { Ways::SYSTEM } else { Ways::ALL };
     let shown = !o.quiet && std::io::stderr().is_terminal();
     let width = AtomicUsize::new(0);
@@ -103,7 +103,8 @@ fn search(o: &Opts, out: &mut dyn Write, err: &mut dyn Write, t: &Texts) -> i32 
         status = 1;
     }
     // A closed pipe (`| head`) is not an error worth reporting.
-    let _ = report::write(out, &found.groups, o, t);
+    let shown = report::Shown::new(&o.paths);
+    let _ = if o.folders { report::write_folders(out, &found, o, t, &shown) } else { report::write(out, &found.groups, o, t, &shown) };
     status
 }
 
@@ -199,6 +200,46 @@ mod tests {
         assert_eq!(json.matches("\"path\"").count(), 5, "{json}");
         let (_, csv, _) = run_args(&["--no-index", "--no-cache", "--csv", &root]);
         assert_eq!(csv.lines().count(), 6, "{csv}");
+    }
+
+    #[test]
+    fn duplicate_folders_are_listed() {
+        let tt = rt_dups::testing::folder_sample("rdup-cli-folders");
+        let root = tt.0.to_string_lossy().into_owned();
+        let (code, out, err) = run_args(&["--no-index", "--no-cache", "-D", &root]);
+        assert_eq!((code, err.as_str()), (0, ""));
+        let sets: Vec<&str> = out.trim_end().split("\n\n").collect();
+        assert_eq!(sets.len(), 1, "{out}");
+        // The folders that hold the identical ones say it all: `photos` and `backup\photos`.
+        assert!(sets[0].lines().all(|l| l.ends_with("photos")) && sets[0].lines().count() == 2, "{out}");
+        let (_, out, _) = run_args(&["--no-index", "--no-cache", "-D", "-m", &root]);
+        assert_eq!(out, "1 duplicate folders (in 1 sets), occupying 7100 bytes\n");
+        // The older folder has most, but not all, in common.
+        let (_, out, _) = run_args(&["--no-index", "--no-cache", "--share=75", "--csv", &root]);
+        assert!(out.starts_with("group,share,common,path,files,size,modified\n"), "{out}");
+        assert!(out.lines().skip(1).any(|l| l.contains(",1000,")) && out.lines().any(|l| l.contains("old")), "{out}");
+        assert!(run_args(&["--share=20"]).2.contains("--share"));
+    }
+
+    #[test]
+    fn hard_links_count_as_copies_only_when_asked() {
+        let tt = rt_dups::testing::sample("rdup-cli-links");
+        if std::fs::hard_link(tt.0.join("docs").join("notes.txt"), tt.0.join("docs").join("notes-link.txt")).is_err() {
+            return; // a file system without hard links
+        }
+        let root = tt.0.to_string_lossy().into_owned();
+        let (_, plain, _) = run_args(&["--no-index", "--no-cache", "-m", &root]);
+        let (_, with, _) = run_args(&["--no-index", "--no-cache", "-m", "-H", &root]);
+        assert_eq!(plain, "3 duplicate files (in 2 sets), occupying 601000 bytes\n");
+        assert_eq!(with, "4 duplicate files (in 2 sets), occupying 602000 bytes\n");
+    }
+
+    #[test]
+    fn paths_are_shown_as_typed() {
+        let tt = rt_dups::testing::sample("rdup-cli-typed");
+        let typed = format!("{}{}.", tt.0.to_string_lossy(), std::path::MAIN_SEPARATOR);
+        let (_, out, _) = run_args(&["--no-index", "--no-cache", &typed]);
+        assert!(out.lines().filter(|l| !l.is_empty()).all(|l| l.starts_with(&typed)), "{out}");
     }
 
     #[test]

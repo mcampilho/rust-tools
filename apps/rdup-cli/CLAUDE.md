@@ -23,11 +23,12 @@ sufixo `-cli` e o `rt-cli` estão no `CLAUDE.md` da raiz.
 ## Regras
 
 - Perfil `release-small`. Dependências: `rt-dups`, `rt-scan`, `rt-cli`, `rt-core` (só o `store::Location`).
-- Os caminhos saem completos (o motor normaliza as raízes), não como o utilizador os escreveu.
+- O motor normaliza as raízes; `report::Shown` volta a pô-las como o utilizador as escreveu (prefixo mais longo).
+- `-H` é `Options::hard_links` do `rt-dups` (não deduplica as ligações físicas em `compare`). `-D`/`--share` usam
+  `Options::folders` e `rt_dups::folders::groups` (`report::write_folders`; `--share` implica `-D`, 50 a 100 %).
 - Só leitura, mais a cache de hashes (`hashes.bin`, escrita por `ficheiro .tmp` + `rename` no fim).
 - A saída máquina (lista, JSON, CSV) não se traduz; só ajuda, resumo e mensagens.
-- Por fazer: apagar/ligar (`-d`, `-N`, `-L`, `-B`, sempre com confirmação e nunca todas as cópias), `-H` (ligações
-  físicas como cópias), pastas duplicadas (`Options::folders`), caminhos como o utilizador os escreveu.
+- Por fazer: apagar/ligar (`-d`, `-N`, `-L`, `-B`, sempre com confirmação e nunca todas as cópias).
 
 ## Git
 

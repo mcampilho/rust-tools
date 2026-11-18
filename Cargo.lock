@@ -2894,6 +2894,7 @@ dependencies = [
 name = "rscoop-cli"
 version = "0.1.0"
 dependencies = [
+ "rt-cli",
  "rt-core",
  "rusqlite",
  "windows-sys 0.59.0",

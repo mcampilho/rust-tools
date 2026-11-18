@@ -19,8 +19,9 @@ códigos de problema, opções e relatório; a versão Python serve de referênc
 - `fix.rs` — `Fixer`; os atalhos são recriados por um script PowerShell (WScript.Shell), injetável nos testes.
 - `cache.rs` — cache SQLite própria (`files_v1`: chave `tipo|caminho normalizado`, tamanho, mtime em ns, dados) e
   leitura do `scoop.db` do Scoop.
-- `report.rs`, `cli.rs`, `text.rs` + `strings.txt` (chave, en, pt, es: não usa o `rt_core::i18n`, que é para as
-  aplicações com interface em 10 línguas).
+- `report.rs`, `cli.rs`, `text.rs` + `strings.txt` (chave, en, pt, es: o `text.rs` é só `rt_cli::Texts` com a
+  tabela; língua por `rt_cli::language("RSCOOP_LANG")`; não usa o `rt_core::i18n`, que é para as aplicações com
+  interface em 10 línguas).
 
 ## Regras
 

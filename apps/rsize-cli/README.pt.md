@@ -41,6 +41,9 @@ ficheiros esparsos); `--apparent-size` ou `-b` dão o comprimento. Um ficheiro c
 | `--top N` | Só as N maiores entradas, da maior para a menor. |
 | `--json`, `--csv` | Uma lista JSON ou CSV (`path`, `kind`, `size`, `allocated`, `files`, `folders`, `modified` em segundos desde 1970) em vez de texto. |
 | `--no-index` | Ler pasta a pasta, sem o índice do Everything nem a tabela NTFS. |
+| `--exclude=PADRÃO` | Deixa de fora ficheiros e pastas cujo nome (ou caminho todo) corresponde (`*` e `?`; pode repetir-se). O tamanho sai das pastas acima. |
+| `-x`, `--one-file-system` | Aceite, e não muda nada: as pastas de outro sistema de ficheiros contam-se sempre, mas não se abrem. |
+| `--progress`, `--no-progress` | O progresso de uma leitura longa vai para a saída de erros quando esta é um terminal; estas opções forçam-no ou desligam-no. |
 | `--lang=en\|pt\|es` | Língua das mensagens (predefinição: `RSIZE_LANG`, depois a do sistema). |
 | `--version`, `--help` | A versão, e a ajuda. |
 
@@ -56,8 +59,8 @@ erradas.
 - Ligações simbólicas, junções e pontos de montagem são contados, não seguidos, e não se entra noutros sistemas de ficheiros.
 - Com o índice do Everything ou a tabela NTFS as pastas não são lidas uma a uma: um disco leva segundos em vez de
   minutos. Só se usam quando conseguem responder pelo caminho; senão lê pasta a pasta.
-- Extras: `--top`, `--sort`, `--json`, `--csv`, `--no-index`.
-- Ainda sem `-x`, `-L`, `--exclude`, `--time`, `--block-size` nem `--threshold`.
+- Extras: `--top`, `--sort`, `--json`, `--csv`, `--no-index`, `--progress`.
+- Ainda sem `-L`, `--time`, `--block-size` nem `--threshold`.
 
 ## Compilar e testar
 

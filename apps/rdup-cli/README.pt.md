@@ -21,8 +21,8 @@ rdup-cli -f D:\Fotos > extras.txt      :: sem o primeiro de cada grupo: os fiche
 rdup-cli --ext jpg,png --json D:\ > copias.json
 ```
 
-Os caminhos aparecem por inteiro. Os ficheiros vazios nunca são cópias, nem os nomes de um mesmo
-ficheiro (ligações físicas).
+Os caminhos aparecem como escreveu a pasta, mais o que está dentro dela. Os ficheiros vazios nunca são cópias,
+nem os nomes de um mesmo ficheiro (ligações físicas), a não ser com `-H`.
 
 ### Opções
 
@@ -36,6 +36,9 @@ ficheiro (ligações físicas).
 | `-f`, `--omitfirst` | Omite o primeiro ficheiro de cada grupo. |
 | `-q`, `--quiet` | Sem progresso. Só aparece na saída de erros quando esta é um terminal. |
 | `-A`, `--nohidden` | Deixa de fora ficheiros e pastas cujo nome começa por ponto. |
+| `-H`, `--hardlinks` | Os nomes de um ficheiro com ligações físicas contam como cópias uns dos outros. |
+| `-D`, `--folders` | Pastas duplicadas em vez de ficheiros: aquelas cujos ficheiros são os mesmos, qualquer que seja o nome. Com `-S`, `-m`, `-1`, `-f`, `--json` e `--csv` como nos ficheiros. |
+| `--share=PERCENT` | Com `-D`, também pastas com pelo menos PERCENT de semelhança (50 a 100) pelo conteúdo, não só as idênticas. |
 | `--min-size TAMANHO`, `--max-size TAMANHO` | Só ficheiros de pelo menos ou no máximo TAMANHO (`100KB`, `1 MB`, `1.5GB`). |
 | `--after DATA`, `--before DATA` | Só ficheiros alterados a partir de DATA, ou até ao fim de DATA (`2024-01-31`, `31/01/2024`, `2024-01`, `2024`). |
 | `--ext LISTA`, `--skip-ext LISTA` | Só ficheiros com estas extensões (`jpg,png`), ou deixando-os de fora. |
@@ -61,12 +64,12 @@ para a pesquisa seguinte, aqui ou no rdup, só ler o que mudou. `--no-cache` ign
 ## Diferenças para o `fdupes`
 
 - Sempre recursivo, e todos os caminhos em conjunto: uma cópia num deles é achada nos outros.
-- As ligações físicas de um ficheiro não são cópias (o fdupes tem `-H` para o dizer; ainda não há opção igual).
+- As ligações físicas de um ficheiro não são cópias, a não ser com `-H`, como no fdupes.
 - Os passos são sempre os mesmos, por isso não há `-p`/`-P` (permissões), `-o` (ordem) nem `-t` (tempo).
 - Extras: `--min-size`, `--max-size`, `--after`, `--before`, `--ext`, `--skip-ext`, `--include`,
   `--exclude`, `--json`, `--csv`, `--no-index`, a cache de hashes.
 - Nada é apagado nem ligado: ainda sem `-d`, `-N`, `-L` nem `-B`. Para remover cópias, use o rdup ou a lista do `-f`.
-- Ainda não: pastas duplicadas (o rdup acha-as).
+- As pastas duplicadas (`-D`) vêm da mesma pesquisa da página Pastas do rdup: uma pasta dentro de outra com tanto em comum não se repete.
 
 ## Compilar e testar
 

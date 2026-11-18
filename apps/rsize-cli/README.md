@@ -41,6 +41,9 @@ sparse files); `--apparent-size` or `-b` give their length instead. A file with 
 | `--top N` | Only the N largest entries, largest first. |
 | `--json`, `--csv` | A JSON list or CSV (`path`, `kind`, `size`, `allocated`, `files`, `folders`, `modified` as seconds since 1970) instead of text. |
 | `--no-index` | Read folder by folder, without the Everything index or the NTFS table. |
+| `--exclude=PATTERN` | Leaves out files and folders whose name (or whole path) matches (`*` and `?`; may be repeated). Their size is taken off the folders above. |
+| `-x`, `--one-file-system` | Accepted, and it changes nothing: folders on another file system are always counted, not entered. |
+| `--progress`, `--no-progress` | The progress of a long reading goes to the error output when that is a terminal; these two force it on or off. |
 | `--lang=en\|pt\|es` | Language of the messages (default: `RSIZE_LANG`, then the system's). |
 | `--version`, `--help` | The version, and the help. |
 
@@ -56,8 +59,8 @@ wrong options.
 - Symbolic links, junctions and mount points are counted, not followed, and other file systems are not entered.
 - With the Everything index or the NTFS table the folders are not read one by one: a drive takes seconds
   instead of minutes. They are used only when they can answer for the path; otherwise it reads folder by folder.
-- Extras: `--top`, `--sort`, `--json`, `--csv`, `--no-index`.
-- No `-x`, `-L`, `--exclude`, `--time`, `--block-size` or `--threshold` yet.
+- Extras: `--top`, `--sort`, `--json`, `--csv`, `--no-index`, `--progress`.
+- No `-L`, `--time`, `--block-size` or `--threshold` yet.
 
 ## Building and testing
 

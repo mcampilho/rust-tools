@@ -25,7 +25,10 @@ Equivalente ao `du` do rsize, só de linha de comandos (sem janela, sem `windows
 - Só leitura: nunca apaga nem escreve fora de stdout/stderr.
 - A saída máquina (`tamanho<TAB>caminho`, JSON, CSV) não se traduz; só ajuda e mensagens.
 - Os testes criam pastas em `target\rsize-cli-tests` (nunca no TEMP, por causa do Bitdefender).
-- Por fazer: `-x`, `-L`, `--exclude`, `--time`, `--block-size`, `--threshold`; avisar do progresso em leituras longas.
+- `--exclude` (`report::glob`, nome ou caminho; `select` recalcula os totais das pastas sem o excluído, mesmo abaixo
+  de `-d`). `-x` é aceite e não faz nada: o `rt-scan` já não entra em pastas de outro sistema (`F_OTHER_FS`). O
+  progresso (`--progress`/`--no-progress`) sai por stderr com `\r`, por omissão só num terminal (`run(args, interactive, …)`).
+- Por fazer: `-L`, `--time`, `--block-size`, `--threshold`.
 
 ## Git
 

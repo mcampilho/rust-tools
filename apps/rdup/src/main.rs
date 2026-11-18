@@ -188,7 +188,13 @@ impl Shell {
         let lang = i18n::lang();
         self.handle = Some(search::start(
             roots,
-            Options { filter, files: self.app.compare[0], folders: self.app.compare[1], cache: self.location.file("hashes.bin") },
+            Options {
+                filter,
+                files: self.app.compare[0],
+                folders: self.app.compare[1],
+                cache: self.location.file("hashes.bin"),
+                hard_links: false,
+            },
             Box::new(move |e| {
                 i18n::set_lang(lang);
                 let _ = proxy.send_event(UserEvent::Search(gen, e));

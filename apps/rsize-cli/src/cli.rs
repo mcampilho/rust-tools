@@ -43,6 +43,10 @@ pub struct Opts {
     pub format: Format,
     /// Folder by folder only.
     pub no_index: bool,
+    /// Patterns (`*`, `?`) of names or paths left out.
+    pub excludes: Vec<String>,
+    /// Show the progress: `None` is when stderr is a terminal.
+    pub progress: Option<bool>,
     pub lang: Option<String>,
     pub help: bool,
     pub version: bool,
@@ -62,6 +66,8 @@ impl Default for Opts {
             top: None,
             format: Format::Text,
             no_index: false,
+            excludes: Vec::new(),
+            progress: None,
             lang: None,
             help: false,
             version: false,
@@ -162,6 +168,10 @@ pub fn parse(args: &[String]) -> Result<Opts, Error> {
                 "json" => o.format = Format::Json,
                 "csv" => o.format = Format::Csv,
                 "no-index" => o.no_index = true,
+                "one-file-system" => {}
+                "progress" => o.progress = Some(true),
+                "no-progress" => o.progress = Some(false),
+                "exclude" => o.excludes.push(value(inline, args, &mut i, &opt)?),
                 "max-depth" => o.max_depth = Some(number(&value(inline, args, &mut i, &opt)?, &opt)?),
                 "top" => o.top = Some(number(&value(inline, args, &mut i, &opt)?, &opt)?),
                 "lang" => o.lang = Some(value(inline, args, &mut i, &opt)?),
@@ -191,6 +201,7 @@ pub fn parse(args: &[String]) -> Result<Opts, Error> {
                     's' => o.summarize = true,
                     'a' => o.all = true,
                     'c' => o.total = true,
+                    'x' => {}
                     'd' => {
                         let rest: String = cluster[k + 1..].iter().collect();
                         let v = if rest.is_empty() { value(None, args, &mut i, "-d")? } else { rest };
@@ -208,7 +219,7 @@ pub fn parse(args: &[String]) -> Result<Opts, Error> {
 
 /// The text of `--help`.
 pub fn help(t: &Texts, prog: &str) -> String {
-    let options: [(&str, &str); 18] = [
+    let options: [(&str, &str); 22] = [
         ("-h, --human-readable", "opt.human"),
         ("    --si", "opt.si"),
         ("-b, --bytes", "opt.bytes"),
@@ -218,12 +229,16 @@ pub fn help(t: &Texts, prog: &str) -> String {
         ("-a, --all", "opt.all"),
         ("-c, --total", "opt.total"),
         ("-d, --max-depth=N", "opt.depth"),
+        ("-x, --one-file-system", "opt.one_fs"),
+        ("    --exclude=PATTERN", "opt.exclude"),
         ("    --apparent-size", "opt.apparent"),
         ("    --sort=ORDER", "opt.sort"),
         ("    --top=N", "opt.top"),
         ("    --json", "opt.json"),
         ("    --csv", "opt.csv"),
         ("    --no-index", "opt.no_index"),
+        ("    --progress", "opt.progress"),
+        ("    --no-progress", "opt.no_progress"),
         ("    --lang=en|pt|es", "opt.lang"),
         ("    --version", "opt.version"),
         ("    --help", "opt.help"),
@@ -283,6 +298,16 @@ mod tests {
     }
 
     #[test]
+    fn exclude_progress_and_one_file_system() {
+        let o = parse(&args("-x --exclude=*.log --exclude node_modules --no-progress a")).unwrap();
+        assert_eq!(o.excludes, ["*.log", "node_modules"]);
+        assert_eq!((o.progress, o.paths.as_slice()), (Some(false), ["a".to_string()].as_slice()));
+        assert_eq!(parse(&args("--progress")).unwrap().progress, Some(true));
+        assert_eq!(parse(&args("")).unwrap().progress, None);
+        assert_eq!(parse(&args("--exclude")), Err(Error::Missing("--exclude".into())));
+    }
+
+    #[test]
     fn bytes_means_the_length() {
         let o = parse(&args("-b")).unwrap();
         assert!(o.unit == Unit::Bytes && o.apparent);
@@ -298,7 +323,7 @@ mod tests {
     #[test]
     fn mistakes_are_named() {
         assert_eq!(parse(&args("--nope")), Err(Error::Unknown("--nope".into())));
-        assert_eq!(parse(&args("-x")), Err(Error::Unknown("-x".into())));
+        assert_eq!(parse(&args("-z")), Err(Error::Unknown("-z".into())));
         assert_eq!(parse(&args("--top")), Err(Error::Missing("--top".into())));
         assert_eq!(parse(&args("-d")), Err(Error::Missing("-d".into())));
         assert!(matches!(parse(&args("-d x")), Err(Error::Number { .. })));

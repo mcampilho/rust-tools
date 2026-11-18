@@ -3,8 +3,10 @@
 
 use crate::cli::{Format, Opts};
 use rt_cli::Texts;
-use rt_dups::search::Group;
+use rt_dups::folders::{groups as folder_groups, Group as FolderGroup};
+use rt_dups::search::{Found, Group};
 use std::io::{self, Write};
+use std::path::{Path, PathBuf};
 
 fn hex(hash: &[u8; 32]) -> String {
     hash.iter().map(|b| format!("{b:02x}")).collect()
@@ -64,7 +66,7 @@ fn csv_field(s: &str) -> String {
 }
 
 /// Writes the groups in the format of the options.
-pub fn write(out: &mut dyn Write, groups: &[Group], o: &Opts, t: &Texts) -> io::Result<()> {
+pub fn write(out: &mut dyn Write, groups: &[Group], o: &Opts, t: &Texts, shown: &Shown) -> io::Result<()> {
     if o.summarize && o.format == Format::Text {
         return summary(out, groups, o, t);
     }
@@ -80,7 +82,7 @@ pub fn write(out: &mut dyn Write, groups: &[Group], o: &Opts, t: &Texts) -> io::
                     if o.size {
                         write!(out, "{} ", t.fill("group.each", &[("size", &size_text(g.size, o, t))]))?;
                     }
-                    let line: Vec<String> = files.iter().map(|c| quoted(&c.path.to_string_lossy())).collect();
+                    let line: Vec<String> = files.iter().map(|c| quoted(&shown.show(&c.path))).collect();
                     writeln!(out, "{}", line.join(" "))?;
                     continue;
                 }
@@ -92,7 +94,7 @@ pub fn write(out: &mut dyn Write, groups: &[Group], o: &Opts, t: &Texts) -> io::
                     writeln!(out, "{}", t.fill("group.each", &[("size", &size_text(g.size, o, t))]))?;
                 }
                 for c in files {
-                    writeln!(out, "{}", c.path.to_string_lossy())?;
+                    writeln!(out, "{}", shown.show(&c.path))?;
                 }
             }
         }
@@ -101,7 +103,7 @@ pub fn write(out: &mut dyn Write, groups: &[Group], o: &Opts, t: &Texts) -> io::
             for (i, g) in groups.iter().enumerate() {
                 let files: Vec<String> = listed(g, o)
                     .iter()
-                    .map(|c| format!("{{\"path\": {}, \"modified\": {}}}", json_string(&c.path.to_string_lossy()), c.mtime))
+                    .map(|c| format!("{{\"path\": {}, \"modified\": {}}}", json_string(&shown.show(&c.path)), c.mtime))
                     .collect();
                 let comma = if i + 1 < groups.len() { "," } else { "" };
                 writeln!(
@@ -119,7 +121,7 @@ pub fn write(out: &mut dyn Write, groups: &[Group], o: &Opts, t: &Texts) -> io::
             writeln!(out, "group,size,hash,path,modified")?;
             for (i, g) in groups.iter().enumerate() {
                 for c in listed(g, o) {
-                    writeln!(out, "{},{},{},{},{}", i + 1, g.size, hex(&g.hash), csv_field(&c.path.to_string_lossy()), c.mtime)?;
+                    writeln!(out, "{},{},{},{},{}", i + 1, g.size, hex(&g.hash), csv_field(&shown.show(&c.path)), c.mtime)?;
                 }
             }
         }
@@ -139,6 +141,123 @@ fn summary(out: &mut dyn Write, groups: &[Group], o: &Opts, t: &Texts) -> io::Re
         "{}",
         t.fill("summary.some", &[("files", &files.to_string()), ("sets", &groups.len().to_string()), ("size", &size_text(wasted, o, t))])
     )
+}
+
+/// Paths as the user typed the folders: the part of a path under a folder
+/// searched is written after what was typed for that folder.
+#[derive(Default)]
+pub struct Shown(Vec<(PathBuf, String)>);
+
+impl Shown {
+    /// `typed` are the paths of the command line.
+    pub fn new(typed: &[String]) -> Shown {
+        Shown(typed.iter().map(|t| (rt_scan::normalize(Path::new(t)), t.clone())).collect())
+    }
+
+    pub fn show(&self, path: &Path) -> String {
+        let best = self
+            .0
+            .iter()
+            .filter_map(|(root, typed)| path.strip_prefix(root).ok().map(|rest| (root, typed, rest)))
+            .max_by_key(|(r, _, _)| r.components().count());
+        match best {
+            Some((_, typed, rest)) if rest.as_os_str().is_empty() => typed.clone(),
+            Some((_, typed, rest)) => {
+                let sep: &[char] = if cfg!(windows) { &['/', '\\'] } else { &['/'] };
+                let rest = rest.to_string_lossy();
+                if typed.ends_with(sep) {
+                    format!("{typed}{rest}")
+                } else {
+                    format!("{typed}{}{rest}", std::path::MAIN_SEPARATOR)
+                }
+            }
+            None => path.to_string_lossy().into_owned(),
+        }
+    }
+}
+
+/// Writes the groups of duplicate folders (`-D`): those that are identical
+/// or at least `share` thousandths alike.
+pub fn write_folders(out: &mut dyn Write, found: &Found, o: &Opts, t: &Texts, shown: &Shown) -> io::Result<()> {
+    let groups = folder_groups(&found.folders, &found.pairs, o.share);
+    let name = |i: usize| shown.show(&found.folders[i].path);
+    if o.summarize && o.format == Format::Text {
+        if groups.is_empty() {
+            return writeln!(out, "{}", t.get("summary.none"));
+        }
+        let n: usize = groups.iter().map(|g| g.folders.len() - 1).sum();
+        let wasted: u64 = groups.iter().map(FolderGroup::wasted).sum();
+        return writeln!(
+            out,
+            "{}",
+            t.fill("summary.folders", &[("n", &n.to_string()), ("sets", &groups.len().to_string()), ("size", &size_text(wasted, o, t))])
+        );
+    }
+    match o.format {
+        Format::Text => {
+            for (k, g) in groups.iter().enumerate() {
+                let items: Vec<usize> = if o.omit_first { g.folders[1.min(g.folders.len())..].to_vec() } else { g.folders.clone() };
+                if o.sameline {
+                    let line: Vec<String> = items.iter().map(|&i| quoted(&name(i))).collect();
+                    writeln!(out, "{}", line.join(" "))?;
+                    continue;
+                }
+                if k > 0 {
+                    writeln!(out)?;
+                }
+                if o.size {
+                    if g.identical() {
+                        writeln!(out, "{}", t.fill("group.each", &[("size", &size_text(g.same_bytes, o, t))]))?;
+                    } else {
+                        let share = (g.permille / 10).to_string();
+                        writeln!(out, "{}", t.fill("group.similar", &[("share", &share), ("size", &size_text(g.same_bytes, o, t))]))?;
+                    }
+                }
+                for i in items {
+                    writeln!(out, "{}", name(i))?;
+                }
+            }
+        }
+        Format::Json => {
+            writeln!(out, "[")?;
+            for (k, g) in groups.iter().enumerate() {
+                let items: Vec<String> = g
+                    .folders
+                    .iter()
+                    .map(|&i| {
+                        let f = &found.folders[i];
+                        format!(
+                            "{{\"path\": {}, \"files\": {}, \"size\": {}, \"modified\": {}}}",
+                            json_string(&name(i)),
+                            f.files,
+                            f.bytes,
+                            f.mtime
+                        )
+                    })
+                    .collect();
+                let comma = if k + 1 < groups.len() { "," } else { "" };
+                writeln!(
+                    out,
+                    "  {{\"share\": {}, \"common\": {}, \"wasted\": {}, \"folders\": [{}]}}{comma}",
+                    g.permille,
+                    g.same_bytes,
+                    g.wasted(),
+                    items.join(", ")
+                )?;
+            }
+            writeln!(out, "]")?;
+        }
+        Format::Csv => {
+            writeln!(out, "group,share,common,path,files,size,modified")?;
+            for (k, g) in groups.iter().enumerate() {
+                for &i in &g.folders {
+                    let f = &found.folders[i];
+                    writeln!(out, "{},{},{},{},{},{},{}", k + 1, g.permille, g.same_bytes, csv_field(&name(i)), f.files, f.bytes, f.mtime)?;
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -162,7 +281,7 @@ mod tests {
 
     fn text(o: &Opts, groups: &[Group]) -> String {
         let mut out = Vec::new();
-        write(&mut out, groups, o, &Texts::new(include_str!("strings.txt"), "en")).unwrap();
+        write(&mut out, groups, o, &Texts::new(include_str!("strings.txt"), "en"), &Shown::default()).unwrap();
         String::from_utf8(out).unwrap()
     }
 
@@ -219,7 +338,7 @@ mod tests {
     #[test]
     fn texts_come_in_the_language_asked() {
         let mut out = Vec::new();
-        write(&mut out, &groups(), &opts("-m"), &Texts::new(include_str!("strings.txt"), "pt")).unwrap();
+        write(&mut out, &groups(), &opts("-m"), &Texts::new(include_str!("strings.txt"), "pt"), &Shown::default()).unwrap();
         assert!(String::from_utf8(out).unwrap().starts_with("3 ficheiros duplicados (em 2 conjuntos)"));
     }
 }

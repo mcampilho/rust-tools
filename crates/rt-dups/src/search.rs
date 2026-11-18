@@ -84,11 +84,14 @@ pub struct Options {
     pub folders: bool,
     /// The file of the hash cache (none: every file is read).
     pub cache: Option<PathBuf>,
+    /// Count the names of a hard-linked file as copies of one another (they
+    /// are one file otherwise).
+    pub hard_links: bool,
 }
 
 impl Default for Options {
     fn default() -> Options {
-        Options { filter: Filter::default(), files: true, folders: true, cache: None }
+        Options { filter: Filter::default(), files: true, folders: true, cache: None, hard_links: false }
     }
 }
 
@@ -323,7 +326,7 @@ pub fn find_with(
 
     // 1 to 3: size, first and last bytes, contents.
     let (same_size, compared) =
-        compare(files, [Stage::Edges, Stage::Contents], &volumes, &path_of, &mut cache, cancel, progress, &mut found)?;
+        compare(files, [Stage::Edges, Stage::Contents], &volumes, &path_of, &mut cache, cancel, progress, &mut found, opts.hard_links)?;
     found.candidates = same_size.len() as u64;
 
     // 4. Folders: whose files have copies elsewhere.
@@ -343,7 +346,8 @@ pub fn find_with(
         }
     }
     let mut small = |cands: Vec<Cand>, found: &mut Found| -> Result<Vec<Vec<(u32, Id)>>, Failure> {
-        let (same, c) = compare(cands, [Stage::Folders, Stage::Folders], &volumes, &path_of, &mut cache, cancel, progress, found)?;
+        let (same, c) =
+            compare(cands, [Stage::Folders, Stage::Folders], &volumes, &path_of, &mut cache, cancel, progress, found, opts.hard_links)?;
         let mut groups: Vec<Vec<(u32, Id)>> =
             c.groups.iter().map(|(_, _, m)| m.iter().map(|&i| (same[i].tree, same[i].id)).collect()).collect();
         let mut of: HashMap<usize, usize> = HashMap::new();
@@ -411,6 +415,7 @@ fn compare(
     cancel: &AtomicBool,
     progress: &dyn Fn(&Progress),
     found: &mut Found,
+    hard_links: bool,
 ) -> Result<(Vec<Cand>, Compared), Failure> {
     // Size.
     files.sort_unstable_by_key(|c| c.size);
@@ -452,9 +457,9 @@ fn compare(
         match r {
             Some((h, ident)) => {
                 // Another name of a file already met: not a copy.
-                if let Some(id) = ident {
-                    if let Some(first) = seen.insert(*id, i) {
-                        seen.insert(*id, first);
+                if let Some(id) = ident.filter(|_| !hard_links) {
+                    if let Some(first) = seen.insert(id, i) {
+                        seen.insert(id, first);
                         links.push((i, first));
                         found.links += 1;
                         continue;

@@ -57,24 +57,73 @@ fn join(base: &str, name: &str) -> String {
 /// The entries to list for the tree of one path, folders after what is in
 /// them (as `du` does), shown as `shown` plus the names below it.
 pub fn select(tree: &Tree, shown: &str, o: &Opts) -> Vec<Entry> {
-    fn walk(tree: &Tree, id: Id, path: String, depth: usize, o: &Opts, out: &mut Vec<Entry>) {
+    /// Returns the entry (with what is left after the exclusions), or None
+    /// when this one is excluded.
+    fn walk(tree: &Tree, id: Id, path: String, depth: usize, o: &Opts, out: &mut Vec<Entry>) -> Option<Entry> {
+        if depth > 0 && excluded(o, tree.name(id), &path) {
+            return None;
+        }
         let is_dir = tree.node(id).kind == Kind::Dir;
-        if is_dir && o.depth().is_none_or(|m| depth < m) {
+        let listed = o.depth().is_none_or(|m| depth <= m);
+        let mut e = entry(tree, id, path.clone());
+        // Below the depth asked for, kids are only read to know what the exclusions leave.
+        if is_dir && (listed && o.depth().is_none_or(|m| depth < m) || !o.excludes.is_empty()) {
             let mut kids = tree.children(id).to_vec();
             if o.order == Order::Name {
                 kids.sort_by_cached_key(|&k| tree.name(k).to_lowercase());
             }
-            for k in kids {
-                walk(tree, k, join(&path, tree.name(k)), depth + 1, o, out);
+            let left: Vec<Entry> = kids.into_iter().filter_map(|k| walk(tree, k, join(&path, tree.name(k)), depth + 1, o, out)).collect();
+            if !o.excludes.is_empty() {
+                e.size = left.iter().map(|k| k.size).sum();
+                e.alloc = left.iter().map(|k| k.alloc).sum();
+                e.files = left.iter().map(|k| k.files).sum();
+                e.folders = left.iter().map(|k| k.folders + u64::from(k.kind == Kind::Dir)).sum();
+                e.mtime = left.iter().map(|k| k.mtime).max().unwrap_or(e.mtime);
             }
         }
-        if is_dir || o.all {
-            out.push(entry(tree, id, path));
+        if listed && (is_dir || o.all) {
+            out.push(e.clone());
         }
+        Some(e)
     }
     let mut out = Vec::new();
     walk(tree, tree.root(), shown.to_string(), 0, o, &mut out);
     out
+}
+
+/// Does an exclusion pattern match the name or the whole path?
+fn excluded(o: &Opts, name: &str, path: &str) -> bool {
+    o.excludes.iter().any(|p| glob(p, name) || glob(p, path))
+}
+
+/// `*` (any run) and `?` (one character) against `text`, ignoring case on Windows.
+pub fn glob(pattern: &str, text: &str) -> bool {
+    let fold = |s: &str| -> Vec<char> {
+        if cfg!(windows) {
+            s.to_lowercase().chars().collect()
+        } else {
+            s.chars().collect()
+        }
+    };
+    let (p, t) = (fold(pattern), fold(text));
+    let (mut pi, mut ti) = (0, 0);
+    let mut star: Option<(usize, usize)> = None;
+    while ti < t.len() {
+        if pi < p.len() && (p[pi] == '?' || p[pi] == t[ti]) {
+            pi += 1;
+            ti += 1;
+        } else if pi < p.len() && p[pi] == '*' {
+            star = Some((pi, ti));
+            pi += 1;
+        } else if let Some((sp, st)) = star {
+            pi = sp + 1;
+            ti = st + 1;
+            star = Some((sp, st + 1));
+        } else {
+            return false;
+        }
+    }
+    p[pi..].iter().all(|&c| c == '*')
 }
 
 /// Keeps the `n` largest, largest first.
