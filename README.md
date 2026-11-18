@@ -86,8 +86,9 @@ scoop install rpad
 
 The manifests know where each new version is and take its sum from the
 release's `SHA256SUMS.txt`. After a release, `checkver.ps1 -Dir bucket -Update`
-(from Scoop's own `bin` folder) brings them up to date. rpack, rinst and rclean
-join the bucket with their first release.
+(from Scoop's own `bin` folder) brings them up to date. Every tool is in the
+bucket; the command-line ones (`rscoop-cli`, `rsize-cli`, `rdup-cli`) are put on
+the `PATH` and have no Start menu shortcut.
 
 ### Updates
 

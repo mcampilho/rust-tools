@@ -87,8 +87,9 @@ scoop install rpad
 
 Os manifestos sabem onde está cada versão nova e tiram a soma do `SHA256SUMS.txt`
 do release. Depois de um release, `checkver.ps1 -Dir bucket -Update` (da pasta `bin`
-do próprio Scoop) atualiza-os. O rpack, o rinst e o rclean entram no bucket com o
-seu primeiro release.
+do próprio Scoop) atualiza-os. Todas as ferramentas estão no bucket; as de linha de
+comandos (`rscoop-cli`, `rsize-cli`, `rdup-cli`) ficam no `PATH` e não têm atalho no
+menu Iniciar.
 
 ### Atualizações
 
