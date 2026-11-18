@@ -17,12 +17,14 @@ a rede, para descarregar as imagens que põe no ambiente de trabalho.
 | [rpack](apps/rpack/README.pt.md) | Arquivador com navegador de ficheiros: cria arquivos 7z, zip e tar; abre, testa e extrai zip, 7z, tar e ficheiros comprimidos com gzip, bzip2, xz, lzma, lzip, zstd, lz4 ou brotli, reconhecidos pelo conteúdo; hashes do CRC-32 ao BLAKE3; palavras-passe, rar, iso e mais vêm a seguir | 4,8 MB | 9,3 MB |
 | [rinst](apps/rinst/README.pt.md) | Desinstalador: os programas instalados para todos, para si e (como administrador) para cada outro utilizador, do registo, do Windows Installer, da Loja e do winget numa só lista, o Scoop e o Chocolatey em separadores, com atalhos, ícones e versões mais recentes; desinstala um ou vários seguidos (normal ou sem perguntas, à espera do que cada desinstalador lança); depois encontra e remove os restos (pastas, atalhos, arranque, chaves do registo, serviços, tarefas agendadas; cópia `.reg` e Reciclagem), também de programas removidos antes; separadores para as funcionalidades do Windows (DISM) e o npm, o pip, o Cargo e o vcpkg; em Linux, pacotes dpkg, rpm, Flatpak e Snap | 2,1 MB | 5,9 MB |
 | [rclean](apps/rclean/README.pt.md) | Limpador: mostra quanto ocupam os ficheiros temporários do Windows ou do Linux, os relatórios de erros, as miniaturas, as caches de shaders, a Reciclagem e as caches dos browsers (Chrome, Edge, Brave, Vivaldi, Opera, Firefox…) e as dos gestores de pacotes (Scoop, pip, npm, Cargo, vcpkg, apt… pelos seus próprios comandos), e apaga de vez o que marcar, depois de perguntar; os atalhos inválidos (para a Reciclagem) e as entradas inválidas do registo (guardadas antes num `.reg`); sem tocar no histórico, nos cookies nem nas palavras-passe | 1,9 MB | 5,6 MB |
+| [rscoop](apps/rscoop/README.pt.md) | Verificador de uma instalação do [Scoop](https://scoop.sh), na linha de comandos: shims, ligações `current`, dados persistentes, instalações falhadas, atalhos do menu Iniciar, registo, variáveis e ficheiros de configuração estragados ou que ainda apontam para uma raiz antiga do Scoop (depois de mudar o Scoop de disco); o `--fix` corrige-os com cópia de segurança; uma cache SQLite dos ficheiros já lidos torna as corridas seguintes cerca de 15 vezes mais rápidas | 2,4 MB | – |
 
 Todas desenham a sua própria interface no CPU (winit, softbuffer, tiny-skia e
 ab_glyph), sem GPU nem biblioteca de interface. Têm 10 idiomas e seguem o tema
 claro ou escuro do sistema. Podem também ficar residentes na área de notificação
 com `--tray`, e cada uma pode arrancar assim com o Windows (ou ao entrar na sessão,
-em Linux) a partir do seu menu ou das suas definições.
+em Linux) a partir do seu menu ou das suas definições. O rscoop é a exceção: uma
+ferramenta de linha de comandos para Windows, em inglês, português e espanhol.
 
 ## Compilar
 
@@ -51,9 +53,10 @@ Tools, se existir: o de `$env:RUST_TOOLS_MSVC_ENV`, ou o de
 | rpack | `cargo build --release -p rpack` | `target\release\rpack.exe` |
 | rinst | `cargo build --profile release-small -p rinst` | `target\release-small\rinst.exe` |
 | rclean | `cargo build --profile release-small -p rclean` | `target\release-small\rclean.exe` |
+| rscoop | `cargo build --profile release-small -p rscoop` | `target\release-small\rscoop.exe` |
 
 Há dois perfis porque, num workspace, o `panic` não se pode definir por pacote.
-O `release-small` aborta em pânicos, o que torna o rcalc, o rpad, o rsize, o rdup, o rinst e o rclean
+O `release-small` aborta em pânicos, o que torna o rcalc, o rpad, o rsize, o rdup, o rinst, o rclean e o rscoop
 cerca de 20% mais pequenos. O rview precisa do `release`: apanha os pânicos da biblioteca de
 PDF, para que um PDF malformado não feche o programa. O rwall também o usa, pela
 mesma razão, com as imagens que vêm da internet, e o rpack com arquivos danificados. O `./dev.ps1 dist` escolhe
@@ -122,6 +125,7 @@ rust-tools/
 │  ├─ rpad/
 │  ├─ rsize/
 │  ├─ rinst/
+│  ├─ rscoop/
 │  ├─ rview/
 │  └─ rwall/
 └─ crates/         código partilhado pelas aplicações

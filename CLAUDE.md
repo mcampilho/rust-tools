@@ -18,6 +18,9 @@ Monorepo (workspace Cargo) com nove aplicações, cada uma um único `.exe`, e o
   restos; separadores para Scoop, Chocolatey, DISM, npm, pip, Cargo e vcpkg; em Linux, dpkg, rpm, Flatpak e Snap.
 - `apps/rclean` — limpador: temporários do sistema, caches dos browsers e dos gestores de pacotes, apagados de vez
   depois de confirmar; atalhos inválidos (para a Reciclagem); entradas inválidas do registo (cópia `.reg` antes).
+- `apps/rscoop` — linha de comandos, só Windows (desde 2026-11-17): verifica uma instalação do Scoop e corrige o que
+  aponta para uma raiz antiga (`--fix`); port do `scoop-check` em Python, com cache SQLite (`rusqlite` bundled).
+  Não tem janela nem `--tray`; textos só em en/pt/es.
 
 Cada aplicação tem o seu `CLAUDE.md` com arquitetura e regras próprias.
 

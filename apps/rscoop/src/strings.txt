@@ -1,0 +1,125 @@
+# rscoop texts: key, then English, European Portuguese and Spanish, separated by tabs.
+# Placeholders in braces are filled in by the program.
+check.roots	Scoop roots and variables	Raízes e variáveis do Scoop	Raíces y variables de Scoop
+check.shims	Shims	Shims	Shims
+check.current	'current' links	Ligações 'current'	Enlaces 'current'
+check.persist	Persisted data links	Ligações dos dados persistentes	Enlaces de datos persistentes
+check.install	Installation state and buckets	Estado da instalação e buckets	Estado de la instalación y buckets
+check.shortcuts	Start menu shortcuts	Atalhos do menu Iniciar	Accesos directos del menú Inicio
+check.regfiles	.reg files shipped by apps	Ficheiros .reg das aplicações	Archivos .reg de las aplicaciones
+check.registry	Registry (HKCU)	Registo (HKCU)	Registro (HKCU)
+check.env	Environment variables	Variáveis de ambiente	Variables de entorno
+check.configs	Configuration files	Ficheiros de configuração	Archivos de configuración
+info.root	Root	Raiz	Raíz
+info.global_root	Global root	Raiz global	Raíz global
+info.config	Scoop config	Configuração do Scoop	Configuración de Scoop
+info.other_roots	Other Scoop roots referenced	Outras raízes do Scoop referidas	Otras raíces de Scoop mencionadas
+src.option	--root option	opção --root	opción --root
+src.env_process	SCOOP variable (this process)	variável SCOOP (este processo)	variable SCOOP (este proceso)
+src.env_user	user variable	variável do utilizador	variable del usuario
+src.env_machine	machine variable	variável do sistema	variable del sistema
+src.config	config.json	config.json	config.json
+src.default	default	predefinição	predeterminado
+status.found	found	encontrado	encontrado
+status.not_found	not found	não encontrado	no encontrado
+status.exists	exists	existe	existe
+status.missing	does not exist	não existe	no existe
+status.not_set	not set	não definida	no definida
+root_missing	The Scoop root folder does not exist.	A pasta raiz do Scoop não existe.	La carpeta raíz de Scoop no existe.
+root_no_apps	The Scoop root has no 'apps' folder.	A raiz do Scoop não tem a pasta 'apps'.	La raíz de Scoop no tiene la carpeta 'apps'.
+var_missing_dir	Points to a folder that does not exist.	Aponta para uma pasta que não existe.	Apunta a una carpeta que no existe.
+root_differs	The SCOOP variable and root_path in config.json differ.	A variável SCOOP e o root_path do config.json são diferentes.	La variable SCOOP y el root_path de config.json son distintos.
+other_root	Points inside another Scoop root ({other}).	Aponta para dentro de outra raiz do Scoop ({other}).	Apunta dentro de otra raíz de Scoop ({other}).
+other_root_n	{count} paths point inside another Scoop root ({other}); first one shown.	{count} caminhos apontam para outra raiz do Scoop ({other}); mostra-se o primeiro.	{count} rutas apuntan a otra raíz de Scoop ({other}); se muestra la primera.
+missing	Points to a path that does not exist.	Aponta para um caminho que não existe.	Apunta a una ruta que no existe.
+missing_n	{count} paths under the Scoop root do not exist; first one shown.	{count} caminhos dentro da raiz do Scoop não existem; mostra-se o primeiro.	{count} rutas dentro de la raíz de Scoop no existen; se muestra la primera.
+dir_missing	Folder missing.	A pasta não existe.	La carpeta no existe.
+exe_no_shim	Shim .exe without a matching .shim file.	.exe de shim sem o ficheiro .shim correspondente.	.exe de shim sin el archivo .shim correspondiente.
+shim_no_exe	.shim file without a matching .exe.	Ficheiro .shim sem o .exe correspondente.	Archivo .shim sin el .exe correspondiente.
+unreadable	File cannot be read.	Não foi possível ler o ficheiro.	No se puede leer el archivo.
+shim_no_target	Could not find the target in the shim.	Não se encontrou o destino no shim.	No se encontró el destino en el shim.
+no_current	No 'current' link (install incomplete or interrupted).	Não há ligação 'current' (instalação incompleta ou interrompida).	No hay enlace 'current' (instalación incompleta o interrumpida).
+link_unreadable	The link cannot be read.	Não foi possível ler a ligação.	No se puede leer el enlace.
+link_broken	The link points to a folder that does not exist.	A ligação aponta para uma pasta que não existe.	El enlace apunta a una carpeta que no existe.
+link_wrong	The link points to the wrong place.	A ligação aponta para o sítio errado.	El enlace apunta al lugar equivocado.
+current_elsewhere	'current' points outside the app's folder.	'current' aponta para fora da pasta da aplicação.	'current' apunta fuera de la carpeta de la aplicación.
+current_not_link	'current' is not a junction.	'current' não é uma junção.	'current' no es una unión (junction).
+current_empty	'current' is an empty folder instead of a junction to the installed version.	'current' é uma pasta vazia em vez de uma junção para a versão instalada.	'current' es una carpeta vacía en lugar de una unión a la versión instalada.
+persist_missing	Persisted item missing in the app folder.	Falta o item persistente na pasta da aplicação.	Falta el elemento persistente en la carpeta de la aplicación.
+persist_store_missing	File not found in the persist folder.	O ficheiro não está na pasta persist.	El archivo no está en la carpeta persist.
+persist_not_linked	Plain file or folder, not linked to the persist folder.	Ficheiro ou pasta normal, sem ligação à pasta persist.	Archivo o carpeta normal, sin enlace a la carpeta persist.
+bucket_not_git	Bucket is not a git repository.	O bucket não é um repositório git.	El bucket no es un repositorio git.
+bucket_missing	Bucket folder missing, used by {count} app(s): {apps}.	Falta a pasta do bucket, usada por {count} aplicação(ões): {apps}.	Falta la carpeta del bucket, usada por {count} aplicación(es): {apps}.
+install_failed	Failed install: {files} missing.	Instalação falhada: falta {files}.	Instalación fallida: falta {files}.
+json_invalid	install.json or manifest.json cannot be parsed.	Não foi possível ler o install.json ou o manifest.json.	No se puede leer install.json o manifest.json.
+manifest_gone	Manifest no longer in bucket '{bucket}'.	O manifesto já não está no bucket '{bucket}'.	El manifiesto ya no está en el bucket '{bucket}'.
+lnk_unreadable	Shortcut cannot be read or has no target.	O atalho não se consegue ler ou não tem destino.	El acceso directo no se puede leer o no tiene destino.
+shims_not_in_path	The shims folder is not in PATH.	A pasta dos shims não está no PATH.	La carpeta de shims no está en el PATH.
+report.title	Scoop check	Verificação do Scoop	Comprobación de Scoop
+report.found	found	encontrado	encontrado
+report.expected	expected	esperado	esperado
+report.exists	exists	existe	existe
+report.not_exists	does not exist	não existe	no existe
+report.checked	{n} checked	{n} verificados	{n} comprobados
+report.errors	{n} error(s)	{n} erro(s)	{n} error(es)
+report.warnings	{n} warning(s)	{n} aviso(s)	{n} aviso(s)
+report.ok	no problems	sem problemas	sin problemas
+report.more	... and {n} more (use --max 0 to show all)	... e mais {n} (use --max 0 para ver todos)	... y {n} más (use --max 0 para verlos todos)
+report.summary	Summary	Resumo	Resumen
+report.summary_line	{errors} error(s) and {warnings} warning(s) in {checks} of {total} checks.	{errors} erro(s) e {warnings} aviso(s) em {checks} de {total} verificações.	{errors} error(es) y {warnings} aviso(s) en {checks} de {total} comprobaciones.
+report.none	none	nenhuma	ninguna
+report.progress	Checking: {title}...	A verificar: {title}...	Comprobando: {title}...
+report.duration	Took {s} s.	Demorou {s} s.	Tardó {s} s.
+sev.error	ERROR	ERRO	ERROR
+sev.warning	WARN	AVISO	AVISO
+cli.description	Validate a Scoop installation and report broken links, shims, shortcuts, registry entries, variables and config files that still point to an old Scoop root. Changes nothing without --fix.	Valida uma instalação do Scoop e indica ligações, shims, atalhos, entradas do registo, variáveis e ficheiros de configuração estragados ou que ainda apontam para uma raiz antiga. Sem --fix não altera nada.	Valida una instalación de Scoop e indica enlaces, shims, accesos directos, entradas del registro, variables y archivos de configuración rotos o que aún apuntan a una raíz antigua. Sin --fix no cambia nada.
+cli.root	Scoop root to check (default: SCOOP variable, config.json, ~\scoop).	Raiz do Scoop a verificar (predefinição: variável SCOOP, config.json, ~\scoop).	Raíz de Scoop a comprobar (predeterminado: variable SCOOP, config.json, ~\scoop).
+cli.old_root	A previous Scoop root to look for (repeatable).	Uma raiz anterior do Scoop a procurar (pode repetir-se).	Una raíz anterior de Scoop que buscar (se puede repetir).
+cli.json	Write the report as JSON.	Escreve o relatório em JSON.	Escribe el informe en JSON.
+cli.checks	Comma-separated checks to run (default: all): {ids}.	Verificações a fazer, separadas por vírgulas (predefinição: todas): {ids}.	Comprobaciones a hacer, separadas por comas (predeterminado: todas): {ids}.
+cli.skip	Comma-separated checks to skip.	Verificações a saltar, separadas por vírgulas.	Comprobaciones a omitir, separadas por comas.
+cli.lang	Language of the report: {langs} (default: system language).	Língua do relatório: {langs} (predefinição: a do sistema).	Idioma del informe: {langs} (predeterminado: el del sistema).
+cli.max	Show at most N problems per check (0 = all; default 50).	Mostra no máximo N problemas por verificação (0 = todos; predefinição 50).	Muestra como máximo N problemas por comprobación (0 = todos; predeterminado 50).
+cli.config_depth	Folder depth scanned for config files under apps\*\current (default 3).	Profundidade das pastas procuradas em apps\*\current (predefinição 3).	Profundidad de carpetas buscada en apps\*\current (predeterminado 3).
+cli.persist_depth	Folder depth scanned for config files under persist (default 5).	Profundidade das pastas procuradas em persist (predefinição 5).	Profundidad de carpetas buscada en persist (predeterminado 5).
+cli.quiet	Do not show progress.	Não mostra o progresso.	No muestra el progreso.
+cli.unknown_check	Unknown check: {name}. Valid: {ids}.	Verificação desconhecida: {name}. Válidas: {ids}.	Comprobación desconocida: {name}. Válidas: {ids}.
+cli.not_windows	This program only runs on Windows.	Este programa só funciona no Windows.	Este programa solo funciona en Windows.
+cli.fix	Repair what can be repaired (optionally only these checks: {ids}). A backup of every changed file and registry value is kept.	Corrige o que for possível (opcionalmente só estas verificações: {ids}). Guarda uma cópia de cada ficheiro e valor do registo alterado.	Corrige lo que se pueda (opcionalmente solo estas comprobaciones: {ids}). Guarda una copia de cada archivo y valor del registro cambiado.
+cli.dry_run	With --fix: only show what would be repaired.	Com --fix: só mostra o que seria corrigido.	Con --fix: solo muestra lo que se corregiría.
+cli.backup_dir	Folder for the backups (default: %LOCALAPPDATA%\rscoop\backup).	Pasta das cópias de segurança (predefinição: %LOCALAPPDATA%\rscoop\backup).	Carpeta de las copias de seguridad (predeterminado: %LOCALAPPDATA%\rscoop\backup).
+fix.progress	Repairing...	A corrigir...	Corrigiendo...
+fix.title	Repairs	Correções	Correcciones
+fix.title_dry	Repairs that would be made (--dry-run, nothing changed)	Correções que seriam feitas (--dry-run, nada foi alterado)	Correcciones que se harían (--dry-run, no se cambió nada)
+fix.status.done	Repaired	Corrigido	Corregido
+fix.status.planned	Would repair	A corrigir	Por corregir
+fix.status.failed	Failed	Falhou	Falló
+fix.status.skipped	Skipped	Ignorado	Omitido
+fix.summary	Repaired: {done}, would repair: {planned}, failed: {failed}, skipped: {skipped}.	Corrigidos: {done}, a corrigir: {planned}, falhados: {failed}, ignorados: {skipped}.	Corregidos: {done}, por corregir: {planned}, fallidos: {failed}, omitidos: {skipped}.
+fix.backup	Backup of the changed files and values: {path}	Cópia dos ficheiros e valores alterados: {path}	Copia de los archivos y valores cambiados: {path}
+fix.rerun	Run rscoop again to see what is left.	Volte a correr o rscoop para ver o que falta.	Vuelva a ejecutar rscoop para ver lo que queda.
+fix.nothing	Nothing that can be repaired automatically.	Nada que se possa corrigir automaticamente.	Nada que se pueda corregir automáticamente.
+fix.error	Error: {error}	Erro: {error}	Error: {error}
+fix.no_version	No version folder to point 'current' to.	Não há pasta de versão para onde apontar o 'current'.	No hay carpeta de versión a la que apuntar 'current'.
+fix.not_empty	The folder is no longer empty; left as it is.	A pasta já não está vazia; ficou como estava.	La carpeta ya no está vacía; se dejó como estaba.
+fix.store_missing	Nothing in the persist folder to link to ({store}).	Não há nada na pasta persist para ligar ({store}).	No hay nada en la carpeta persist que enlazar ({store}).
+fix.exists	A real file or folder is in the way; left as it is.	Há um ficheiro ou pasta normal no caminho; ficou como estava.	Hay un archivo o carpeta normal en el camino; se dejó como estaba.
+fix.no_change	The old root was not found written in it (perhaps through a variable).	A raiz antiga não aparece escrita no valor (talvez venha de uma variável).	La raíz antigua no aparece escrita en el valor (quizá venga de una variable).
+act.junction	Junction to {target}	Junção para {target}	Unión a {target}
+act.hardlink	Hard link to {target}	Ligação física para {target}	Enlace físico a {target}
+act.rewrite	{old} replaced by {new} ({n}x)	{old} substituído por {new} ({n}x)	{old} sustituido por {new} ({n}x)
+act.shortcut	Shortcut rewritten: {old} -> {new}	Atalho reescrito: {old} -> {new}	Acceso directo reescrito: {old} -> {new}
+act.registry	Value rewritten: {old} -> {new}	Valor reescrito: {old} -> {new}	Valor reescrito: {old} -> {new}
+cli.no_cache	Do not use the cache of files already read (read every file again).	Não usa a cache dos ficheiros já lidos (volta a ler todos os ficheiros).	No usa la caché de los archivos ya leídos (vuelve a leer todos los archivos).
+info.cache	Cache	Cache	Caché
+info.scoop_db	Scoop database	Base de dados do Scoop	Base de datos de Scoop
+status.cache	{hits} files from the cache, {misses} read	{hits} ficheiros da cache, {misses} lidos	{hits} archivos de la caché, {misses} leídos
+status.scoop_db	{n} manifests (use_sqlite_cache)	{n} manifestos (use_sqlite_cache)	{n} manifiestos (use_sqlite_cache)
+status.off	off	desligada	desactivada
+cli.usage	Usage	Utilização	Uso
+cli.options	Options	Opções	Opciones
+cli.help	Show this help.	Mostra esta ajuda.	Muestra esta ayuda.
+cli.version	Show the version.	Mostra a versão.	Muestra la versión.
+cli.bad_value	Invalid value for {opt}: {value}	Valor inválido para {opt}: {value}	Valor no válido para {opt}: {value}
+cli.unknown_option	Unknown option: {opt}	Opção desconhecida: {opt}	Opción desconocida: {opt}
+cli.needs_value	{opt} needs a value.	{opt} precisa de um valor.	{opt} necesita un valor.

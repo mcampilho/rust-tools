@@ -17,12 +17,14 @@ uses the network, to download the pictures it puts on the desktop.
 | [rpack](apps/rpack/README.md) | Archiver with a file browser: makes 7z, zip and tar archives; opens, tests and extracts zip, 7z, tar and files compressed with gzip, bzip2, xz, lzma, lzip, zstd, lz4 or brotli, found by their contents; hashes from CRC-32 to BLAKE3; passwords, rar, iso and more come next | 4.8 MB | 9.3 MB |
 | [rinst](apps/rinst/README.md) | Uninstaller: the programs installed for everyone, for you and (as administrator) for every other user, from the registry, Windows Installer, the Store and winget in one list, Scoop and Chocolatey in tabs, with shortcuts, icons and newer versions; uninstalls one or several in a row (normal or quiet, waiting for what each uninstaller starts); then finds and removes the leftovers (folders, shortcuts, startup entries, registry keys, services, scheduled tasks; `.reg` copy and Recycle Bin), also of programs removed before; tabs for Windows features (DISM) and npm, pip, Cargo and vcpkg; on Linux, dpkg, rpm, Flatpak and Snap packages | 2.1 MB | 5.9 MB |
 | [rclean](apps/rclean/README.md) | Cleaner: shows how much the temporary files of Windows or Linux, error reports, thumbnails, shader caches, the Recycle Bin and the browsers' caches (Chrome, Edge, Brave, Vivaldi, Opera, Firefox…) and the caches of package managers (Scoop, pip, npm, Cargo, vcpkg, apt… through their own commands) take, and deletes for good what you tick, after asking; broken shortcuts (to the Recycle Bin) and invalid registry entries (saved to a `.reg` file first); history, cookies and passwords are never touched | 1.9 MB | 5.6 MB |
+| [rscoop](apps/rscoop/README.md) | Command-line checker for a [Scoop](https://scoop.sh) installation: shims, `current` links, persisted data, failed installs, Start menu shortcuts, registry, variables and config files that are broken or still point to an old Scoop root (after moving Scoop to another drive); `--fix` repairs them with a backup; a SQLite cache of the files already read makes the next runs about 15 times faster | 2.4 MB | – |
 
 They all draw their own interface on the CPU (winit, softbuffer, tiny-skia and
 ab_glyph), with no GPU and no UI toolkit. They come in 10 languages and follow
 the system's light or dark theme. They can also stay resident in the
 notification area with `--tray`, and each can start that way with Windows (or
-when you log in, on Linux) from its own menu or settings.
+when you log in, on Linux) from its own menu or settings. rscoop is the
+exception: a Windows command-line tool in English, Portuguese and Spanish.
 
 ## Build
 
@@ -50,9 +52,10 @@ is one: from `$env:RUST_TOOLS_MSVC_ENV`, or from `\Portable\Tools\dev\msvc` on
 | rpack | `cargo build --release -p rpack` | `target\release\rpack.exe` |
 | rinst | `cargo build --profile release-small -p rinst` | `target\release-small\rinst.exe` |
 | rclean | `cargo build --profile release-small -p rclean` | `target\release-small\rclean.exe` |
+| rscoop | `cargo build --profile release-small -p rscoop` | `target\release-small\rscoop.exe` |
 
 The two profiles exist because `panic` cannot be set per package in a workspace.
-`release-small` aborts on panic, which makes rcalc, rpad, rsize, rdup, rinst and rclean about 20% smaller.
+`release-small` aborts on panic, which makes rcalc, rpad, rsize, rdup, rinst, rclean and rscoop about 20% smaller.
 rview needs `release`: it catches a panic from the PDF library, so that a
 malformed PDF cannot close the program. rwall uses it too, for the same reason
 with pictures from the web, and rpack with damaged archives. `./dev.ps1 dist` picks the right profile
@@ -122,6 +125,7 @@ rust-tools/
 │  ├─ rpad/
 │  ├─ rsize/
 │  ├─ rinst/
+│  ├─ rscoop/
 │  ├─ rview/
 │  └─ rwall/
 └─ crates/         code shared by the apps
