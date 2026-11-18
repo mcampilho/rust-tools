@@ -53,7 +53,13 @@ pub fn list(path: &Path, meter: &Meter) -> Result<Listing, Error> {
     Ok(Listing { format: Format { container: super::Container::SevenZ, codec: None }, entries, file_size: 0, comment: String::new() })
 }
 
-pub fn each(path: &Path, listing: &Listing, wanted: &dyn Fn(usize) -> bool, meter: &Meter, f: &mut dyn FnMut(usize, Contents) -> Result<(), Error>) -> Result<(), Error> {
+pub fn each(
+    path: &Path,
+    listing: &Listing,
+    wanted: &dyn Fn(usize) -> bool,
+    meter: &Meter,
+    f: &mut dyn FnMut(usize, Contents) -> Result<(), Error>,
+) -> Result<(), Error> {
     let mut reader = ArchiveReader::new(input(path, meter)?, Password::empty())?;
     let threads = std::thread::available_parallelism().map_or(1, |n| n.get() as u32);
     reader.set_thread_count(threads);

@@ -14,10 +14,10 @@
 use super::gfx::{Align, Color, FontId, Gfx, Rect};
 use super::theme::Theme;
 use crate::app::{items, type_name, App, Col, ExtCol, Sort};
+use crate::chart::{pop_offset, sector, Chart, Hit, Kind as ChartKind, Segment};
 use crate::format;
 use crate::i18n::{tf, tr};
 use crate::model::{Id, Kind, SizeMode, Tree, F_HARDLINK, F_OTHER_FS, F_UNREADABLE};
-use crate::chart::{pop_offset, sector, Chart, Hit, Kind as ChartKind, Segment};
 use crate::settings::{ChartType, Panes, ViewMode};
 use crate::treemap::{self, Map};
 use rt_core::i18n::strip_mnemonic;
@@ -210,8 +210,14 @@ const LIST_COLS: [(Col, f32, u8); 8] = [
     (Col::Modified, 90.0, 3),
 ];
 
-const EXT_COLS: [(ExtCol, f32, u8); 6] =
-    [(ExtCol::Ext, 116.0, 0), (ExtCol::Type, 0.0, 0), (ExtCol::Share, 110.0, 1), (ExtCol::Size, 78.0, 2), (ExtCol::Alloc, 78.0, 4), (ExtCol::Files, 70.0, 3)];
+const EXT_COLS: [(ExtCol, f32, u8); 6] = [
+    (ExtCol::Ext, 116.0, 0),
+    (ExtCol::Type, 0.0, 0),
+    (ExtCol::Share, 110.0, 1),
+    (ExtCol::Size, 78.0, 2),
+    (ExtCol::Alloc, 78.0, 4),
+    (ExtCol::Files, 70.0, 3),
+];
 
 /// Where everything goes in a window of `full` at scale `s`, in the layout
 /// `view`; `panes` places its bars: `split` is the share of the height for
@@ -413,7 +419,14 @@ fn draw_start(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, hot: Hot) 
                     g.fill_rrect(Rect::new(bar.x, bar.y, (bar.w * frac).max(bar.h), bar.h), bar.h / 2.0, fill);
                 }
                 let text = tf("{} free of {}", &[&format::size(v.free), &format::size(v.total)]);
-                g.text_in(&text, Rect::new(bar.x, r.bottom() - pad - 12.0 * s, bar.w, 14.0 * s), px(s) * 0.95, FontId::Regular, th.dim, Align::Right);
+                g.text_in(
+                    &text,
+                    Rect::new(bar.x, r.bottom() - pad - 12.0 * s, bar.w, 14.0 * s),
+                    px(s) * 0.95,
+                    FontId::Regular,
+                    th.dim,
+                    Align::Right,
+                );
             }
             if vols.is_empty() {
                 g.text(&tr("No drives were found."), x, title_y + 40.0 * s, px(s), FontId::Regular, th.dim);
@@ -441,11 +454,7 @@ fn draw_scanning(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, hot: Ho
     let title = tf("Reading {}…", &[&sc.root.to_string_lossy()]);
     let title = ellipsize_middle(g, &title, body.w - 48.0 * s, 18.0 * s, FontId::Semibold);
     g.text_in(&title, Rect::new(body.x, top, body.w, 28.0 * s), 18.0 * s, FontId::Semibold, th.text, Align::Center);
-    let stats = [
-        (format::count(p.files), tr("files")),
-        (format::count(p.dirs), tr("folders")),
-        (format::size(p.bytes), tr("found")),
-    ];
+    let stats = [(format::count(p.files), tr("files")), (format::count(p.dirs), tr("folders")), (format::size(p.bytes), tr("found"))];
     let col_w = (170.0 * s).min((body.w - 32.0 * s) / 3.0);
     for (i, (num, label)) in stats.iter().enumerate() {
         let x = cx + (i as f32 - 1.5) * col_w;
@@ -488,11 +497,8 @@ fn draw_result(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, f: &Frame
     let pad = 8.0 * s;
     draw_info(g, app, l, th, s);
     // Headers of the list.
-    let heads: Vec<HeadCell> = l
-        .cols
-        .iter()
-        .map(|&(c, x, w)| (x, w, col_title(c), col_align(c), hot == Hot::Head(c), sorted(app.sort, c)))
-        .collect();
+    let heads: Vec<HeadCell> =
+        l.cols.iter().map(|&(c, x, w)| (x, w, col_title(c), col_align(c), hot == Hot::Head(c), sorted(app.sort, c))).collect();
     draw_header(g, l.header, &heads, th, s);
     // Rows.
     let table = treemap::ext_colors(t);
@@ -531,7 +537,11 @@ fn draw_result(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, f: &Frame
                 g.fill_rrect(Rect::new(x, cy - icon * 0.3, icon, icon * 0.72), 2.0 * s, c);
             }
             Kind::Link => g.stroke_rrect(Rect::new(x + 1.0, cy - icon / 2.0 + 1.0, icon - 2.0, icon - 2.0), 2.0 * s, 1.0 * s, th.dim),
-            Kind::File => g.fill_rrect(Rect::new(x + 1.0, cy - icon / 2.0 + 1.0, icon - 2.0, icon - 2.0), 2.0 * s, Color::rgb(treemap::base_color(t, id, &table))),
+            Kind::File => g.fill_rrect(
+                Rect::new(x + 1.0, cy - icon / 2.0 + 1.0, icon - 2.0, icon - 2.0),
+                2.0 * s,
+                Color::rgb(treemap::base_color(t, id, &table)),
+            ),
         }
         x += icon + 6.0 * s;
         let name_w = name_col.0 + name_col.1 - x - pad;
@@ -598,7 +608,15 @@ fn draw_result(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, f: &Frame
         if framed && !on {
             g.stroke_rrect(r, (4.0 * s).round(), 1.0, th.border);
         }
-        let fg = if on { if th.dark { Color::rgb(0x000000) } else { Color::rgb(0xFFFFFF) } } else { th.text };
+        let fg = if on {
+            if th.dark {
+                Color::rgb(0x000000)
+            } else {
+                Color::rgb(0xFFFFFF)
+            }
+        } else {
+            th.text
+        };
         g.text_in(text, r, p * 0.95, FontId::Regular, fg, Align::Center);
     };
     for &(kind, r) in &l.tabs {
@@ -624,7 +642,14 @@ fn draw_result(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, f: &Frame
     let title = ellipsize_middle(g, &title, title_w.max(0.0), p, FontId::Semibold);
     g.text_in(&title, Rect::new(title_r.x + pad, title_r.y, title_r.w, title_r.h), p, FontId::Semibold, th.text, Align::Left);
     if show_hint {
-        g.text_in(&hint, Rect::new(title_r.x, title_r.y, tabs_x - title_r.x - 12.0 * s, title_r.h), p, FontId::Regular, th.dim, Align::Right);
+        g.text_in(
+            &hint,
+            Rect::new(title_r.x, title_r.y, tabs_x - title_r.x - 12.0 * s, title_r.h),
+            p,
+            FontId::Regular,
+            th.dim,
+            Align::Right,
+        );
     }
     match f.kind {
         ChartType::Treemap => {}
@@ -714,7 +739,14 @@ fn draw_header(g: &mut Gfx, r: Rect, heads: &[HeadCell], th: &Theme, s: f32) {
             Align::Right => x + w - pad - tw,
             _ => x + pad + arrow_w,
         };
-        g.text_in(&text, Rect::new(tx, r.y, tw + 1.0, r.h), p, FontId::Semibold, if sort.is_some() { th.text } else { th.dim }, Align::Left);
+        g.text_in(
+            &text,
+            Rect::new(tx, r.y, tw + 1.0, r.h),
+            p,
+            FontId::Semibold,
+            if sort.is_some() { th.text } else { th.dim },
+            Align::Left,
+        );
         if let Some(down) = sort {
             // The arrow at the side of the title away from the numbers.
             let ax = match align {
@@ -722,7 +754,11 @@ fn draw_header(g: &mut Gfx, r: Rect, heads: &[HeadCell], th: &Theme, s: f32) {
                 _ => x + pad + 3.0 * s,
             };
             let (cy, a) = (r.center_y(), 3.5 * s);
-            let pts = if *down { [(ax - a, cy - a / 2.0), (ax, cy + a / 2.0), (ax + a, cy - a / 2.0)] } else { [(ax - a, cy + a / 2.0), (ax, cy - a / 2.0), (ax + a, cy + a / 2.0)] };
+            let pts = if *down {
+                [(ax - a, cy - a / 2.0), (ax, cy + a / 2.0), (ax + a, cy - a / 2.0)]
+            } else {
+                [(ax - a, cy + a / 2.0), (ax, cy - a / 2.0), (ax + a, cy + a / 2.0)]
+            };
             g.polyline(&pts, 1.4 * s, th.accent, false);
         }
     }
@@ -811,7 +847,12 @@ fn draw_info(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32) {
     };
     let rows: [Vec<(String, String, f32)>; 2] = [
         vec![(tr("Folder"), folder, 2.0), (tr("Scan time"), time, 1.0), (tr("Contents"), counts, 1.0)],
-        vec![(tr("Total space"), total, 1.0), (tr("Used space"), used, 1.0), (tr("Reserved space"), reserved, 1.0), (tr("Free space"), free, 1.0)],
+        vec![
+            (tr("Total space"), total, 1.0),
+            (tr("Used space"), used, 1.0),
+            (tr("Reserved space"), reserved, 1.0),
+            (tr("Free space"), free, 1.0),
+        ],
     ];
     let pad = 12.0 * s;
     // The figures leave room for the layout buttons at the right.
@@ -829,7 +870,8 @@ fn draw_info(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32) {
             let room = (x + w - vx - 12.0 * s).max(0.0);
             // A path loses its middle; the other values their end.
             let path = ri == 0 && x == r.x + pad;
-            let value = if path { ellipsize_middle(g, value, room, p, FontId::Semibold) } else { ellipsize(g, value, room, p, FontId::Semibold) };
+            let value =
+                if path { ellipsize_middle(g, value, room, p, FontId::Semibold) } else { ellipsize(g, value, room, p, FontId::Semibold) };
             g.text_in(&value, Rect::new(vx, y, room, line_h), p, FontId::Semibold, th.text, Align::Left);
             x += w;
         }
@@ -867,11 +909,8 @@ fn draw_exts(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, f: &Frame) 
     let t = &scan.tree;
     let p = px(s);
     let pad = 8.0 * s;
-    let heads: Vec<HeadCell> = l
-        .ext_cols
-        .iter()
-        .map(|&(c, x, w)| (x, w, ext_title(c), ext_align(c), f.hot == Hot::ExtHead(c), sorted(app.ext_sort, c)))
-        .collect();
+    let heads: Vec<HeadCell> =
+        l.ext_cols.iter().map(|&(c, x, w)| (x, w, ext_title(c), ext_align(c), f.hot == Hot::ExtHead(c), sorted(app.ext_sort, c))).collect();
     draw_header(g, l.ext_header, &heads, th, s);
     let rows = l.ext_list;
     if app.exts.is_empty() {
@@ -989,7 +1028,14 @@ fn draw_chart(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, f: &Frame)
             let hot = f.hover_seg == Some(Hit::Center);
             let color = if hot { th.accent } else { th.text };
             g.text_in(&name, Rect::new(box_.x, box_.y, box_.w, box_.h / 2.0), p, FontId::Semibold, color, Align::Center);
-            g.text_in(&size, Rect::new(box_.x, box_.y + box_.h / 2.0, box_.w, box_.h / 2.0), p * 0.95, FontId::Regular, th.dim, Align::Center);
+            g.text_in(
+                &size,
+                Rect::new(box_.x, box_.y + box_.h / 2.0, box_.w, box_.h / 2.0),
+                p * 0.95,
+                FontId::Regular,
+                th.dim,
+                Align::Center,
+            );
         }
         ChartKind::Pie => {
             let total = t.size(c.root).max(1);
@@ -1060,14 +1106,16 @@ pub fn status_text(app: &App, hover: Option<Id>) -> (String, String) {
     let Some(scan) = &app.scan else { return (String::new(), String::new()) };
     let t = &scan.tree;
     let note = app.note.clone().filter(|_| hover.is_none());
-    let left = note.unwrap_or_else(|| hover.or(app.sel).map_or(String::new(), |id| {
-        let n = t.node(id);
-        let mut text = format!("{}    {}", t.path(id).display(), format::size(t.size(id)));
-        if n.kind == Kind::File && n.ext != 0 {
-            text = format!("{text}    .{}", t.ext_name(n.ext));
-        }
-        text
-    }));
+    let left = note.unwrap_or_else(|| {
+        hover.or(app.sel).map_or(String::new(), |id| {
+            let n = t.node(id);
+            let mut text = format!("{}    {}", t.path(id).display(), format::size(t.size(id)));
+            if n.kind == Kind::File && n.ext != 0 {
+                text = format!("{text}    .{}", t.ext_name(n.ext));
+            }
+            text
+        })
+    });
     // What was read and how is in the block on top; here, what to know about it.
     let mut parts = Vec::new();
     if scan.admin_would_help {
@@ -1100,7 +1148,9 @@ mod screenshots {
         let Ok(mut g) = Gfx::new() else { return };
         let out = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target").join("screens");
         std::fs::create_dir_all(&out).unwrap();
-        let dir = std::env::var_os("RSIZE_SHOT_DIR").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."));
+        let dir = std::env::var_os("RSIZE_SHOT_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."));
         let scan = crate::scan::scan(&dir, &std::sync::atomic::AtomicBool::new(false), &|_| {}).unwrap();
         let (w, h) = (1100u32, 760u32);
         let full = Rect::new(0.0, 0.0, w as f32, h as f32);
@@ -1112,7 +1162,14 @@ mod screenshots {
             Volume { path: "Z:\\".into(), label: String::new(), fs: "NTFS".into(), total: 2048 * gb, free: 1024 * gb, remote: true },
         ];
         let many: Vec<Volume> = (0..14u8)
-            .map(|i| Volume { path: format!("{}:\\", (b'C' + i) as char).into(), label: format!("Disk {i}"), fs: "NTFS".into(), total: 500 * gb, free: (i as u64 * 30) * gb, remote: i > 9 })
+            .map(|i| Volume {
+                path: format!("{}:\\", (b'C' + i) as char).into(),
+                label: format!("Disk {i}"),
+                fs: "NTFS".into(),
+                total: 500 * gb,
+                free: (i as u64 * 30) * gb,
+                remote: i > 9,
+            })
             .collect();
         let mut chart_shot = |name: &str, app: &App, dark: bool, kind: ChartType, pointed: Option<usize>, over: Option<Id>| {
             g.resize(w, h);
@@ -1121,7 +1178,11 @@ mod screenshots {
             // treemap of a picked file type.
             let map_view = kind != ChartType::Treemap || app.ext_sel.is_some();
             let d = crate::settings::Settings::default();
-            let l = if map_view { layout(app, ViewMode::Map, d.map, full, 1.0, false) } else { layout(app, ViewMode::Folders, d.folders, full, 1.0, false) };
+            let l = if map_view {
+                layout(app, ViewMode::Map, d.map, full, 1.0, false)
+            } else {
+                layout(app, ViewMode::Folders, d.folders, full, 1.0, false)
+            };
             let (mw, mh) = (l.map.w as u32, l.map.h as u32);
             let bg = (th.bg.r as u32) << 16 | (th.bg.g as u32) << 8 | th.bg.b as u32;
             let tree = &app.scan.as_ref().map(|s| &s.tree);
@@ -1133,7 +1194,16 @@ mod screenshots {
             let hover = pointed.and_then(|i| chart.as_ref()?.segments.get(i)?.node).or(over);
             let hot = if page(app) == Page::Start { Hot::Card(1) } else { Hot::Tab(ChartType::Pie) };
             let lit = map.as_ref().zip(tree.as_ref()).zip(app.ext_sel).map(|((m, t), e)| m.highlighted(t, e));
-            let f = Frame { mode: SizeMode::Logical, kind, map: map.as_ref(), lit: lit.as_ref(), chart: chart.as_ref(), hover_seg: pointed.map(Hit::Segment), hot, hover };
+            let f = Frame {
+                mode: SizeMode::Logical,
+                kind,
+                map: map.as_ref(),
+                lit: lit.as_ref(),
+                chart: chart.as_ref(),
+                hover_seg: pointed.map(Hit::Segment),
+                hot,
+                hover,
+            };
             draw(&mut g, app, &l, &th, 1.0, &f);
             g.pix.save_png(out.join(format!("{name}.png"))).unwrap();
         };
@@ -1150,7 +1220,14 @@ mod screenshots {
         shot("start-many-end", &crowded, false, None);
         app.scanning = Some(Scanning {
             root: "C:\\".into(),
-            progress: crate::scan::Progress { files: 1_234_567, dirs: 98_765, bytes: 312 * gb, errors: 3, current: "C:\\Windows\\WinSxS\\amd64_microsoft-windows-some-very-long-component-name_31bf3856ad364e35_10.0.19041.1_none".into() },
+            progress: crate::scan::Progress {
+                files: 1_234_567,
+                dirs: 98_765,
+                bytes: 312 * gb,
+                errors: 3,
+                current: "C:\\Windows\\WinSxS\\amd64_microsoft-windows-some-very-long-component-name_31bf3856ad364e35_10.0.19041.1_none"
+                    .into(),
+            },
             started: std::time::Instant::now(),
             generation: 1,
         });

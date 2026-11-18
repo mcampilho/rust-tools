@@ -48,11 +48,7 @@ pub fn open_files(hwnd: HWND, dir: Option<&Path>, filter: &str) -> Vec<PathBuf> 
     if unsafe { GetOpenFileNameW(&mut ofn) } == 0 {
         return Vec::new();
     }
-    let parts: Vec<String> = buf
-        .split(|c| *c == 0)
-        .take_while(|p| !p.is_empty())
-        .map(String::from_utf16_lossy)
-        .collect();
+    let parts: Vec<String> = buf.split(|c| *c == 0).take_while(|p| !p.is_empty()).map(String::from_utf16_lossy).collect();
     match parts.len() {
         0 => Vec::new(),
         1 => vec![PathBuf::from(&parts[0])],
@@ -110,7 +106,9 @@ pub fn pick_folder(hwnd: HWND, title: &str) -> Option<PathBuf> {
 fn item_dialog_folder(hwnd: HWND, title: &str) -> Result<Option<PathBuf>, ()> {
     use std::ffi::c_void;
     use windows_sys::core::{GUID, HRESULT, PCWSTR, PWSTR};
-    use windows_sys::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CoTaskMemFree, CoUninitialize, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED};
+    use windows_sys::Win32::System::Com::{
+        CoCreateInstance, CoInitializeEx, CoTaskMemFree, CoUninitialize, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED,
+    };
     const CLSID_FILE_OPEN_DIALOG: GUID = GUID::from_u128(0xDC1C5A9C_E88A_4DDE_A5A1_60F82A20AEF7);
     const IID_IFILE_OPEN_DIALOG: GUID = GUID::from_u128(0xD57C7288_D4AD_4768_BE02_9D969532D960);
     const FOS_NOCHANGEDIR: u32 = 0x8;
@@ -140,7 +138,9 @@ fn item_dialog_folder(hwnd: HWND, title: &str) -> Result<Option<PathBuf>, ()> {
     let result = (|| {
         let mut dlg: *mut c_void = std::ptr::null_mut();
         // SAFETY: known class and interface ids; `dlg` receives the object.
-        let hr = unsafe { CoCreateInstance(&CLSID_FILE_OPEN_DIALOG, std::ptr::null_mut(), CLSCTX_INPROC_SERVER, &IID_IFILE_OPEN_DIALOG, &mut dlg) };
+        let hr = unsafe {
+            CoCreateInstance(&CLSID_FILE_OPEN_DIALOG, std::ptr::null_mut(), CLSCTX_INPROC_SERVER, &IID_IFILE_OPEN_DIALOG, &mut dlg)
+        };
         if hr < 0 || dlg.is_null() {
             return Err(());
         }
@@ -283,9 +283,7 @@ pub fn choose_font(hwnd: HWND, face: &str, size_pt: f32) -> Option<(String, f32)
 pub fn font_file(face: &str) -> Option<PathBuf> {
     use windows_sys::Win32::System::Registry::*;
     let key = wide("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts");
-    let fonts_dir = std::env::var_os("WINDIR")
-        .map(|w| PathBuf::from(w).join("Fonts"))
-        .unwrap_or_else(|| "C:\\Windows\\Fonts".into());
+    let fonts_dir = std::env::var_os("WINDIR").map(|w| PathBuf::from(w).join("Fonts")).unwrap_or_else(|| "C:\\Windows\\Fonts".into());
     let mut found = None;
     for root in [HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE] {
         // SAFETY: enumerates values into fixed-size buffers whose sizes are passed in.
@@ -318,9 +316,7 @@ pub fn font_file(face: &str) -> Option<PathBuf> {
                 let n = from_wide(&name);
                 // "Consolas (TrueType)", "Cascadia Mono Regular (TrueType)", "A & B (TrueType)"
                 let base = n.split(" (").next().unwrap_or(&n);
-                let matches = base
-                    .split(" & ")
-                    .any(|p| p.eq_ignore_ascii_case(face) || p.eq_ignore_ascii_case(&format!("{face} Regular")));
+                let matches = base.split(" & ").any(|p| p.eq_ignore_ascii_case(face) || p.eq_ignore_ascii_case(&format!("{face} Regular")));
                 if matches {
                     let file = PathBuf::from(from_wide(&data));
                     found = Some(if file.is_absolute() { file } else { fonts_dir.join(file) });

@@ -82,7 +82,8 @@ pub fn replace_roots(text: &str, pairs: &[(String, String)]) -> (String, usize) 
             while i < t.len() {
                 let hit = i + pat.len() <= t.len()
                     && t[i..i + pat.len()].iter().zip(&pat).all(|(a, b)| eq_ci(*a, *b))
-                    && t.get(i + pat.len()).is_none_or(|c| matches!(c, '\\' | '/' | '"' | '\'' | ';' | ',' | '=' | ')' | ']') || c.is_whitespace());
+                    && t.get(i + pat.len())
+                        .is_none_or(|c| matches!(c, '\\' | '/' | '"' | '\'' | ';' | ',' | '=' | ')' | ']') || c.is_whitespace());
                 if hit {
                     out.push_str(n);
                     i += pat.len();

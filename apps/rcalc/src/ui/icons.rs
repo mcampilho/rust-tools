@@ -101,20 +101,7 @@ pub fn draw(g: &mut Gfx, icon: Icon, r: Rect, size: f32, c: Color) {
         }
         Icon::Function => {
             // stylised "f"
-            g.polyline(
-                &[
-                    p(12.0, 2.5),
-                    p(10.0, 1.5),
-                    p(8.0, 2.5),
-                    p(7.0, 6.0),
-                    p(5.5, 13.5),
-                    p(4.0, 14.5),
-                    p(2.0, 13.8),
-                ],
-                w,
-                c,
-                false,
-            );
+            g.polyline(&[p(12.0, 2.5), p(10.0, 1.5), p(8.0, 2.5), p(7.0, 6.0), p(5.5, 13.5), p(4.0, 14.5), p(2.0, 13.8)], w, c, false);
             g.polyline(&[p(4.5, 6.0), p(11.0, 6.0)], w, c, false);
         }
         Icon::Settings => {
@@ -122,10 +109,7 @@ pub fn draw(g: &mut Gfx, icon: Icon, r: Rect, size: f32, c: Color) {
             for i in 0..8 {
                 let a = i as f32 * std::f32::consts::FRAC_PI_4;
                 g.polyline(
-                    &[
-                        (cx + 5.0 * k * a.cos(), cy + 5.0 * k * a.sin()),
-                        (cx + 7.0 * k * a.cos(), cy + 7.0 * k * a.sin()),
-                    ],
+                    &[(cx + 5.0 * k * a.cos(), cy + 5.0 * k * a.sin()), (cx + 7.0 * k * a.cos(), cy + 7.0 * k * a.sin())],
                     w * 1.6,
                     c,
                     false,

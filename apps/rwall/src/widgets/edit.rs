@@ -115,7 +115,8 @@ impl Editor {
 
     pub fn insert(&mut self, s: &str) {
         self.delete_selection();
-        let s: String = s.chars().filter(|c| *c == '\n' || *c == '\t' || !c.is_control()).map(|c| if c == '\t' { ' ' } else { c }).collect();
+        let s: String =
+            s.chars().filter(|c| *c == '\n' || *c == '\t' || !c.is_control()).map(|c| if c == '\t' { ' ' } else { c }).collect();
         let room = MAX_TEXT.saturating_sub(self.text.len());
         let mut cut = s.len().min(room);
         while !s.is_char_boundary(cut) {

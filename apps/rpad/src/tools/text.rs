@@ -151,10 +151,7 @@ fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
 }
 
 pub fn prefix_suffix(lines: Vec<String>, prefix: &str, suffix: &str, skip_blank: bool) -> Vec<String> {
-    lines
-        .into_iter()
-        .map(|l| if skip_blank && l.trim().is_empty() { l } else { format!("{prefix}{l}{suffix}") })
-        .collect()
+    lines.into_iter().map(|l| if skip_blank && l.trim().is_empty() { l } else { format!("{prefix}{l}{suffix}") }).collect()
 }
 
 /// Expands every tab to spaces, respecting tab stops.
@@ -238,7 +235,8 @@ pub fn json_unescape(s: &str) -> Result<String, String> {
                 if (0xD800..0xDC00).contains(&code) {
                     // surrogate pair
                     let rest: String = it.by_ref().take(6).collect();
-                    let low = rest.strip_prefix("\\u").and_then(|h| u32::from_str_radix(h, 16).ok()).ok_or_else(|| tr("Unpaired surrogate"))?;
+                    let low =
+                        rest.strip_prefix("\\u").and_then(|h| u32::from_str_radix(h, 16).ok()).ok_or_else(|| tr("Unpaired surrogate"))?;
                     code = 0x10000 + ((code - 0xD800) << 10) + (low - 0xDC00);
                 }
                 out.push(char::from_u32(code).ok_or_else(|| tr("Invalid code point"))?);

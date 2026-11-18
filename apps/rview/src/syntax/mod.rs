@@ -2,8 +2,8 @@
 //! in Markdown/HTML. Languages, the lexer and the token colours come from
 //! `rt-syntax`; this module adds the line-state cache for text views.
 
-pub use rt_syntax::{detect, from_tag, highlight, lang, lexer, tok_from, Lang, Span, State, Tok};
 use crate::ui::gfx::Color;
+pub use rt_syntax::{detect, from_tag, highlight, lang, lexer, tok_from, Lang, Span, State, Tok};
 
 /// Above this size, text files are not highlighted.
 pub const MAX_HIGHLIGHT_SIZE: usize = 16 << 20;

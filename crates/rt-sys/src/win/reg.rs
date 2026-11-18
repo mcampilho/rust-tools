@@ -6,8 +6,9 @@ use super::{from_wide, wide};
 use std::path::Path;
 use windows_sys::Win32::Foundation::ERROR_SUCCESS;
 use windows_sys::Win32::System::Registry::{
-    RegCloseKey, RegEnumKeyExW, RegEnumValueW, RegLoadAppKeyW, RegOpenKeyExW, RegQueryInfoKeyW, HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE,
-    HKEY_USERS, KEY_READ, KEY_WOW64_32KEY, KEY_WOW64_64KEY, REG_BINARY, REG_DWORD, REG_EXPAND_SZ, REG_MULTI_SZ, REG_QWORD, REG_SZ,
+    RegCloseKey, RegEnumKeyExW, RegEnumValueW, RegLoadAppKeyW, RegOpenKeyExW, RegQueryInfoKeyW, HKEY, HKEY_CURRENT_USER,
+    HKEY_LOCAL_MACHINE, HKEY_USERS, KEY_READ, KEY_WOW64_32KEY, KEY_WOW64_64KEY, REG_BINARY, REG_DWORD, REG_EXPAND_SZ, REG_MULTI_SZ,
+    REG_QWORD, REG_SZ,
 };
 
 /// Where a key starts.
@@ -48,7 +49,9 @@ impl Value {
             Value::Dword(v) => format!("0x{v:08x} ({v})"),
             Value::Qword(v) => format!("0x{v:016x} ({v})"),
             Value::Multi(v) => v.join(" · "),
-            Value::Binary(b) => b.iter().take(64).map(|x| format!("{x:02x}")).collect::<Vec<_>>().join(" ") + if b.len() > 64 { " …" } else { "" },
+            Value::Binary(b) => {
+                b.iter().take(64).map(|x| format!("{x:02x}")).collect::<Vec<_>>().join(" ") + if b.len() > 64 { " …" } else { "" }
+            }
             Value::Other(t, n) => format!("(type {t}, {n} bytes)"),
         }
     }
@@ -124,7 +127,16 @@ impl Key {
             let mut len = buf.len() as u32;
             // SAFETY: the buffer holds `len` characters; the other outputs are optional.
             let rc = unsafe {
-                RegEnumKeyExW(self.0, i, buf.as_mut_ptr(), &mut len, std::ptr::null(), std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut())
+                RegEnumKeyExW(
+                    self.0,
+                    i,
+                    buf.as_mut_ptr(),
+                    &mut len,
+                    std::ptr::null(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                )
             };
             if rc != ERROR_SUCCESS {
                 break;
@@ -162,7 +174,9 @@ impl Key {
             let mut dlen = data.len() as u32;
             let mut kind = 0u32;
             // SAFETY: both buffers are as large as stated.
-            let rc = unsafe { RegEnumValueW(self.0, i, name.as_mut_ptr(), &mut nlen, std::ptr::null(), &mut kind, data.as_mut_ptr(), &mut dlen) };
+            let rc = unsafe {
+                RegEnumValueW(self.0, i, name.as_mut_ptr(), &mut nlen, std::ptr::null(), &mut kind, data.as_mut_ptr(), &mut dlen)
+            };
             if rc != ERROR_SUCCESS {
                 break;
             }

@@ -78,7 +78,9 @@ pub fn bing_list(j: &Json) -> Vec<BingImage> {
 /// the credit. Bing's own `title` ("Info" in some markets) is the fallback.
 pub fn bing_caption(copyright: &str, title: &str) -> (String, String) {
     match copyright.rfind(" (©") {
-        Some(i) if copyright.ends_with(')') => (copyright[..i].trim().to_string(), copyright[i + 2..copyright.len() - 1].trim().to_string()),
+        Some(i) if copyright.ends_with(')') => {
+            (copyright[..i].trim().to_string(), copyright[i + 2..copyright.len() - 1].trim().to_string())
+        }
         _ if !title.is_empty() && title != "Info" => (title.to_string(), copyright.to_string()),
         _ => (copyright.to_string(), String::new()),
     }
@@ -121,7 +123,8 @@ pub fn apod_list(j: &Json) -> Vec<Apod> {
         .iter()
         .filter(|i| i.get("media_type").str() == "image" && i.get("hdurl").str().starts_with("https://"))
         .map(|i| {
-            let credit = [i.get("credit").str(), i.get("copyright").str()].into_iter().map(plain_text).find(|c| !c.is_empty()).unwrap_or_default();
+            let credit =
+                [i.get("credit").str(), i.get("copyright").str()].into_iter().map(plain_text).find(|c| !c.is_empty()).unwrap_or_default();
             let page = i.get("permalink").str();
             Apod {
                 date: i.get("date").str().to_string(),
@@ -330,7 +333,8 @@ mod tests {
             }
         }
         // With the latest days shown, NASA takes a page of the archive at random.
-        let recent: Vec<String> = (1..=30).map(|d| format!("nasa:2026-10-{d:02}")).chain((1..=30).map(|d| format!("nasa:2026-11-{d:02}"))).collect();
+        let recent: Vec<String> =
+            (1..=30).map(|d| format!("nasa:2026-10-{d:02}")).chain((1..=30).map(|d| format!("nasa:2026-11-{d:02}"))).collect();
         match super::super::fetch(Source::Nasa, &Request { history: recent, ..req }) {
             Ok(p) => println!("Nasa (archive): {} | {} | {}", p.id, p.title, p.link),
             Err(e) => println!("Nasa (archive): ERROR {e}"),

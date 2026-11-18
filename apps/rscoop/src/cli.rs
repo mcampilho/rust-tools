@@ -5,7 +5,7 @@ use crate::checks::{find_roots, run_check, Context, CHECK_IDS};
 use crate::fix::{Fixer, PowerShellRunner, Status, FIX_ORDER};
 use crate::registry::Registry;
 use crate::report::{fix_report, json_report, summary, text_report, Extras};
-use crate::text::{system_language, T, LANGUAGES};
+use crate::text::{system_language, LANGUAGES, T};
 use rt_core::json::Json;
 use std::io::Write;
 use std::time::Instant;
@@ -129,7 +129,8 @@ fn help(t: &T) -> String {
         ("-h, --help", t.get("cli.help").into()),
         ("-V, --version", t.get("cli.version").into()),
     ];
-    let mut s = format!("{}: rscoop [{}]\n\n{}\n\n{}:\n", t.get("cli.usage"), t.get("cli.options"), t.get("cli.description"), t.get("cli.options"));
+    let mut s =
+        format!("{}: rscoop [{}]\n\n{}\n\n{}:\n", t.get("cli.usage"), t.get("cli.options"), t.get("cli.description"), t.get("cli.options"));
     for (k, v) in rows {
         s += &format!("  {k:<20} {v}\n");
     }
@@ -241,11 +242,9 @@ pub fn run(
             None => t.get("status.off").into(),
         },
         scoop_db: match &ctx.scoop_db {
-            Some(db) => format!(
-                "{}  ({})",
-                crate::paths::join(&ctx.root, "scoop.db"),
-                t.fill("status.scoop_db", &[("n", &db.len().to_string())])
-            ),
+            Some(db) => {
+                format!("{}  ({})", crate::paths::join(&ctx.root, "scoop.db"), t.fill("status.scoop_db", &[("n", &db.len().to_string())]))
+            }
             None => t.get("status.off").into(),
         },
     };

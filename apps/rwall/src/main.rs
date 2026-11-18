@@ -570,9 +570,7 @@ impl Shell {
         });
         true
     }
-
 }
-
 
 #[cfg(windows)]
 fn show_tray_menu(shell: &mut Shell, el: &ActiveEventLoop) {
@@ -648,7 +646,8 @@ fn start_resident(shell: &mut Shell) {
     use rt_sys::linux::shell as ls;
     let proxy = std::sync::Mutex::new(shell.proxy.clone());
     let items_proxy = std::sync::Mutex::new(shell.proxy.clone());
-    let cfg = ls::Config { app: "rwall", icon: rwall::ui::appicon::render, tray: Some(tray_labels(&shell.tip())), listen_without_icon: true };
+    let cfg =
+        ls::Config { app: "rwall", icon: rwall::ui::appicon::render, tray: Some(tray_labels(&shell.tip())), listen_without_icon: true };
     let resident = ls::Shell::with_items(
         cfg,
         tray_items(),

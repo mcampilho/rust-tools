@@ -33,7 +33,20 @@ pub struct Style {
 
 impl Default for Style {
     fn default() -> Style {
-        Style { bold: false, italic: false, mono: false, size: 1.0, color: None, bg: None, underline: false, strike: false, link: 0, valign: 0, code: false, tok: 0 }
+        Style {
+            bold: false,
+            italic: false,
+            mono: false,
+            size: 1.0,
+            color: None,
+            bg: None,
+            underline: false,
+            strike: false,
+            link: 0,
+            valign: 0,
+            code: false,
+            tok: 0,
+        }
     }
 }
 
@@ -41,7 +54,13 @@ impl Default for Style {
 pub enum Inline {
     Text(String, Style),
     Break,
-    Image { src: String, alt: String, width: Option<Length>, height: Option<Length>, style: Style },
+    Image {
+        src: String,
+        alt: String,
+        width: Option<Length>,
+        height: Option<Length>,
+        style: Style,
+    },
     /// Target of `#name` links.
     Anchor(String),
 }

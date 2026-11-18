@@ -72,13 +72,37 @@ fn kind_icon(g: &mut Gfx, r: Rect, kind: Kind, th: &Theme, s: f32) {
                 let (x, y) = (cx + (rad + 1.5 * s) * a.cos(), cy + (rad + 1.5 * s) * a.sin());
                 g.fill_rrect(Rect::new(x - 1.6 * s, y - 1.6 * s, 3.2 * s, 3.2 * s), 0.8 * s, c);
             }
-            g.polyline(&(0..=20).map(|i| (cx + rad * (i as f32 / 20.0 * std::f32::consts::TAU).cos(), cy + rad * (i as f32 / 20.0 * std::f32::consts::TAU).sin())).collect::<Vec<_>>(), 2.6 * s, c, false);
+            g.polyline(
+                &(0..=20)
+                    .map(|i| {
+                        (
+                            cx + rad * (i as f32 / 20.0 * std::f32::consts::TAU).cos(),
+                            cy + rad * (i as f32 / 20.0 * std::f32::consts::TAU).sin(),
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+                2.6 * s,
+                c,
+                false,
+            );
         }
         Kind::Task => {
             // A clock.
             let (cx, cy, rad) = (r.x + r.w / 2.0, r.center_y(), r.w * 0.42);
             let c = Color::rgb(0x3A96DD);
-            g.polyline(&(0..=24).map(|i| (cx + rad * (i as f32 / 24.0 * std::f32::consts::TAU).cos(), cy + rad * (i as f32 / 24.0 * std::f32::consts::TAU).sin())).collect::<Vec<_>>(), 1.6 * s, c, false);
+            g.polyline(
+                &(0..=24)
+                    .map(|i| {
+                        (
+                            cx + rad * (i as f32 / 24.0 * std::f32::consts::TAU).cos(),
+                            cy + rad * (i as f32 / 24.0 * std::f32::consts::TAU).sin(),
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+                1.6 * s,
+                c,
+                false,
+            );
             g.polyline(&[(cx, cy - rad * 0.6), (cx, cy), (cx + rad * 0.5, cy)], 1.6 * s, c, false);
         }
         Kind::Key | Kind::Value => {
@@ -199,7 +223,9 @@ pub fn lines_of(l: &Leftover, failed: Option<&String>) -> Vec<(String, String)> 
         Kind::Folder | Kind::File => tr("Removing it moves it to the Recycle Bin."),
         Kind::Key | Kind::Value => tr("Removing it saves it first to a .reg file (open the file to put it back), then deletes it."),
         Kind::Service => tr("Removing it saves its key to the .reg file, stops the service and deletes it."),
-        Kind::Task => tr("Removing it saves a copy of the task beside the .reg file (schtasks /Create /XML puts it back), then deletes it."),
+        Kind::Task => {
+            tr("Removing it saves a copy of the task beside the .reg file (schtasks /Create /XML puts it back), then deletes it.")
+        }
     };
     add("Removing", what_happens);
     let note = match l.group {
@@ -227,7 +253,8 @@ pub fn draw_details(g: &mut Gfx, app: &App, area: Rect, th: &Theme, s: f32) {
     let mut y = area.y + pad - app.details_scroll;
     let ir = Rect::new(x, y, (28.0 * s).round(), (28.0 * s).round());
     kind_icon(g, ir, l.kind, th, s);
-    let name = l.value.clone().filter(|v| !v.is_empty()).unwrap_or_else(|| l.path.rsplit(['\\', '/']).next().unwrap_or(&l.path).to_string());
+    let name =
+        l.value.clone().filter(|v| !v.is_empty()).unwrap_or_else(|| l.path.rsplit(['\\', '/']).next().unwrap_or(&l.path).to_string());
     let title = ellipsize(g, &name, w - ir.w - 10.0 * s, 15.0 * s, FontId::Semibold);
     g.text(&title, ir.right() + 10.0 * s, y + 19.0 * s, 15.0 * s, FontId::Semibold, th.text);
     y += ir.h + 16.0 * s;
@@ -259,7 +286,9 @@ fn wrap(g: &mut Gfx, text: &str, w: f32, p: f32) -> Vec<String> {
         }
     }
     out.push(line);
-    out.into_iter().map(|l| if g.measure(&l, p, FontId::Regular) > w { ellipsize_middle(g, &l, w, p, FontId::Regular) } else { l }).collect()
+    out.into_iter()
+        .map(|l| if g.measure(&l, p, FontId::Regular) > w { ellipsize_middle(g, &l, w, p, FontId::Regular) } else { l })
+        .collect()
 }
 
 pub fn details_height(app: &App, s: f32) -> f32 {
@@ -273,7 +302,15 @@ pub fn details_text(app: &App) -> String {
     app.rows
         .iter()
         .filter_map(|&i| lo.items.get(i).map(|l| (i, l)))
-        .map(|(i, l)| format!("[{}] {} · {} · {}", if lo.ticked.get(i).copied().unwrap_or(false) { "x" } else { " " }, group_label(l.group), what(l), l.program))
+        .map(|(i, l)| {
+            format!(
+                "[{}] {} · {} · {}",
+                if lo.ticked.get(i).copied().unwrap_or(false) { "x" } else { " " },
+                group_label(l.group),
+                what(l),
+                l.program
+            )
+        })
         .collect::<Vec<_>>()
         .join("\n")
 }

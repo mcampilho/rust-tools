@@ -199,6 +199,9 @@ fn views_render_fully_translated() {
     let dir_s = dir.to_string_lossy().to_string();
     // Programming language names are proper nouns.
     let names: BTreeSet<&str> = crate::syntax::lang::DEFS.iter().map(|d| d.name).collect();
-    let misses: Vec<String> = take_misses().into_iter().filter(|m| m.chars().any(|c| c.is_alphabetic()) && !m.contains(&dir_s) && !names.contains(m.as_str())).collect();
+    let misses: Vec<String> = take_misses()
+        .into_iter()
+        .filter(|m| m.chars().any(|c| c.is_alphabetic()) && !m.contains(&dir_s) && !names.contains(m.as_str()))
+        .collect();
     assert!(misses.is_empty(), "untranslated at run time: {misses:#?}");
 }

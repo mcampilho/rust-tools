@@ -31,24 +31,11 @@ fn run_on(e: &mut Engine, script: &str) {
             "inv" => vec![Key::Unary(Unary::Recip)],
             "fact" => vec![Key::Unary(Unary::Fact)],
             "not" => vec![Key::Unary(Unary::Not)],
-            "sin" => vec![Key::Unary(Unary::Trig {
-                f: Trig::Sin,
-                inv: false,
-                hyp: false,
-            })],
+            "sin" => vec![Key::Unary(Unary::Trig { f: Trig::Sin, inv: false, hyp: false })],
             "pi" => vec![Key::Const(Constant::Pi)],
             "exp" => vec![Key::Exp],
             "." => vec![Key::Point],
-            num => num
-                .chars()
-                .map(|c| {
-                    if c == '.' {
-                        Key::Point
-                    } else {
-                        Key::Digit(c.to_digit(16).unwrap() as u8)
-                    }
-                })
-                .collect(),
+            num => num.chars().map(|c| if c == '.' { Key::Point } else { Key::Digit(c.to_digit(16).unwrap() as u8) }).collect(),
         };
         for k in keys {
             e.press(k);

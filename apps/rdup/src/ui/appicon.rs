@@ -68,8 +68,7 @@ pub fn render(n: u32) -> Vec<u8> {
     // The sheet behind, then the one in front, each with the same lines.
     /// (left, top, top colour, bottom colour) in 256ths.
     type Sheet = (f32, f32, (u8, u8, u8), (u8, u8, u8));
-    let sheets: [Sheet; 2] =
-        [(42.0, 34.0, (0x8F, 0xB8, 0xF5), (0x5E, 0x93, 0xE6)), (92.0, 84.0, (0xFF, 0xFF, 0xFF), (0xDC, 0xE6, 0xF5))];
+    let sheets: [Sheet; 2] = [(42.0, 34.0, (0x8F, 0xB8, 0xF5), (0x5E, 0x93, 0xE6)), (92.0, 84.0, (0xFF, 0xFF, 0xFF), (0xDC, 0xE6, 0xF5))];
     for (i, (x0, y0, top, bottom)) in sheets.into_iter().enumerate() {
         let (x1, y1) = (x0 + 122.0, y0 + 140.0);
         let fold = 34.0;
@@ -86,7 +85,8 @@ pub fn render(n: u32) -> Vec<u8> {
             pm.fill_path(&p, &solid(0x22, 0x2A, 0x36, 70), FillRule::Winding, id, None);
         }
         // Lines of text, the same on both sheets.
-        let lines: &[(f32, f32)] = if small { &[(48.0, 70.0), (88.0, 90.0)] } else { &[(54.0, 62.0), (78.0, 92.0), (102.0, 80.0), (126.0, 92.0)] };
+        let lines: &[(f32, f32)] =
+            if small { &[(48.0, 70.0), (88.0, 90.0)] } else { &[(54.0, 62.0), (78.0, 92.0), (102.0, 80.0), (126.0, 92.0)] };
         let color = if i == 0 { (0x22, 0x4E, 0x9A) } else { (0x2F, 0x80, 0xED) };
         for &(dy, w) in lines {
             let h = if small { 14.0 } else { 9.0 };

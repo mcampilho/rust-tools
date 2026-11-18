@@ -70,14 +70,7 @@ const UNTRANSLATED: &[&str] = &[];
 fn ui_strings_have_translations() {
     install();
     let root = env!("CARGO_MANIFEST_DIR");
-    let files = [
-        "src/ui/view.rs",
-        "src/app.rs",
-        "src/num/mod.rs",
-        "src/calc/programmer.rs",
-        "src/convert.rs",
-        "src/main.rs",
-    ];
+    let files = ["src/ui/view.rs", "src/app.rs", "src/num/mod.rs", "src/calc/programmer.rs", "src/convert.rs", "src/main.rs"];
     let mut missing = Vec::new();
     for f in files {
         let src = std::fs::read_to_string(format!("{root}/{f}")).unwrap();
@@ -144,9 +137,7 @@ pub(crate) fn take_misses() -> BTreeSet<String> {
 }
 
 fn words(s: &str) -> impl Iterator<Item = String> + '_ {
-    s.split(|c: char| !c.is_alphabetic())
-        .filter(|w| w.chars().count() >= 4)
-        .map(str::to_lowercase)
+    s.split(|c: char| !c.is_alphabetic()).filter(|w| w.chars().count() >= 4).map(str::to_lowercase)
 }
 
 /// True when `s` contains an English word from the source strings that never

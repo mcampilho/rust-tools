@@ -260,7 +260,16 @@ fn ui_renders_fully_translated() {
     app.dispatch(Command::CommandPalette, &h);
     render(&mut app);
     app.palette = None;
-    for c in [Command::GotoLine, Command::Shortcuts, Command::About, Command::XmlCheck, Command::SortAsc, Command::Upper, Command::CopyPath, Command::GotoBracket] {
+    for c in [
+        Command::GotoLine,
+        Command::Shortcuts,
+        Command::About,
+        Command::XmlCheck,
+        Command::SortAsc,
+        Command::Upper,
+        Command::CopyPath,
+        Command::GotoBracket,
+    ] {
         app.dispatch(c, &h);
         render(&mut app);
         app.palette = None;
@@ -268,6 +277,7 @@ fn ui_renders_fully_translated() {
     set_lang(Lang::EnUS);
     let _ = std::fs::remove_dir_all(&dir);
     let names: BTreeSet<&str> = crate::syntax::lang::DEFS.iter().map(|d| d.name).collect();
-    let misses: Vec<String> = take_misses().into_iter().filter(|m| !names.contains(m.as_str()) && m.chars().any(|c| c.is_alphabetic())).collect();
+    let misses: Vec<String> =
+        take_misses().into_iter().filter(|m| !names.contains(m.as_str()) && m.chars().any(|c| c.is_alphabetic())).collect();
     assert!(misses.is_empty(), "untranslated at run time: {misses:#?}");
 }

@@ -48,9 +48,11 @@ pub fn target_of(bytes: &[u8], lnk_dir: &Path) -> Option<PathBuf> {
         if li_flags & 1 != 0 {
             let base = u32_at(bytes, info + 16)? as usize;
             let suffix = u32_at(bytes, info + 24)? as usize;
-            let (base_w, suffix_w) = if header >= 0x24 { (u32_at(bytes, info + 28)? as usize, u32_at(bytes, info + 32)? as usize) } else { (0, 0) };
+            let (base_w, suffix_w) =
+                if header >= 0x24 { (u32_at(bytes, info + 28)? as usize, u32_at(bytes, info + 32)? as usize) } else { (0, 0) };
             let b = if base_w > 0 { str_at(bytes, info + base_w, true)? } else { str_at(bytes, info + base, false)? };
-            let s = if suffix_w > 0 { str_at(bytes, info + suffix_w, true)? } else { str_at(bytes, info + suffix, false).unwrap_or_default() };
+            let s =
+                if suffix_w > 0 { str_at(bytes, info + suffix_w, true)? } else { str_at(bytes, info + suffix, false).unwrap_or_default() };
             local = Some(format!("{b}{s}"));
         }
         at = info + size;
@@ -65,7 +67,11 @@ pub fn target_of(bytes: &[u8], lnk_dir: &Path) -> Option<PathBuf> {
         let len = if wide { n * 2 } else { n };
         if keep {
             let s = bytes.get(at + 2..at + 2 + len)?;
-            relative = Some(if wide { String::from_utf16_lossy(&s.as_chunks::<2>().0.iter().map(|c| u16::from_le_bytes(*c)).collect::<Vec<_>>()) } else { s.iter().map(|&c| c as char).collect() });
+            relative = Some(if wide {
+                String::from_utf16_lossy(&s.as_chunks::<2>().0.iter().map(|c| u16::from_le_bytes(*c)).collect::<Vec<_>>())
+            } else {
+                s.iter().map(|&c| c as char).collect()
+            });
         }
         at += 2 + len;
     }

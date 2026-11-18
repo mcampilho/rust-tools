@@ -139,7 +139,18 @@ mod tests {
     use super::*;
 
     fn entry(path: &str, kind: Kind, size: u64) -> Entry {
-        Entry { path: path.into(), kind, size: Some(size), packed: Some(size / 2), mtime: 10, method: String::new(), encrypted: false, crc: None, mode: None, link: None }
+        Entry {
+            path: path.into(),
+            kind,
+            size: Some(size),
+            packed: Some(size / 2),
+            mtime: 10,
+            method: String::new(),
+            encrypted: false,
+            crc: None,
+            mode: None,
+            link: None,
+        }
     }
 
     #[test]

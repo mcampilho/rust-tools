@@ -64,11 +64,22 @@ pub struct KeyInput {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Drag {
     /// Selecting text; `unit` 1 = chars, 2 = words, 3 = lines.
-    Select { anchor: usize, unit: u8, word: (usize, usize) },
+    Select {
+        anchor: usize,
+        unit: u8,
+        word: (usize, usize),
+    },
     /// Alt+drag column selection from (line, cell column).
-    Column { line: usize, col: usize },
-    VScroll { grab: f32 },
-    HScroll { grab: f32 },
+    Column {
+        line: usize,
+        col: usize,
+    },
+    VScroll {
+        grab: f32,
+    },
+    HScroll {
+        grab: f32,
+    },
 }
 
 #[derive(Default)]
@@ -89,7 +100,9 @@ impl App {
             if self.palette.is_some() {
                 self.palette = None;
                 self.focus = Focus::Editor;
-            } else if matches!(self.focus, Focus::Find | Focus::Replace) || (self.focus == Focus::Editor && self.find.visible && self.doc().buf.sels.len() == 1) {
+            } else if matches!(self.focus, Focus::Find | Focus::Replace)
+                || (self.focus == Focus::Editor && self.find.visible && self.doc().buf.sels.len() == 1)
+            {
                 self.close_find();
             } else if matches!(self.focus, Focus::FifQuery | Focus::FifDir | Focus::FifFilter | Focus::Results) {
                 self.focus = Focus::Editor;
@@ -137,7 +150,8 @@ impl App {
                     self.find.invalidate();
                     return true;
                 }
-                let hist = if self.focus == Focus::Find { self.settings.find_history.clone() } else { self.settings.replace_history.clone() };
+                let hist =
+                    if self.focus == Focus::Find { self.settings.find_history.clone() } else { self.settings.replace_history.clone() };
                 let edit = if self.focus == Focus::Find { &mut self.find.find } else { &mut self.find.replace };
                 if field_key(edit, k, lm, &hist, host) {
                     self.find.invalidate();
@@ -352,7 +366,15 @@ impl App {
                     let t = before.trim_end();
                     if matches!(lang, syntax::Lang::Xml | syntax::Lang::Html) {
                         // After an opening tag that is not closed on the same line.
-                        return t.ends_with('>') && !t.ends_with("/>") && !t.trim_start().starts_with("</") && t.rfind('<').is_some_and(|p| !t[p..].starts_with("</") && !t[p..].starts_with("<!") && !t[p..].starts_with("<?") && !t[p..].contains("</"));
+                        return t.ends_with('>')
+                            && !t.ends_with("/>")
+                            && !t.trim_start().starts_with("</")
+                            && t.rfind('<').is_some_and(|p| {
+                                !t[p..].starts_with("</")
+                                    && !t[p..].starts_with("<!")
+                                    && !t[p..].starts_with("<?")
+                                    && !t[p..].contains("</")
+                            });
                     }
                     def.indent_after.iter().any(|e| t.ends_with(e))
                 };
@@ -473,7 +495,11 @@ impl App {
                 }
             }
             let b = &self.doc().buf;
-            let new_head = if at_edge && steps != 0 && n.abs() == 1 && (row == 0 && n < 0 && line == 0 || n > 0 && line + 1 >= b.line_count() && row + 1 >= rows.len()) {
+            let new_head = if at_edge
+                && steps != 0
+                && n.abs() == 1
+                && (row == 0 && n < 0 && line == 0 || n > 0 && line + 1 >= b.line_count() && row + 1 >= rows.len())
+            {
                 // Moving past the first/last line goes to its start/end.
                 if n < 0 {
                     b.line_start(line)
@@ -745,7 +771,10 @@ impl App {
                 let cur_line = b.line_of(pos);
                 let cur_col = self.layout.text_x;
                 let _ = cur_col;
-                let col2 = ((x - self.layout.text_x + if self.layout.wrap_cells.is_some() { 0.0 } else { self.docs[self.active].scroll_x }) / self.layout.char_w.max(1.0)).max(0.0).round() as usize;
+                let col2 = ((x - self.layout.text_x + if self.layout.wrap_cells.is_some() { 0.0 } else { self.docs[self.active].scroll_x })
+                    / self.layout.char_w.max(1.0))
+                .max(0.0)
+                .round() as usize;
                 let b = &mut self.docs[self.active].buf;
                 let (l0, l1) = (line.min(cur_line), line.max(cur_line));
                 let sels: Vec<Sel> = (l0..=l1)
@@ -825,7 +854,6 @@ impl App {
         }
         self.scroll_rows(lines.round() as isize);
     }
-
 }
 
 /// Keys for a single-line field. Returns true if handled.

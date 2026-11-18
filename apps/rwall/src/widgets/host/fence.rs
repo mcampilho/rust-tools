@@ -6,7 +6,13 @@ use super::*;
 
 /// The files named by a dragged data object.
 pub(super) fn dropped_files(d: &IDataObject) -> Vec<PathBuf> {
-    let fmt = FORMATETC { cfFormat: CF_HDROP.0, ptd: std::ptr::null_mut(), dwAspect: DVASPECT_CONTENT.0, lindex: -1, tymed: TYMED_HGLOBAL.0 as u32 };
+    let fmt = FORMATETC {
+        cfFormat: CF_HDROP.0,
+        ptd: std::ptr::null_mut(),
+        dwAspect: DVASPECT_CONTENT.0,
+        lindex: -1,
+        tymed: TYMED_HGLOBAL.0 as u32,
+    };
     let mut out = Vec::new();
     // SAFETY: the medium is released after its list is read; the buffers
     // are as long as said.
@@ -35,7 +41,11 @@ pub(super) fn same_volume(a: &Path, b: &Path) -> bool {
 /// What dropping `files` into `folder` does: move on the same drive, copy
 /// from another (Ctrl copies, Shift moves), nothing for what is there already.
 pub(super) fn drop_effect(files: &[PathBuf], folder: &Path, keys: MODIFIERKEYS_FLAGS) -> DROPEFFECT {
-    if folder.as_os_str().is_empty() || files.is_empty() || files.iter().all(|f| f.parent() == Some(folder)) || files.iter().any(|f| folder.starts_with(f)) {
+    if folder.as_os_str().is_empty()
+        || files.is_empty()
+        || files.iter().all(|f| f.parent() == Some(folder))
+        || files.iter().any(|f| folder.starts_with(f))
+    {
         return DROPEFFECT_NONE;
     }
     if keys.0 & MK_CONTROL.0 != 0 {
@@ -75,7 +85,6 @@ pub(super) fn file_operation(files: Vec<PathBuf>, folder: PathBuf, effect: DROPE
     });
 }
 
-
 /// A fence takes files dropped on it.
 #[implement(IDropTarget)]
 pub(super) struct FenceDrop {
@@ -86,7 +95,13 @@ pub(super) struct FenceDrop {
 }
 
 impl IDropTarget_Impl for FenceDrop_Impl {
-    fn DragEnter(&self, data: Ref<IDataObject>, keys: MODIFIERKEYS_FLAGS, _pt: &POINTL, effect: *mut DROPEFFECT) -> windows::core::Result<()> {
+    fn DragEnter(
+        &self,
+        data: Ref<IDataObject>,
+        keys: MODIFIERKEYS_FLAGS,
+        _pt: &POINTL,
+        effect: *mut DROPEFFECT,
+    ) -> windows::core::Result<()> {
         let files = data.as_ref().map(dropped_files).unwrap_or_default();
         let e = drop_effect(&files, &self.folder.borrow(), keys);
         *self.files.borrow_mut() = files;

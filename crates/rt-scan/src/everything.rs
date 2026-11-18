@@ -186,7 +186,8 @@ pub fn scan_index(root: &std::path::Path, cancel: &std::sync::atomic::AtomicBool
     let text = root.to_string_lossy().into_owned();
     progress(&Progress { current: rt_core::i18n::tr("Asking Everything…").to_string(), ..Progress::default() });
     let items = query(&text, cancel)?;
-    let top: Vec<String> = std::fs::read_dir(root).map(|d| d.flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect()).unwrap_or_default();
+    let top: Vec<String> =
+        std::fs::read_dir(root).map(|d| d.flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect()).unwrap_or_default();
     let mtime = std::fs::metadata(root).map_or(0, |m| super::mtime_of(&m));
     build(&text, &items, &top, win::cluster_size(&text), mtime)
 }
@@ -258,7 +259,20 @@ mod win {
             let inst = GetModuleHandleW(std::ptr::null());
             let wc = WNDCLASSW { lpfnWndProc: Some(proc), hInstance: inst, lpszClassName: class.as_ptr(), ..std::mem::zeroed() };
             RegisterClassW(&wc);
-            let h = CreateWindowExW(0, class.as_ptr(), std::ptr::null(), 0, 0, 0, 0, 0, HWND_MESSAGE, std::ptr::null_mut(), inst, std::ptr::null());
+            let h = CreateWindowExW(
+                0,
+                class.as_ptr(),
+                std::ptr::null(),
+                0,
+                0,
+                0,
+                0,
+                0,
+                HWND_MESSAGE,
+                std::ptr::null_mut(),
+                inst,
+                std::ptr::null(),
+            );
             (!h.is_null()).then_some(h)
         }
     }
@@ -316,7 +330,8 @@ mod win {
         let (mut spc, mut bps, mut free, mut total) = (0u32, 0u32, 0u32, 0u32);
         // SAFETY: NUL-terminated input; the outputs are valid.
         let ok = unsafe {
-            GetVolumePathNameW(w.as_ptr(), vol.as_mut_ptr(), vol.len() as u32) != 0 && GetDiskFreeSpaceW(vol.as_ptr(), &mut spc, &mut bps, &mut free, &mut total) != 0
+            GetVolumePathNameW(w.as_ptr(), vol.as_mut_ptr(), vol.len() as u32) != 0
+                && GetDiskFreeSpaceW(vol.as_ptr(), &mut spc, &mut bps, &mut free, &mut total) != 0
         };
         if ok {
             spc as u64 * bps as u64
@@ -414,7 +429,8 @@ mod tests {
                 for it in items.iter().take(5) {
                     println!("  {it:?}");
                 }
-                let top: Vec<String> = std::fs::read_dir(&dir).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+                let top: Vec<String> =
+                    std::fs::read_dir(&dir).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
                 println!("build: {:?}", build(&text, &items, &top, 4096, 0).map(|t| t.node(0).files));
             }
             Err(e) => println!("query: {e:?}"),

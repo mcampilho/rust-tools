@@ -242,7 +242,13 @@ impl Preview {
                         _ => "•".to_string(),
                     };
                     let w = b.g.measure(&marker, base, FontId::Regular);
-                    b.cur.runs.push(Run { x: b.indent - w - base * 0.4, text: marker, font: FontId::Regular, size: base, kind: Kind::Text });
+                    b.cur.runs.push(Run {
+                        x: b.indent - w - base * 0.4,
+                        text: marker,
+                        font: FontId::Regular,
+                        size: base,
+                        kind: Kind::Text,
+                    });
                 }
                 Event::End(TagEnd::Item) => {
                     if !b.cur.runs.is_empty() {
@@ -306,7 +312,13 @@ impl Preview {
                             if !l.is_empty() {
                                 b.cur.code_block = true;
                                 let x = b.x;
-                                b.cur.runs.push(Run { x: x + base * 0.5, text: l.replace('\t', "    "), font: FontId::Mono, size: b.size, kind: Kind::Code });
+                                b.cur.runs.push(Run {
+                                    x: x + base * 0.5,
+                                    text: l.replace('\t', "    "),
+                                    font: FontId::Mono,
+                                    size: b.size,
+                                    kind: Kind::Code,
+                                });
                             }
                         }
                     } else {
@@ -365,7 +377,10 @@ impl Preview {
                 continue;
             }
             if l.code_block {
-                g.fill_rect(Rect::new(r.x + pad + l.left, y, r.w - 2.0 * pad - l.left, l.h), if t.dark { Color::rgba(0xFFFFFF, 0x0C) } else { Color::rgba(0x000000, 0x08) });
+                g.fill_rect(
+                    Rect::new(r.x + pad + l.left, y, r.w - 2.0 * pad - l.left, l.h),
+                    if t.dark { Color::rgba(0xFFFFFF, 0x0C) } else { Color::rgba(0x000000, 0x08) },
+                );
             }
             for q in 0..l.quote_depth {
                 let x = r.x + pad + q as f32 * 1.2 * 14.0 * (l.h / (14.0 * 1.45)).max(0.5);
@@ -384,7 +399,11 @@ impl Preview {
                 let x = r.x + pad + run.x;
                 if run.kind == Kind::Code && !l.code_block {
                     let w = g.measure(&run.text, run.size, run.font);
-                    g.fill_rrect(Rect::new(x - 1.0, y + 2.0, w + 2.0, l.h - 4.0), 3.0, if t.dark { Color::rgba(0xFFFFFF, 0x12) } else { Color::rgba(0x000000, 0x0A) });
+                    g.fill_rrect(
+                        Rect::new(x - 1.0, y + 2.0, w + 2.0, l.h - 4.0),
+                        3.0,
+                        if t.dark { Color::rgba(0xFFFFFF, 0x12) } else { Color::rgba(0x000000, 0x0A) },
+                    );
                 }
                 let w = g.text(&run.text, x, base, run.size, run.font, color);
                 if run.kind == Kind::Link {

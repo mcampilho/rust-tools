@@ -225,7 +225,11 @@ pub fn distinct_roots(roots: &[PathBuf]) -> Vec<PathBuf> {
     all.sort_by_key(|p| key(p));
     all.dedup_by_key(|p| key(p));
     let keys: Vec<PathBuf> = all.iter().map(|p| key(p)).collect();
-    all.into_iter().enumerate().filter(|(i, _)| !keys.iter().enumerate().any(|(j, k)| j != *i && keys[*i].starts_with(k))).map(|(_, p)| p).collect()
+    all.into_iter()
+        .enumerate()
+        .filter(|(i, _)| !keys.iter().enumerate().any(|(j, k)| j != *i && keys[*i].starts_with(k)))
+        .map(|(_, p)| p)
+        .collect()
 }
 
 /// Searches `roots` the fastest way available.
@@ -248,7 +252,13 @@ pub(crate) struct Cand {
 type Ident = (u64, u64);
 
 /// Searches `roots`, reading them in the `ways` given (then folder by folder).
-pub fn find_with(roots: &[PathBuf], ways: Ways, opts: Options, cancel: &AtomicBool, progress: &dyn Fn(&Progress)) -> Result<Found, Failure> {
+pub fn find_with(
+    roots: &[PathBuf],
+    ways: Ways,
+    opts: Options,
+    cancel: &AtomicBool,
+    progress: &dyn Fn(&Progress),
+) -> Result<Found, Failure> {
     let start = Instant::now();
     let roots = distinct_roots(roots);
     let n = roots.len();
@@ -312,11 +322,13 @@ pub fn find_with(roots: &[PathBuf], ways: Ways, opts: Options, cancel: &AtomicBo
     let mut cache = opts.cache.as_deref().map(Cache::load);
 
     // 1 to 3: size, first and last bytes, contents.
-    let (same_size, compared) = compare(files, [Stage::Edges, Stage::Contents], &volumes, &path_of, &mut cache, cancel, progress, &mut found)?;
+    let (same_size, compared) =
+        compare(files, [Stage::Edges, Stage::Contents], &volumes, &path_of, &mut cache, cancel, progress, &mut found)?;
     found.candidates = same_size.len() as u64;
 
     // 4. Folders: whose files have copies elsewhere.
-    let copies: Vec<Vec<(u32, Id)>> = compared.groups.iter().map(|(_, _, m)| m.iter().map(|&i| (same_size[i].tree, same_size[i].id)).collect()).collect();
+    let copies: Vec<Vec<(u32, Id)>> =
+        compared.groups.iter().map(|(_, _, m)| m.iter().map(|&i| (same_size[i].tree, same_size[i].id)).collect()).collect();
     let key = |i: usize| (same_size[i].tree, same_size[i].id);
     let mut content: HashMap<(u32, Id), u32> = HashMap::new();
     for (g, m) in copies.iter().enumerate() {
@@ -332,7 +344,8 @@ pub fn find_with(roots: &[PathBuf], ways: Ways, opts: Options, cancel: &AtomicBo
     }
     let mut small = |cands: Vec<Cand>, found: &mut Found| -> Result<Vec<Vec<(u32, Id)>>, Failure> {
         let (same, c) = compare(cands, [Stage::Folders, Stage::Folders], &volumes, &path_of, &mut cache, cancel, progress, found)?;
-        let mut groups: Vec<Vec<(u32, Id)>> = c.groups.iter().map(|(_, _, m)| m.iter().map(|&i| (same[i].tree, same[i].id)).collect()).collect();
+        let mut groups: Vec<Vec<(u32, Id)>> =
+            c.groups.iter().map(|(_, _, m)| m.iter().map(|&i| (same[i].tree, same[i].id)).collect()).collect();
         let mut of: HashMap<usize, usize> = HashMap::new();
         for (g, (_, _, m)) in c.groups.iter().enumerate() {
             of.extend(m.iter().map(|&i| (i, g)));
@@ -986,7 +999,16 @@ pub(crate) mod tests {
             let mut s = shown.lock().unwrap();
             if s.elapsed() >= Duration::from_secs(5) {
                 *s = Instant::now();
-                println!("  {:?}: {} files read; {}/{} files, {}/{} MB; {}", p.stage, p.files, p.done, p.total, p.done_bytes >> 20, p.total_bytes >> 20, p.current);
+                println!(
+                    "  {:?}: {} files read; {}/{} files, {}/{} MB; {}",
+                    p.stage,
+                    p.files,
+                    p.done,
+                    p.total,
+                    p.done_bytes >> 20,
+                    p.total_bytes >> 20,
+                    p.current
+                );
             }
         })
         .unwrap();
@@ -1070,7 +1092,11 @@ pub(crate) mod tests {
                 }
             });
             let secs = t.elapsed().as_secs_f64();
-            println!("  {label} {threads:2} threads: {} files ({mb} MB) in {secs:.2} s = {:.0} files/s", batch.len(), batch.len() as f64 / secs);
+            println!(
+                "  {label} {threads:2} threads: {} files ({mb} MB) in {secs:.2} s = {:.0} files/s",
+                batch.len(),
+                batch.len() as f64 / secs
+            );
         }
     }
 
@@ -1100,7 +1126,14 @@ pub(crate) mod tests {
             let all = files.iter().filter(|c| c.size >= min).count();
             let same: Vec<&Cand> = shared.iter().filter(|c| c.size >= min).collect();
             let bytes: u64 = same.iter().map(|c| c.size).sum();
-            println!("  >= {:>8} B: {:>9} files, {:>9} share a size ({:>3}%), {:>8} MB", min, all, same.len(), same.len() * 100 / all.max(1), bytes >> 20);
+            println!(
+                "  >= {:>8} B: {:>9} files, {:>9} share a size ({:>3}%), {:>8} MB",
+                min,
+                all,
+                same.len(),
+                same.len() * 100 / all.max(1),
+                bytes >> 20
+            );
         }
     }
 

@@ -203,7 +203,9 @@ mod tests {
             window: Some((900.0, 700.0, true)),
         };
         assert_eq!(Settings::load(&Store::parse(&s.to_store().serialize("rsize"))), s);
-        let bad = Settings::load(&Store::parse("theme=??\nwindow=abc\nlanguage=xx-YY\nsplit=7\nsplit_x=0.01\nmap_split=-1\nsize=huge\nchart=types\nview=3d\n"));
+        let bad = Settings::load(&Store::parse(
+            "theme=??\nwindow=abc\nlanguage=xx-YY\nsplit=7\nsplit_x=0.01\nmap_split=-1\nsize=huge\nchart=types\nview=3d\n",
+        ));
         assert_eq!(bad, Settings::default());
     }
 

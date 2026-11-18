@@ -121,8 +121,7 @@ impl Cache {
             let mut c = open(file)?;
             let tx = c.transaction()?;
             {
-                let mut put =
-                    tx.prepare("INSERT OR REPLACE INTO files_v1 (key, size, mtime, data, seen) VALUES (?1, ?2, ?3, ?4, ?5)")?;
+                let mut put = tx.prepare("INSERT OR REPLACE INTO files_v1 (key, size, mtime, data, seen) VALUES (?1, ?2, ?3, ?4, ?5)")?;
                 for (k, s, m, d) in &fresh {
                     put.execute(params![k, s, m, d, day])?;
                 }

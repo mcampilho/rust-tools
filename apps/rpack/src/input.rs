@@ -252,7 +252,16 @@ impl Shell {
                 }
                 self.last_click = Some((Instant::now(), i));
             }
-            Hot::FormName | Hot::FormFolder | Hot::FormKind(_) | Hot::FormLevel(_) | Hot::FormMethod(_) | Hot::FormSolid | Hot::FormEach | Hot::FormCancel | Hot::FormOk | Hot::FormPanel => {}
+            Hot::FormName
+            | Hot::FormFolder
+            | Hot::FormKind(_)
+            | Hot::FormLevel(_)
+            | Hot::FormMethod(_)
+            | Hot::FormSolid
+            | Hot::FormEach
+            | Hot::FormCancel
+            | Hot::FormOk
+            | Hot::FormPanel => {}
             Hot::None => {
                 let l = &self.layout;
                 if view::page(&self.app) == Page::Browse && l.track.contains(x, y) && self.app.rows.len() > l.page_rows() {

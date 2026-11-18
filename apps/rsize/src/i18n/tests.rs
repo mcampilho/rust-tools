@@ -205,9 +205,6 @@ fn pages_render_fully_translated() {
     let _ = crate::format::size(5000);
     set_lang(Lang::EnUS);
     let dir_s = tt.0.to_string_lossy().to_string();
-    let misses: Vec<String> = take_misses()
-        .into_iter()
-        .filter(|m| m.chars().any(|c| c.is_alphabetic()) && !m.contains(&dir_s))
-        .collect();
+    let misses: Vec<String> = take_misses().into_iter().filter(|m| m.chars().any(|c| c.is_alphabetic()) && !m.contains(&dir_s)).collect();
     assert!(misses.is_empty(), "untranslated at run time: {misses:#?}");
 }

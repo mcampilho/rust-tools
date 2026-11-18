@@ -1,7 +1,7 @@
 //! An open document: buffer plus file metadata, view state and caches.
 
-use crate::i18n::tf;
 use crate::doc::Buffer;
+use crate::i18n::tf;
 use crate::io::encoding::{Enc, Eol};
 use crate::io::file::{self, Loaded, Stamp, LARGE_FILE_SIZE};
 use crate::syntax::{self, Highlighter, Lang};
@@ -163,7 +163,9 @@ impl Doc {
 
     pub fn display_name(&self) -> String {
         match &self.path {
-            Some(p) if self.title.is_empty() => p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| p.display().to_string()),
+            Some(p) if self.title.is_empty() => {
+                p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| p.display().to_string())
+            }
             // Untitled tabs keep an internal English title (stable in the
             // session file) and are shown in the current language.
             None => match self.title.strip_prefix("Untitled ").filter(|n| n.parse::<usize>().is_ok()) {

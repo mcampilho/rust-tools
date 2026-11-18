@@ -142,7 +142,8 @@ impl Builder {
                     style,
                 });
             }
-            "b" | "strong" | "i" | "em" | "u" | "ins" | "s" | "del" | "strike" | "code" | "kbd" | "sub" | "sup" | "mark" | "small" | "a" => {
+            "b" | "strong" | "i" | "em" | "u" | "ins" | "s" | "del" | "strike" | "code" | "kbd" | "sub" | "sup" | "mark" | "small"
+            | "a" => {
                 let link = if name == "a" {
                     let attrs = html::parse_attrs(&inner[1..]);
                     attrs.iter().find(|(n, _)| n == "href").map(|(_, v)| {
@@ -313,7 +314,12 @@ impl Builder {
                         Some(Kind::Para(v)) => v.insert(0, mark),
                         _ => blocks.insert(0, Block::para(vec![mark])),
                     }
-                    self.push_block(Block { kind: Kind::Group(blocks), anchor: Some(format!("fn-{label}")), margin_bottom: 0.4, ..Block::default() });
+                    self.push_block(Block {
+                        kind: Kind::Group(blocks),
+                        anchor: Some(format!("fn-{label}")),
+                        margin_bottom: 0.4,
+                        ..Block::default()
+                    });
                 }
             }
             TagEnd::TableCell => {
@@ -366,7 +372,11 @@ impl Builder {
 
 /// Parses Markdown into a rich document.
 pub fn parse(src: &str) -> RichDoc {
-    let opts = Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TASKLISTS | Options::ENABLE_FOOTNOTES | Options::ENABLE_HEADING_ATTRIBUTES;
+    let opts = Options::ENABLE_TABLES
+        | Options::ENABLE_STRIKETHROUGH
+        | Options::ENABLE_TASKLISTS
+        | Options::ENABLE_FOOTNOTES
+        | Options::ENABLE_HEADING_ATTRIBUTES;
     let mut b = Builder {
         stack: vec![Frame::Root(Vec::new())],
         inlines: Vec::new(),
@@ -488,14 +498,16 @@ mod tests {
 
     #[test]
     fn code_blocks_are_highlighted() {
-        let d = parse("```rust
+        let d = parse(
+            "```rust
 fn main() {} // x
 ```
 
 ```
 plain
 ```
-");
+",
+        );
         let Kind::Pre(v) = &d.blocks[0].kind else { panic!() };
         let toks: Vec<u8> = v.iter().filter_map(|i| if let Inline::Text(_, s) = i { Some(s.tok) } else { None }).collect();
         assert!(toks.contains(&(crate::syntax::Tok::Keyword as u8 + 1)), "{v:?}");

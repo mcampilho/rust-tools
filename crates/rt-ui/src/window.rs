@@ -63,7 +63,8 @@ pub fn apply_theme(window: &Window, dark: bool) {
 /// Light or dark native menu bar (Windows).
 #[cfg(windows)]
 pub fn menu_theme(hwnd: rt_sys::win::HWND, dark: bool) {
-    let colors = dark.then_some(rt_sys::win::darkmode::MenuColors { bar: 0x202020, text: 0xE4E4E4, text_disabled: 0x7A7A7A, hot: 0x3D3D3D });
+    let colors =
+        dark.then_some(rt_sys::win::darkmode::MenuColors { bar: 0x202020, text: 0xE4E4E4, text_disabled: 0x7A7A7A, hot: 0x3D3D3D });
     rt_sys::win::darkmode::apply(hwnd, colors);
 }
 

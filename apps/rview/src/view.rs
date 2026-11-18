@@ -17,8 +17,8 @@ use tiny_skia::Pixmap;
 
 mod selection;
 
-pub use selection::{Hover, Sel};
 use selection::{CsvGeom, TextGeom};
+pub use selection::{Hover, Sel};
 
 pub const ZOOMS: [f32; 17] = [0.25, 0.33, 0.5, 0.67, 0.75, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 4.0, 5.0];
 /// Memory budget for rendered PDF pages.
@@ -115,7 +115,9 @@ pub fn percent_decode(s: &str) -> String {
     let mut i = 0;
     while i < b.len() {
         if b[i] == b'%' && i + 2 < b.len() {
-            if let (Some(h), Some(l)) = (b.get(i + 1).and_then(|c| (*c as char).to_digit(16)), b.get(i + 2).and_then(|c| (*c as char).to_digit(16))) {
+            if let (Some(h), Some(l)) =
+                (b.get(i + 1).and_then(|c| (*c as char).to_digit(16)), b.get(i + 2).and_then(|c| (*c as char).to_digit(16)))
+            {
                 out.push((h * 16 + l) as u8);
                 i += 3;
                 continue;
@@ -351,7 +353,11 @@ impl Viewer {
 
     pub fn zoom_step(&mut self, dir: i32, anchor: Option<(f32, f32)>) {
         let z = self.zoom;
-        let next = if dir > 0 { ZOOMS.iter().copied().find(|&s| s > z * 1.01).unwrap_or(8.0) } else { ZOOMS.iter().rev().copied().find(|&s| s < z * 0.99).unwrap_or(0.1) };
+        let next = if dir > 0 {
+            ZOOMS.iter().copied().find(|&s| s > z * 1.01).unwrap_or(8.0)
+        } else {
+            ZOOMS.iter().rev().copied().find(|&s| s < z * 0.99).unwrap_or(0.1)
+        };
         self.set_zoom(next, anchor);
     }
 
@@ -567,7 +573,14 @@ impl Viewer {
                 let lines = [tr("Drop a document here, or press Ctrl+O to open one."), tr("PDF · Markdown · HTML · Text · CSV")];
                 for (i, l) in lines.iter().enumerate() {
                     let r = Rect::new(area.x, area.center_y() - px * 1.6 + i as f32 * px * 2.0, area.w, px * 2.0);
-                    g.text_in(l, r, if i == 0 { px } else { px * 0.9 }, FontId::Regular, if i == 0 { th.text } else { th.dim }, crate::ui::gfx::Align::Center);
+                    g.text_in(
+                        l,
+                        r,
+                        if i == 0 { px } else { px * 0.9 },
+                        FontId::Regular,
+                        if i == 0 { th.text } else { th.dim },
+                        crate::ui::gfx::Align::Center,
+                    );
                 }
                 self.content = (0.0, 0.0);
             }
@@ -606,7 +619,6 @@ impl Viewer {
             }
         }
     }
-
 
     fn draw_bars(&self, g: &mut Gfx, th: &Theme) {
         let (v, h) = self.bars();
@@ -696,7 +708,11 @@ impl Viewer {
             }
             let dark = th.dark;
             let color_at = |byte: usize| -> Color {
-                spans.iter().find(|sp| byte >= sp.start && byte < sp.end).and_then(|sp| crate::syntax::color(sp.tok, dark)).unwrap_or(th.text)
+                spans
+                    .iter()
+                    .find(|sp| byte >= sp.start && byte < sp.end)
+                    .and_then(|sp| crate::syntax::color(sp.tok, dark))
+                    .unwrap_or(th.text)
             };
             draw_cells(g, text, a, b, x0, baseline, px, cw, area.x + gutter - cw, area.right(), &color_at);
             row += 1;
@@ -921,7 +937,13 @@ impl Viewer {
         for k in keys {
             let bytes = if let Some(data) = k.strip_prefix("data:") {
                 // data:[mime][;base64],payload
-                data.split_once(',').and_then(|(meta, payload)| if meta.ends_with(";base64") { base64(payload) } else { Some(percent_decode(payload).into_bytes()) })
+                data.split_once(',').and_then(|(meta, payload)| {
+                    if meta.ends_with(";base64") {
+                        base64(payload)
+                    } else {
+                        Some(percent_decode(payload).into_bytes())
+                    }
+                })
             } else if k.contains("://") || k.starts_with("//") {
                 None // remote images are never fetched
             } else {
@@ -1065,7 +1087,19 @@ fn settle(restore: &mut Option<f32>, scroll: &mut (f32, f32), content: (f32, f32
 
 /// Draws chars `a..b` of a monospace line at cell positions starting at `x0`.
 #[allow(clippy::too_many_arguments)]
-fn draw_cells(g: &mut Gfx, line: &str, a: usize, b: usize, x0: f32, baseline: f32, px: f32, cw: f32, min_x: f32, max_x: f32, color_at: &dyn Fn(usize) -> Color) {
+fn draw_cells(
+    g: &mut Gfx,
+    line: &str,
+    a: usize,
+    b: usize,
+    x0: f32,
+    baseline: f32,
+    px: f32,
+    cw: f32,
+    min_x: f32,
+    max_x: f32,
+    color_at: &dyn Fn(usize) -> Color,
+) {
     let mut col = 0usize;
     let mut base_col = None;
     let mut run = String::new();

@@ -8,11 +8,11 @@
 
 use rsize::app::{App, Scanning};
 use rsize::chart::{Chart, Hit};
-use rsize::settings::{ChartType, ViewMode};
 use rsize::commands::{self, Command};
 use rsize::i18n::{self, tf, tr};
 use rsize::model::{Id, SizeMode};
 use rsize::scan::{self, Event as ScanEvent};
+use rsize::settings::{ChartType, ViewMode};
 use rsize::settings::{Settings, SPLIT_MAX, SPLIT_MIN, SPLIT_X_MAX, SPLIT_X_MIN};
 use rsize::storage;
 use rsize::treemap::Map;
@@ -20,6 +20,7 @@ use rsize::ui::gfx::{Color, Gfx, Rect};
 use rsize::ui::theme::Theme;
 use rsize::ui::view::{self, Hot, Layout, Page};
 use rsize::volumes::{self, Volume};
+use rt_ui::Message;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -29,7 +30,6 @@ use winit::dpi::LogicalSize;
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
 use winit::keyboard::{Key as WKey, ModifiersState, NamedKey};
-use rt_ui::Message;
 use winit::window::{CursorIcon, Theme as WinTheme, Window, WindowId};
 
 mod input;
@@ -71,7 +71,6 @@ struct Win {
     #[cfg(windows)]
     menu: Option<rt_sys::win::menu::MenuBar<Command>>,
 }
-
 
 #[derive(Clone, Copy)]
 enum Drag {
@@ -335,7 +334,12 @@ impl Shell {
             #[cfg(windows)]
             Command::RestartAdmin => {
                 // The new instance reads the same folder, now directly.
-                let root = self.app.scanning.as_ref().map(|s| s.root.clone()).or_else(|| self.app.scan.as_ref().map(|s| PathBuf::from(s.tree.name(s.tree.root()))));
+                let root = self
+                    .app
+                    .scanning
+                    .as_ref()
+                    .map(|s| s.root.clone())
+                    .or_else(|| self.app.scan.as_ref().map(|s| PathBuf::from(s.tree.name(s.tree.root()))));
                 // Without its last backslash, which would escape the closing quote:
                 // "C:" is read as C:\ again (see `scan::normalize`).
                 let args = root.map_or(String::new(), |r| format!("\"{}\"", r.display().to_string().trim_end_matches('\\')));
@@ -941,7 +945,9 @@ impl ApplicationHandler<UserEvent> for Shell {
                 let l = &self.layout;
                 match view::page(&self.app) {
                     Page::Result if l.list.contains(x, y) || l.track.contains(x, y) || l.header.contains(x, y) => self.app.scroll_by(rows),
-                    Page::Result if l.ext_list.contains(x, y) || l.ext_track.contains(x, y) || l.ext_header.contains(x, y) => self.app.scroll_types_by(rows),
+                    Page::Result if l.ext_list.contains(x, y) || l.ext_track.contains(x, y) || l.ext_header.contains(x, y) => {
+                        self.app.scroll_types_by(rows)
+                    }
                     Page::Start if l.start_max > 0.0 => {
                         let step = 40.0 * self.scale();
                         self.app.start_scroll = (self.app.start_scroll + rows as f32 * step / 3.0).clamp(0.0, l.start_max);
@@ -1064,7 +1070,8 @@ fn main() {
     }
     // A drive from the Explorer menu comes as `C:"` (see `folder_arg`).
     #[cfg(windows)]
-    let args: Vec<PathBuf> = raw.iter().filter(|a| !a.starts_with("--")).map(|a| PathBuf::from(rt_sys::win::assoc::folder_arg(a))).collect();
+    let args: Vec<PathBuf> =
+        raw.iter().filter(|a| !a.starts_with("--")).map(|a| PathBuf::from(rt_sys::win::assoc::folder_arg(a))).collect();
     #[cfg(not(windows))]
     let args: Vec<PathBuf> = raw.iter().filter(|a| !a.starts_with("--")).map(PathBuf::from).collect();
     let tray = raw.iter().any(|a| a == "--tray" || a == "/tray") && !help;

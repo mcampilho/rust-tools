@@ -7,9 +7,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use rdup::actions::{Op, Rule};
-use rdup::format;
 use rdup::app::{App, Row, Searching, View};
 use rdup::commands::{self, Command};
+use rdup::format;
 use rdup::i18n::{self, tf, tr};
 use rdup::search::{self, Event as SearchEvent, Failure, Options};
 use rdup::settings::Settings;
@@ -18,6 +18,7 @@ use rdup::ui::gfx::{Color, Gfx, Rect};
 use rdup::ui::theme::Theme;
 use rdup::ui::view::{self, Hot, Layout, Page};
 use rdup::volumes::{self, Volume};
+use rt_ui::Message;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -27,7 +28,6 @@ use winit::dpi::LogicalSize;
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
 use winit::keyboard::{Key as WKey, ModifiersState, NamedKey};
-use rt_ui::Message;
 use winit::window::{CursorIcon, Theme as WinTheme, Window, WindowId};
 
 mod input;
@@ -69,7 +69,6 @@ struct Win {
     #[cfg(windows)]
     menu: Option<rt_sys::win::menu::MenuBar<Command>>,
 }
-
 
 struct Shell {
     app: App,
@@ -182,7 +181,8 @@ impl Shell {
         self.generation += 1;
         let gen = self.generation;
         let roots = search::distinct_roots(&self.app.chosen);
-        self.app.searching = Some(Searching { roots: roots.clone(), progress: Default::default(), started: Instant::now(), generation: gen });
+        self.app.searching =
+            Some(Searching { roots: roots.clone(), progress: Default::default(), started: Instant::now(), generation: gen });
         self.app.error = None;
         let proxy = self.proxy.clone();
         let lang = i18n::lang();
@@ -284,7 +284,8 @@ impl Shell {
                 self.save_settings();
                 // The new instance searches the same drives and folders, without
                 // their last backslash, which would escape the closing quote.
-                let args: Vec<String> = self.app.chosen.iter().map(|r| format!("\"{}\"", r.display().to_string().trim_end_matches('\\'))).collect();
+                let args: Vec<String> =
+                    self.app.chosen.iter().map(|r| format!("\"{}\"", r.display().to_string().trim_end_matches('\\'))).collect();
                 if rt_sys::win::restart_elevated(&args.join(" ")) {
                     self.quit(el);
                 }
@@ -507,7 +508,8 @@ impl Shell {
 
     fn apply_rule(&mut self, rule: Rule) {
         let n = self.app.apply_rule(&rule);
-        self.app.note = Some(if n == 0 { tr("No copy was marked: the rule keeps them all.") } else { tf("{} marked", &[&format::count(n as u64)]) });
+        self.app.note =
+            Some(if n == 0 { tr("No copy was marked: the rule keeps them all.") } else { tf("{} marked", &[&format::count(n as u64)]) });
     }
 
     fn pick_folder(&mut self, title: &str) -> Option<PathBuf> {
@@ -579,7 +581,10 @@ impl Shell {
         let moved = format::count(done.len() as u64);
         let mut note = tf("{} moved.", &[&moved]);
         if let Some((p, why)) = failed.first() {
-            note = format!("{note} {}", tf("{} could not be moved, such as {}: {}", &[&format::count(failed.len() as u64), &p.display().to_string(), why]));
+            note = format!(
+                "{note} {}",
+                tf("{} could not be moved, such as {}: {}", &[&format::count(failed.len() as u64), &p.display().to_string(), why])
+            );
         }
         self.app.note = Some(note);
         self.menu_dirty = true;
@@ -1020,7 +1025,8 @@ fn main() {
     }
     // A drive from the Explorer menu comes as `C:"` (see `folder_arg`).
     #[cfg(windows)]
-    let args: Vec<PathBuf> = raw.iter().filter(|a| !a.starts_with("--")).map(|a| PathBuf::from(rt_sys::win::assoc::folder_arg(a))).collect();
+    let args: Vec<PathBuf> =
+        raw.iter().filter(|a| !a.starts_with("--")).map(|a| PathBuf::from(rt_sys::win::assoc::folder_arg(a))).collect();
     #[cfg(not(windows))]
     let args: Vec<PathBuf> = raw.iter().filter(|a| !a.starts_with("--")).map(PathBuf::from).collect();
     let tray = raw.iter().any(|a| a == "--tray" || a == "/tray") && !help;

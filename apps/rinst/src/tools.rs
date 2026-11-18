@@ -36,7 +36,10 @@ pub fn real_file(file: &Path) -> PathBuf {
     let shim = file.with_extension("shim");
     std::fs::read_to_string(&shim)
         .ok()
-        .and_then(|t| t.lines().find_map(|l| l.trim().strip_prefix("path").map(|r| r.trim_start_matches([' ', '=']).trim().trim_matches('"').to_string())))
+        .and_then(|t| {
+            t.lines()
+                .find_map(|l| l.trim().strip_prefix("path").map(|r| r.trim_start_matches([' ', '=']).trim().trim_matches('"').to_string()))
+        })
         .map_or_else(|| file.to_path_buf(), PathBuf::from)
 }
 
@@ -237,7 +240,9 @@ pub fn parse_crates(text: &str, bin: &Path, me: &str) -> Vec<Program> {
             let source = parts.next().unwrap_or("").trim_matches(['(', ')']);
             let origin = match source.split_once('+') {
                 Some(("registry", u)) if u.contains("crates.io") => "crates.io".to_string(),
-                Some((kind, u)) => format!("{kind}: {}", u.split('#').next().unwrap_or(u).trim_start_matches("https://").trim_start_matches("file:///")),
+                Some((kind, u)) => {
+                    format!("{kind}: {}", u.split('#').next().unwrap_or(u).trim_start_matches("https://").trim_start_matches("file:///"))
+                }
                 None => source.to_string(),
             };
             let bins: Vec<PathBuf> = v.get("bins").items().iter().map(|b| bin.join(b.str())).collect();
@@ -302,7 +307,10 @@ pub fn parse_vcpkg(text: &str, root: &Path) -> Vec<Program> {
 /// (through Scoop's shim), where `.vcpkg-root` is.
 pub fn vcpkg_root() -> Option<(PathBuf, PathBuf)> {
     let exe = which("vcpkg").map(|f| real_file(&f));
-    let root = std::env::var_os("VCPKG_ROOT").map(PathBuf::from).filter(|r| r.join(".vcpkg-root").exists()).or_else(|| exe.as_ref()?.parent().map(Path::to_path_buf))?;
+    let root = std::env::var_os("VCPKG_ROOT")
+        .map(PathBuf::from)
+        .filter(|r| r.join(".vcpkg-root").exists())
+        .or_else(|| exe.as_ref()?.parent().map(Path::to_path_buf))?;
     let exe = exe.unwrap_or_else(|| root.join(if cfg!(windows) { "vcpkg.exe" } else { "vcpkg" }));
     root.join(".vcpkg-root").exists().then_some((root, exe))
 }
@@ -382,7 +390,9 @@ pub fn read_all(me: &crate::inventory::Me, admin: bool) -> Vec<(Tab, Vec<Program
 /// administrator rights, its capabilities (`dism` needs them).
 fn dism(admin: bool) -> Vec<Program> {
     let ps = "Get-CimInstance Win32_OptionalFeature | ForEach-Object { $_.Name + [char]9 + $_.InstallState + [char]9 + $_.Caption }";
-    let mut out = output(Path::new("powershell.exe"), &["-NoProfile", "-NonInteractive", "-Command", ps]).map(|t| parse_features(&t)).unwrap_or_default();
+    let mut out = output(Path::new("powershell.exe"), &["-NoProfile", "-NonInteractive", "-Command", ps])
+        .map(|t| parse_features(&t))
+        .unwrap_or_default();
     if admin {
         if let Some(t) = output(Path::new("dism.exe"), &["/Online", "/Get-Capabilities", "/Format:Table", "/English"]) {
             out.extend(parse_capabilities(&t));
@@ -420,16 +430,29 @@ mod tests {
             "Capability listing:\n\n---------- | --------\nCapability Identity | State\n---------- | --------\nApp.StepsRecorder~~~~0.0.1.0 | Installed\nBrowser.InternetExplorer~~~~0.0.11.0 | Not Present\n",
         );
         assert_eq!(c.len(), 1);
-        assert_eq!((c[0].name.as_str(), c[0].version.as_str(), crate::linux_pkgs::package_id(&c[0])), ("App.StepsRecorder", "0.0.1.0", "App.StepsRecorder~~~~0.0.1.0"));
+        assert_eq!(
+            (c[0].name.as_str(), c[0].version.as_str(), crate::linux_pkgs::package_id(&c[0])),
+            ("App.StepsRecorder", "0.0.1.0", "App.StepsRecorder~~~~0.0.1.0")
+        );
     }
 
     #[test]
     fn npm_and_pip() {
         let dir = Path::new("C:/Users/ana/AppData/Roaming/npm/node_modules/@google/gemini-cli");
-        let p = npm_package(dir, r#"{"name":"@google/gemini-cli","version":"0.9.0","author":"Google <x@y.z>","description":"Gemini in the terminal"}"#, "ana").unwrap();
+        let p = npm_package(
+            dir,
+            r#"{"name":"@google/gemini-cli","version":"0.9.0","author":"Google <x@y.z>","description":"Gemini in the terminal"}"#,
+            "ana",
+        )
+        .unwrap();
         assert_eq!((p.name.as_str(), p.version.as_str(), p.publisher.as_str()), ("@google/gemini-cli", "0.9.0", "Google"));
         assert_eq!(p.scope, Scope::User { name: "ana".into(), current: true });
-        let p = npm_package(Path::new("/usr/lib/node_modules/npm"), r#"{"name":"npm","version":"10.1","author":{"name":"GitHub Inc."}}"#, "ana").unwrap();
+        let p = npm_package(
+            Path::new("/usr/lib/node_modules/npm"),
+            r#"{"name":"npm","version":"10.1","author":{"name":"GitHub Inc."}}"#,
+            "ana",
+        )
+        .unwrap();
         assert_eq!((p.publisher.as_str(), p.scope.clone()), ("GitHub Inc.", Scope::Machine));
         let ps = parse_pip(
             r#"[{"name":"affine","version":"3.0.1","location":"D:\\Python\\Lib\\site-packages","installer":"pip"},{"name":"PyYAML","version":"6.0","location":"/usr/lib/python3/dist-packages","installer":"debian"}]"#,
@@ -438,7 +461,12 @@ mod tests {
             "ana",
         );
         assert_eq!(ps.len(), 2);
-        let deps = parse_pip(r#"[{"name":"anyio","version":"4"},{"name":"Flask","version":"3"}]"#, Some(r#"[{"name":"flask","version":"3"}]"#), "py", "ana");
+        let deps = parse_pip(
+            r#"[{"name":"anyio","version":"4"},{"name":"Flask","version":"3"}]"#,
+            Some(r#"[{"name":"flask","version":"3"}]"#),
+            "py",
+            "ana",
+        );
         assert!(deps[0].system && !deps[1].system, "a dependency is hidden; what was asked for is not");
         assert!(!ps[0].system && !pip_by_other(&ps[0]));
         assert!(ps[1].system && pip_by_other(&ps[1]) && ps[1].scope == Scope::Machine, "the system's package manager put it there");

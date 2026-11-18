@@ -3,8 +3,8 @@
 //! is tested against exactly what was drawn.
 
 use super::calendar::{self, clock_text, day_month, long_date, month_grid, month_title, WEEKDAYS_SHORT};
-use super::holidays::{self, Holiday};
 use super::edit::{layout, line_of, Editor, Line};
+use super::holidays::{self, Holiday};
 use super::weather::{degrees, Forecast, Sky};
 use super::{WKind, Widget, NOTE_COLORS, TEXT_COLORS, TEXT_SIZES};
 use crate::i18n::tr;
@@ -149,7 +149,8 @@ struct Pal {
 
 fn pal(look: &Look) -> Pal {
     let a = look.accent;
-    let on_accent = if (a.r as u32 * 299 + a.g as u32 * 587 + a.b as u32 * 114) / 1000 > 150 { Color::rgb(0x111111) } else { Color::rgb(0xFFFFFF) };
+    let on_accent =
+        if (a.r as u32 * 299 + a.g as u32 * 587 + a.b as u32 * 114) / 1000 > 150 { Color::rgb(0x111111) } else { Color::rgb(0xFFFFFF) };
     if look.dark {
         Pal {
             bg: Color::rgba(0x1B1D22, 205),
@@ -334,8 +335,18 @@ fn analog(g: &mut Gfx, w: &Widget, v: &View, look: &Look, full: Rect) {
     // A faint shadow under the hands.
     let sh = Color::rgba(0x000000, 50);
     let off = 1.5 * s;
-    g.polyline(&[point(cx + off, cy + off, 0.0, hour * 30.0), point(cx + off, cy + off, r * 0.5, hour * 30.0)], (r * 0.07).max(2.0), sh, false);
-    g.polyline(&[point(cx + off, cy + off, 0.0, min * 6.0), point(cx + off, cy + off, r * 0.76, min * 6.0)], (r * 0.045).max(1.5), sh, false);
+    g.polyline(
+        &[point(cx + off, cy + off, 0.0, hour * 30.0), point(cx + off, cy + off, r * 0.5, hour * 30.0)],
+        (r * 0.07).max(2.0),
+        sh,
+        false,
+    );
+    g.polyline(
+        &[point(cx + off, cy + off, 0.0, min * 6.0), point(cx + off, cy + off, r * 0.76, min * 6.0)],
+        (r * 0.045).max(1.5),
+        sh,
+        false,
+    );
     hand(g, hour * 30.0, 0.5, 0.08, (r * 0.07).max(2.0), c.text);
     hand(g, min * 6.0, 0.76, 0.08, (r * 0.045).max(1.5), c.text);
     if w.seconds {
@@ -404,7 +415,8 @@ fn month(g: &mut Gfx, w: &Widget, r: Rect, v: &View, look: &Look, p: &mut Painte
     let c = pal(look);
     let (y, m) = v.month;
     let country = if w.holidays { v.country } else { "" };
-    let hol: Vec<Holiday> = if country.is_empty() { Vec::new() } else { (y - 1..=y + 1).flat_map(|yy| holidays::of_year(country, yy)).collect() };
+    let hol: Vec<Holiday> =
+        if country.is_empty() { Vec::new() } else { (y - 1..=y + 1).flat_map(|yy| holidays::of_year(country, yy)).collect() };
     let foot_h = if hol.is_empty() { 0.0 } else { (r.h * 0.1).clamp(14.0 * s, 22.0 * s) };
     let r = Rect::new(r.x, r.y, r.w, r.h - foot_h);
     let head_h = (r.h * 0.14).clamp(18.0 * s, 30.0 * s);
@@ -425,7 +437,11 @@ fn month(g: &mut Gfx, w: &Widget, r: Rect, v: &View, look: &Look, p: &mut Painte
             g.fill_rrect(b.inset(2.0 * s), 5.0 * s, c.hover);
         }
         let (mx, my, d) = (b.x + b.w / 2.0, b.y + b.h / 2.0, b.h * 0.16);
-        let pts = if left { [(mx + d * 0.6, my - d), (mx - d * 0.6, my), (mx + d * 0.6, my + d)] } else { [(mx - d * 0.6, my - d), (mx + d * 0.6, my), (mx - d * 0.6, my + d)] };
+        let pts = if left {
+            [(mx + d * 0.6, my - d), (mx - d * 0.6, my), (mx + d * 0.6, my + d)]
+        } else {
+            [(mx - d * 0.6, my - d), (mx + d * 0.6, my), (mx - d * 0.6, my + d)]
+        };
         g.polyline(&pts, 1.6 * s, c.dim, false);
         p.zones.push((b, z));
     }
@@ -492,7 +508,19 @@ fn month(g: &mut Gfx, w: &Widget, r: Rect, v: &View, look: &Look, p: &mut Painte
 /// Draws the text being written (or shown), wrapped, with the caret and the
 /// selection; returns where it is.
 #[allow(clippy::too_many_arguments)]
-fn text_box(g: &mut Gfx, text: &str, editor: Option<&Editor>, caret_on: bool, r: Rect, px: f32, font: FontId, col: Color, shadow: Option<Color>, sel: Color, scroll: f32) -> TextBox {
+fn text_box(
+    g: &mut Gfx,
+    text: &str,
+    editor: Option<&Editor>,
+    caret_on: bool,
+    r: Rect,
+    px: f32,
+    font: FontId,
+    col: Color,
+    shadow: Option<Color>,
+    sel: Color,
+    scroll: f32,
+) -> TextBox {
     let shown = editor.map_or(text, |e| e.text.as_str());
     let lines = layout(g, shown, r.w, px, font);
     let line_h = (px * 1.36).round();
@@ -591,7 +619,13 @@ fn weather(g: &mut Gfx, w: &Widget, v: &View, look: &Look, full: Rect) {
     let s = look.s;
     let c = pal(look);
     let r = card(g, full, look).inset(14.0 * s);
-    let place = if w.has_place() { w.place.clone() } else if w.city.trim().is_empty() { tr("Weather") } else { w.city.trim().to_string() };
+    let place = if w.has_place() {
+        w.place.clone()
+    } else if w.city.trim().is_empty() {
+        tr("Weather")
+    } else {
+        w.city.trim().to_string()
+    };
     let head_px = (r.h * 0.085).clamp(11.0 * s, 15.0 * s);
     text_c(g, &place, Rect::new(r.x, r.y, r.w, head_px * 1.5), head_px, FontId::Semibold, c.dim, Align::Left);
     let body = Rect::new(r.x, r.y + head_px * 1.6, r.w, r.h - head_px * 1.6);
@@ -661,7 +695,11 @@ fn sun(g: &mut Gfx, cx: f32, cy: f32, r: f32) {
 
 fn moon(g: &mut Gfx, cx: f32, cy: f32, r: f32) {
     let (w, h) = (g.pix.width(), g.pix.height());
-    let (Some(outer), Some(inner)) = (PathBuilder::from_circle(cx, cy, r), PathBuilder::from_circle(cx + r * 0.55, cy - r * 0.35, r * 0.85)) else { return };
+    let (Some(outer), Some(inner)) =
+        (PathBuilder::from_circle(cx, cy, r), PathBuilder::from_circle(cx + r * 0.55, cy - r * 0.35, r * 0.85))
+    else {
+        return;
+    };
     let Some(mut mask) = Mask::new(w, h) else { return };
     mask.fill_path(&inner, FillRule::Winding, true, Transform::identity());
     mask.invert();
@@ -740,7 +778,17 @@ pub fn sky_icon(g: &mut Gfx, sky: Sky, day: bool, cx: f32, cy: f32, size: f32, l
                 }
                 Sky::Thunder => {
                     let (x, y) = (cx, top - u * 0.05);
-                    g.fill_polygon(&[(x + u * 0.08, y), (x - u * 0.22, y + u * 0.42), (x - u * 0.02, y + u * 0.42), (x - u * 0.12, y + u * 0.75), (x + u * 0.24, y + u * 0.28), (x + u * 0.04, y + u * 0.28)], SUN);
+                    g.fill_polygon(
+                        &[
+                            (x + u * 0.08, y),
+                            (x - u * 0.22, y + u * 0.42),
+                            (x - u * 0.02, y + u * 0.42),
+                            (x - u * 0.12, y + u * 0.75),
+                            (x + u * 0.24, y + u * 0.28),
+                            (x + u * 0.04, y + u * 0.28),
+                        ],
+                        SUN,
+                    );
                 }
                 _ => {
                     for x in [-0.45f32, 0.0, 0.45] {
@@ -873,7 +921,8 @@ fn photos(g: &mut Gfx, v: &View, look: &Look, full: Rect) {
     let (iw, ih) = (img.width() as f32 * k, img.height() as f32 * k);
     let t = Transform::from_row(k, 0.0, 0.0, k, r.x + (r.w - iw) / 2.0, r.y + (r.h - ih) / 2.0);
     if let Some(path) = rrect_path(r, rad) {
-        let mut paint = Paint { shader: Pattern::new(img.as_ref(), SpreadMode::Pad, tiny_skia::FilterQuality::Bicubic, 1.0, t), ..Paint::default() };
+        let mut paint =
+            Paint { shader: Pattern::new(img.as_ref(), SpreadMode::Pad, tiny_skia::FilterQuality::Bicubic, 1.0, t), ..Paint::default() };
         paint.anti_alias = true;
         g.pix.fill_path(&path, &paint, FillRule::Winding, Transform::identity(), None);
     }
@@ -884,7 +933,15 @@ fn photos(g: &mut Gfx, v: &View, look: &Look, full: Rect) {
         g.set_clip(Some(band));
         g.fill_rrect(Rect::new(band.x, band.y - rad, band.w, band.h + rad), rad, Color::rgba(0x000000, 120));
         g.set_clip(None);
-        text_c(g, v.caption, Rect::new(band.x + 12.0 * s, band.y, band.w - 40.0 * s, band.h), 11.5 * s, FontId::Regular, Color::rgb(0xFFFFFF), Align::Left);
+        text_c(
+            g,
+            v.caption,
+            Rect::new(band.x + 12.0 * s, band.y, band.w - 40.0 * s, band.h),
+            11.5 * s,
+            FontId::Regular,
+            Color::rgb(0xFFFFFF),
+            Align::Left,
+        );
     }
 }
 
@@ -903,7 +960,12 @@ mod tests {
             temp: 17.6,
             sky: Sky::PartlyCloudy,
             day: true,
-            days: vec![d(12, Sky::PartlyCloudy, 19.1, 11.0), d(13, Sky::Rain, 16.0, 10.4), d(14, Sky::Clear, 18.2, 9.8), d(15, Sky::Thunder, 15.5, 8.0)],
+            days: vec![
+                d(12, Sky::PartlyCloudy, 19.1, 11.0),
+                d(13, Sky::Rain, 16.0, 10.4),
+                d(14, Sky::Clear, 18.2, 9.8),
+                d(15, Sky::Thunder, 15.5, 8.0),
+            ],
         }
     }
 
@@ -957,18 +1019,33 @@ mod tests {
             for (i, px) in pm.pixels_mut().iter_mut().enumerate() {
                 let (x, y) = ((i % 400) as u32, (i / 400) as u32);
                 let ground = y > 190 + ((x as f32 / 25.0).sin() * 14.0) as u32;
-                *px = if ground { tiny_skia::ColorU8::from_rgba(40, 110, 70, 255) } else { tiny_skia::ColorU8::from_rgba(250 - (y / 2) as u8, 150, 90 + (y / 3) as u8, 255) }.premultiply();
+                *px = if ground {
+                    tiny_skia::ColorU8::from_rgba(40, 110, 70, 255)
+                } else {
+                    tiny_skia::ColorU8::from_rgba(250 - (y / 2) as u8, 150, 90 + (y / 3) as u8, 255)
+                }
+                .premultiply();
             }
             pm
         };
-        let items: Vec<Item> = ["Relatório.docx", "Orçamento 2026.xlsx", "Fotos", "notas.txt", "Apresentação final do projeto.pptx", "Instalador.exe", "Música"]
-            .iter()
-            .map(|n| Item { name: n.to_string(), icon: None })
-            .collect();
+        let items: Vec<Item> = [
+            "Relatório.docx",
+            "Orçamento 2026.xlsx",
+            "Fotos",
+            "notas.txt",
+            "Apresentação final do projeto.pptx",
+            "Instalador.exe",
+            "Música",
+        ]
+        .iter()
+        .map(|n| Item { name: n.to_string(), icon: None })
+        .collect();
         let mut editor = Editor::new("Comprar pão\nLigar ao João às 15h");
         editor.anchor = Some(0);
         editor.caret = 7;
-        for (lang, dark, scale, tag) in [(Lang::PtPT, true, 1.0, "pt-dark"), (Lang::EnUS, false, 1.0, "en-light"), (Lang::DeDE, true, 1.5, "de-150")] {
+        for (lang, dark, scale, tag) in
+            [(Lang::PtPT, true, 1.0, "pt-dark"), (Lang::EnUS, false, 1.0, "en-light"), (Lang::DeDE, true, 1.5, "de-150")]
+        {
             set_lang(lang);
             let look = Look { dark, accent: Color::rgb(0x2F7DE1), s: scale };
             // All of them on a picture of a desktop, as on the screen.
@@ -976,7 +1053,9 @@ mod tests {
             let mut board = tiny_skia::Pixmap::new(bw, bh).unwrap();
             for (i, px) in board.pixels_mut().iter_mut().enumerate() {
                 let (x, y) = ((i as u32 % bw) as f32 / bw as f32, (i as u32 / bw) as f32 / bh as f32);
-                *px = tiny_skia::ColorU8::from_rgba((20.0 + 60.0 * x) as u8, (60.0 + 80.0 * y) as u8, (110.0 + 90.0 * (1.0 - x)) as u8, 255).premultiply();
+                *px =
+                    tiny_skia::ColorU8::from_rgba((20.0 + 60.0 * x) as u8, (60.0 + 80.0 * y) as u8, (110.0 + 90.0 * (1.0 - x)) as u8, 255)
+                        .premultiply();
             }
             let spots: [(WKind, f32, f32); 9] = [
                 (WKind::Analog, 20.0, 20.0),
@@ -1021,7 +1100,14 @@ mod tests {
                     ..View::at(now())
                 };
                 paint(&mut g, &w, &v, &look);
-                board.draw_pixmap((x * scale) as i32, (y * scale) as i32, g.pix.as_ref(), &tiny_skia::PixmapPaint::default(), Transform::identity(), None);
+                board.draw_pixmap(
+                    (x * scale) as i32,
+                    (y * scale) as i32,
+                    g.pix.as_ref(),
+                    &tiny_skia::PixmapPaint::default(),
+                    Transform::identity(),
+                    None,
+                );
             }
             board.save_png(out.join(format!("widgets-{tag}.png"))).unwrap();
         }

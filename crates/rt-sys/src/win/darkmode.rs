@@ -79,15 +79,7 @@ fn windows_build() -> u32 {
     let mut size = (buf.len() * 2) as u32;
     // SAFETY: reads a REG_SZ into a fixed buffer whose size is passed in.
     let rc = unsafe {
-        RegGetValueW(
-            HKEY_LOCAL_MACHINE,
-            k.as_ptr(),
-            v.as_ptr(),
-            RRF_RT_REG_SZ,
-            std::ptr::null_mut(),
-            buf.as_mut_ptr() as *mut _,
-            &mut size,
-        )
+        RegGetValueW(HKEY_LOCAL_MACHINE, k.as_ptr(), v.as_ptr(), RRF_RT_REG_SZ, std::ptr::null_mut(), buf.as_mut_ptr() as *mut _, &mut size)
     };
     if rc != 0 {
         return 0;

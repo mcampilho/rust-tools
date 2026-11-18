@@ -51,11 +51,7 @@ fn digit_count(c: &BigUint) -> usize {
 
 impl Dec {
     pub fn zero() -> Dec {
-        Dec {
-            neg: false,
-            coef: BigUint::zero(),
-            exp: 0,
-        }
+        Dec { neg: false, coef: BigUint::zero(), exp: 0 }
     }
 
     pub fn one() -> Dec {
@@ -130,19 +126,11 @@ impl Dec {
         if self.is_zero() {
             return self.clone();
         }
-        Dec {
-            neg: !self.neg,
-            coef: self.coef.clone(),
-            exp: self.exp,
-        }
+        Dec { neg: !self.neg, coef: self.coef.clone(), exp: self.exp }
     }
 
     pub fn abs(&self) -> Dec {
-        Dec {
-            neg: false,
-            coef: self.coef.clone(),
-            exp: self.exp,
-        }
+        Dec { neg: false, coef: self.coef.clone(), exp: self.exp }
     }
 
     /// Rounds to `p` significant digits (half to even).
@@ -247,11 +235,7 @@ impl Dec {
 
     pub fn div(&self, o: &Dec) -> Result<Dec, CalcError> {
         if o.is_zero() {
-            return Err(if self.is_zero() {
-                CalcError::Undefined
-            } else {
-                CalcError::DivideByZero
-            });
+            return Err(if self.is_zero() { CalcError::Undefined } else { CalcError::DivideByZero });
         }
         Ok(self.div_p(o, PREC))
     }
@@ -323,9 +307,7 @@ impl Dec {
             return 0.0;
         }
         let r = self.round_sig(17);
-        format!("{}{}e{}", if r.neg { "-" } else { "" }, r.coef, r.exp)
-            .parse()
-            .unwrap_or(f64::NAN)
+        format!("{}{}e{}", if r.neg { "-" } else { "" }, r.coef, r.exp).parse().unwrap_or(f64::NAN)
     }
 
     /// Exact floored remainder: `a - b * floor(a / b)` (result has the sign of `b`).
@@ -396,11 +378,7 @@ impl Dec {
         let max = max_digits as i64;
         let (_, _, adj0) = self.sig_digits(max_digits);
         let fixed = !force_sci && adj0 < max && adj0 >= -(max / 2).max(5);
-        let p = if fixed && adj0 < 0 {
-            (max + adj0 + 1).max(1) as usize
-        } else {
-            max_digits
-        };
+        let p = if fixed && adj0 < 0 { (max + adj0 + 1).max(1) as usize } else { max_digits };
         let (neg, digits, adj) = self.sig_digits(p);
         let mut out = String::new();
         if neg {
@@ -463,11 +441,7 @@ impl Dec {
         if self.is_zero() {
             return Dec::zero();
         }
-        Dec {
-            neg: self.neg,
-            coef: self.coef.clone(),
-            exp: self.exp + k,
-        }
+        Dec { neg: self.neg, coef: self.coef.clone(), exp: self.exp + k }
     }
 
     pub fn coefficient(&self) -> &BigUint {

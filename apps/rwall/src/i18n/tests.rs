@@ -124,7 +124,8 @@ fn labels_have_translations() {
 #[test]
 fn access_keys_differ_in_the_tray_menu() {
     install();
-    let problems = rt_core::menu::access_key_clashes::<crate::commands::TrayCmd>(&Vec::new(), &[("tray menu", crate::commands::tray_menu())]);
+    let problems =
+        rt_core::menu::access_key_clashes::<crate::commands::TrayCmd>(&Vec::new(), &[("tray menu", crate::commands::tray_menu())]);
     assert!(problems.is_empty(), "{problems:#?}");
 }
 
@@ -147,16 +148,30 @@ fn window_renders_fully_translated() {
     for l in Lang::ALL {
         set_lang(l);
         take_misses();
-        let currents = [None, Some(Current { title: "T".into(), credit: "C".into(), source: "bing".into(), link: "https://x".into(), ..Current::default() })];
-        let screens = [crate::taskbar::Screen { id: "DISPLAY1".into(), primary: true, width: 1920, height: 1080 }, crate::taskbar::Screen { id: "DISPLAY2".into(), primary: false, width: 1280, height: 1024 }];
+        let currents = [
+            None,
+            Some(Current { title: "T".into(), credit: "C".into(), source: "bing".into(), link: "https://x".into(), ..Current::default() }),
+        ];
+        let screens = [
+            crate::taskbar::Screen { id: "DISPLAY1".into(), primary: true, width: 1920, height: 1080 },
+            crate::taskbar::Screen { id: "DISPLAY2".into(), primary: false, width: 1280, height: 1024 },
+        ];
         st.taskbar.set("DISPLAY1", crate::taskbar::Style { look: crate::taskbar::Look::Acrylic, tint: 40 });
-        for (current, tab) in currents.into_iter().zip([Tab::Static, Tab::Dynamic]).chain([(None, Tab::Dynamic), (None, Tab::Widgets), (None, Tab::Taskbar)]) {
+        for (current, tab) in
+            currents.into_iter().zip([Tab::Static, Tab::Dynamic]).chain([(None, Tab::Dynamic), (None, Tab::Widgets), (None, Tab::Taskbar)])
+        {
             st.current = current;
             st.live.kind = if tab == Tab::Dynamic && st.current.is_none() { crate::live::Kind::Folder } else { crate::live::Kind::Scene };
             let m = Model {
                 settings: &st,
                 tab,
-                live: LiveModel { available: st.current.is_some() || st.live.kind == crate::live::Kind::Folder, title: "T".into(), state: "S".into(), note: "N".into(), ..LiveModel::default() },
+                live: LiveModel {
+                    available: st.current.is_some() || st.live.kind == crate::live::Kind::Folder,
+                    title: "T".into(),
+                    state: "S".into(),
+                    note: "N".into(),
+                    ..LiveModel::default()
+                },
                 thumb: None,
                 busy: false,
                 status: tf("Next change: {}", &["2026-11-12 00:00"]),
@@ -172,11 +187,16 @@ fn window_renders_fully_translated() {
             // The widgets themselves.
             if tab == Tab::Widgets {
                 let mut wg = Gfx::new().unwrap();
-                let fc = crate::widgets::weather::Forecast { temp: 1.0, sky: crate::widgets::weather::Sky::Rain, day: true, days: Vec::new() };
+                let fc =
+                    crate::widgets::weather::Forecast { temp: 1.0, sky: crate::widgets::weather::Sky::Rain, day: true, days: Vec::new() };
                 for wd in &st.widgets.list {
                     let (w, h) = wd.kind.default_size();
                     wg.resize(w as u32, h as u32);
-                    let v = crate::widgets::paint::View { weather: Some(&fc), country: "PT", ..crate::widgets::paint::View::at(rt_sys::local_time()) };
+                    let v = crate::widgets::paint::View {
+                        weather: Some(&fc),
+                        country: "PT",
+                        ..crate::widgets::paint::View::at(rt_sys::local_time())
+                    };
                     let look = crate::widgets::paint::Look { dark: false, accent: crate::ui::gfx::Color::rgb(0x2F7DE1), s: 1.0 };
                     crate::widgets::paint::paint(&mut wg, wd, &v, &look);
                 }
@@ -191,7 +211,10 @@ fn window_renders_fully_translated() {
             }
         }
         let _ = (tr("No holidays known for this region."), tf("That is the most: {} widgets. Remove one to add another.", &["16"]));
-        let misses: Vec<String> = take_misses().into_iter().filter(|m| m.chars().any(|c| c.is_alphabetic()) && !["T", "C", "S", "N"].contains(&m.as_str())).collect();
+        let misses: Vec<String> = take_misses()
+            .into_iter()
+            .filter(|m| m.chars().any(|c| c.is_alphabetic()) && !["T", "C", "S", "N"].contains(&m.as_str()))
+            .collect();
         assert!(misses.is_empty() || l == Lang::EnUS, "untranslated in {}: {misses:#?}", l.tag());
     }
     set_lang(Lang::EnUS);
@@ -219,7 +242,8 @@ fn screenshots() {
             let (x, y) = ((i % 480) as u32, (i / 480) as u32);
             let sky = 255 - (y * 120 / 270) as u8;
             let ground = y > 170 + (x as f32 / 30.0).sin().abs() as u32 * 20;
-            *px = if ground { tiny_skia::ColorU8::from_rgba(40, 120, 70, 255) } else { tiny_skia::ColorU8::from_rgba(60, 140, sky, 255) }.premultiply();
+            *px = if ground { tiny_skia::ColorU8::from_rgba(40, 120, 70, 255) } else { tiny_skia::ColorU8::from_rgba(60, 140, sky, 255) }
+                .premultiply();
         }
         pm
     };
@@ -241,7 +265,14 @@ fn screenshots() {
     st.live.kind = crate::live::Kind::Folder;
     st.live.folder = "D:\\Vídeos\\Fundos".into();
     st.live.playing = "D:\\Vídeos\\Fundos\\aurora boreal.mp4".into();
-    for k in [crate::widgets::WKind::Analog, crate::widgets::WKind::Weather, crate::widgets::WKind::Fence, crate::widgets::WKind::Photos, crate::widgets::WKind::Note, crate::widgets::WKind::Calendar] {
+    for k in [
+        crate::widgets::WKind::Analog,
+        crate::widgets::WKind::Weather,
+        crate::widgets::WKind::Fence,
+        crate::widgets::WKind::Photos,
+        crate::widgets::WKind::Note,
+        crate::widgets::WKind::Calendar,
+    ] {
         let wd = st.widgets.add(k).unwrap();
         wd.city = "Lisboa".into();
         wd.place = "Lisboa, Portugal".into();
@@ -261,7 +292,10 @@ fn screenshots() {
         (Lang::PtPT, false, "pt-taskbar", Tab::Taskbar),
         (Lang::EnUS, true, "en-taskbar-dark", Tab::Taskbar),
     ];
-    let screens = [crate::taskbar::Screen { id: "DISPLAY1".into(), primary: true, width: 1920, height: 1080 }, crate::taskbar::Screen { id: "DISPLAY2".into(), primary: false, width: 2560, height: 1440 }];
+    let screens = [
+        crate::taskbar::Screen { id: "DISPLAY1".into(), primary: true, width: 1920, height: 1080 },
+        crate::taskbar::Screen { id: "DISPLAY2".into(), primary: false, width: 2560, height: 1440 },
+    ];
     st.taskbar.set("DISPLAY1", crate::taskbar::Style { look: crate::taskbar::Look::Acrylic, tint: 40 });
     for (l, dark, name, tab) in shots {
         set_lang(l);
@@ -290,7 +324,12 @@ fn screenshots() {
                 Tab::Taskbar => Hit::BarLook(1, crate::taskbar::Look::Blur),
             }),
             scroll: 0.0,
-            widgets: crate::ui::view::WidgetsModel { available: true, tray: false, status: if name == "pt-widgets" { &status } else { &[] }, country: "PT" },
+            widgets: crate::ui::view::WidgetsModel {
+                available: true,
+                tray: false,
+                status: if name == "pt-widgets" { &status } else { &[] },
+                country: "PT",
+            },
             taskbar: crate::ui::view::TaskbarModel { available: true, screens: &screens, tray: true },
         };
         draw(&mut g, &m, &Theme::new(dark, None), 1.0, Rect::new(0.0, 0.0, w as f32, h as f32));

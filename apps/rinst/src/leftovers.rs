@@ -88,7 +88,9 @@ fn noise(word: &str) -> bool {
     // 10, v2, 1.5.0.1423b.
     let v = w.trim_start_matches('v');
     let numeric = v.chars().all(|c| c.is_ascii_digit() || c == '.');
-    if v.starts_with(|c: char| c.is_ascii_digit()) && (numeric || v.contains('.') && v.chars().all(|c| c.is_ascii_alphanumeric() || c == '.')) {
+    if v.starts_with(|c: char| c.is_ascii_digit())
+        && (numeric || v.contains('.') && v.chars().all(|c| c.is_ascii_alphanumeric() || c == '.'))
+    {
         return true;
     }
     matches!(w.as_str(), "x64" | "x86" | "x32" | "64-bit" | "32-bit" | "64bit" | "32bit" | "amd64" | "arm64" | "win64" | "win32")
@@ -101,10 +103,59 @@ pub fn norm(s: &str) -> String {
 
 /// Names of folders and keys that belong to no program in particular.
 const GENERIC: &[&str] = &[
-    "microsoft", "windows", "commonfiles", "programfiles", "programfilesx86", "programdata", "appdata", "local", "locallow", "roaming", "temp", "tmp",
-    "cache", "caches", "packages", "programs", "startmenu", "desktop", "documents", "users", "public", "default", "system", "system32", "drivers", "data",
-    "config", "settings", "bin", "lib", "app", "apps", "tools", "update", "updater", "updates", "setup", "install", "installer", "software", "classes",
-    "policies", "wow6432node", "clients", "registeredapplications", "logs", "log", "uninstall", "runtime", "shared", "common", "plugins", "user",
+    "microsoft",
+    "windows",
+    "commonfiles",
+    "programfiles",
+    "programfilesx86",
+    "programdata",
+    "appdata",
+    "local",
+    "locallow",
+    "roaming",
+    "temp",
+    "tmp",
+    "cache",
+    "caches",
+    "packages",
+    "programs",
+    "startmenu",
+    "desktop",
+    "documents",
+    "users",
+    "public",
+    "default",
+    "system",
+    "system32",
+    "drivers",
+    "data",
+    "config",
+    "settings",
+    "bin",
+    "lib",
+    "app",
+    "apps",
+    "tools",
+    "update",
+    "updater",
+    "updates",
+    "setup",
+    "install",
+    "installer",
+    "software",
+    "classes",
+    "policies",
+    "wow6432node",
+    "clients",
+    "registeredapplications",
+    "logs",
+    "log",
+    "uninstall",
+    "runtime",
+    "shared",
+    "common",
+    "plugins",
+    "user",
 ];
 
 fn generic(n: &str) -> bool {
@@ -139,7 +190,26 @@ pub fn publisher(p: &Program) -> String {
         .split(|c: char| c.is_whitespace() || c == ',')
         .filter(|w| {
             let n = norm(w);
-            !n.is_empty() && !matches!(n.as_str(), "inc" | "ltd" | "llc" | "corp" | "corporation" | "gmbh" | "co" | "sa" | "srl" | "limited" | "ag" | "bv" | "oy" | "ab" | "sro" | "pty")
+            !n.is_empty()
+                && !matches!(
+                    n.as_str(),
+                    "inc"
+                        | "ltd"
+                        | "llc"
+                        | "corp"
+                        | "corporation"
+                        | "gmbh"
+                        | "co"
+                        | "sa"
+                        | "srl"
+                        | "limited"
+                        | "ag"
+                        | "bv"
+                        | "oy"
+                        | "ab"
+                        | "sro"
+                        | "pty"
+                )
         })
         .collect();
     let n = norm(&words.join(" "));
@@ -172,9 +242,7 @@ impl Keep {
     pub fn protects(&self, path: &str) -> bool {
         // A drive, or a folder right below one.
         let parts = path.trim_end_matches(['\\', '/']).split(['\\', '/']).filter(|s| !s.is_empty()).count();
-        parts < 3
-            || self.programs.iter().any(|k| within(path, k) || within(k, path))
-            || self.places.iter().any(|k| within(k, path))
+        parts < 3 || self.programs.iter().any(|k| within(path, k) || within(k, path)) || self.places.iter().any(|k| within(k, path))
     }
 }
 
@@ -191,7 +259,17 @@ pub fn in_folders(p: &Program, bases: &[(PathBuf, Group)], keep: &Keep, publishe
             return;
         }
         let kind = if path.is_dir() { Kind::Folder } else { Kind::File };
-        out.push(Leftover { program: p.name.clone(), group, kind, admin: admin_places.iter().any(|a| within(&s, a)), path: s, value: None, data: None, size: None, doubt: false });
+        out.push(Leftover {
+            program: p.name.clone(),
+            group,
+            kind,
+            admin: admin_places.iter().any(|a| within(&s, a)),
+            path: s,
+            value: None,
+            data: None,
+            size: None,
+            doubt: false,
+        });
     };
     let matches = |n: &str| names.iter().any(|(_, m)| m == n);
     for (base, group) in bases {
@@ -205,7 +283,10 @@ pub fn in_folders(p: &Program, bases: &[(PathBuf, Group)], keep: &Keep, publishe
                 push(&e.path(), *group, &mut out);
             } else if !publ.is_empty() && n == publ {
                 let kids: Vec<_> = std::fs::read_dir(e.path()).map(|r| r.flatten().collect()).unwrap_or_default();
-                let mine: Vec<_> = kids.iter().filter(|k| k.file_type().is_ok_and(|t| t.is_dir()) && matches(&norm(&k.file_name().to_string_lossy()))).collect();
+                let mine: Vec<_> = kids
+                    .iter()
+                    .filter(|k| k.file_type().is_ok_and(|t| t.is_dir()) && matches(&norm(&k.file_name().to_string_lossy())))
+                    .collect();
                 if mine.is_empty() {
                     continue;
                 }
@@ -268,8 +349,23 @@ pub fn elsewhere_ok(path: &str, raw_name: &str, publisher: &str, drives: &[Strin
         return false;
     }
     const NOT: &[&str] = &[
-        "\\$recycle.bin", "\\#recycle", "\\scoop\\", "\\chocolatey\\", "\\site-packages\\", "\\node_modules\\", "\\.git\\", "\\temp\\", "\\cache\\",
-        "\\caches\\", "\\backup", "\\src\\", "\\projects\\", "\\winget\\", "\\installer\\", "\\.vscode\\", "\\steamapps\\",
+        "\\$recycle.bin",
+        "\\#recycle",
+        "\\scoop\\",
+        "\\chocolatey\\",
+        "\\site-packages\\",
+        "\\node_modules\\",
+        "\\.git\\",
+        "\\temp\\",
+        "\\cache\\",
+        "\\caches\\",
+        "\\backup",
+        "\\src\\",
+        "\\projects\\",
+        "\\winget\\",
+        "\\installer\\",
+        "\\.vscode\\",
+        "\\steamapps\\",
     ];
     if NOT.iter().any(|n| lower.contains(n)) {
         return false;
@@ -373,7 +469,8 @@ pub fn remove(items: &[Leftover], backup: &Path) -> Vec<Removed> {
 pub fn package_base(p: &Program) -> String {
     let id = crate::linux_pkgs::package_id(p);
     let base = id.split(':').next().unwrap_or(id);
-    let base = if p.sources.first() == Some(&crate::inventory::Source::Rpm) { base.rsplit_once('.').map_or(base, |(a, _)| a) } else { base };
+    let base =
+        if p.sources.first() == Some(&crate::inventory::Source::Rpm) { base.rsplit_once('.').map_or(base, |(a, _)| a) } else { base };
     norm(base)
 }
 
@@ -399,8 +496,28 @@ mod lin {
 
     /// XDG folders that are no program's.
     const NEVER: &[&str] = &[
-        "applications", "icons", "fonts", "trash", "keyrings", "sounds", "themes", "mime", "systemd", "autostart", "recentlyused", "gvfsmetadata",
-        "flatpak", "snap", "dbus1", "pulse", "userdirs", "gtk30", "gtk40", "dconf", "nautilus", "backgrounds",
+        "applications",
+        "icons",
+        "fonts",
+        "trash",
+        "keyrings",
+        "sounds",
+        "themes",
+        "mime",
+        "systemd",
+        "autostart",
+        "recentlyused",
+        "gvfsmetadata",
+        "flatpak",
+        "snap",
+        "dbus1",
+        "pulse",
+        "userdirs",
+        "gtk30",
+        "gtk40",
+        "dconf",
+        "nautilus",
+        "backgrounds",
     ];
 
     struct Places {
@@ -423,12 +540,26 @@ mod lin {
     fn leftover(program: &str, path: &Path, group: Group) -> Leftover {
         let kind = if path.is_dir() { Kind::Folder } else { Kind::File };
         let size = Some(if kind == Kind::Folder { size_of(path, 200_000) } else { std::fs::metadata(path).map_or(0, |m| m.len()) });
-        Leftover { program: program.to_string(), group, kind, path: path.to_string_lossy().into_owned(), value: None, data: None, size, admin: false, doubt: false }
+        Leftover {
+            program: program.to_string(),
+            group,
+            kind,
+            path: path.to_string_lossy().into_owned(),
+            value: None,
+            data: None,
+            size,
+            admin: false,
+            doubt: false,
+        }
     }
 
     /// The names (compared) of what is still installed.
     fn installed_names(cx: &Context) -> HashSet<String> {
-        cx.installed.iter().filter(|p| !p.problems.contains(&crate::inventory::Problem::ConfigOnly)).flat_map(|p| names(p).into_iter().map(|(_, n)| n).chain([package_base(p)])).collect()
+        cx.installed
+            .iter()
+            .filter(|p| !p.problems.contains(&crate::inventory::Problem::ConfigOnly))
+            .flat_map(|p| names(p).into_iter().map(|(_, n)| n).chain([package_base(p)]))
+            .collect()
     }
 
     use std::collections::HashSet;
@@ -580,7 +711,17 @@ mod win {
             let Some(k) = Key::open(r, rest, View::Bits64) else { continue };
             let mut push = |path: String| {
                 if !out.iter().any(|l| within(&path, &l.path)) {
-                    out.push(Leftover { program: p.name.clone(), group: *group, kind: Kind::Key, path, value: None, data: None, size: None, doubt: false, admin: *admin });
+                    out.push(Leftover {
+                        program: p.name.clone(),
+                        group: *group,
+                        kind: Kind::Key,
+                        path,
+                        value: None,
+                        data: None,
+                        size: None,
+                        doubt: false,
+                        admin: *admin,
+                    });
                 }
             };
             for sub in k.subkeys() {
@@ -621,7 +762,8 @@ mod win {
                 };
                 let file = crate::inventory::command_file(&rt_sys::win::reg::expand(&data));
                 let into = loc.as_deref().zip(file.as_ref()).is_some_and(|(l, f)| within(&f.to_string_lossy(), l) && !f.exists());
-                let named = file.as_ref().is_some_and(|f| f.is_absolute() && !f.exists()) && names.iter().any(|(_, n)| norm(&name).contains(n.as_str()));
+                let named = file.as_ref().is_some_and(|f| f.is_absolute() && !f.exists())
+                    && names.iter().any(|(_, n)| norm(&name).contains(n.as_str()));
                 if into || named {
                     out.push(Leftover {
                         program: p.name.clone(),
@@ -886,7 +1028,17 @@ mod win {
             let gone_cmd = p.uninstall.as_deref().and_then(crate::inventory::command_file).is_none_or(|f| f.is_absolute() && !f.exists());
             if p.key.starts_with("HKEY_") && gone_cmd && key_exists(&p.key) {
                 let admin = p.key.starts_with("HKEY_LOCAL_MACHINE") && !cx.admin;
-                mine.push(Leftover { program: p.name.clone(), group: Group::Registry, kind: Kind::Key, path: p.key.clone(), value: None, data: None, size: None, doubt: false, admin });
+                mine.push(Leftover {
+                    program: p.name.clone(),
+                    group: Group::Registry,
+                    kind: Kind::Key,
+                    path: p.key.clone(),
+                    value: None,
+                    data: None,
+                    size: None,
+                    doubt: false,
+                    admin,
+                });
             }
             // Everything: folders of its name anywhere else.
             let mut drives: Vec<String> = env("SystemDrive").map(|d| d.to_string_lossy().into_owned()).into_iter().collect();
@@ -899,7 +1051,10 @@ mod win {
                 let Ok(items) = rt_scan::everything::search(&q, stop) else { break };
                 for it in items.iter().filter(|i| i.folder && norm(&i.name) == n) {
                     let s = format!("{}\\{}", it.path.trim_end_matches('\\'), it.name);
-                    if self.keep.protects(&s) || !elsewhere_ok(&s, &raw, &publ, &drives, home_s.as_deref()) || mine.iter().any(|m| within(&s, &m.path) || within(&m.path, &s)) {
+                    if self.keep.protects(&s)
+                        || !elsewhere_ok(&s, &raw, &publ, &drives, home_s.as_deref())
+                        || mine.iter().any(|m| within(&s, &m.path) || within(&m.path, &s))
+                    {
                         continue;
                     }
                     mine.push(Leftover { group: Group::Elsewhere, ..leftover(Group::Elsewhere, s, it.size) });
@@ -942,7 +1097,17 @@ mod win {
                 if let Some((dir, group)) = self.folder_of(f) {
                     if !out.iter().any(|l| within(&dir, &l.path) || within(&l.path, &dir)) {
                         let admin = self.admin_of(&dir);
-                        out.push(Leftover { program: who.to_string(), group, kind: Kind::Folder, path: dir, value: None, data: None, size: None, admin, doubt: true });
+                        out.push(Leftover {
+                            program: who.to_string(),
+                            group,
+                            kind: Kind::Folder,
+                            path: dir,
+                            value: None,
+                            data: None,
+                            size: None,
+                            admin,
+                            doubt: true,
+                        });
                     }
                 }
             };
@@ -971,7 +1136,17 @@ mod win {
                     let (Value::Str(data) | Value::Expand(data)) = v else { continue };
                     let Some(f) = crate::inventory::command_file(&rt_sys::win::reg::expand(&data)) else { continue };
                     if gone_file(&f) {
-                        out.push(Leftover { program: name.clone(), group: Group::Startup, kind: Kind::Value, path: key.clone(), value: Some(name.clone()), data: Some(data), size: None, admin: *admin, doubt: false });
+                        out.push(Leftover {
+                            program: name.clone(),
+                            group: Group::Startup,
+                            kind: Kind::Value,
+                            path: key.clone(),
+                            value: Some(name.clone()),
+                            data: Some(data),
+                            size: None,
+                            admin: *admin,
+                            doubt: false,
+                        });
                         hinted(&mut out, &f, &name);
                     }
                 }
@@ -1001,7 +1176,17 @@ mod win {
                         continue;
                     }
                     if !out.iter().any(|l| within(&s, &l.path)) {
-                        out.push(Leftover { program: e.file_name().to_string_lossy().into_owned(), group: Group::Empty, kind: Kind::Folder, admin: self.admin_of(&s), path: s, value: None, data: None, size: Some(0), doubt: false });
+                        out.push(Leftover {
+                            program: e.file_name().to_string_lossy().into_owned(),
+                            group: Group::Empty,
+                            kind: Kind::Folder,
+                            admin: self.admin_of(&s),
+                            path: s,
+                            value: None,
+                            data: None,
+                            size: Some(0),
+                            doubt: false,
+                        });
                     }
                 }
             }
@@ -1014,13 +1199,55 @@ mod win {
         use std::os::windows::fs::MetadataExt;
         const HIDDEN: u32 = 0x2;
         const SYSTEM: u32 = 0x4;
-        std::fs::symlink_metadata(p).is_ok_and(|m| m.is_dir() && !m.file_type().is_symlink() && m.file_attributes() & (HIDDEN | SYSTEM) != (HIDDEN | SYSTEM))
+        std::fs::symlink_metadata(p)
+            .is_ok_and(|m| m.is_dir() && !m.file_type().is_symlink() && m.file_attributes() & (HIDDEN | SYSTEM) != (HIDDEN | SYSTEM))
     }
 
     /// Folders of Windows that are empty on purpose.
     fn never_empty_leftover(name: &str) -> bool {
-        const KEEP: &[&str] = &["windows", "microsoft", "modifiablewindowsapps", "windowsapps", "uninstall information", "reference assemblies", "internet explorer", "common files", "msbuild", "packages", "temp", "crashdumps", "virtualstore", "desktop", "documents", "start menu", "templates", "application data", "favorites", "ssh", "regid.1991-06.com.microsoft", "package cache", "usoshared", "usoprivate", "sophia", "comms", "d3dscache", "history", "programs", "startup", "accessibility", "administrative tools", "maintenance", "system tools", "softwaredistribution", "placeholdertilelogofolder", "packagemanagement"];
-        KEEP.iter().any(|k| name == *k || name.starts_with(&format!("{k} "))) || name.starts_with("windows") || name.starts_with("microsoft") || GENERIC.contains(&norm(name).as_str())
+        const KEEP: &[&str] = &[
+            "windows",
+            "microsoft",
+            "modifiablewindowsapps",
+            "windowsapps",
+            "uninstall information",
+            "reference assemblies",
+            "internet explorer",
+            "common files",
+            "msbuild",
+            "packages",
+            "temp",
+            "crashdumps",
+            "virtualstore",
+            "desktop",
+            "documents",
+            "start menu",
+            "templates",
+            "application data",
+            "favorites",
+            "ssh",
+            "regid.1991-06.com.microsoft",
+            "package cache",
+            "usoshared",
+            "usoprivate",
+            "sophia",
+            "comms",
+            "d3dscache",
+            "history",
+            "programs",
+            "startup",
+            "accessibility",
+            "administrative tools",
+            "maintenance",
+            "system tools",
+            "softwaredistribution",
+            "placeholdertilelogofolder",
+            "packagemanagement",
+        ];
+        KEEP.iter().any(|k| name == *k || name.starts_with(&format!("{k} ")))
+            || name.starts_with("windows")
+            || name.starts_with("microsoft")
+            || GENERIC.contains(&norm(name).as_str())
     }
 
     /// Whether a folder holds no file at any depth (looking at most at `limit` entries).
@@ -1100,7 +1327,8 @@ mod win {
     pub fn find_orphans(cx: &Context, stop: &AtomicBool) -> Vec<Leftover> {
         // Entries whose uninstaller is gone are not "installed": their
         // folders are not kept.
-        let installed: Vec<&Program> = cx.installed.iter().filter(|p| !p.problems.contains(&crate::inventory::Problem::UninstallerMissing)).collect();
+        let installed: Vec<&Program> =
+            cx.installed.iter().filter(|p| !p.problems.contains(&crate::inventory::Problem::UninstallerMissing)).collect();
         let scan = Scan::new(cx, &installed);
         finish(scan.orphans(stop))
     }
@@ -1189,12 +1417,27 @@ mod tests {
     use crate::inventory::Scope;
 
     fn prog(name: &str, publisher: &str, location: Option<&Path>) -> Program {
-        Program { name: name.into(), publisher: publisher.into(), location: location.map(Path::to_path_buf), scope: Scope::Machine, ..Program::default() }
+        Program {
+            name: name.into(),
+            publisher: publisher.into(),
+            location: location.map(Path::to_path_buf),
+            scope: Scope::Machine,
+            ..Program::default()
+        }
     }
 
     #[test]
     fn names_and_publishers() {
-        assert!(noise("1.2.3") && noise("(x64)") && noise("v10") && noise("64-bit") && noise("1.5.0.1423b") && !noise("Notes") && !noise("7-Zip") && !noise("3D"));
+        assert!(
+            noise("1.2.3")
+                && noise("(x64)")
+                && noise("v10")
+                && noise("64-bit")
+                && noise("1.5.0.1423b")
+                && !noise("Notes")
+                && !noise("7-Zip")
+                && !noise("3D")
+        );
         let p = prog("Everything 1.5.0.1423b (x64)", "voidtools", Some(Path::new("C:\\Program Files\\Everything 1.5a")));
         let n: Vec<String> = names(&p).into_iter().map(|x| x.1).collect();
         assert_eq!(n, ["everything", "everything15a"]);
@@ -1209,7 +1452,8 @@ mod tests {
 
     #[test]
     fn what_stays() {
-        let keep = Keep { programs: vec!["C:\\Program Files\\Other".into()], places: vec!["C:\\Program Files".into(), "C:\\Users\\me".into()] };
+        let keep =
+            Keep { programs: vec!["C:\\Program Files\\Other".into()], places: vec!["C:\\Program Files".into(), "C:\\Users\\me".into()] };
         assert!(keep.protects("C:\\"));
         assert!(keep.protects("C:\\Games"));
         assert!(keep.protects("C:\\Program Files"));
@@ -1226,11 +1470,20 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
         let pf = root.join("Program Files");
         let data = root.join("AppData");
-        for d in [pf.join("Zeta Editor"), pf.join("Acme").join("Notes"), pf.join("Acme").join("Notes Helper"), data.join("Acme").join("Notes"), pf.join("Other")] {
+        for d in [
+            pf.join("Zeta Editor"),
+            pf.join("Acme").join("Notes"),
+            pf.join("Acme").join("Notes Helper"),
+            data.join("Acme").join("Notes"),
+            pf.join("Other"),
+        ] {
             std::fs::create_dir_all(&d).unwrap();
         }
         let bases = [(pf.clone(), Group::Folder), (data.clone(), Group::Settings)];
-        let keep = Keep { programs: vec![pf.join("Other").to_string_lossy().into_owned()], places: bases.iter().map(|b| b.0.to_string_lossy().into_owned()).collect() };
+        let keep = Keep {
+            programs: vec![pf.join("Other").to_string_lossy().into_owned()],
+            places: bases.iter().map(|b| b.0.to_string_lossy().into_owned()).collect(),
+        };
         let admin = [pf.to_string_lossy().into_owned()];
         let z = in_folders(&prog("Zeta Editor 2.1", "Zeta", None), &bases, &keep, false, &admin);
         assert_eq!(z.len(), 1);
@@ -1273,7 +1526,14 @@ mod tests {
             let found = find(std::slice::from_ref(p), &cx, &stop);
             println!("{} ({} ms)", p.name, t.elapsed().as_millis());
             for l in found {
-                println!("    {:?} {:?} {}{} {}", l.group, l.kind, l.path, l.value.map(|v| format!(" › {v}")).unwrap_or_default(), if l.admin { "(admin)" } else { "" });
+                println!(
+                    "    {:?} {:?} {}{} {}",
+                    l.group,
+                    l.kind,
+                    l.path,
+                    l.value.map(|v| format!(" › {v}")).unwrap_or_default(),
+                    if l.admin { "(admin)" } else { "" }
+                );
             }
         }
     }

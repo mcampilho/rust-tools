@@ -50,9 +50,21 @@ impl Command {
         Ok(match self {
             Open => "&Open...",
             Reload => "&Reload",
-            OpenFolder => if cfg!(windows) { "Show in &Explorer" } else { "Show in File &Manager" },
+            OpenFolder => {
+                if cfg!(windows) {
+                    "Show in &Explorer"
+                } else {
+                    "Show in File &Manager"
+                }
+            }
             Close => "&Close",
-            Autostart => if cfg!(windows) { "Start wit&h Windows" } else { "Start &When I Log In" },
+            Autostart => {
+                if cfg!(windows) {
+                    "Start wit&h Windows"
+                } else {
+                    "Start &When I Log In"
+                }
+            }
             Exit => "E&xit",
             Copy => "&Copy",
             CopyPlain => "Copy as &Plain Text",
@@ -111,18 +123,20 @@ pub fn shortcut(cmd: Command) -> Option<&'static str> {
 
 /// Finds the command for a key chord such as `Ctrl+O`.
 pub fn lookup(ctrl: bool, shift: bool, alt: bool, key: &str) -> Option<Command> {
-    BINDINGS.iter().find(|(k, _)| {
-        let mut parts: Vec<&str> = k.split('+').collect();
-        let last = if k.ends_with("++") {
-            parts.retain(|p| !p.is_empty());
-            "+"
-        } else {
-            parts.pop().unwrap_or("")
-        };
-        let has = |m: &str| parts.contains(&m);
-        has("Ctrl") == ctrl && has("Shift") == shift && has("Alt") == alt && last.eq_ignore_ascii_case(key)
-    })
-    .map(|(_, c)| *c)
+    BINDINGS
+        .iter()
+        .find(|(k, _)| {
+            let mut parts: Vec<&str> = k.split('+').collect();
+            let last = if k.ends_with("++") {
+                parts.retain(|p| !p.is_empty());
+                "+"
+            } else {
+                parts.pop().unwrap_or("")
+            };
+            let has = |m: &str| parts.contains(&m);
+            has("Ctrl") == ctrl && has("Shift") == shift && has("Alt") == alt && last.eq_ignore_ascii_case(key)
+        })
+        .map(|(_, c)| *c)
 }
 
 pub type M = rt_core::menu::M<Command>;

@@ -102,10 +102,7 @@ fn roots_and_powers() {
     assert_eq!(func::pow(&d("0"), &d("-1")), Err(CalcError::DivideByZero));
     assert_eq!(func::pow(&d("-8"), &d("0.5")), Err(CalcError::InvalidInput));
     assert_eq!(f32d(&func::pow(&d("2"), &d("0.5")).unwrap()), "1.4142135623730950488016887242097");
-    assert_eq!(
-        f32d(&func::pow(&d("1.0000001"), &d("1e7")).unwrap()),
-        "2.7182816925449662711985502257778"
-    );
+    assert_eq!(f32d(&func::pow(&d("1.0000001"), &d("1e7")).unwrap()), "2.7182816925449662711985502257778");
 }
 
 #[test]

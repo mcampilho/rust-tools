@@ -79,9 +79,7 @@ impl WordSize {
     }
 
     pub fn from_name(s: &str) -> Option<WordSize> {
-        [WordSize::Qword, WordSize::Dword, WordSize::Word, WordSize::Byte]
-            .into_iter()
-            .find(|w| w.label() == s)
+        [WordSize::Qword, WordSize::Dword, WordSize::Word, WordSize::Byte].into_iter().find(|w| w.label() == s)
     }
 }
 
@@ -148,9 +146,7 @@ impl ShiftMode {
     }
 
     pub fn from_name(s: &str) -> Option<ShiftMode> {
-        [ShiftMode::Arithmetic, ShiftMode::Logical, ShiftMode::Rotate]
-            .into_iter()
-            .find(|m| m.name() == s)
+        [ShiftMode::Arithmetic, ShiftMode::Logical, ShiftMode::Rotate].into_iter().find(|m| m.name() == s)
     }
 }
 
@@ -181,11 +177,7 @@ fn eval_inner(n: &Node, ctx: &ProgCtx, of: &mut bool) -> Result<i64, CalcError> 
     };
     match n {
         Node::Num(d) => {
-            let v = d.to_i128().ok_or(if d.is_integer() {
-                CalcError::Overflow
-            } else {
-                CalcError::InvalidInput
-            })?;
+            let v = d.to_i128().ok_or(if d.is_integer() { CalcError::Overflow } else { CalcError::InvalidInput })?;
             // Literal bit patterns (e.g. FFFF in WORD) are interpreted as signed.
             let (r, lost) = w.wrap(v);
             if lost && !(v >= 0 && (v as u128) <= w.mask() as u128) {

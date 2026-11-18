@@ -97,7 +97,13 @@ pub fn step(who: &Who, s: Step, send: Box<dyn Fn(Step) + Send>) -> Next {
         Step::Checked(Ok(Found::Newer(rel))) => {
             let news = tf("{} {} is available (you have {}).", &[who.app, &rel.version, who.version]);
             if update::installed_by_scoop(who.app) {
-                let text = format!("{news}\n\n{}", tf("{} was installed with Scoop. Update it with Scoop now? {} closes, and Scoop updates it in a console window.", &[who.app, who.app]));
+                let text = format!(
+                    "{news}\n\n{}",
+                    tf(
+                        "{} was installed with Scoop. Update it with Scoop now? {} closes, and Scoop updates it in a console window.",
+                        &[who.app, who.app]
+                    )
+                );
                 if ask(who, title, &text) {
                     match update::scoop_update(who.app) {
                         Ok(()) => return Next::Quit,
@@ -106,7 +112,11 @@ pub fn step(who: &Who, s: Step, send: Box<dyn Fn(Step) + Send>) -> Next {
                 }
                 return Next::Nothing;
             }
-            let text = format!("{news}\n\n{}\n{}", tr("Download and install it now? The download is checked against its published SHA-256 sum."), tf("What is new: {}", &[&rel.page]));
+            let text = format!(
+                "{news}\n\n{}\n{}",
+                tr("Download and install it now? The download is checked against its published SHA-256 sum."),
+                tf("What is new: {}", &[&rel.page])
+            );
             if ask(who, title, &text) {
                 install(who, rel, send);
             }

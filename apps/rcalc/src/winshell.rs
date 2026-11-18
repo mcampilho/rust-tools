@@ -92,7 +92,9 @@ impl Shell {
                 return None;
             }
             let taskbar_created = RegisterWindowMessageW(wide("TaskbarCreated").as_ptr());
-            STATE.with(|s| *s.borrow_mut() = Some(State { sink, tray, taskbar_created, menu_labels: (menu.0.to_string(), menu.1.to_string()) }));
+            STATE.with(|s| {
+                *s.borrow_mut() = Some(State { sink, tray, taskbar_created, menu_labels: (menu.0.to_string(), menu.1.to_string()) })
+            });
             if tray {
                 tray::show(hwnd, tip);
                 RegisterHotKey(hwnd, HOTKEY_ID, 0, VK_LAUNCH_APP2 as u32);
@@ -205,15 +207,7 @@ fn registered_at(path: &str) -> bool {
     let mut size = (buf.len() * 2) as u32;
     // SAFETY: reads a REG_SZ into a correctly sized buffer.
     let rc = unsafe {
-        RegGetValueW(
-            HKEY_CURRENT_USER,
-            k.as_ptr(),
-            v.as_ptr(),
-            RRF_RT_REG_SZ,
-            std::ptr::null_mut(),
-            buf.as_mut_ptr() as *mut _,
-            &mut size,
-        )
+        RegGetValueW(HKEY_CURRENT_USER, k.as_ptr(), v.as_ptr(), RRF_RT_REG_SZ, std::ptr::null_mut(), buf.as_mut_ptr() as *mut _, &mut size)
     };
     if rc != 0 {
         return false;

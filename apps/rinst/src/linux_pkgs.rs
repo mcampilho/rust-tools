@@ -97,7 +97,10 @@ pub fn parse_dpkg(text: &str, auto: &HashSet<String>, date: &dyn Fn(&str) -> Opt
         let is_auto = auto.contains(name) || auto.contains(&spec);
         let section = get("Section").unwrap_or("");
         let system = problems.is_empty()
-            && (is_auto || matches!(priority, "required" | "important") || matches!(section, "libs" | "oldlibs" | "libdevel") || get("Essential") == Some("yes"));
+            && (is_auto
+                || matches!(priority, "required" | "important")
+                || matches!(section, "libs" | "oldlibs" | "libdevel")
+                || get("Essential") == Some("yes"));
         let file = |n: &str| date(n);
         let installed = file(&spec).or_else(|| file(name));
         let mut values = vec![("Package".to_string(), spec.clone())];
@@ -148,7 +151,8 @@ pub fn parse_rpm(text: &str) -> Vec<Program> {
                 return None;
             }
             let spec = if matches!(arch, "noarch" | "(none)" | "") { name.to_string() } else { format!("{name}.{arch}") };
-            let mut values = vec![("Package".to_string(), spec.clone()), ("Version".into(), version.into()), ("Architecture".into(), arch.into())];
+            let mut values =
+                vec![("Package".to_string(), spec.clone()), ("Version".into(), version.into()), ("Architecture".into(), arch.into())];
             for (k, v) in [("Vendor", none(vendor)), ("Summary", none(summary)), ("URL", none(url))] {
                 if !v.is_empty() {
                     values.push((k.into(), v.into()));
@@ -208,7 +212,12 @@ pub fn parse_flatpak(text: &str, runtime: bool, me: &str, installed: &dyn Fn(&st
             }
             let user = installation == "user";
             let (location, time) = installed(r#ref, installation);
-            let mut values = vec![("Ref".to_string(), r#ref.to_string()), ("Application".into(), app.into()), ("Origin".into(), origin.into()), ("Installation".into(), installation.into())];
+            let mut values = vec![
+                ("Ref".to_string(), r#ref.to_string()),
+                ("Application".into(), app.into()),
+                ("Origin".into(), origin.into()),
+                ("Installation".into(), installation.into()),
+            ];
             if !description.is_empty() {
                 values.push(("Description".into(), description.into()));
             }
@@ -236,7 +245,11 @@ pub fn parse_snap(text: &str, file: &dyn Fn(&str, &str) -> SnapFile) -> Vec<Prog
     let mut lines = text.lines();
     let Some(head) = lines.next() else { return Vec::new() };
     // Columns by the positions of the header's words.
-    let starts: Vec<usize> = head.match_indices(|c: char| !c.is_whitespace()).filter(|(i, _)| *i == 0 || head.as_bytes()[i - 1] == b' ').map(|(i, _)| i).collect();
+    let starts: Vec<usize> = head
+        .match_indices(|c: char| !c.is_whitespace())
+        .filter(|(i, _)| *i == 0 || head.as_bytes()[i - 1] == b' ')
+        .map(|(i, _)| i)
+        .collect();
     let titles: Vec<&str> = head.split_whitespace().collect();
     lines
         .filter_map(|line| {
@@ -421,14 +434,19 @@ Architecture: amd64
 
     #[test]
     fn dpkg_records() {
-        let auto = parse_apt_auto("Package: fontconfig\nArchitecture: amd64\nAuto-Installed: 1\n\nPackage: htop\nArchitecture: amd64\nAuto-Installed: 0\n");
+        let auto = parse_apt_auto(
+            "Package: fontconfig\nArchitecture: amd64\nAuto-Installed: 1\n\nPackage: htop\nArchitecture: amd64\nAuto-Installed: 0\n",
+        );
         assert!(auto.contains("fontconfig") && auto.contains("fontconfig:amd64") && !auto.contains("htop"));
         let ps = parse_dpkg(STATUS, &auto, &|n| (n == "htop:amd64").then_some(1_731_456_000));
         let names: Vec<&str> = ps.iter().map(|p| p.name.as_str()).collect();
         assert_eq!(names, ["bash", "htop", "libvulkan1", "fontconfig", "vlc", "broken"]);
         let by = |n: &str| ps.iter().find(|p| p.name == n).unwrap();
         let htop = by("htop");
-        assert_eq!((htop.publisher.as_str(), htop.size, htop.date, htop.system), ("Ubuntu Developers", Some(440 * 1024), Some((2024, 11, 13)), false));
+        assert_eq!(
+            (htop.publisher.as_str(), htop.size, htop.date, htop.system),
+            ("Ubuntu Developers", Some(440 * 1024), Some((2024, 11, 13)), false)
+        );
         assert_eq!(package_id(htop), "htop:amd64");
         assert!(by("bash").system && by("bash").no_remove, "required and essential");
         assert!(by("libvulkan1").system && by("fontconfig").system, "a library; installed for another");
@@ -440,12 +458,16 @@ Architecture: amd64
 
     #[test]
     fn rpm_lines() {
-        let t = "firefox\t132.0-1.fc41\tx86_64\tFedora Project\t250000000\t1731456000\tMozilla Firefox Web browser\thttps://www.mozilla.org/\n\
+        let t =
+            "firefox\t132.0-1.fc41\tx86_64\tFedora Project\t250000000\t1731456000\tMozilla Firefox Web browser\thttps://www.mozilla.org/\n\
                  glibc-common\t2.40-9.fc41\tx86_64\tFedora Project\t1000\t1731456000\tCommon binaries\t(none)\n\
                  gpg-pubkey\te99d6ad1-64d2612c\t(none)\t(none)\t0\t1731456000\tkey\t(none)\n";
         let ps = parse_rpm(t);
         assert_eq!(ps.len(), 2);
-        assert_eq!((ps[0].name.as_str(), package_id(&ps[0]), ps[0].size, ps[0].date, ps[0].system), ("firefox", "firefox.x86_64", Some(250_000_000), Some((2024, 11, 13)), false));
+        assert_eq!(
+            (ps[0].name.as_str(), package_id(&ps[0]), ps[0].size, ps[0].date, ps[0].system),
+            ("firefox", "firefox.x86_64", Some(250_000_000), Some((2024, 11, 13)), false)
+        );
         assert!(ps[1].system && value(&ps[1], "URL").is_none());
     }
 
@@ -457,7 +479,13 @@ Architecture: amd64
         let t = std::time::Instant::now();
         let ps = dpkg_and_rpm();
         let shown: Vec<&Program> = ps.iter().filter(|p| p.visible()).collect();
-        println!("dpkg/rpm: {} ({} shown, {} with problems) in {:?}", ps.len(), shown.len(), ps.iter().filter(|p| !p.problems.is_empty()).count(), t.elapsed());
+        println!(
+            "dpkg/rpm: {} ({} shown, {} with problems) in {:?}",
+            ps.len(),
+            shown.len(),
+            ps.iter().filter(|p| !p.problems.is_empty()).count(),
+            t.elapsed()
+        );
         for p in shown.iter().take(40) {
             println!("  {} {} [{}] {:?} {:?}", p.name, p.version, p.publisher, p.size, p.date);
         }
@@ -483,7 +511,10 @@ Architecture: amd64
                  app/org.gimp.GIMP/x86_64/stable\torg.gimp.GIMP\tGNU Image Manipulation Program\t2.10\tflathub\tuser\t1.2 GB\t\n";
         let ps = parse_flatpak(t, false, "ana", &|_, _| (None, Some(1_731_456_000)));
         assert_eq!(ps.len(), 2);
-        assert_eq!((package_id(&ps[0]), ps[0].scope.clone(), ps[0].size), ("app/org.mozilla.firefox/x86_64/stable", Scope::Machine, Some(280_100_000)));
+        assert_eq!(
+            (package_id(&ps[0]), ps[0].scope.clone(), ps[0].size),
+            ("app/org.mozilla.firefox/x86_64/stable", Scope::Machine, Some(280_100_000))
+        );
         assert_eq!(ps[1].scope, Scope::User { name: "ana".into(), current: true });
         let t = "Name             Version             Rev    Tracking       Publisher    Notes\n\
                  asciiquarium     1.1-snap9378        59     latest/stable  brlin        -\n\
@@ -491,7 +522,10 @@ Architecture: amd64
                  no-more-secrets  1.0.1               12     latest/stable  alexmurray*  -\n";
         let ps = parse_snap(t, &|n, r| (Some(if n == "core22" && r == "2987" { 7 } else { 1 }), None));
         assert_eq!(ps.len(), 3);
-        assert_eq!((ps[0].name.as_str(), ps[0].version.as_str(), ps[0].publisher.as_str(), ps[0].system), ("asciiquarium", "1.1-snap9378", "brlin", false));
+        assert_eq!(
+            (ps[0].name.as_str(), ps[0].version.as_str(), ps[0].publisher.as_str(), ps[0].system),
+            ("asciiquarium", "1.1-snap9378", "brlin", false)
+        );
         assert_eq!((ps[1].publisher.as_str(), ps[1].system, ps[1].size), ("canonical", true, Some(7)));
         assert_eq!(ps[2].publisher, "alexmurray");
         assert!(part_name("libgtk-3-0") && part_name("python3-yaml") && !part_name("libreoffice-writer") && !part_name("htop"));

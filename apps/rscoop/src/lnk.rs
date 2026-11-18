@@ -78,11 +78,7 @@ pub fn parse(d: &[u8]) -> Option<Shortcut> {
         let n = if wide { count * 2 } else { count };
         let raw = d.get(pos..pos + n)?;
         pos += n;
-        let text = if wide {
-            String::from_utf16_lossy(&u16s(raw, false))
-        } else {
-            cp1252_decode(raw)
-        };
+        let text = if wide { String::from_utf16_lossy(&u16s(raw, false)) } else { cp1252_decode(raw) };
         match slot {
             1 => sc.relative_path = Some(text),
             2 => sc.working_dir = Some(text),

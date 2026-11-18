@@ -5,7 +5,7 @@
 //! before saving. Encoding refuses characters the target encoding cannot
 //! represent instead of writing substitutes.
 
-use encoding_rs::{Encoding, EncoderResult};
+use encoding_rs::{EncoderResult, Encoding};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Enc {
@@ -69,9 +69,28 @@ impl Enc {
     pub fn all() -> Vec<Enc> {
         use encoding_rs::*;
         let legacy: [&'static Encoding; 22] = [
-            WINDOWS_1252, WINDOWS_1250, WINDOWS_1251, WINDOWS_1253, WINDOWS_1254, WINDOWS_1255, WINDOWS_1256, WINDOWS_1257,
-            WINDOWS_1258, WINDOWS_874, ISO_8859_2, ISO_8859_5, ISO_8859_7, ISO_8859_15, KOI8_R, KOI8_U, IBM866, SHIFT_JIS,
-            EUC_JP, GBK, BIG5, EUC_KR,
+            WINDOWS_1252,
+            WINDOWS_1250,
+            WINDOWS_1251,
+            WINDOWS_1253,
+            WINDOWS_1254,
+            WINDOWS_1255,
+            WINDOWS_1256,
+            WINDOWS_1257,
+            WINDOWS_1258,
+            WINDOWS_874,
+            ISO_8859_2,
+            ISO_8859_5,
+            ISO_8859_7,
+            ISO_8859_15,
+            KOI8_R,
+            KOI8_U,
+            IBM866,
+            SHIFT_JIS,
+            EUC_JP,
+            GBK,
+            BIG5,
+            EUC_KR,
         ];
         let mut v = vec![Enc::Utf8, Enc::Utf8Bom, Enc::Utf16Le, Enc::Utf16Be];
         v.extend(legacy.into_iter().map(Enc::Legacy));
@@ -255,7 +274,17 @@ pub fn decode(bytes: &[u8], forced: Option<Enc>, fallback: &'static Encoding) ->
             let le = enc == Enc::Utf16Le;
             let units: Vec<u16> = body
                 .chunks(2)
-                .map(|p| if p.len() == 2 { if le { u16::from_le_bytes([p[0], p[1]]) } else { u16::from_be_bytes([p[0], p[1]]) } } else { 0xFFFD })
+                .map(|p| {
+                    if p.len() == 2 {
+                        if le {
+                            u16::from_le_bytes([p[0], p[1]])
+                        } else {
+                            u16::from_be_bytes([p[0], p[1]])
+                        }
+                    } else {
+                        0xFFFD
+                    }
+                })
                 .collect();
             let odd = body.len() % 2 == 1;
             let mut lossy = odd;
@@ -333,7 +362,14 @@ impl std::fmt::Display for EncodeError {
         match self {
             EncodeError::Unmappable { ch, line, col } => {
                 let args = [ch.to_string(), format!("{:04X}", *ch as u32), line.to_string(), col.to_string()];
-                write!(f, "{}", crate::i18n::tf("the character '{}' (U+{}) at line {}, column {} cannot be represented", &[&args[0], &args[1], &args[2], &args[3]]))
+                write!(
+                    f,
+                    "{}",
+                    crate::i18n::tf(
+                        "the character '{}' (U+{}) at line {}, column {} cannot be represented",
+                        &[&args[0], &args[1], &args[2], &args[3]]
+                    )
+                )
             }
         }
     }

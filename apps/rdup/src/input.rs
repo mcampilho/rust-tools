@@ -150,7 +150,9 @@ impl Shell {
                     Hot::MinSize(i)
                 } else if let Some(i) = l.fields.iter().position(|r| r.contains(x, y)) {
                     let f = rdup::filter::Field::ALL[i];
-                    if matches!(f, rdup::filter::Field::From | rdup::filter::Field::To) && view::pick_button(l.fields[i], self.scale()).contains(x, y) {
+                    if matches!(f, rdup::filter::Field::From | rdup::filter::Field::To)
+                        && view::pick_button(l.fields[i], self.scale()).contains(x, y)
+                    {
                         Hot::Pick(f)
                     } else {
                         Hot::Field(f)
@@ -255,7 +257,9 @@ impl Shell {
             self.app.focus = None;
         }
         // A click outside an open calendar only closes it.
-        if self.app.calendar.is_some() && !matches!(self.hot, Hot::CalPrev | Hot::CalNext | Hot::CalDay(_) | Hot::CalToday | Hot::CalClear | Hot::CalPanel) {
+        if self.app.calendar.is_some()
+            && !matches!(self.hot, Hot::CalPrev | Hot::CalNext | Hot::CalDay(_) | Hot::CalToday | Hot::CalClear | Hot::CalPanel)
+        {
             self.app.calendar = None;
             self.redraw();
             return;
@@ -264,7 +268,9 @@ impl Shell {
             Hot::Field(f) => {
                 let s = self.scale();
                 let caret = view::caret_at(&mut self.gfx, &self.app, &self.layout, f, x, s);
-                let double = self.last_click.is_some_and(|(t, cx, cy)| t.elapsed() < Duration::from_millis(500) && (cx - x).abs() < 4.0 * s && (cy - y).abs() < 4.0 * s);
+                let double = self.last_click.is_some_and(|(t, cx, cy)| {
+                    t.elapsed() < Duration::from_millis(500) && (cx - x).abs() < 4.0 * s && (cy - y).abs() < 4.0 * s
+                });
                 if double && self.app.focus == Some(f) {
                     self.app.select_word(caret);
                     self.last_click = None;

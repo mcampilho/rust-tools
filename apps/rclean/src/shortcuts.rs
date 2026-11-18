@@ -35,10 +35,28 @@ pub fn windows(e: &Env) -> Vec<Target> {
     let menu = "Microsoft/Windows/Start Menu/Programs";
     let public_desktop = e.home.parent().map_or_else(|| PathBuf::from("C:\\Users\\Public\\Desktop"), |u| u.join("Public").join("Desktop"));
     vec![
-        target("lnk.menu", k("Start menu"), k("Shortcuts on your Start menu that open something gone."), vec![deep(at(&e.roaming, menu))], false),
-        target("lnk.menu-all", k("Start menu of every user"), k("The same, on the Start menu shared by every user."), vec![deep(at(&e.program_data, menu))], true),
+        target(
+            "lnk.menu",
+            k("Start menu"),
+            k("Shortcuts on your Start menu that open something gone."),
+            vec![deep(at(&e.roaming, menu))],
+            false,
+        ),
+        target(
+            "lnk.menu-all",
+            k("Start menu of every user"),
+            k("The same, on the Start menu shared by every user."),
+            vec![deep(at(&e.program_data, menu))],
+            true,
+        ),
         target("lnk.desktop", k("Desktop"), k("Shortcuts on your desktop that open something gone."), vec![flat(e.desktop.clone())], false),
-        target("lnk.desktop-all", k("Desktop of every user"), k("The same, on the desktop shared by every user."), vec![flat(public_desktop)], true),
+        target(
+            "lnk.desktop-all",
+            k("Desktop of every user"),
+            k("The same, on the desktop shared by every user."),
+            vec![flat(public_desktop)],
+            true,
+        ),
         target(
             "lnk.taskbar",
             k("Taskbar and Quick Launch"),
@@ -46,7 +64,13 @@ pub fn windows(e: &Env) -> Vec<Target> {
             vec![deep(at(&e.roaming, "Microsoft/Internet Explorer/Quick Launch"))],
             false,
         ),
-        target("lnk.sendto", k("Send To"), k("Items of the Send To menu that open something gone."), vec![flat(at(&e.roaming, "Microsoft/Windows/SendTo"))], false),
+        target(
+            "lnk.sendto",
+            k("Send To"),
+            k("Items of the Send To menu that open something gone."),
+            vec![flat(at(&e.roaming, "Microsoft/Windows/SendTo"))],
+            false,
+        ),
         target(
             "lnk.recent",
             k("Recent items"),
@@ -60,10 +84,34 @@ pub fn windows(e: &Env) -> Vec<Target> {
 /// Where shortcuts are, on Linux.
 pub fn linux(e: &Env) -> Vec<Target> {
     vec![
-        target("desktop.menu", k("Menu entries"), k("Your menu entries (.desktop files) whose program is gone."), vec![deep(e.data.join("applications"))], false),
-        target("desktop.desktop", k("Desktop"), k("Shortcuts on your desktop that open something gone."), vec![flat(e.desktop.clone())], false),
-        target("desktop.autostart", k("Autostart"), k("Programs started when you log in that are gone."), vec![flat(e.config.join("autostart"))], false),
-        target("desktop.bin", k("Program links"), k("Links in ~/.local/bin to programs that are gone."), vec![flat(at(&e.home, ".local/bin"))], false),
+        target(
+            "desktop.menu",
+            k("Menu entries"),
+            k("Your menu entries (.desktop files) whose program is gone."),
+            vec![deep(e.data.join("applications"))],
+            false,
+        ),
+        target(
+            "desktop.desktop",
+            k("Desktop"),
+            k("Shortcuts on your desktop that open something gone."),
+            vec![flat(e.desktop.clone())],
+            false,
+        ),
+        target(
+            "desktop.autostart",
+            k("Autostart"),
+            k("Programs started when you log in that are gone."),
+            vec![flat(e.config.join("autostart"))],
+            false,
+        ),
+        target(
+            "desktop.bin",
+            k("Program links"),
+            k("Links in ~/.local/bin to programs that are gone."),
+            vec![flat(at(&e.home, ".local/bin"))],
+            false,
+        ),
     ]
 }
 
@@ -208,7 +256,11 @@ mod tests {
         std::fs::write(menu.join("readme.txt"), b"not a shortcut").unwrap();
         let t = target("t", "", "", vec![deep(root.join("menu"))], false);
         let f = analyse(&t, &AtomicBool::new(false));
-        assert_eq!(f.links, [(menu.join("Bad.lnk"), gone.to_string_lossy().into_owned())], "only the one to a file gone; not the network one");
+        assert_eq!(
+            f.links,
+            [(menu.join("Bad.lnk"), gone.to_string_lossy().into_owned())],
+            "only the one to a file gone; not the network one"
+        );
         let flat_t = target("t", "", "", vec![flat(root.join("menu"))], false);
         assert_eq!(analyse(&flat_t, &AtomicBool::new(false)).count(), 0, "a flat place does not go down");
         let _ = std::fs::remove_dir_all(&root);

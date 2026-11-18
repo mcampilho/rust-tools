@@ -220,7 +220,9 @@ impl LiveSettings {
         let file = |p: &Path| (!p.as_os_str().is_empty()).then(|| p.to_path_buf());
         match self.kind {
             Kind::Video => file(&self.video).map(Show::Video),
-            Kind::Folder => file(&self.playing).filter(|p| p.starts_with(&self.folder) && !self.folder.as_os_str().is_empty()).map(Show::Video),
+            Kind::Folder => {
+                file(&self.playing).filter(|p| p.starts_with(&self.folder) && !self.folder.as_os_str().is_empty()).map(Show::Video)
+            }
             Kind::Anim => file(&self.anim).map(Show::Anim),
             Kind::Scene => Some(Show::Scene(self.scene)),
         }

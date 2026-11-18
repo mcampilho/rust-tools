@@ -4,9 +4,9 @@ use super::gfx::{Align, Color, FontId, Rect};
 use super::layout;
 use super::{Role, Style, Ui, UiAction, Widget};
 use crate::app::commands::Command;
-use crate::i18n::{tf, tr};
 use crate::app::doc::Notice;
 use crate::app::{App, EditorLayout, Focus, PaletteMode, RowInfo};
+use crate::i18n::{tf, tr};
 use crate::syntax::{Lang, Span, Tok};
 
 /// Editor font size in pixels.
@@ -86,7 +86,18 @@ fn underline(ui: &mut Ui, text: &str, mark: Option<usize>, x: f32, base: f32, px
 #[cfg(not(windows))]
 fn register_title(ui: &mut Ui, i: usize, rect: Rect, label: &str) {
     let action = UiAction::MenuTitle(i);
-    ui.register(Widget { id: super::wid(&action), rect, action, role: Role::Button, label: label.to_string(), tooltip: None, value: None, enabled: true, checked: None, layer: 0 });
+    ui.register(Widget {
+        id: super::wid(&action),
+        rect,
+        action,
+        role: Role::Button,
+        label: label.to_string(),
+        tooltip: None,
+        value: None,
+        enabled: true,
+        checked: None,
+        layer: 0,
+    });
 }
 
 #[cfg(not(windows))]
@@ -200,7 +211,18 @@ fn menu_popups(app: &mut App, ui: &mut Ui, full: Rect) {
                 ui.g.text_in(k, right, ui.fs(12.0), FontId::Regular, t.text_dim, Align::Right);
             }
             let (label, checked, enabled) = (it.label.clone(), it.cmd.is_some_and(|_| it.checked).then_some(true), it.enabled);
-            ui.register(Widget { id, rect: row, action, role: Role::ListItem, label, tooltip: None, value: None, enabled, checked, layer: 0 });
+            ui.register(Widget {
+                id,
+                rect: row,
+                action,
+                role: Role::ListItem,
+                label,
+                tooltip: None,
+                value: None,
+                enabled,
+                checked,
+                layer: 0,
+            });
         }
         ui.g.set_clip(None);
     }
@@ -246,20 +268,42 @@ fn toolbar(app: &App, ui: &mut Ui, r: Rect) {
                     Some(k) => format!("{} ({k})", c.plain_label()),
                     None => c.plain_label(),
                 };
-                ui.button(UiAction::Cmd(*c), Rect::new(x, y, ui.px(32.0), h), &tr(text), Some(*icon), &c.plain_label(), Some(&tip), Style::Flat, None, app.enabled(*c));
+                ui.button(
+                    UiAction::Cmd(*c),
+                    Rect::new(x, y, ui.px(32.0), h),
+                    &tr(text),
+                    Some(*icon),
+                    &c.plain_label(),
+                    Some(&tip),
+                    Style::Flat,
+                    None,
+                    app.enabled(*c),
+                );
                 x += ui.px(34.0);
             }
         }
     }
     x += ui.px(8.0);
-    for (cmd, text) in [(Command::WordWrap, "Wrap"), (Command::ShowWhitespace, "¶"), (Command::Outline, "Outline"), (Command::MarkdownPreview, "Preview")] {
+    for (cmd, text) in
+        [(Command::WordWrap, "Wrap"), (Command::ShowWhitespace, "¶"), (Command::Outline, "Outline"), (Command::MarkdownPreview, "Preview")]
+    {
         let text = &tr(text);
         let w = ui.g.measure(text, ui.fs(12.5), FontId::Regular) + ui.px(18.0);
         let tip = match crate::app::commands::shortcut(cmd) {
             Some(k) => format!("{} ({k})", cmd.plain_label()),
             None => cmd.plain_label(),
         };
-        ui.button(UiAction::Cmd(cmd), Rect::new(x, y, w, h), text, None, &cmd.plain_label(), Some(&tip), Style::Flat, Some(app.checked(cmd)), true);
+        ui.button(
+            UiAction::Cmd(cmd),
+            Rect::new(x, y, w, h),
+            text,
+            None,
+            &cmd.plain_label(),
+            Some(&tip),
+            Style::Flat,
+            Some(app.checked(cmd)),
+            true,
+        );
         x += w + ui.px(2.0);
     }
     ui.g.fill_rect(Rect::new(r.x, r.bottom() - 1.0, r.w, 1.0), t.border);
@@ -372,7 +416,17 @@ fn tab_bar(app: &mut App, ui: &mut Ui, r: Rect) {
                 layer: 0,
             });
         } else if active || hover || close_hover {
-            ui.button(UiAction::CloseTab(i), cr, "×", Some('\u{E711}'), &tf("Close {}", &[&app.docs[i].display_name()]), Some(&tr("Close (Ctrl+W)")), Style::Flat, None, true);
+            ui.button(
+                UiAction::CloseTab(i),
+                cr,
+                "×",
+                Some('\u{E711}'),
+                &tf("Close {}", &[&app.docs[i].display_name()]),
+                Some(&tr("Close (Ctrl+W)")),
+                Style::Flat,
+                None,
+                true,
+            );
         } else {
             ui.register(Widget {
                 id: close_id,
@@ -393,9 +447,24 @@ fn tab_bar(app: &mut App, ui: &mut Ui, r: Rect) {
         let ar = Rect::new(r.right() - plus_w - arrows_w - ui.px(4.0), y, arrows_w / 2.0, h - ui.px(4.0));
         ui.button(UiAction::TabScroll(-1), ar, "‹", Some('\u{E76B}'), &tr("Scroll tabs left"), None, Style::Flat, None, app.tab_scroll > 0);
         let ar2 = Rect::new(ar.right(), y, arrows_w / 2.0, h - ui.px(4.0));
-        ui.button(UiAction::TabScroll(1), ar2, "›", Some('\u{E76C}'), &tr("Scroll tabs right"), None, Style::Flat, None, app.tab_scroll + 1 < app.docs.len());
+        ui.button(
+            UiAction::TabScroll(1),
+            ar2,
+            "›",
+            Some('\u{E76C}'),
+            &tr("Scroll tabs right"),
+            None,
+            Style::Flat,
+            None,
+            app.tab_scroll + 1 < app.docs.len(),
+        );
     }
-    let pr = Rect::new(if overflow { r.right() - plus_w - ui.px(4.0) } else { x + ui.px(2.0) }, y + ui.px(1.0), plus_w - ui.px(4.0), h - ui.px(6.0));
+    let pr = Rect::new(
+        if overflow { r.right() - plus_w - ui.px(4.0) } else { x + ui.px(2.0) },
+        y + ui.px(1.0),
+        plus_w - ui.px(4.0),
+        h - ui.px(6.0),
+    );
     ui.button(UiAction::NewTab, pr, "+", Some('\u{E710}'), &tr("New tab"), Some(&tr("New document (Ctrl+N)")), Style::Flat, None, true);
 }
 
@@ -447,7 +516,17 @@ fn find_bar(app: &mut App, ui: &mut Ui, r: Rect) {
     let y0 = r.y + ui.px(5.0);
     let mut x = r.x + ui.px(6.0);
     let rm = app.find.replace_mode;
-    ui.button(UiAction::ToggleReplace, Rect::new(x, y0, ui.px(24.0), row_h), if rm { "▾" } else { "▸" }, Some(if rm { '\u{E70D}' } else { '\u{E76C}' }), &tr("Toggle replace"), Some(&tr("Toggle replace (Ctrl+H)")), Style::Flat, Some(rm), true);
+    ui.button(
+        UiAction::ToggleReplace,
+        Rect::new(x, y0, ui.px(24.0), row_h),
+        if rm { "▾" } else { "▸" },
+        Some(if rm { '\u{E70D}' } else { '\u{E76C}' }),
+        &tr("Toggle replace"),
+        Some(&tr("Toggle replace (Ctrl+H)")),
+        Style::Flat,
+        Some(rm),
+        true,
+    );
     x += ui.px(28.0);
     let right_w = ui.px(4.0 * 30.0 + 120.0 + 3.0 * 30.0 + 12.0);
     let fw = (r.right() - x - right_w).clamp(ui.px(120.0), ui.px(520.0));
@@ -456,7 +535,12 @@ fn find_bar(app: &mut App, ui: &mut Ui, r: Rect) {
     let fr = Rect::new(x, y0, fw, row_h);
     ui.field(UiAction::Field(Focus::Find), fr, &mut app.find.find, focus == Focus::Find, &tr("Find"), &tr("Find"), err);
     x += fw + ui.px(6.0);
-    let opts = [(0u8, "Aa", "Match case (Alt+C)", app.find.case), (1, "W", "Whole word (Alt+W)", app.find.word), (2, ".*", "Regular expression (Alt+R)", app.find.regex), (3, "⊂", "Find in selection (Alt+L)", app.find.in_selection)];
+    let opts = [
+        (0u8, "Aa", "Match case (Alt+C)", app.find.case),
+        (1, "W", "Whole word (Alt+W)", app.find.word),
+        (2, ".*", "Regular expression (Alt+R)", app.find.regex),
+        (3, "⊂", "Find in selection (Alt+L)", app.find.in_selection),
+    ];
     for (i, txt, tip, on) in opts {
         let tip = &tr(tip);
         ui.button(UiAction::FindOpt(i), Rect::new(x, y0, ui.px(28.0), row_h), txt, None, tip, Some(tip), Style::Flat, Some(on), true);
@@ -481,24 +565,82 @@ fn find_bar(app: &mut App, ui: &mut Ui, r: Rect) {
     ui.text_clip(&count, cr, 12.0, FontId::Regular, if err { t.error } else { t.text_dim }, Align::Left);
     ui.label(cr, &count);
     x += ui.px(120.0);
-    ui.button(UiAction::FindPrev, Rect::new(x, y0, ui.px(28.0), row_h), "↑", Some('\u{E74A}'), &tr("Previous match"), Some(&tr("Previous match (Shift+Enter / Shift+F3)")), Style::Flat, None, true);
+    ui.button(
+        UiAction::FindPrev,
+        Rect::new(x, y0, ui.px(28.0), row_h),
+        "↑",
+        Some('\u{E74A}'),
+        &tr("Previous match"),
+        Some(&tr("Previous match (Shift+Enter / Shift+F3)")),
+        Style::Flat,
+        None,
+        true,
+    );
     x += ui.px(30.0);
-    ui.button(UiAction::FindNext, Rect::new(x, y0, ui.px(28.0), row_h), "↓", Some('\u{E74B}'), &tr("Next match"), Some(&tr("Next match (Enter / F3)")), Style::Flat, None, true);
+    ui.button(
+        UiAction::FindNext,
+        Rect::new(x, y0, ui.px(28.0), row_h),
+        "↓",
+        Some('\u{E74B}'),
+        &tr("Next match"),
+        Some(&tr("Next match (Enter / F3)")),
+        Style::Flat,
+        None,
+        true,
+    );
     x += ui.px(30.0);
-    ui.button(UiAction::CloseFind, Rect::new(x, y0, ui.px(28.0), row_h), "×", Some('\u{E711}'), &tr("Close find"), Some(&tr("Close (Esc)")), Style::Flat, None, true);
+    ui.button(
+        UiAction::CloseFind,
+        Rect::new(x, y0, ui.px(28.0), row_h),
+        "×",
+        Some('\u{E711}'),
+        &tr("Close find"),
+        Some(&tr("Close (Esc)")),
+        Style::Flat,
+        None,
+        true,
+    );
     if rm {
         let y1 = y0 + row_h + ui.px(6.0);
         let rx = r.x + ui.px(34.0);
         let rr = Rect::new(rx, y1, fw, row_h);
         let focus = app.focus;
-        ui.field(UiAction::Field(Focus::Replace), rr, &mut app.find.replace, focus == Focus::Replace, &tr("Replace with"), &tr("Replace with"), false);
+        ui.field(
+            UiAction::Field(Focus::Replace),
+            rr,
+            &mut app.find.replace,
+            focus == Focus::Replace,
+            &tr("Replace with"),
+            &tr("Replace with"),
+            false,
+        );
         let mut bx = rr.right() + ui.px(6.0);
         let (l1, l2) = (tr("Replace"), tr("Replace all"));
         let w1 = (ui.g.measure(&l1, ui.fs(12.5), FontId::Regular) + ui.px(24.0)).max(ui.px(76.0));
-        ui.button(UiAction::ReplaceOne, Rect::new(bx, y1, w1, row_h), &l1, None, &l1, Some(&tr("Replace this match and find the next (Enter)")), Style::Push, None, app.doc().editable());
+        ui.button(
+            UiAction::ReplaceOne,
+            Rect::new(bx, y1, w1, row_h),
+            &l1,
+            None,
+            &l1,
+            Some(&tr("Replace this match and find the next (Enter)")),
+            Style::Push,
+            None,
+            app.doc().editable(),
+        );
         bx += w1 + ui.px(6.0);
         let w2 = (ui.g.measure(&l2, ui.fs(12.5), FontId::Regular) + ui.px(24.0)).max(ui.px(92.0));
-        ui.button(UiAction::ReplaceAll, Rect::new(bx, y1, w2, row_h), &l2, None, &l2, Some(&tr("Replace all matches, with preview (Alt+A / Ctrl+Alt+Enter)")), Style::Push, None, app.doc().editable());
+        ui.button(
+            UiAction::ReplaceAll,
+            Rect::new(bx, y1, w2, row_h),
+            &l2,
+            None,
+            &l2,
+            Some(&tr("Replace all matches, with preview (Alt+A / Ctrl+Alt+Enter)")),
+            Style::Push,
+            None,
+            app.doc().editable(),
+        );
         if app.find.regex {
             let hint = &tr("Use $1, ${name} for groups and \\n, \\t for line breaks and tabs");
             let hr = Rect::new(bx + w2 + ui.px(10.0), y1, r.right() - bx - w2 - ui.px(16.0), row_h);
@@ -521,7 +663,11 @@ fn status_bar(app: &App, ui: &mut Ui, r: Rect) {
     let sel_chars: usize = b.sels.iter().map(|s| s.end() - s.start()).sum();
     if sel_chars > 0 {
         let lines: usize = b.sel_line_ranges().iter().map(|(a, z)| z - a + 1).sum();
-        left.push(if lines == 1 { tf("{} selected (1 line)", &[&sel_chars.to_string()]) } else { tf("{} selected ({} lines)", &[&sel_chars.to_string(), &lines.to_string()]) });
+        left.push(if lines == 1 {
+            tf("{} selected (1 line)", &[&sel_chars.to_string()])
+        } else {
+            tf("{} selected ({} lines)", &[&sel_chars.to_string(), &lines.to_string()])
+        });
     }
     if b.sels.len() > 1 {
         left.push(tf("{} carets", &[&b.sels.len().to_string()]));
@@ -532,7 +678,17 @@ fn status_bar(app: &App, ui: &mut Ui, r: Rect) {
         let w = ui.g.measure(s, ui.fs(12.0), FontId::Regular) + ui.px(18.0);
         let sr = Rect::new(x, r.y, w, r.h);
         if k == 0 {
-            ui.button(UiAction::Status(4), sr, s, None, &tf("{}. Go to line", &[s]), Some(&tr("Go to line (Ctrl+G)")), Style::Flat, None, true);
+            ui.button(
+                UiAction::Status(4),
+                sr,
+                s,
+                None,
+                &tf("{}. Go to line", &[s]),
+                Some(&tr("Go to line (Ctrl+G)")),
+                Style::Flat,
+                None,
+                true,
+            );
         } else {
             ui.text(s, sr, 12.0, FontId::Regular, t.text, Align::Center);
             ui.label(sr, s);
@@ -557,7 +713,17 @@ fn status_bar(app: &App, ui: &mut Ui, r: Rect) {
         rx -= w;
         let sr = Rect::new(rx, r.y, w, r.h);
         match kind {
-            Some(k) => ui.button(UiAction::Status(k), sr, &text, None, &format!("{name}: {text}"), Some(&tf("{} — click to change", &[name])), Style::Flat, None, true),
+            Some(k) => ui.button(
+                UiAction::Status(k),
+                sr,
+                &text,
+                None,
+                &format!("{name}: {text}"),
+                Some(&tf("{} — click to change", &[name])),
+                Style::Flat,
+                None,
+                true,
+            ),
             None => {
                 ui.text(&text, sr, 12.0, FontId::Regular, t.text_dim, Align::Center);
                 ui.label(sr, &format!("{name}: {text}"));
@@ -794,7 +960,14 @@ fn editor(app: &mut App, ui: &mut Ui, r: Rect) -> Option<Rect> {
                 }
                 if ch == '\t' {
                     if show_ws {
-                        ui.g.text_in("→", Rect::new(x, y, (next_x - x).min(char_w * 2.0), line_h), px * 0.9, FontId::Mono, t.whitespace, Align::Center);
+                        ui.g.text_in(
+                            "→",
+                            Rect::new(x, y, (next_x - x).min(char_w * 2.0), line_h),
+                            px * 0.9,
+                            FontId::Mono,
+                            t.whitespace,
+                            Align::Center,
+                        );
                     }
                     continue;
                 }
@@ -951,7 +1124,10 @@ fn editor(app: &mut App, ui: &mut Ui, r: Rect) -> Option<Rect> {
         rect: Rect::new(text_x, r.y, text_right - text_x, text_bottom - r.y),
         action: UiAction::Editor,
         role: Role::Editor,
-        label: tf("Editor, {}, line {} column {}", &[&name, &(caret_line + 1).to_string(), &(primary.head - app.doc().buf.line_start(caret_line) + 1).to_string()]),
+        label: tf(
+            "Editor, {}, line {} column {}",
+            &[&name, &(caret_line + 1).to_string(), &(primary.head - app.doc().buf.line_start(caret_line) + 1).to_string()],
+        ),
         tooltip: None,
         value: Some(caret_text),
         enabled: true,
@@ -970,7 +1146,17 @@ fn panel_header(ui: &mut Ui, r: &mut Rect, title: &str, close: Command) {
     ui.g.fill_rect(h, t.window);
     ui.text_clip(title, Rect::new(h.x + ui.px(10.0), h.y, h.w - ui.px(44.0), h.h), 12.5, FontId::Semibold, t.text, Align::Left);
     ui.label(h, title);
-    ui.button(UiAction::Cmd(close), Rect::new(h.right() - ui.px(30.0), h.y + ui.px(3.0), ui.px(26.0), h.h - ui.px(6.0)), "×", Some('\u{E711}'), &tf("Close {}", &[title]), None, Style::Flat, None, true);
+    ui.button(
+        UiAction::Cmd(close),
+        Rect::new(h.right() - ui.px(30.0), h.y + ui.px(3.0), ui.px(26.0), h.h - ui.px(6.0)),
+        "×",
+        Some('\u{E711}'),
+        &tf("Close {}", &[title]),
+        None,
+        Style::Flat,
+        None,
+        true,
+    );
 }
 
 fn outline_panel(app: &mut App, ui: &mut Ui, r: Rect) {
@@ -984,7 +1170,13 @@ fn outline_panel(app: &mut App, ui: &mut Ui, r: Rect) {
     }
     let d = app.doc();
     if d.outline.is_empty() {
-        let msg = &tr(if d.large { "Outline is off for large files." } else if d.lang == Lang::Plain { "Choose a language (Format › Language) to see an outline." } else { "No symbols found." });
+        let msg = &tr(if d.large {
+            "Outline is off for large files."
+        } else if d.lang == Lang::Plain {
+            "Choose a language (Format › Language) to see an outline."
+        } else {
+            "No symbols found."
+        });
         let mr = Rect::new(r.x + ui.px(10.0), r.y + ui.px(6.0), r.w - ui.px(20.0), ui.px(40.0));
         ui.text_clip(msg, mr, 12.0, FontId::Regular, t.text_dim, Align::Left);
         ui.label(mr, msg);
@@ -1084,10 +1276,34 @@ fn results_panel(app: &mut App, ui: &mut Ui, r: Rect) {
         (res.title.clone(), res.status.clone(), res.fif)
     };
     let header = r.take_top(ui.px(30.0));
-    ui.text_clip(&title, Rect::new(header.x + ui.px(10.0), header.y, header.w * 0.5, header.h), 12.5, FontId::Semibold, t.text, Align::Left);
-    ui.text_clip(&status, Rect::new(header.x + header.w * 0.5, header.y, header.w * 0.5 - ui.px(44.0), header.h), 12.0, FontId::Regular, t.text_dim, Align::Right);
+    ui.text_clip(
+        &title,
+        Rect::new(header.x + ui.px(10.0), header.y, header.w * 0.5, header.h),
+        12.5,
+        FontId::Semibold,
+        t.text,
+        Align::Left,
+    );
+    ui.text_clip(
+        &status,
+        Rect::new(header.x + header.w * 0.5, header.y, header.w * 0.5 - ui.px(44.0), header.h),
+        12.0,
+        FontId::Regular,
+        t.text_dim,
+        Align::Right,
+    );
     ui.label(header, &format!("{title}. {status}"));
-    ui.button(UiAction::CloseResults, Rect::new(header.right() - ui.px(32.0), header.y + ui.px(3.0), ui.px(26.0), header.h - ui.px(6.0)), "×", Some('\u{E711}'), &tr("Close results"), None, Style::Flat, None, true);
+    ui.button(
+        UiAction::CloseResults,
+        Rect::new(header.right() - ui.px(32.0), header.y + ui.px(3.0), ui.px(26.0), header.h - ui.px(6.0)),
+        "×",
+        Some('\u{E711}'),
+        &tr("Close results"),
+        None,
+        Style::Flat,
+        None,
+        true,
+    );
     if fif {
         let row = r.take_top(ui.px(36.0));
         let y = row.y + ui.px(3.0);
@@ -1095,17 +1311,55 @@ fn results_panel(app: &mut App, ui: &mut Ui, r: Rect) {
         let mut x = row.x + ui.px(10.0);
         let focus = app.focus;
         let w_q = (row.w * 0.24).max(ui.px(140.0));
-        ui.field(UiAction::Field(Focus::FifQuery), Rect::new(x, y, w_q, h), &mut app.fif.query, focus == Focus::FifQuery, &tr("Find"), &tr("Find in files: text"), false);
+        ui.field(
+            UiAction::Field(Focus::FifQuery),
+            Rect::new(x, y, w_q, h),
+            &mut app.fif.query,
+            focus == Focus::FifQuery,
+            &tr("Find"),
+            &tr("Find in files: text"),
+            false,
+        );
         x += w_q + ui.px(6.0);
         let w_d = (row.w * 0.3).max(ui.px(160.0));
-        ui.field(UiAction::Field(Focus::FifDir), Rect::new(x, y, w_d, h), &mut app.fif.dir, focus == Focus::FifDir, &tr("Folder"), &tr("Folder to search"), false);
+        ui.field(
+            UiAction::Field(Focus::FifDir),
+            Rect::new(x, y, w_d, h),
+            &mut app.fif.dir,
+            focus == Focus::FifDir,
+            &tr("Folder"),
+            &tr("Folder to search"),
+            false,
+        );
         x += w_d + ui.px(2.0);
-        ui.button(UiAction::FifBrowse, Rect::new(x, y, ui.px(30.0), h), "…", None, &tr("Browse for folder"), Some(&tr("Browse for a folder")), Style::Push, None, true);
+        ui.button(
+            UiAction::FifBrowse,
+            Rect::new(x, y, ui.px(30.0), h),
+            "…",
+            None,
+            &tr("Browse for folder"),
+            Some(&tr("Browse for a folder")),
+            Style::Push,
+            None,
+            true,
+        );
         x += ui.px(36.0);
         let w_f = ui.px(120.0);
-        ui.field(UiAction::Field(Focus::FifFilter), Rect::new(x, y, w_f, h), &mut app.fif.filter, focus == Focus::FifFilter, "*.rs;*.txt", &tr("File filter"), false);
+        ui.field(
+            UiAction::Field(Focus::FifFilter),
+            Rect::new(x, y, w_f, h),
+            &mut app.fif.filter,
+            focus == Focus::FifFilter,
+            "*.rs;*.txt",
+            &tr("File filter"),
+            false,
+        );
         x += w_f + ui.px(6.0);
-        let opts = [(0u8, "Aa", "Match case", app.find.case), (1, "W", "Whole word", app.find.word), (2, ".*", "Regular expression", app.find.regex)];
+        let opts = [
+            (0u8, "Aa", "Match case", app.find.case),
+            (1, "W", "Whole word", app.find.word),
+            (2, ".*", "Regular expression", app.find.regex),
+        ];
         for (i, txt, tip, on) in opts {
             let tip = &tr(tip);
             ui.button(UiAction::FindOpt(i), Rect::new(x, y, ui.px(28.0), h), txt, None, tip, Some(tip), Style::Flat, Some(on), true);
@@ -1113,11 +1367,22 @@ fn results_panel(app: &mut App, ui: &mut Ui, r: Rect) {
         }
         x += ui.px(4.0);
         let (stop, search) = (tr("Stop"), tr("Search"));
-        let bw = (ui.g.measure(&stop, ui.fs(12.5), FontId::Regular).max(ui.g.measure(&search, ui.fs(12.5), FontId::Regular)) + ui.px(24.0)).max(ui.px(70.0));
+        let bw = (ui.g.measure(&stop, ui.fs(12.5), FontId::Regular).max(ui.g.measure(&search, ui.fs(12.5), FontId::Regular)) + ui.px(24.0))
+            .max(ui.px(70.0));
         if app.fif_running() {
             ui.button(UiAction::FifStop, Rect::new(x, y, bw, h), &stop, None, &tr("Stop search"), None, Style::Push, None, true);
         } else {
-            ui.button(UiAction::FifSearch, Rect::new(x, y, bw, h), &search, None, &search, Some(&tr("Search (Enter)")), Style::Primary, None, true);
+            ui.button(
+                UiAction::FifSearch,
+                Rect::new(x, y, bw, h),
+                &search,
+                None,
+                &search,
+                Some(&tr("Search (Enter)")),
+                Style::Primary,
+                None,
+                true,
+            );
         }
     }
     let res = app.results.as_mut().expect("results");
@@ -1211,10 +1476,28 @@ fn palette(app: &mut App, ui: &mut Ui, full: Rect) {
         } else if ui.inp.hot == Some(id) {
             ui.g.fill_rrect(ir, ui.px(4.0), t.hover);
         }
-        let dw = if item.detail.is_empty() { 0.0 } else { ui.g.measure(&item.detail, ui.fs(12.0), FontId::Regular).min(ir.w * 0.4) + ui.px(12.0) };
-        ui.text_clip(&item.label, Rect::new(ir.x + ui.px(10.0), ir.y, ir.w - dw - ui.px(14.0), ir.h), 13.0, FontId::Regular, t.text, Align::Left);
+        let dw = if item.detail.is_empty() {
+            0.0
+        } else {
+            ui.g.measure(&item.detail, ui.fs(12.0), FontId::Regular).min(ir.w * 0.4) + ui.px(12.0)
+        };
+        ui.text_clip(
+            &item.label,
+            Rect::new(ir.x + ui.px(10.0), ir.y, ir.w - dw - ui.px(14.0), ir.h),
+            13.0,
+            FontId::Regular,
+            t.text,
+            Align::Left,
+        );
         if dw > 0.0 {
-            ui.text_clip(&item.detail, Rect::new(ir.right() - dw, ir.y, dw - ui.px(8.0), ir.h), 12.0, FontId::Regular, t.text_dim, Align::Right);
+            ui.text_clip(
+                &item.detail,
+                Rect::new(ir.right() - dw, ir.y, dw - ui.px(8.0), ir.h),
+                12.0,
+                FontId::Regular,
+                t.text_dim,
+                Align::Right,
+            );
         }
         ui.register(Widget {
             id,

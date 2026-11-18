@@ -126,10 +126,7 @@ impl Engine {
     }
 
     fn prog_ctx(&self) -> ProgCtx {
-        ProgCtx {
-            word: self.word,
-            shift: self.shift,
-        }
+        ProgCtx { word: self.word, shift: self.shift }
     }
 
     /// Evaluates a tree with this mode's semantics.
@@ -201,25 +198,15 @@ impl Engine {
         if self.equals_expr.take().is_some() {
             self.tokens.clear();
         }
-        let v = if self.kind == Kind::Programmer {
-            Dec::from_i64(self.word.wrap(v.trunc().to_i128().unwrap_or(0)).0)
-        } else {
-            v
-        };
-        self.current = Current::Value {
-            node: Node::Num(v.clone()),
-            value: v,
-        };
+        let v = if self.kind == Kind::Programmer { Dec::from_i64(self.word.wrap(v.trunc().to_i128().unwrap_or(0)).0) } else { v };
+        self.current = Current::Value { node: Node::Num(v.clone()), value: v };
     }
 
     /// Ends digit entry so the next digit starts a new number (after MS, M+, M-).
     pub fn commit(&mut self) {
         if let Current::Typing(t) = &self.current {
             let v = self.parse_typing(t);
-            self.current = Current::Value {
-                node: Node::Num(v.clone()),
-                value: v,
-            };
+            self.current = Current::Value { node: Node::Num(v.clone()), value: v };
         }
     }
 
@@ -227,10 +214,7 @@ impl Engine {
     /// its expression is shown.
     pub fn restore(&mut self, entry: &HistoryEntry) {
         self.reset();
-        self.current = Current::Value {
-            node: Node::Num(entry.value.clone()),
-            value: entry.value.clone(),
-        };
+        self.current = Current::Value { node: Node::Num(entry.value.clone()), value: entry.value.clone() };
         self.equals_expr = Some(entry.expression.clone());
     }
 
@@ -249,10 +233,7 @@ impl Engine {
                 if self.error.is_some() || self.equals_expr.is_some() {
                     self.reset();
                 }
-                self.current = Current::Value {
-                    node: Node::Num(v.clone()),
-                    value: v,
-                };
+                self.current = Current::Value { node: Node::Num(v.clone()), value: v };
                 true
             }
             Err(_) => false,
@@ -267,12 +248,7 @@ impl Engine {
             let wrapped = Dec::from_i64(w.wrap(v.to_i128().unwrap_or(0)).0);
             match &self.current {
                 Current::None => self.display = wrapped,
-                _ => {
-                    self.current = Current::Value {
-                        node: Node::Num(wrapped.clone()),
-                        value: wrapped,
-                    }
-                }
+                _ => self.current = Current::Value { node: Node::Num(wrapped.clone()), value: wrapped },
             }
         }
     }
@@ -280,10 +256,7 @@ impl Engine {
     pub fn set_radix(&mut self, r: Radix) {
         if let Current::Typing(s) = &self.current {
             let v = self.parse_typing(s);
-            self.current = Current::Value {
-                node: Node::Num(v.clone()),
-                value: v,
-            };
+            self.current = Current::Value { node: Node::Num(v.clone()), value: v };
         }
         self.radix = r;
     }
@@ -301,10 +274,7 @@ impl Engine {
         }
         let v = self.int_value() ^ (1i64 << bit);
         let v = Dec::from_i64(self.word.wrap(self.word.pattern(v) as i128).0);
-        self.current = Current::Value {
-            node: Node::Num(v.clone()),
-            value: v,
-        };
+        self.current = Current::Value { node: Node::Num(v.clone()), value: v };
     }
 
     /// Handles a key press; returns a history entry when `=` completes a calculation.
@@ -358,10 +328,7 @@ impl Engine {
             Key::Rand => {
                 self.start_operand();
                 let v = func::random();
-                self.current = Current::Value {
-                    node: Node::Num(v.clone()),
-                    value: v,
-                };
+                self.current = Current::Value { node: Node::Num(v.clone()), value: v };
             }
         }
         None
@@ -400,11 +367,7 @@ impl Engine {
                 return;
             }
             let body = s.trim_start_matches('-');
-            let candidate = if body == "0" {
-                format!("{}{}", if s.starts_with('-') { "-" } else { "" }, ch)
-            } else {
-                format!("{s}{ch}")
-            };
+            let candidate = if body == "0" { format!("{}{}", if s.starts_with('-') { "-" } else { "" }, ch) } else { format!("{s}{ch}") };
             let ok = match self.kind {
                 Kind::Programmer => programmer::parse_entry(&candidate, self.radix, self.word).is_some(),
                 k => Self::typed_digits(&candidate) <= k.max_digits(),
@@ -538,10 +501,7 @@ impl Engine {
         match r {
             Ok(r) => {
                 self.start_operand();
-                self.current = Current::Value {
-                    node: Node::Num(r.clone()),
-                    value: r,
-                };
+                self.current = Current::Value { node: Node::Num(r.clone()), value: r };
             }
             Err(e) => self.set_error(e),
         }
@@ -616,12 +576,7 @@ impl Engine {
         self.open_parens -= 1;
         match inner {
             Ok(inner) => match self.eval(&inner) {
-                Ok(value) => {
-                    self.current = Current::Value {
-                        node: Node::Group(Box::new(inner)),
-                        value,
-                    }
-                }
+                Ok(value) => self.current = Current::Value { node: Node::Group(Box::new(inner)), value },
                 Err(e) => self.set_error(e),
             },
             Err(e) => self.set_error(e),
@@ -637,10 +592,7 @@ impl Engine {
                 (Node::Num(v), Some((op, b))) => Node::binary(*op, Node::Num(v.clone()), Node::Num(b.clone())),
                 (Node::Num(v), None) => {
                     self.equals_expr = Some(format!("{} =", self.format_value(v)));
-                    self.current = Current::Value {
-                        node: operand.clone(),
-                        value: v.clone(),
-                    };
+                    self.current = Current::Value { node: operand.clone(), value: v.clone() };
                     return None;
                 }
                 _ => operand,
@@ -669,16 +621,9 @@ impl Engine {
         }
         match result {
             Ok(v) => {
-                self.current = Current::Value {
-                    node: Node::Num(v.clone()),
-                    value: v.clone(),
-                };
+                self.current = Current::Value { node: Node::Num(v.clone()), value: v.clone() };
                 let result = self.format_value(&v);
-                (self.kind != Kind::Programmer).then_some(HistoryEntry {
-                    expression: expr_text,
-                    result,
-                    value: v,
-                })
+                (self.kind != Kind::Programmer).then_some(HistoryEntry { expression: expr_text, result, value: v })
             }
             Err(e) => {
                 self.set_error(e);

@@ -210,8 +210,7 @@ impl Shell {
                 let _ = w.window.request_inner_size(LogicalSize::new(COMPACT_SIZE.0, COMPACT_SIZE.1));
             } else {
                 w.window.set_window_level(WindowLevel::Normal);
-                w.window
-                    .set_min_inner_size(Some(LogicalSize::new(ui::view::MIN_WIDTH, ui::view::MIN_HEIGHT)));
+                w.window.set_min_inner_size(Some(LogicalSize::new(ui::view::MIN_WIDTH, ui::view::MIN_HEIGHT)));
                 if let Some(s) = self.restore_size.take() {
                     let _ = w.window.request_inner_size(s);
                 }
@@ -229,11 +228,7 @@ impl Shell {
 
     fn focusable_ids(&self) -> Vec<WId> {
         let layer = self.top_layer();
-        self.widgets
-            .iter()
-            .filter(|w| w.layer == layer && w.focusable())
-            .map(|w| w.id)
-            .collect()
+        self.widgets.iter().filter(|w| w.layer == layer && w.focusable()).map(|w| w.id).collect()
     }
 
     fn move_focus(&mut self, delta: i32) {
@@ -302,16 +297,8 @@ impl Shell {
             },
             _ => return,
         };
-        let mods = Mods {
-            ctrl,
-            shift: self.mods.shift_key(),
-            alt: self.mods.alt_key(),
-        };
-        let focused = self
-            .input
-            .focus
-            .filter(|_| self.input.focus_visible)
-            .and_then(|f| self.widget(f).cloned());
+        let mods = Mods { ctrl, shift: self.mods.shift_key(), alt: self.mods.alt_key() };
+        let focused = self.input.focus.filter(|_| self.input.focus_visible).and_then(|f| self.widget(f).cloned());
         match kin {
             KeyIn::Tab => return self.move_focus(if mods.shift { -1 } else { 1 }),
             KeyIn::Escape if self.app.overlay != Overlay::None => return self.dispatch(Action::CloseOverlay),
@@ -330,12 +317,7 @@ impl Shell {
             }
             KeyIn::Up | KeyIn::Down | KeyIn::Left | KeyIn::Right => {
                 let delta = if matches!(kin, KeyIn::Up | KeyIn::Left) { -1 } else { 1 };
-                if let Some(Widget {
-                    role: Role::ComboBox,
-                    action: Action::Open(Overlay::Combo(id)),
-                    ..
-                }) = &focused
-                {
+                if let Some(Widget { role: Role::ComboBox, action: Action::Open(Overlay::Combo(id)), .. }) = &focused {
                     if matches!(kin, KeyIn::Up | KeyIn::Down) {
                         self.app.combo_step(*id, delta as i64);
                         return self.request_redraw();
@@ -409,10 +391,7 @@ impl Shell {
             self.focus_overlay = false;
             let layer = self.top_layer();
             let candidates = || self.widgets.iter().filter(|w| w.layer == layer && w.focusable());
-            let pick = candidates()
-                .find(|w| w.checked == Some(true))
-                .or_else(|| candidates().next())
-                .map(|w| w.id);
+            let pick = candidates().find(|w| w.checked == Some(true)).or_else(|| candidates().next()).map(|w| w.id);
             if pick.is_some() {
                 self.input.focus = pick;
                 self.input.focus_visible = true;
@@ -454,12 +433,7 @@ impl Shell {
             };
             let mut n = Node::new(role);
             n.set_label(w.label.clone());
-            n.set_bounds(ARect {
-                x0: w.rect.x as f64,
-                y0: w.rect.y as f64,
-                x1: w.rect.right() as f64,
-                y1: w.rect.bottom() as f64,
-            });
+            n.set_bounds(ARect { x0: w.rect.x as f64, y0: w.rect.y as f64, x1: w.rect.right() as f64, y1: w.rect.bottom() as f64 });
             if let Some(v) = &w.value {
                 n.set_value(v.clone());
             } else if matches!(w.role, Role::Label | Role::Display) {
@@ -489,12 +463,7 @@ impl Shell {
         r.set_children(children);
         nodes.push((root, r));
         let focus = self.input.focus.filter(|f| seen.contains(f)).map(NodeId).unwrap_or(root);
-        TreeUpdate {
-            nodes,
-            tree: Some(TreeInfo::new(root)),
-            tree_id: TreeId::ROOT,
-            focus,
-        }
+        TreeUpdate { nodes, tree: Some(TreeInfo::new(root)), tree_id: TreeId::ROOT, focus }
     }
 
     fn save(&mut self) {
@@ -658,10 +627,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.request_redraw();
             }
             WindowEvent::ModifiersChanged(m) => self.mods = m.state(),
-            WindowEvent::CursorMoved {
-                position: PhysicalPosition { x, y },
-                ..
-            } => {
+            WindowEvent::CursorMoved { position: PhysicalPosition { x, y }, .. } => {
                 self.cursor = Some((x as f32, y as f32));
                 if self.update_hot() {
                     self.request_redraw();
@@ -673,11 +639,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     self.request_redraw();
                 }
             }
-            WindowEvent::MouseInput {
-                state: ElementState::Pressed,
-                button: MouseButton::Left,
-                ..
-            } if self.help.is_some() => {
+            WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, .. } if self.help.is_some() => {
                 // The OK button, or a click outside the help, closes it.
                 if let (Some((panel, ok)), Some((x, y))) = (self.help, self.cursor) {
                     if ok.contains(x, y) || !panel.contains(x, y) {
@@ -687,11 +649,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 }
             }
             WindowEvent::MouseInput { .. } if self.help.is_some() => {}
-            WindowEvent::MouseInput {
-                state,
-                button: MouseButton::Left,
-                ..
-            } => {
+            WindowEvent::MouseInput { state, button: MouseButton::Left, .. } => {
                 self.update_hot();
                 match state {
                     ElementState::Pressed => {
@@ -730,11 +688,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     self.request_redraw();
                 }
             }
-            WindowEvent::KeyboardInput {
-                event,
-                is_synthetic: false,
-                ..
-            } => {
+            WindowEvent::KeyboardInput { event, is_synthetic: false, .. } => {
                 if event.state == ElementState::Pressed {
                     self.key(&event);
                 }

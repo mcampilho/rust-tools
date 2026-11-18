@@ -28,43 +28,248 @@ pub struct Dom {
     pub nodes: Vec<Node>,
 }
 
-const VOID: &[&str] = &["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr", "basefont", "frame"];
+const VOID: &[&str] =
+    &["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr", "basefont", "frame"];
 const RAW: &[&str] = &["script", "style", "textarea", "title", "xmp", "noembed", "iframe", "noframes", "plaintext"];
 const CLOSES_P: &[&str] = &[
-    "address", "article", "aside", "blockquote", "center", "details", "dialog", "dir", "div", "dl", "fieldset", "figcaption", "figure", "footer", "form",
-    "h1", "h2", "h3", "h4", "h5", "h6", "header", "hgroup", "hr", "main", "menu", "nav", "ol", "p", "pre", "section", "table", "ul", "li", "dd", "dt",
+    "address",
+    "article",
+    "aside",
+    "blockquote",
+    "center",
+    "details",
+    "dialog",
+    "dir",
+    "div",
+    "dl",
+    "fieldset",
+    "figcaption",
+    "figure",
+    "footer",
+    "form",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "header",
+    "hgroup",
+    "hr",
+    "main",
+    "menu",
+    "nav",
+    "ol",
+    "p",
+    "pre",
+    "section",
+    "table",
+    "ul",
+    "li",
+    "dd",
+    "dt",
 ];
 const BLOCK: &[&str] = &[
-    "html", "body", "address", "article", "aside", "blockquote", "center", "details", "dialog", "dir", "div", "dl", "dd", "dt", "fieldset", "figcaption",
-    "figure", "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hgroup", "hr", "main", "menu", "nav", "ol", "p", "pre", "section", "table",
-    "ul", "li", "summary", "caption", "legend", "noscript", "listing", "xmp", "plaintext", "search",
+    "html",
+    "body",
+    "address",
+    "article",
+    "aside",
+    "blockquote",
+    "center",
+    "details",
+    "dialog",
+    "dir",
+    "div",
+    "dl",
+    "dd",
+    "dt",
+    "fieldset",
+    "figcaption",
+    "figure",
+    "footer",
+    "form",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "header",
+    "hgroup",
+    "hr",
+    "main",
+    "menu",
+    "nav",
+    "ol",
+    "p",
+    "pre",
+    "section",
+    "table",
+    "ul",
+    "li",
+    "summary",
+    "caption",
+    "legend",
+    "noscript",
+    "listing",
+    "xmp",
+    "plaintext",
+    "search",
 ];
 const HIDDEN: &[&str] = &[
-    "head", "script", "style", "title", "meta", "link", "template", "noembed", "noframes", "iframe", "object", "embed", "svg", "math", "canvas", "video",
-    "audio", "select", "datalist", "map", "area", "param", "source", "track", "base", "dialog", "frame", "frameset",
+    "head", "script", "style", "title", "meta", "link", "template", "noembed", "noframes", "iframe", "object", "embed", "svg", "math",
+    "canvas", "video", "audio", "select", "datalist", "map", "area", "param", "source", "track", "base", "dialog", "frame", "frameset",
 ];
 
 // ---------------------------------------------------------------- entities
 
 const ENTITIES: &[(&str, &str)] = &[
-    ("amp", "&"), ("lt", "<"), ("gt", ">"), ("quot", "\""), ("apos", "'"), ("nbsp", "\u{A0}"), ("copy", "©"), ("reg", "®"), ("trade", "™"),
-    ("hellip", "…"), ("mdash", "—"), ("ndash", "–"), ("lsquo", "‘"), ("rsquo", "’"), ("sbquo", "‚"), ("ldquo", "“"), ("rdquo", "”"),
-    ("bdquo", "„"), ("bull", "•"), ("middot", "·"), ("laquo", "«"), ("raquo", "»"), ("lsaquo", "‹"), ("rsaquo", "›"), ("deg", "°"),
-    ("plusmn", "±"), ("times", "×"), ("divide", "÷"), ("euro", "€"), ("pound", "£"), ("yen", "¥"), ("cent", "¢"), ("curren", "¤"),
-    ("sect", "§"), ("para", "¶"), ("frac12", "½"), ("frac14", "¼"), ("frac34", "¾"), ("sup1", "¹"), ("sup2", "²"), ("sup3", "³"),
-    ("iexcl", "¡"), ("iquest", "¿"), ("acute", "´"), ("cedil", "¸"), ("micro", "µ"), ("ordf", "ª"), ("ordm", "º"), ("not", "¬"),
-    ("shy", "\u{AD}"), ("macr", "¯"), ("uml", "¨"), ("brvbar", "¦"), ("dagger", "†"), ("Dagger", "‡"), ("permil", "‰"), ("prime", "′"),
-    ("Prime", "″"), ("larr", "←"), ("rarr", "→"), ("uarr", "↑"), ("darr", "↓"), ("harr", "↔"), ("lArr", "⇐"), ("rArr", "⇒"), ("hArr", "⇔"),
-    ("le", "≤"), ("ge", "≥"), ("ne", "≠"), ("asymp", "≈"), ("equiv", "≡"), ("infin", "∞"), ("minus", "−"), ("radic", "√"), ("sum", "∑"),
-    ("prod", "∏"), ("part", "∂"), ("int", "∫"), ("isin", "∈"), ("cap", "∩"), ("cup", "∪"), ("and", "∧"), ("or", "∨"), ("forall", "∀"),
-    ("exist", "∃"), ("empty", "∅"), ("nabla", "∇"), ("loz", "◊"), ("spades", "♠"), ("clubs", "♣"), ("hearts", "♥"), ("diams", "♦"),
-    ("check", "✓"), ("cross", "✗"), ("star", "☆"), ("starf", "★"), ("ensp", "\u{2002}"), ("emsp", "\u{2003}"), ("thinsp", "\u{2009}"),
-    ("zwnj", "\u{200C}"), ("zwj", "\u{200D}"), ("lrm", "\u{200E}"), ("rlm", "\u{200F}"), ("alpha", "α"), ("beta", "β"), ("gamma", "γ"),
-    ("delta", "δ"), ("epsilon", "ε"), ("theta", "θ"), ("lambda", "λ"), ("mu", "μ"), ("pi", "π"), ("sigma", "σ"), ("tau", "τ"), ("phi", "φ"),
-    ("omega", "ω"), ("Delta", "Δ"), ("Sigma", "Σ"), ("Omega", "Ω"), ("Pi", "Π"), ("szlig", "ß"), ("aelig", "æ"), ("AElig", "Æ"),
-    ("oslash", "ø"), ("Oslash", "Ø"), ("aring", "å"), ("Aring", "Å"), ("ccedil", "ç"), ("Ccedil", "Ç"), ("ntilde", "ñ"), ("Ntilde", "Ñ"),
-    ("otilde", "õ"), ("Otilde", "Õ"), ("atilde", "ã"), ("Atilde", "Ã"), ("eth", "ð"), ("thorn", "þ"), ("yuml", "ÿ"), ("oelig", "œ"),
-    ("OElig", "Œ"), ("scaron", "š"), ("Scaron", "Š"), ("fnof", "ƒ"), ("circ", "ˆ"), ("tilde", "˜"),
+    ("amp", "&"),
+    ("lt", "<"),
+    ("gt", ">"),
+    ("quot", "\""),
+    ("apos", "'"),
+    ("nbsp", "\u{A0}"),
+    ("copy", "©"),
+    ("reg", "®"),
+    ("trade", "™"),
+    ("hellip", "…"),
+    ("mdash", "—"),
+    ("ndash", "–"),
+    ("lsquo", "‘"),
+    ("rsquo", "’"),
+    ("sbquo", "‚"),
+    ("ldquo", "“"),
+    ("rdquo", "”"),
+    ("bdquo", "„"),
+    ("bull", "•"),
+    ("middot", "·"),
+    ("laquo", "«"),
+    ("raquo", "»"),
+    ("lsaquo", "‹"),
+    ("rsaquo", "›"),
+    ("deg", "°"),
+    ("plusmn", "±"),
+    ("times", "×"),
+    ("divide", "÷"),
+    ("euro", "€"),
+    ("pound", "£"),
+    ("yen", "¥"),
+    ("cent", "¢"),
+    ("curren", "¤"),
+    ("sect", "§"),
+    ("para", "¶"),
+    ("frac12", "½"),
+    ("frac14", "¼"),
+    ("frac34", "¾"),
+    ("sup1", "¹"),
+    ("sup2", "²"),
+    ("sup3", "³"),
+    ("iexcl", "¡"),
+    ("iquest", "¿"),
+    ("acute", "´"),
+    ("cedil", "¸"),
+    ("micro", "µ"),
+    ("ordf", "ª"),
+    ("ordm", "º"),
+    ("not", "¬"),
+    ("shy", "\u{AD}"),
+    ("macr", "¯"),
+    ("uml", "¨"),
+    ("brvbar", "¦"),
+    ("dagger", "†"),
+    ("Dagger", "‡"),
+    ("permil", "‰"),
+    ("prime", "′"),
+    ("Prime", "″"),
+    ("larr", "←"),
+    ("rarr", "→"),
+    ("uarr", "↑"),
+    ("darr", "↓"),
+    ("harr", "↔"),
+    ("lArr", "⇐"),
+    ("rArr", "⇒"),
+    ("hArr", "⇔"),
+    ("le", "≤"),
+    ("ge", "≥"),
+    ("ne", "≠"),
+    ("asymp", "≈"),
+    ("equiv", "≡"),
+    ("infin", "∞"),
+    ("minus", "−"),
+    ("radic", "√"),
+    ("sum", "∑"),
+    ("prod", "∏"),
+    ("part", "∂"),
+    ("int", "∫"),
+    ("isin", "∈"),
+    ("cap", "∩"),
+    ("cup", "∪"),
+    ("and", "∧"),
+    ("or", "∨"),
+    ("forall", "∀"),
+    ("exist", "∃"),
+    ("empty", "∅"),
+    ("nabla", "∇"),
+    ("loz", "◊"),
+    ("spades", "♠"),
+    ("clubs", "♣"),
+    ("hearts", "♥"),
+    ("diams", "♦"),
+    ("check", "✓"),
+    ("cross", "✗"),
+    ("star", "☆"),
+    ("starf", "★"),
+    ("ensp", "\u{2002}"),
+    ("emsp", "\u{2003}"),
+    ("thinsp", "\u{2009}"),
+    ("zwnj", "\u{200C}"),
+    ("zwj", "\u{200D}"),
+    ("lrm", "\u{200E}"),
+    ("rlm", "\u{200F}"),
+    ("alpha", "α"),
+    ("beta", "β"),
+    ("gamma", "γ"),
+    ("delta", "δ"),
+    ("epsilon", "ε"),
+    ("theta", "θ"),
+    ("lambda", "λ"),
+    ("mu", "μ"),
+    ("pi", "π"),
+    ("sigma", "σ"),
+    ("tau", "τ"),
+    ("phi", "φ"),
+    ("omega", "ω"),
+    ("Delta", "Δ"),
+    ("Sigma", "Σ"),
+    ("Omega", "Ω"),
+    ("Pi", "Π"),
+    ("szlig", "ß"),
+    ("aelig", "æ"),
+    ("AElig", "Æ"),
+    ("oslash", "ø"),
+    ("Oslash", "Ø"),
+    ("aring", "å"),
+    ("Aring", "Å"),
+    ("ccedil", "ç"),
+    ("Ccedil", "Ç"),
+    ("ntilde", "ñ"),
+    ("Ntilde", "Ñ"),
+    ("otilde", "õ"),
+    ("Otilde", "Õ"),
+    ("atilde", "ã"),
+    ("Atilde", "Ã"),
+    ("eth", "ð"),
+    ("thorn", "þ"),
+    ("yuml", "ÿ"),
+    ("oelig", "œ"),
+    ("OElig", "Œ"),
+    ("scaron", "š"),
+    ("Scaron", "Š"),
+    ("fnof", "ƒ"),
+    ("circ", "ˆ"),
+    ("tilde", "˜"),
 ];
 
 fn accented(name: &str) -> Option<char> {
@@ -98,7 +303,12 @@ pub fn decode_entities(s: &str) -> String {
     while let Some(i) = rest.find('&') {
         out.push_str(&rest[..i]);
         let after = &rest[i + 1..];
-        let end = after.char_indices().take(32).find(|(_, c)| !(c.is_ascii_alphanumeric() || *c == '#')).map(|(j, _)| j).unwrap_or(after.len().min(32));
+        let end = after
+            .char_indices()
+            .take(32)
+            .find(|(_, c)| !(c.is_ascii_alphanumeric() || *c == '#'))
+            .map(|(j, _)| j)
+            .unwrap_or(after.len().min(32));
         let name = &after[..end];
         let semi = after[end..].starts_with(';');
         let decoded = if let Some(num) = name.strip_prefix('#') {
@@ -399,7 +609,11 @@ pub fn decode(bytes: &[u8]) -> (String, String) {
     }
     let head = String::from_utf8_lossy(&bytes[..bytes.len().min(4096)]).to_ascii_lowercase();
     if let Some(p) = head.find("charset=") {
-        let label: String = head[p + 8..].trim_start_matches(['"', '\'']).chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_').collect();
+        let label: String = head[p + 8..]
+            .trim_start_matches(['"', '\''])
+            .chars()
+            .take_while(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
+            .collect();
         if let Some(enc) = encoding_rs::Encoding::for_label(label.as_bytes()) {
             let enc = if enc == encoding_rs::UTF_16LE || enc == encoding_rs::UTF_16BE { encoding_rs::UTF_8 } else { enc };
             return (enc.decode_without_bom_handling(bytes).0.into_owned(), enc.name().to_string());
@@ -709,7 +923,8 @@ impl Converter<'_> {
             "br" => return inl.push(Inline::Break),
             "img" => {
                 let node = &self.dom.nodes[n];
-                let style_w = node.attr("style").and_then(|s| css::declarations(s).into_iter().rev().find(|(k, _)| k == "width").map(|(_, v)| v));
+                let style_w =
+                    node.attr("style").and_then(|s| css::declarations(s).into_iter().rev().find(|(k, _)| k == "width").map(|(_, v)| v));
                 inl.push(Inline::Image {
                     src: node.attr("src").unwrap_or("").to_string(),
                     alt: node.attr("alt").unwrap_or("").to_string(),
@@ -867,7 +1082,8 @@ impl Converter<'_> {
                         .attr("class")
                         .and_then(|c| c.split_whitespace().map(crate::syntax::from_tag).find(|l| *l != crate::syntax::Lang::Plain))
                 };
-                let lang = class_lang(n).or_else(|| self.dom.nodes[n].children.iter().find(|&&c| self.dom.nodes[c].tag == "code").and_then(|&c| class_lang(c)));
+                let lang = class_lang(n)
+                    .or_else(|| self.dom.nodes[n].children.iter().find(|&&c| self.dom.nodes[c].tag == "code").and_then(|&c| class_lang(c)));
                 if let Some(lang) = lang {
                     let base = inl.iter().find_map(|i| if let Inline::Text(_, s) = i { Some(*s) } else { None }).unwrap_or_default();
                     let text: String = inl
@@ -962,7 +1178,8 @@ impl Converter<'_> {
                                 bl.margin_bottom = bl.margin_bottom.min(0.4);
                                 bl.margin_top = bl.margin_top.min(0.4);
                             }
-                            let colspan = self.dom.nodes[cell].attr("colspan").and_then(|s| s.trim().parse::<usize>().ok()).unwrap_or(1).clamp(1, 64);
+                            let colspan =
+                                self.dom.nodes[cell].attr("colspan").and_then(|s| s.trim().parse::<usize>().ok()).unwrap_or(1).clamp(1, 64);
                             row.cells.push(Cell { blocks, header: ctag == "th", align: cc.align, colspan, bg: cc.bg.or(c.bg) });
                             self.path.pop();
                         }
@@ -1039,7 +1256,10 @@ pub fn parse(src: &str, base: Option<&Path>) -> RichDoc {
     }
     let mut titles = Vec::new();
     find_tag(&dom, 0, "title", &mut titles);
-    let title = titles.first().and_then(|&t| dom.nodes[t].children.first()).map(|&c| dom.nodes[c].text.split_whitespace().collect::<Vec<_>>().join(" "));
+    let title = titles
+        .first()
+        .and_then(|&t| dom.nodes[t].children.first())
+        .map(|&c| dom.nodes[c].text.split_whitespace().collect::<Vec<_>>().join(" "));
     let mut conv = Converter { dom: &dom, sheet, links: Vec::new(), title, page_bg: None, page_color: None, path: Vec::new() };
     let root = Computed { style: Style::default(), align: Align::Left, pre: false, display: Display::Block, bg: None };
     let mut blocks = Vec::new();
@@ -1050,7 +1270,15 @@ pub fn parse(src: &str, base: Option<&Path>) -> RichDoc {
 /// Converts an HTML fragment (embedded in Markdown); links are appended to `links`.
 pub fn fragment(src: &str, links: &mut Vec<String>) -> Vec<Block> {
     let dom = parse_dom(src);
-    let mut conv = Converter { dom: &dom, sheet: Sheet::default(), links: std::mem::take(links), title: None, page_bg: None, page_color: None, path: Vec::new() };
+    let mut conv = Converter {
+        dom: &dom,
+        sheet: Sheet::default(),
+        links: std::mem::take(links),
+        title: None,
+        page_bg: None,
+        page_color: None,
+        path: Vec::new(),
+    };
     let root = Computed { style: Style::default(), align: Align::Left, pre: false, display: Display::Block, bg: None };
     let mut blocks = Vec::new();
     conv.flow(0, &root, &mut blocks);
@@ -1120,12 +1348,18 @@ mod tests {
 
     #[test]
     fn code_classes_are_highlighted() {
-        let doc = parse("<pre><code class=\"language-python\">def f():
-    return 1</code></pre>", None);
+        let doc = parse(
+            "<pre><code class=\"language-python\">def f():
+    return 1</code></pre>",
+            None,
+        );
         let Kind::Pre(v) = &doc.blocks[0].kind else { panic!() };
         assert!(v.iter().any(|i| matches!(i, Inline::Text(t, s) if t == "def" && s.tok == crate::syntax::Tok::Keyword as u8 + 1)), "{v:?}");
-        assert_eq!(plain_text(&doc.blocks).trim_end(), "def f():
-    return 1");
+        assert_eq!(
+            plain_text(&doc.blocks).trim_end(),
+            "def f():
+    return 1"
+        );
     }
 
     #[test]

@@ -108,10 +108,7 @@ fn programmer_lexing() {
     assert_eq!(p("~0", 10), -1);
     assert_eq!(p("7 % 3", 10), 1);
     assert_eq!(p("bad and f", 16), 0xBAD & 0xF);
-    let ctx = ProgCtx {
-        word: WordSize::Byte,
-        ..ProgCtx::default()
-    };
+    let ctx = ProgCtx { word: WordSize::Byte, ..ProgCtx::default() };
     let r = peval(&parse_str("100 + 100", LexMode::Programmer(10)).unwrap(), &ctx).unwrap();
     assert_eq!((r.value, r.overflow), (-56, true));
     assert!(parse_str("1.5", LexMode::Programmer(10)).is_err());

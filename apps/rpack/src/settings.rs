@@ -25,10 +25,17 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Settings {
-        Settings { theme: 0, language: None, window: None, overwrite: Overwrite::default(), open_after: true, folder: None, spec: Spec::default() }
+        Settings {
+            theme: 0,
+            language: None,
+            window: None,
+            overwrite: Overwrite::default(),
+            open_after: true,
+            folder: None,
+            spec: Spec::default(),
+        }
     }
 }
-
 
 impl Settings {
     pub fn load(s: &Store) -> Settings {
@@ -51,7 +58,11 @@ impl Settings {
             folder: s.get("folder").filter(|f| !f.trim().is_empty()).map(PathBuf::from),
             spec: Spec {
                 kind: s.get("new_kind").and_then(Kind::from_key).filter(|k| !k.needs_one_file()).unwrap_or(Kind::SevenZ),
-                level: s.get("new_level").and_then(|v| v.parse::<usize>().ok()).and_then(|i| Level::ALL.get(i).copied()).unwrap_or_default(),
+                level: s
+                    .get("new_level")
+                    .and_then(|v| v.parse::<usize>().ok())
+                    .and_then(|i| Level::ALL.get(i).copied())
+                    .unwrap_or_default(),
                 zip_method: s.get("zip_method").and_then(|v| ZipMethod::ALL.into_iter().find(|m| m.label() == v)).unwrap_or_default(),
                 seven_method: s.get("seven_method").and_then(|v| SevenMethod::ALL.into_iter().find(|m| m.label() == v)).unwrap_or_default(),
                 solid: s.get("solid") != Some("no"),
@@ -91,7 +102,13 @@ mod tests {
             overwrite: Overwrite::Skip,
             open_after: false,
             folder: Some(PathBuf::from("\\\\nas\\cópias de família")),
-            spec: Spec { kind: Kind::Tar(Some(crate::archive::Codec::Zstd)), level: Level::Ultra, zip_method: ZipMethod::Xz, seven_method: SevenMethod::Ppmd, solid: false },
+            spec: Spec {
+                kind: Kind::Tar(Some(crate::archive::Codec::Zstd)),
+                level: Level::Ultra,
+                zip_method: ZipMethod::Xz,
+                seven_method: SevenMethod::Ppmd,
+                solid: false,
+            },
         };
         assert_eq!(Settings::load(&Store::parse(&s.to_store().serialize("rpack"))), s);
         let bad = Settings::load(&Store::parse("theme=??\nwindow=abc\nlanguage=xx-YY\nfolder=\nif_exists=maybe\n"));

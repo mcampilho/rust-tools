@@ -178,8 +178,11 @@ fn register_classes() {
     unsafe {
         let inst = GetModuleHandleW(None).unwrap_or_default();
         let black = HBRUSH(GetStockObject(BLACK_BRUSH).0);
-        for (name, proc_, brush) in [(WALL_CLASS, Some(wall_proc as WndProc), black), (CONTROL_CLASS, Some(control_proc as WndProc), HBRUSH::default())] {
-            let wc = WNDCLASSW { lpfnWndProc: proc_, hInstance: inst.into(), lpszClassName: name, hbrBackground: brush, ..Default::default() };
+        for (name, proc_, brush) in
+            [(WALL_CLASS, Some(wall_proc as WndProc), black), (CONTROL_CLASS, Some(control_proc as WndProc), HBRUSH::default())]
+        {
+            let wc =
+                WNDCLASSW { lpfnWndProc: proc_, hInstance: inst.into(), lpszClassName: name, hbrBackground: brush, ..Default::default() };
             RegisterClassW(&wc);
         }
         TASKBAR_CREATED.with(|c| c.set(RegisterWindowMessageW(w!("TaskbarCreated"))));
@@ -208,7 +211,19 @@ fn device() -> windows::core::Result<(ID3D11Device, ID3D11DeviceContext)> {
     for driver in [D3D_DRIVER_TYPE_HARDWARE, D3D_DRIVER_TYPE_WARP] {
         let (mut device, mut context) = (None, None);
         // SAFETY: out-pointers to locals.
-        match unsafe { D3D11CreateDevice(None, driver, HMODULE::default(), flags, Some(&levels), D3D11_SDK_VERSION, Some(&mut device), None, Some(&mut context)) } {
+        match unsafe {
+            D3D11CreateDevice(
+                None,
+                driver,
+                HMODULE::default(),
+                flags,
+                Some(&levels),
+                D3D11_SDK_VERSION,
+                Some(&mut device),
+                None,
+                Some(&mut context),
+            )
+        } {
             Ok(()) => {
                 if let (Some(d), Some(c)) = (device, context) {
                     return Ok((d, c));
@@ -306,8 +321,8 @@ impl Video {
             attrs.SetUnknown(&MF_MEDIA_ENGINE_DXGI_MANAGER, &manager).map_err(mf)?;
             attrs.SetUnknown(&MF_MEDIA_ENGINE_CALLBACK, &notify).map_err(mf)?;
             attrs.SetUINT32(&MF_MEDIA_ENGINE_VIDEO_OUTPUT_FORMAT, DXGI_FORMAT_B8G8R8A8_UNORM.0 as u32).map_err(mf)?;
-            let factory: IMFMediaEngineClassFactory =
-                CoCreateInstance(&CLSID_MFMediaEngineClassFactory, None, CLSCTX_INPROC_SERVER).map_err(|e| err("the media engine is not available", e))?;
+            let factory: IMFMediaEngineClassFactory = CoCreateInstance(&CLSID_MFMediaEngineClassFactory, None, CLSCTX_INPROC_SERVER)
+                .map_err(|e| err("the media engine is not available", e))?;
             let engine = factory.CreateInstance(0, &attrs).map_err(|e| err("the media engine is not available", e))?;
             let _ = engine.SetMuted(true);
             let _ = engine.SetLoop(true);
@@ -706,7 +721,8 @@ fn run(rx: Receiver<Cmd>, report: &dyn Fn(State)) {
         let _ = MFStartup(MF_VERSION, MFSTARTUP_LITE);
         register_classes();
         let control = create(CONTROL_CLASS, WS_EX_TOOLWINDOW);
-        let power = control.and_then(|c| RegisterPowerSettingNotification(HANDLE(c.0), &GUID_CONSOLE_DISPLAY_STATE, DEVICE_NOTIFY_WINDOW_HANDLE).ok());
+        let power = control
+            .and_then(|c| RegisterPowerSettingNotification(HANDLE(c.0), &GUID_CONSOLE_DISPLAY_STATE, DEVICE_NOTIFY_WINDOW_HANDLE).ok());
         (control, power)
     };
     let mut r = Run { report, spec: None, stage: None, user_pause: false, paused: None, told: None, next_check: Instant::now() };

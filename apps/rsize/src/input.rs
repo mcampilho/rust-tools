@@ -7,7 +7,9 @@ impl Shell {
     pub(super) fn count_click(&mut self, x: f32, y: f32) -> u32 {
         let now = Instant::now();
         let n = match self.last_click {
-            Some((t, cx, cy, n)) if now - t < DOUBLE_CLICK && (cx - x).abs() < DOUBLE_CLICK_SLOP && (cy - y).abs() < DOUBLE_CLICK_SLOP => n % 2 + 1,
+            Some((t, cx, cy, n)) if now - t < DOUBLE_CLICK && (cx - x).abs() < DOUBLE_CLICK_SLOP && (cy - y).abs() < DOUBLE_CLICK_SLOP => {
+                n % 2 + 1
+            }
             _ => 1,
         };
         self.last_click = Some((now, x, y, n));
@@ -134,7 +136,9 @@ impl Shell {
         let icon = match (self.drag, hot) {
             (Some(Drag::Splitter), _) | (_, Hot::Splitter) => CursorIcon::NsResize,
             (Some(Drag::VSplitter), _) | (_, Hot::VSplitter) => CursorIcon::EwResize,
-            (_, Hot::Card(_) | Hot::Choose | Hot::Stop | Hot::Tab(_) | Hot::Mode(_) | Hot::Head(_) | Hot::ExtHead(_)) => CursorIcon::Pointer,
+            (_, Hot::Card(_) | Hot::Choose | Hot::Stop | Hot::Tab(_) | Hot::Mode(_) | Hot::Head(_) | Hot::ExtHead(_)) => {
+                CursorIcon::Pointer
+            }
             _ if seg == Some(Hit::Center) => CursorIcon::Pointer,
             _ => CursorIcon::Default,
         };

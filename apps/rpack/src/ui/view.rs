@@ -293,7 +293,9 @@ pub fn drives_label() -> String {
 /// least room left for the name to show it).
 fn columns(app: &App) -> &'static [(Col, f32, f32)] {
     match app.place {
-        Place::Archive => &[(Col::Method, 90.0, 520.0), (Col::Modified, 140.0, 420.0), (Col::Packed, 90.0, 300.0), (Col::Size, 90.0, 200.0)],
+        Place::Archive => {
+            &[(Col::Method, 90.0, 520.0), (Col::Modified, 140.0, 420.0), (Col::Packed, 90.0, 300.0), (Col::Size, 90.0, 200.0)]
+        }
         Place::Folder(_) => &[(Col::Type, 150.0, 480.0), (Col::Modified, 140.0, 360.0), (Col::Size, 90.0, 200.0)],
         Place::Drives => &[(Col::FileSystem, 100.0, 420.0), (Col::Free, 100.0, 300.0), (Col::Size, 100.0, 200.0)],
     }
@@ -959,7 +961,12 @@ pub fn status_text(app: &App, hover: Option<usize>) -> (String, String) {
             Row::Disk(i) => {
                 let d = &app.disk[i];
                 match &d.volume {
-                    Some(v) => format!("{} · {} · {}", d.path.display(), tf("{} free of {}", &[&format::size(v.free), &format::size(v.total)]), v.fs),
+                    Some(v) => format!(
+                        "{} · {} · {}",
+                        d.path.display(),
+                        tf("{} free of {}", &[&format::size(v.free), &format::size(v.total)]),
+                        v.fs
+                    ),
                     None if d.dir => d.path.display().to_string(),
                     None => format!("{} · {}", d.path.display(), format::size(d.size)),
                 }
@@ -967,7 +974,12 @@ pub fn status_text(app: &App, hover: Option<usize>) -> (String, String) {
             Row::Dir(n) => {
                 let Some(o) = &app.opened else { return String::new() };
                 let n = &o.tree.nodes[n];
-                format!("{} · {} · {}", n.name, tf("{} files", &[&format::count(n.count)]), sizes_text(n.size, n.packed.filter(|_| n.count > 0)))
+                format!(
+                    "{} · {} · {}",
+                    n.name,
+                    tf("{} files", &[&format::count(n.count)]),
+                    sizes_text(n.size, n.packed.filter(|_| n.count > 0))
+                )
             }
             Row::File(e) => {
                 let Some(o) = &app.opened else { return String::new() };
@@ -1000,7 +1012,12 @@ pub fn status_text(app: &App, hover: Option<usize>) -> (String, String) {
             let l = &o.listing;
             let all_packed = l.entries.iter().filter(|e| e.kind == crate::archive::Kind::File).all(|e| e.packed.is_some());
             let packed = if all_packed { l.entries.iter().filter_map(|e| e.packed).sum() } else { l.file_size };
-            format!("{} · {} · {}", l.format.label(), tf("{} files", &[&format::count(l.files() as u64)]), sizes_text(l.size(), Some(packed)))
+            format!(
+                "{} · {} · {}",
+                l.format.label(),
+                tf("{} files", &[&format::count(l.files() as u64)]),
+                sizes_text(l.size(), Some(packed))
+            )
         }
         (Place::Folder(_), _) => {
             let (n, bytes) = app.disk.iter().filter(|d| !d.dir).fold((0u64, 0u64), |(n, b), d| (n + 1, b + d.size));
@@ -1081,7 +1098,15 @@ mod screenshots {
         let meter = Arc::new(Meter::default());
         meter.done.store(312 << 20, std::sync::atomic::Ordering::Relaxed);
         meter.set_current("docs/img/IMG_2024_0815_123456.jpg");
-        app.busy = Some(Busy { task: Task::Extracting, meter, started: std::time::Instant::now(), total: 1 << 30, by_read: false, path: zip.clone(), count: 3 });
+        app.busy = Some(Busy {
+            task: Task::Extracting,
+            meter,
+            started: std::time::Instant::now(),
+            total: 1 << 30,
+            by_read: false,
+            path: zip.clone(),
+            count: 3,
+        });
         shot("busy", &app, false, Hot::Stop, 960, 680);
         app.busy = None;
         app.set_opened(zip.clone(), listing);

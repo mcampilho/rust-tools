@@ -418,7 +418,11 @@ impl App {
         let path = match (&d.path, force_dialog || d.read_only) {
             (Some(p), false) => p.clone(),
             (p, _) => {
-                let name = p.as_ref().and_then(|p| p.file_name()).map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| format!("{}.txt", d.display_name()));
+                let name = p
+                    .as_ref()
+                    .and_then(|p| p.file_name())
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| format!("{}.txt", d.display_name()));
                 let dir = p.as_ref().and_then(|p| p.parent()).map(Path::to_path_buf);
                 match host.save_dialog(&name, dir.as_deref()) {
                     Some(p) => p,
@@ -431,7 +435,10 @@ impl App {
             if d.changed_on_disk() == Some(true) && path.exists() {
                 let ok = host.confirm(
                     &tr("File changed on disk"),
-                    &tf("{} was changed by another program since it was opened.\n\nOverwrite it with your version?", &[&path.display().to_string()]),
+                    &tf(
+                        "{} was changed by another program since it was opened.\n\nOverwrite it with your version?",
+                        &[&path.display().to_string()],
+                    ),
                 );
                 if !ok {
                     return false;
@@ -471,7 +478,12 @@ impl App {
 
     pub fn reload(&mut self, i: usize, forced: Option<Enc>, host: &dyn Host) {
         let Some(path) = self.docs[i].path.clone() else { return };
-        if self.docs[i].is_modified() && !host.confirm(&tr("Reload"), &tf("Discard your changes to {} and reload it from disk?\n\n(You can undo the reload.)", &[&self.docs[i].display_name()])) {
+        if self.docs[i].is_modified()
+            && !host.confirm(
+                &tr("Reload"),
+                &tf("Discard your changes to {} and reload it from disk?\n\n(You can undo the reload.)", &[&self.docs[i].display_name()]),
+            )
+        {
             return;
         }
         match file::load(&path, forced) {
@@ -608,7 +620,15 @@ impl App {
         let has_sel = self.doc().buf.has_selection();
         if !has_sel {
             let n = self.doc().buf.line_count();
-            if n > 1 && !host.confirm(name, &tf("No text is selected. Apply \"{}\" to the whole document ({} lines)?\n\nYou can undo this with Ctrl+Z.", &[name, &n.to_string()])) {
+            if n > 1
+                && !host.confirm(
+                    name,
+                    &tf(
+                        "No text is selected. Apply \"{}\" to the whole document ({} lines)?\n\nYou can undo this with Ctrl+Z.",
+                        &[name, &n.to_string()],
+                    ),
+                )
+            {
                 return;
             }
             self.edit(|b| b.select_all());
@@ -1124,7 +1144,10 @@ impl App {
         }
         // Make sure the text can be represented before switching.
         if let Err(err) = file::encode_rope(&d.buf.text, e, d.eol) {
-            host.error(&tr("Encoding"), &tf("The document cannot be saved as {}: {}.\n\nThe encoding was not changed.", &[&e.name(), &err.to_string()]));
+            host.error(
+                &tr("Encoding"),
+                &tf("The document cannot be saved as {}: {}.\n\nThe encoding was not changed.", &[&e.name(), &err.to_string()]),
+            );
             return;
         }
         let d = self.doc_mut();
@@ -1266,7 +1289,11 @@ impl App {
             .doc()
             .outline
             .iter()
-            .map(|s| PItem { label: format!("{}{}", "  ".repeat(s.depth.min(6)), s.name), detail: tf("{} · line {}", &[&tr(s.kind), &(s.line + 1).to_string()]), act: PAct::Line(s.line) })
+            .map(|s| PItem {
+                label: format!("{}{}", "  ".repeat(s.depth.min(6)), s.name),
+                detail: tf("{} · line {}", &[&tr(s.kind), &(s.line + 1).to_string()]),
+                act: PAct::Line(s.line),
+            })
             .collect();
         if items.is_empty() {
             self.notify(tf("No symbols found for {}", &[&tr(self.doc().lang.name())]));
@@ -1289,7 +1316,11 @@ impl App {
         }
         let items = snips
             .into_iter()
-            .map(|(n, body)| PItem { detail: body.lines().next().unwrap_or("").chars().take(60).collect(), label: n, act: PAct::Text(body) })
+            .map(|(n, body)| PItem {
+                detail: body.lines().next().unwrap_or("").chars().take(60).collect(),
+                label: n,
+                act: PAct::Text(body),
+            })
             .collect();
         self.open_palette(PaletteMode::Snippets, &tr("Insert snippet"), items);
     }
@@ -1323,7 +1354,11 @@ impl App {
             .into_iter()
             .map(|(path, stamp)| {
                 let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
-                PItem { label: stamp.replacen('_', "  ", 1).replace('-', ":").replacen(':', "-", 2), detail: tf("{} bytes", &[&size.to_string()]), act: PAct::Path(path) }
+                PItem {
+                    label: stamp.replacen('_', "  ", 1).replace('-', ":").replacen(':', "-", 2),
+                    detail: tf("{} bytes", &[&size.to_string()]),
+                    act: PAct::Path(path),
+                }
             })
             .collect();
         self.open_palette(PaletteMode::History, &tr("Open a snapshot of this file (read-only)"), items);
@@ -1336,12 +1371,8 @@ impl App {
             return;
         }
         let q = p.edit.text.to_lowercase();
-        let mut scored: Vec<(usize, i32)> = p
-            .items
-            .iter()
-            .enumerate()
-            .filter_map(|(i, it)| fuzzy_score(&q, &it.label.to_lowercase()).map(|s| (i, s)))
-            .collect();
+        let mut scored: Vec<(usize, i32)> =
+            p.items.iter().enumerate().filter_map(|(i, it)| fuzzy_score(&q, &it.label.to_lowercase()).map(|s| (i, s))).collect();
         if !q.is_empty() {
             scored.sort_by_key(|(i, s)| (-*s, *i));
         }
@@ -1391,7 +1422,8 @@ impl App {
                     return;
                 }
                 let body = self.doc().buf.selected_texts().join("\n");
-                let mut existing = self.location.read_text(session::SNIPPETS_FILE).unwrap_or_else(|| session::SNIPPETS_TEMPLATE.to_string());
+                let mut existing =
+                    self.location.read_text(session::SNIPPETS_FILE).unwrap_or_else(|| session::SNIPPETS_TEMPLATE.to_string());
                 if !existing.ends_with('\n') {
                     existing.push('\n');
                 }
@@ -1419,7 +1451,6 @@ impl App {
             Err(e) => host.error(&tr("Local history"), &e.to_string()),
         }
     }
-
 }
 
 /// The keyboard shortcuts, as the message panel shows them (`keys\twhat`,
@@ -1457,7 +1488,6 @@ pub fn shortcuts_text() -> String {
 }
 
 impl App {
-
     // ------------------------------------------------------------ XML
 
     fn xml_check(&mut self, host: &dyn Host) {
@@ -1576,7 +1606,13 @@ impl App {
         while let Ok((hits, f, d)) = rx.try_recv() {
             files = f;
             done |= d;
-            new_items.extend(hits.into_iter().map(|h| ResultItem { doc: None, path: Some(h.path), line: h.line, text: h.text, col: h.col }));
+            new_items.extend(hits.into_iter().map(|h| ResultItem {
+                doc: None,
+                path: Some(h.path),
+                line: h.line,
+                text: h.text,
+                col: h.col,
+            }));
         }
         if let Some(r) = self.results.as_mut() {
             r.items.extend(new_items);
@@ -1621,7 +1657,13 @@ impl App {
                 if let Some(m) = re.find(line) {
                     let pre = line[..m.start()].chars().count();
                     let len = line[m.start()..m.end()].chars().count();
-                    items.push(ResultItem { doc: Some(d.id), path: d.path.clone(), line: i, text: line.chars().take(300).collect(), col: (pre, pre + len) });
+                    items.push(ResultItem {
+                        doc: Some(d.id),
+                        path: d.path.clone(),
+                        line: i,
+                        text: line.chars().take(300).collect(),
+                        col: (pre, pre + len),
+                    });
                 }
             }
         }

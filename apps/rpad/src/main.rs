@@ -10,11 +10,13 @@
 
 mod app;
 mod doc;
+mod i18n;
 mod input;
+mod io;
+#[cfg(not(windows))]
+mod linux;
 mod menus;
 mod render;
-mod i18n;
-mod io;
 mod search;
 mod storage;
 mod syntax;
@@ -23,8 +25,6 @@ mod trace;
 mod ui;
 #[cfg(windows)]
 mod win;
-#[cfg(not(windows))]
-mod linux;
 
 use app::commands::{Command, M};
 use app::input::{Key, KeyInput};
@@ -455,14 +455,26 @@ impl Shell {
     fn open_files(&mut self, el: &ActiveEventLoop, paths: &[PathBuf]) {
         let log = self.app.location.dir.clone();
         if !paths.is_empty() {
-            trace::note(log.as_deref(), &format!("received {} (hidden: {}, tabs: {})", trace::paths(paths), self.hidden, self.app.docs.len()));
+            trace::note(
+                log.as_deref(),
+                &format!("received {} (hidden: {}, tabs: {})", trace::paths(paths), self.hidden, self.app.docs.len()),
+            );
         }
         if self.hidden {
             self.show(el);
         }
         for p in paths {
             let ok = self.app.open_arg(p, &self.host);
-            trace::note(log.as_deref(), &format!("{} {} (tabs: {}, active: {})", if ok { "opened" } else { "NOT opened" }, p.display(), self.app.docs.len(), self.app.active));
+            trace::note(
+                log.as_deref(),
+                &format!(
+                    "{} {} (tabs: {}, active: {})",
+                    if ok { "opened" } else { "NOT opened" },
+                    p.display(),
+                    self.app.docs.len(),
+                    self.app.active
+                ),
+            );
         }
         if let Some(w) = &self.win {
             w.window.focus_window();
@@ -663,7 +675,12 @@ impl Shell {
     fn start_shell(&mut self) {
         let proxy = Mutex::new(self.proxy.clone());
         let labels = linux::shell::TrayLabels { tip: "rpad".into(), open: i18n::tr("Open rpad"), exit: i18n::tr("Exit") };
-        let cfg = linux::shell::Config { app: linux::shell::APP, icon: ui::appicon::render, tray: self.tray.then_some(labels), listen_without_icon: true };
+        let cfg = linux::shell::Config {
+            app: linux::shell::APP,
+            icon: ui::appicon::render,
+            tray: self.tray.then_some(labels),
+            listen_without_icon: true,
+        };
         let shell = linux::shell::Shell::new(
             cfg,
             Box::new(move |m| {
@@ -1110,7 +1127,13 @@ fn main() {
         Err(e) => {
             eprintln!("rpad: {e}");
             #[cfg(windows)]
-            win::dialogs::message(std::ptr::null_mut(), "rpad", &format!("rpad: {e}"), win::dialogs::Buttons::Ok, win::dialogs::Icon::Error);
+            win::dialogs::message(
+                std::ptr::null_mut(),
+                "rpad",
+                &format!("rpad: {e}"),
+                win::dialogs::Buttons::Ok,
+                win::dialogs::Icon::Error,
+            );
             std::process::exit(1);
         }
     };
@@ -1136,7 +1159,8 @@ fn main() {
         }
     }));
     #[cfg(windows)]
-    let (accent, system_dark, blink) = (win::accent().unwrap_or(DEFAULT_ACCENT), win::system_dark().unwrap_or(false), win::caret_blink_ms());
+    let (accent, system_dark, blink) =
+        (win::accent().unwrap_or(DEFAULT_ACCENT), win::system_dark().unwrap_or(false), win::caret_blink_ms());
     #[cfg(not(windows))]
     let (accent, system_dark, blink) = (DEFAULT_ACCENT, linux::system_dark().unwrap_or(false), Some(530u32));
     let now = Instant::now();

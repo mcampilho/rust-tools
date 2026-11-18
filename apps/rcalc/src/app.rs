@@ -192,15 +192,7 @@ impl App {
             trig_inv: false,
             trig_hyp: false,
             bitpad: false,
-            date: DateState {
-                add_mode: false,
-                from: today,
-                to: today,
-                subtract: false,
-                years: 0,
-                months: 0,
-                days: 0,
-            },
+            date: DateState { add_mode: false, from: today, to: today, subtract: false, years: 0, months: 0, days: 0 },
             categories,
             currency_source: currency.source,
             conv_sel,
@@ -297,11 +289,7 @@ impl App {
                 self.set_scroll(ScrollId::Panel, 0.0);
             }
             Action::OpenNav => {
-                self.overlay = if self.overlay == Overlay::Nav {
-                    Overlay::None
-                } else {
-                    Overlay::Nav
-                };
+                self.overlay = if self.overlay == Overlay::Nav { Overlay::None } else { Overlay::Nav };
             }
             Action::CloseOverlay => self.overlay = Overlay::None,
             Action::Navigate(m) => self.navigate(*m),
@@ -470,11 +458,7 @@ impl App {
         match op {
             MemOp::Add | MemOp::Sub => {
                 let r = if op == MemOp::Add { m.add(&v) } else { m.sub(&v) };
-                *m = if prog {
-                    Dec::from_i64(word.wrap(r.to_i128().unwrap_or(0)).0)
-                } else {
-                    r.check().unwrap_or_else(|_| m.clone())
-                };
+                *m = if prog { Dec::from_i64(word.wrap(r.to_i128().unwrap_or(0)).0) } else { r.check().unwrap_or_else(|_| m.clone()) };
             }
             MemOp::Clear => {
                 self.memory.remove(i);
@@ -501,9 +485,9 @@ impl App {
             ComboId::DateMode => vec!["Difference between dates".into(), "Add or subtract days".into()],
             ComboId::Years | ComboId::Months | ComboId::Days => (0..=999).map(|n| n.to_string()).collect(),
             ComboId::ConvFrom | ComboId::ConvTo => self.conv_category().units.iter().map(|u| u.name.clone()).collect(),
-            ComboId::Language => std::iter::once("Use system setting".to_string())
-                .chain(Lang::ALL.iter().map(|l| l.native_name().to_string()))
-                .collect(),
+            ComboId::Language => {
+                std::iter::once("Use system setting".to_string()).chain(Lang::ALL.iter().map(|l| l.native_name().to_string())).collect()
+            }
         }
     }
 
@@ -515,10 +499,7 @@ impl App {
             ComboId::Days => self.date.days as usize,
             ComboId::ConvFrom => self.conv_units().0,
             ComboId::ConvTo => self.conv_units().1,
-            ComboId::Language => self
-                .lang_pref
-                .and_then(|l| Lang::ALL.iter().position(|x| *x == l))
-                .map_or(0, |i| i + 1),
+            ComboId::Language => self.lang_pref.and_then(|l| Lang::ALL.iter().position(|x| *x == l)).map_or(0, |i| i + 1),
         }
     }
 
@@ -623,11 +604,7 @@ impl App {
         let shown = if f == 0 { a } else { b };
         let plain: String = shown.chars().filter(|c| *c != ',').collect();
         self.conv_active = f;
-        self.conv_entry = if plain.contains('e') || plain.parse::<Dec>().is_err() {
-            "0".into()
-        } else {
-            plain
-        };
+        self.conv_entry = if plain.contains('e') || plain.parse::<Dec>().is_err() { "0".into() } else { plain };
     }
 
     fn conv_key(&mut self, k: Key) {
@@ -707,11 +684,7 @@ impl App {
     }
 
     pub fn paste_text(&mut self, text: &str) {
-        let text = if self.mode == Mode::Programmer {
-            text.to_string()
-        } else {
-            i18n::delocalize(text)
-        };
+        let text = if self.mode == Mode::Programmer { text.to_string() } else { i18n::delocalize(text) };
         let text = text.as_str();
         match self.mode {
             Mode::Converter(_) => {
@@ -795,19 +768,12 @@ impl App {
                 let (Some(e), Some(r), Some(v)) = (p.next(), p.next(), p.next()) else {
                     return None;
                 };
-                Some(HistoryEntry {
-                    expression: e.into(),
-                    result: r.into(),
-                    value: v.parse().ok()?,
-                })
+                Some(HistoryEntry { expression: e.into(), result: r.into(), value: v.parse().ok()? })
             })
             .take(MAX_HISTORY)
             .collect();
         self.memory = s.get_all("memory").filter_map(|v| v.parse().ok()).take(MAX_MEMORY).collect();
-        if let (Some(w), Some(h)) = (
-            s.get("width").and_then(|v| v.parse().ok()),
-            s.get("height").and_then(|v| v.parse().ok()),
-        ) {
+        if let (Some(w), Some(h)) = (s.get("width").and_then(|v| v.parse().ok()), s.get("height").and_then(|v| v.parse().ok())) {
             self.window_size = Some((w, h));
         }
     }
@@ -1014,16 +980,8 @@ impl App {
                     '&' if prog => key(Key::Bin(BinOp::And)),
                     '|' if prog => key(Key::Bin(BinOp::Or)),
                     '~' if prog => key(Key::Unary(Unary::Not)),
-                    '<' if prog => key(if self.prog.shift == ShiftMode::Rotate {
-                        Key::Unary(Unary::Rol)
-                    } else {
-                        Key::Bin(BinOp::Shl)
-                    }),
-                    '>' if prog => key(if self.prog.shift == ShiftMode::Rotate {
-                        Key::Unary(Unary::Ror)
-                    } else {
-                        Key::Bin(BinOp::Shr)
-                    }),
+                    '<' if prog => key(if self.prog.shift == ShiftMode::Rotate { Key::Unary(Unary::Rol) } else { Key::Bin(BinOp::Shl) }),
+                    '>' if prog => key(if self.prog.shift == ShiftMode::Rotate { Key::Unary(Unary::Ror) } else { Key::Bin(BinOp::Shr) }),
                     _ if prog => None,
                     'r' | 'R' => key(Key::Unary(Unary::Recip)),
                     '@' => key(Key::Unary(Unary::Sqrt)),

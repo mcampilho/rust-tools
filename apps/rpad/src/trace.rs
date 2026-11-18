@@ -16,16 +16,8 @@ pub fn note(dir: Option<&Path>, text: &str) {
         let _ = std::fs::rename(&f, d.join("handoff.old.log"));
     }
     let t = rt_sys::local_time();
-    let line = format!(
-        "{}-{:02}-{:02} {:02}:{:02}:{:02} [{}] {text}\n",
-        t.year,
-        t.month,
-        t.day,
-        t.hour,
-        t.minute,
-        t.second,
-        std::process::id()
-    );
+    let line =
+        format!("{}-{:02}-{:02} {:02}:{:02}:{:02} [{}] {text}\n", t.year, t.month, t.day, t.hour, t.minute, t.second, std::process::id());
     let _ = std::fs::create_dir_all(d);
     if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&f) {
         let _ = file.write_all(line.as_bytes());

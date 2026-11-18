@@ -88,13 +88,8 @@ pub fn trash_into(path: &Path, trash: &Path) -> Result<(), String> {
 }
 
 fn gsetting(key: &str) -> Option<String> {
-    let out = Command::new("gsettings")
-        .args(["get", "org.gnome.desktop.interface", key])
-        .output()
-        .ok()?;
-    out.status
-        .success()
-        .then(|| String::from_utf8_lossy(&out.stdout).trim().to_lowercase())
+    let out = Command::new("gsettings").args(["get", "org.gnome.desktop.interface", key]).output().ok()?;
+    out.status.success().then(|| String::from_utf8_lossy(&out.stdout).trim().to_lowercase())
 }
 
 /// GNOME and the desktops that share its settings.
@@ -130,12 +125,8 @@ pub fn mono_families() -> Vec<String> {
         return Vec::new();
     };
     let text = String::from_utf8_lossy(&out.stdout);
-    let mut v: Vec<String> = text
-        .lines()
-        .filter_map(|l| l.split(',').next())
-        .map(|f| f.trim().to_string())
-        .filter(|f| !f.is_empty())
-        .collect();
+    let mut v: Vec<String> =
+        text.lines().filter_map(|l| l.split(',').next()).map(|f| f.trim().to_string()).filter(|f| !f.is_empty()).collect();
     v.sort();
     v.dedup();
     v

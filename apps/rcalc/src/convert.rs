@@ -46,12 +46,7 @@ fn num(expr: &str) -> Dec {
 
 fn units(list: &[(&str, &str, &str)]) -> Vec<Unit> {
     list.iter()
-        .map(|(name, abbr, factor)| Unit {
-            name: name.to_string(),
-            abbr: abbr.to_string(),
-            factor: num(factor),
-            offset: Dec::zero(),
-        })
+        .map(|(name, abbr, factor)| Unit { name: name.to_string(), abbr: abbr.to_string(), factor: num(factor), offset: Dec::zero() })
         .collect()
 }
 
@@ -247,12 +242,7 @@ pub fn unit_categories() -> Vec<Category> {
             "atm",
             "bar",
         ),
-        category(
-            "Angle",
-            &[("Degrees", "deg", "1"), ("Radians", "rad", "180/pi"), ("Gradians", "grad", "0.9")],
-            "deg",
-            "rad",
-        ),
+        category("Angle", &[("Degrees", "deg", "1"), ("Radians", "rad", "180/pi"), ("Gradians", "grad", "0.9")], "deg", "rad"),
     ];
     cats.shrink_to_fit();
     cats
@@ -268,11 +258,7 @@ fn temperature() -> Category {
     };
     Category {
         name: "Temperature",
-        units: vec![
-            unit("Celsius", "°C", "273.15", "1"),
-            unit("Fahrenheit", "°F", "459.67", "5/9"),
-            unit("Kelvin", "K", "0", "1"),
-        ],
+        units: vec![unit("Celsius", "°C", "273.15", "1"), unit("Fahrenheit", "°F", "459.67", "5/9"), unit("Kelvin", "K", "0", "1")],
         defaults: (0, 1),
     }
 }
@@ -395,14 +381,7 @@ pub fn currency(user_file: Option<&str>) -> Currency {
         .collect();
     let pos = |a: &str| units.iter().position(|u| u.abbr == a).unwrap_or(0);
     let defaults = (pos("USD"), pos("EUR"));
-    Currency {
-        category: Category {
-            name: "Currency",
-            units,
-            defaults,
-        },
-        source,
-    }
+    Currency { category: Category { name: "Currency", units, defaults }, source }
 }
 
 #[cfg(test)]

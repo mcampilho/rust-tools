@@ -68,11 +68,23 @@ impl Command {
             RestartAdmin => "Restart as Ad&ministrator",
             #[cfg(windows)]
             ExplorerMenu => "&Explorer Context Menu",
-            Autostart => if cfg!(windows) { "Start wit&h Windows" } else { "Start &When I Log In" },
+            Autostart => {
+                if cfg!(windows) {
+                    "Start wit&h Windows"
+                } else {
+                    "Start &When I Log In"
+                }
+            }
             Exit => "E&xit",
             CopyPath => "&Copy Path",
             OpenItem => "&Open",
-            Reveal => if cfg!(windows) { "Show in &Explorer" } else { "Show in File &Manager" },
+            Reveal => {
+                if cfg!(windows) {
+                    "Show in &Explorer"
+                } else {
+                    "Show in File &Manager"
+                }
+            }
             ToggleMark => "Mar&k or Unmark",
             KeepNewest => "Keep the &Newest",
             KeepOldest => "Keep the &Oldest",
@@ -167,7 +179,13 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
         ),
         (
             "&View",
-            vec![Item(ShowFiles), Item(ShowFolders), Sep, Sub("T&heme", vec![Item(Theme(0)), Item(Theme(1)), Item(Theme(2))]), Sub("Display &Language", langs)],
+            vec![
+                Item(ShowFiles),
+                Item(ShowFolders),
+                Sep,
+                Sub("T&heme", vec![Item(Theme(0)), Item(Theme(1)), Item(Theme(2))]),
+                Sub("Display &Language", langs),
+            ],
         ),
         ("&Help", vec![Item(Shortcuts), Item(CheckUpdates), Sep, Item(About)]),
     ]

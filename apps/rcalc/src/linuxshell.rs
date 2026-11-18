@@ -34,7 +34,12 @@ impl Shell {
     /// Starts listening for later launches. With `tray`, adds the
     /// notification-area icon if the desktop has a host for it.
     pub fn new(tray: bool, tip: &str, menu: (&str, &str), sink: Box<dyn Fn(ShellEvent) + Send + Sync>) -> Option<Shell> {
-        let cfg = Config { app: APP, icon: crate::ui::appicon::render, tray: tray.then(|| labels(tip, menu.0, menu.1)), listen_without_icon: true };
+        let cfg = Config {
+            app: APP,
+            icon: crate::ui::appicon::render,
+            tray: tray.then(|| labels(tip, menu.0, menu.1)),
+            listen_without_icon: true,
+        };
         let inner = sh::Shell::new(
             cfg,
             Box::new(move |m| {

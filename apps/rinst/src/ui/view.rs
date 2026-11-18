@@ -193,7 +193,7 @@ pub fn layout(g: &mut Gfx, app: &App, full: Rect, s: f32, menu_bar: bool, admin:
         let y = (b.y + (b.h - h) / 2.0).round();
         let p = px(s);
         if app.busy.as_ref().is_some_and(|b| !b.modify) {
-            let w =(g.measure(&tr("Stop after this one"), p, FontId::Semibold) + 28.0 * s).round();
+            let w = (g.measure(&tr("Stop after this one"), p, FontId::Semibold) + 28.0 * s).round();
             l.stop = Rect::new(b.right() - w - 10.0 * s, y, w, h);
         } else {
             let mut x = b.x + 10.0 * s;
@@ -262,7 +262,14 @@ pub fn layout(g: &mut Gfx, app: &App, full: Rect, s: f32, menu_bar: bool, admin:
     let wants: &[(Col, f32, f32)] = if app.tab == Tab::Leftovers {
         &[(Col::Source, 170.0, 420.0), (Col::Size, 80.0, 340.0), (Col::Publisher, 190.0, 260.0)]
     } else {
-        &[(Col::Source, source, 640.0), (Col::For, 90.0, 520.0), (Col::Installed, 90.0, 440.0), (Col::Size, 80.0, 360.0), (Col::Version, 130.0, 300.0), (Col::Publisher, 160.0, 170.0)]
+        &[
+            (Col::Source, source, 640.0),
+            (Col::For, 90.0, 520.0),
+            (Col::Installed, 90.0, 440.0),
+            (Col::Size, 80.0, 360.0),
+            (Col::Version, 130.0, 300.0),
+            (Col::Publisher, 160.0, 170.0),
+        ]
     };
     for &(col, want, min_rest) in wants {
         if want <= 0.0 {
@@ -397,7 +404,9 @@ fn draw_actions(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, hot: Hot
         let (cx, cy, rad) = (b.x + 22.0 * s, b.center_y() - 1.0 * s, 7.0 * s);
         let start = busy.phase * std::f32::consts::TAU * 2.0;
         g.polyline(
-            &(0..=24).map(|i| (cx + rad * (start + i as f32 / 24.0 * 4.4).cos(), cy + rad * (start + i as f32 / 24.0 * 4.4).sin())).collect::<Vec<_>>(),
+            &(0..=24)
+                .map(|i| (cx + rad * (start + i as f32 / 24.0 * 4.4).cos(), cy + rad * (start + i as f32 / 24.0 * 4.4).sin()))
+                .collect::<Vec<_>>(),
             2.0 * s,
             th.accent,
             false,
@@ -537,7 +546,16 @@ fn default_icon(g: &mut Gfx, r: Rect, th: &Theme, s: f32) {
 
 /// Draws the window.
 #[allow(clippy::too_many_arguments)]
-pub fn draw(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, hot: Hot, icons: &HashMap<usize, Pixmap>, enabled: &dyn Fn(crate::commands::Command) -> bool) {
+pub fn draw(
+    g: &mut Gfx,
+    app: &App,
+    l: &Layout,
+    th: &Theme,
+    s: f32,
+    hot: Hot,
+    icons: &HashMap<usize, Pixmap>,
+    enabled: &dyn Fn(crate::commands::Command) -> bool,
+) {
     g.clear(th.bg);
     draw_actions(g, app, l, th, s, hot, enabled);
     let p = px(s);
@@ -572,11 +590,12 @@ pub fn draw(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, hot: Hot, ic
     // A magnifier.
     let (mx, my) = (sr.x + 14.0 * s, sr.center_y() - 1.0 * s);
     g.polyline(
-        &(0..=16).map(|i| {
-            let a = i as f32 / 16.0 * std::f32::consts::TAU;
-            (mx + 4.5 * s * a.cos(), my + 4.5 * s * a.sin())
-        })
-        .collect::<Vec<_>>(),
+        &(0..=16)
+            .map(|i| {
+                let a = i as f32 / 16.0 * std::f32::consts::TAU;
+                (mx + 4.5 * s * a.cos(), my + 4.5 * s * a.sin())
+            })
+            .collect::<Vec<_>>(),
         1.5 * s,
         th.dim,
         false,
@@ -602,7 +621,14 @@ pub fn draw(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, hot: Hot, ic
             let c = if app.search_focus { th.selection } else { th.hover };
             g.fill_rect(Rect::new(xa, sr.y + 5.0 * s, xb - xa, sr.h - 10.0 * s), c);
         }
-        g.text_in(&e.text, Rect::new(inner.x - shift, inner.y, inner.w + shift + 2000.0, inner.h), p, FontId::Regular, th.text, Align::Left);
+        g.text_in(
+            &e.text,
+            Rect::new(inner.x - shift, inner.y, inner.w + shift + 2000.0, inner.h),
+            p,
+            FontId::Regular,
+            th.text,
+            Align::Left,
+        );
         if app.search_focus {
             let cx = x_of(g, rt_core::textedit::boundary(&e.text, e.caret));
             g.fill_rect(Rect::new(cx.round(), sr.y + 6.0 * s, caret_w, sr.h - 12.0 * s), th.text);
@@ -722,7 +748,12 @@ pub fn draw(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, hot: Hot, ic
                 };
                 if let Some((word, c, dim)) = tag_of {
                     let ww = g.measure(&word, p * 0.92, FontId::Semibold);
-                    let tag = Rect::new((x + w - pad - ww - 12.0 * s).round(), (row.center_y() - 9.0 * s).round(), (ww + 12.0 * s).round(), (18.0 * s).round());
+                    let tag = Rect::new(
+                        (x + w - pad - ww - 12.0 * s).round(),
+                        (row.center_y() - 9.0 * s).round(),
+                        (ww + 12.0 * s).round(),
+                        (18.0 * s).round(),
+                    );
                     if tag.w < room * 0.6 {
                         g.fill_rrect(tag, 9.0 * s, c.with_alpha(0x30));
                         g.text_in(&word, tag, p * 0.92, FontId::Semibold, if dim { th.dim } else { c.mix(th.text, 0.35) }, Align::Center);
@@ -736,7 +767,13 @@ pub fn draw(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, hot: Hot, ic
                 let c = Rect::new(x + pad, row.y, (w - 2.0 * pad).max(0.0), row.h);
                 let text = ellipsize(g, &cell(prog, col), c.w, p, FontId::Regular);
                 let update = col == Col::Version && prog.winget.as_ref().is_some_and(|w| w.available.is_some());
-                let fg = if col == Col::Size { th.text } else if update { th.accent } else { th.dim };
+                let fg = if col == Col::Size {
+                    th.text
+                } else if update {
+                    th.accent
+                } else {
+                    th.dim
+                };
                 g.text_in(&text, c, p, FontId::Regular, fg, align_of(col));
             }
         }
@@ -784,7 +821,10 @@ fn lines_of(tab: Tab, p: &Program) -> Vec<(String, String)> {
     add("Version", p.version.clone());
     add("Newer version (winget)", p.winget.as_ref().and_then(|w| w.available.clone()).unwrap_or_default());
     add("Found in", sources_text(&p.sources));
-    add("winget id", p.winget.as_ref().map(|w| if w.repo.is_empty() { w.id.clone() } else { format!("{} ({})", w.id, w.repo) }).unwrap_or_default());
+    add(
+        "winget id",
+        p.winget.as_ref().map(|w| if w.repo.is_empty() { w.id.clone() } else { format!("{} ({})", w.id, w.repo) }).unwrap_or_default(),
+    );
     add("Package", p.package.clone().unwrap_or_default());
     add("For", scope_text(&p.scope));
     add(
@@ -898,7 +938,14 @@ fn draw_details(g: &mut Gfx, app: &App, area: Rect, th: &Theme, s: f32, icons: &
         y += 40.0 * s;
     }
     y += 6.0 * s;
-    g.text(&tr(if p.sources.contains(&Source::Registry) { "Registry values" } else { "More" }), x, y + 13.0 * s, 13.0 * s, FontId::Semibold, th.text);
+    g.text(
+        &tr(if p.sources.contains(&Source::Registry) { "Registry values" } else { "More" }),
+        x,
+        y + 13.0 * s,
+        13.0 * s,
+        FontId::Semibold,
+        th.text,
+    );
     y += 24.0 * s;
     for (n, v) in &p.values {
         let line = ellipsize(g, &format!("{n} = {v}"), w, small, FontId::Regular);
@@ -928,7 +975,11 @@ fn draw_several(g: &mut Gfx, app: &App, chosen: &[&Program], area: Rect, th: &Th
     for p in chosen {
         let name = ellipsize(g, &p.name, w, p12, FontId::Regular);
         g.text(&name, x, y + p12, p12, FontId::Regular, th.text);
-        let sub = [p.version.clone(), scope_text(&p.scope), p.size.map_or(String::new(), format::size)].into_iter().filter(|t| !t.is_empty()).collect::<Vec<_>>().join(" · ");
+        let sub = [p.version.clone(), scope_text(&p.scope), p.size.map_or(String::new(), format::size)]
+            .into_iter()
+            .filter(|t| !t.is_empty())
+            .collect::<Vec<_>>()
+            .join(" · ");
         let sub = ellipsize(g, &sub, w, small, FontId::Regular);
         g.text(&sub, x, y + p12 + 16.0 * s, small, FontId::Regular, th.dim);
         y += 40.0 * s;
@@ -947,7 +998,14 @@ pub fn details_height(app: &App, s: f32) -> f32 {
     }
     let Some(p) = app.selected() else { return 0.0 };
     let n = app.selected_shortcuts().len().max(1) as f32;
-    16.0 * s + 46.0 * s + details_lines(app).len() as f32 * 40.0 * s + 30.0 * s + n * 40.0 * s + 30.0 * s + p.values.len() as f32 * 18.0 * s + 16.0 * s
+    16.0 * s
+        + 46.0 * s
+        + details_lines(app).len() as f32 * 40.0 * s
+        + 30.0 * s
+        + n * 40.0 * s
+        + 30.0 * s
+        + p.values.len() as f32 * 18.0 * s
+        + 16.0 * s
 }
 
 pub fn thumb(l: &Layout, rows: usize, page: usize, scroll: usize) -> (f32, f32) {
@@ -971,10 +1029,13 @@ fn draw_status(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, hot: Hot)
     g.fill_rect(Rect::new(st.x, st.y, st.w, 1.0), th.border);
     let p = 12.0 * s;
     let pad = 10.0 * s;
-    let (left, right) = status_text(app, match hot {
-        Hot::Row(i) => Some(i),
-        _ => None,
-    });
+    let (left, right) = status_text(
+        app,
+        match hot {
+            Hot::Row(i) => Some(i),
+            _ => None,
+        },
+    );
     let rw = g.measure(&right, p, FontId::Regular);
     g.text_in(&right, Rect::new(st.right() - rw - pad, st.y, rw, st.h), p, FontId::Regular, th.dim, Align::Left);
     let lw = (st.w - rw - 3.0 * pad).max(0.0);
@@ -989,7 +1050,9 @@ pub fn status_text(app: &App, hover: Option<usize>) -> (String, String) {
     }
     let Some(f) = &app.found else { return (String::new(), String::new()) };
     let left = match hover.and_then(|r| app.rows.get(r)).and_then(|&i| f.list(app.tab).get(i)) {
-        Some(p) => format!("{} · {}", p.name, p.location.as_ref().map(|l| l.display().to_string()).or(p.uninstall.clone()).unwrap_or_default()),
+        Some(p) => {
+            format!("{} · {}", p.name, p.location.as_ref().map(|l| l.display().to_string()).or(p.uninstall.clone()).unwrap_or_default())
+        }
         None => app.note.clone().unwrap_or_default(),
     };
     let list = f.list(app.tab);
@@ -1006,7 +1069,10 @@ pub fn status_text(app: &App, hover: Option<usize>) -> (String, String) {
     // Shortcuts and winget are Windows'.
     if app.tab == Tab::Programs && cfg!(windows) {
         right += &format!(" · {}", tf("{} shortcuts", &[&format::count(f.shortcuts.len() as u64)]));
-        right += &format!(" · {}", if !f.winget_done { tr("asking winget…") } else { tf("{} updates (winget)", &[&format::count(updates as u64)]) });
+        right += &format!(
+            " · {}",
+            if !f.winget_done { tr("asking winget…") } else { tf("{} updates (winget)", &[&format::count(updates as u64)]) }
+        );
     }
     (left, right)
 }
@@ -1055,7 +1121,12 @@ mod screenshots {
             let mut out = HashMap::new();
             for (i, p) in f.inv.programs.iter().enumerate() {
                 #[cfg(windows)]
-                if let Some((w, h, px)) = p.icon.as_ref().and_then(|(file, n)| rt_sys::win::icon::extract(file, *n)).or_else(|| p.app_id.as_ref().and_then(|a| crate::appx::icon(a, 32))) {
+                if let Some((w, h, px)) = p
+                    .icon
+                    .as_ref()
+                    .and_then(|(file, n)| rt_sys::win::icon::extract(file, *n))
+                    .or_else(|| p.app_id.as_ref().and_then(|a| crate::appx::icon(a, 32)))
+                {
                     let mut pm = Pixmap::new(w, h).unwrap();
                     for (d, s) in pm.pixels_mut().iter_mut().zip(px.chunks(4)) {
                         *d = tiny_skia::ColorU8::from_rgba(s[0], s[1], s[2], s[3]).premultiply();
@@ -1158,13 +1229,45 @@ mod screenshots {
                 l("Zeta Editor", Group::Folder, Kind::Folder, "C:\\Program Files\\Zeta Editor", None, Some(48_300_000), false),
                 l("Zeta Editor", Group::Folder, Kind::Folder, "C:\\ProgramData\\Zeta", None, Some(1_200_000), true),
                 l("Zeta Editor", Group::Shortcut, Kind::File, "C:\\Users\\me\\Desktop\\Zeta Editor.lnk", None, Some(1_400), false),
-                l("Zeta Editor", Group::Startup, Kind::Value, "HKEY_USERS\\S-1-5-21-1\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", Some("Zeta"), None, false),
+                l(
+                    "Zeta Editor",
+                    Group::Startup,
+                    Kind::Value,
+                    "HKEY_USERS\\S-1-5-21-1\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                    Some("Zeta"),
+                    None,
+                    false,
+                ),
                 l("Zeta Editor", Group::Registry, Kind::Key, "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Zeta", None, None, false),
-                l("Zeta Editor", Group::Settings, Kind::Folder, "C:\\Users\\me\\AppData\\Roaming\\Zeta Editor", None, Some(3_500_000), false),
+                l(
+                    "Zeta Editor",
+                    Group::Settings,
+                    Kind::Folder,
+                    "C:\\Users\\me\\AppData\\Roaming\\Zeta Editor",
+                    None,
+                    Some(3_500_000),
+                    false,
+                ),
                 l("Zeta Editor", Group::Settings, Kind::Key, "HKEY_USERS\\S-1-5-21-1\\Software\\Zeta", None, None, false),
                 l("Alpha Player", Group::Elsewhere, Kind::Folder, "D:\\Media\\Alpha Player", None, Some(820_000_000), false),
-                l("Zeta Updater", Group::Service, Kind::Service, "HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\ZetaUpd", Some("ZetaUpd"), None, false),
-                l("ZetaCheck", Group::Task, Kind::Task, "\\Zeta\\ZetaCheck", Some("C:\\Windows\\System32\\Tasks\\Zeta\\ZetaCheck"), None, false),
+                l(
+                    "Zeta Updater",
+                    Group::Service,
+                    Kind::Service,
+                    "HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\ZetaUpd",
+                    Some("ZetaUpd"),
+                    None,
+                    false,
+                ),
+                l(
+                    "ZetaCheck",
+                    Group::Task,
+                    Kind::Task,
+                    "\\Zeta\\ZetaCheck",
+                    Some("C:\\Windows\\System32\\Tasks\\Zeta\\ZetaCheck"),
+                    None,
+                    false,
+                ),
                 l("Gamma", Group::Empty, Kind::Folder, "C:\\Users\\me\\AppData\\Local\\Gamma", None, Some(0), false),
             ];
             let mut items = items;

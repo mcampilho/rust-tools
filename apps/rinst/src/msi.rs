@@ -35,7 +35,16 @@ pub fn products(all_users: bool) -> Vec<Product> {
         let mut sid_len = sid.len() as u32;
         // SAFETY: the buffers are as large as stated (a GUID is 38 characters).
         let rc = unsafe {
-            MsiEnumProductsExW(std::ptr::null(), sid_filter, MSIINSTALLCONTEXT_ALL as u32, index, code.as_mut_ptr(), &mut context, sid.as_mut_ptr(), &mut sid_len)
+            MsiEnumProductsExW(
+                std::ptr::null(),
+                sid_filter,
+                MSIINSTALLCONTEXT_ALL as u32,
+                index,
+                code.as_mut_ptr(),
+                &mut context,
+                sid.as_mut_ptr(),
+                &mut sid_len,
+            )
         };
         if rc != 0 {
             break;

@@ -39,7 +39,8 @@ fn codec_of(head: &[u8], name: &str) -> Option<Codec> {
         Some(Codec::Xz)
     } else if head.starts_with(b"LZIP") {
         Some(Codec::Lzip)
-    } else if head.starts_with(&[0x28, 0xB5, 0x2F, 0xFD]) || (head.len() >= 4 && head[0] & 0xF0 == 0x50 && head[1..4] == [0x2A, 0x4D, 0x18]) {
+    } else if head.starts_with(&[0x28, 0xB5, 0x2F, 0xFD]) || (head.len() >= 4 && head[0] & 0xF0 == 0x50 && head[1..4] == [0x2A, 0x4D, 0x18])
+    {
         // A frame, or a skippable frame first (pzstd).
         Some(Codec::Zstd)
     } else if head.starts_with(&[0x04, 0x22, 0x4D, 0x18]) {

@@ -372,7 +372,9 @@ impl Shell {
             Command::RestartAdmin => !self.admin,
             Command::Refresh => !self.app.loading && !self.busy(),
             Command::RemoveLeftovers => leftovers_tab && lo_idle && !self.app.chosen().is_empty(),
-            Command::FindLeftovers => !self.busy() && self.app.found.is_some() && self.app.leftovers.as_ref().is_none_or(|l| !l.searching && !l.removing),
+            Command::FindLeftovers => {
+                !self.busy() && self.app.found.is_some() && self.app.leftovers.as_ref().is_none_or(|l| !l.searching && !l.removing)
+            }
             Command::CloseLeftovers => lo_idle,
             Command::OpenLeftover | Command::OpenFolder if leftovers_tab => self.leftover_folder().is_some(),
             Command::OpenLeftover => false,
@@ -489,8 +491,23 @@ impl Shell {
         #[cfg(not(windows))]
         let chosen = rt_sys::linux::dialogs::save_file(name, None);
         let Some(path) = chosen else { return };
-        let header: Vec<String> =
-            ["Name", "Publisher", "Version", "Size", "Installed", "For", "Source", "winget id", "Newer version (winget)", "Install folder", "Uninstall command", "Registry key"].iter().map(|h| tr(h)).collect();
+        let header: Vec<String> = [
+            "Name",
+            "Publisher",
+            "Version",
+            "Size",
+            "Installed",
+            "For",
+            "Source",
+            "winget id",
+            "Newer version (winget)",
+            "Install folder",
+            "Uninstall command",
+            "Registry key",
+        ]
+        .iter()
+        .map(|h| tr(h))
+        .collect();
         let csv = self.app.csv(&header, &view::scope_text, &view::sources_text);
         self.app.note = Some(match std::fs::write(&path, csv) {
             Ok(()) => tf("The list was saved to {}.", &[&path.display().to_string()]),
@@ -587,10 +604,13 @@ fn read_icons(gen: u64, wanted: Vec<IconOf>, proxy: &EventLoopProxy<UserEvent>) 
 
 /// The folder of a program: its install folder, or its uninstaller's.
 fn folder_of(p: &rinst::inventory::Program) -> Option<PathBuf> {
-    p.location
-        .clone()
-        .filter(|l| l.is_dir())
-        .or_else(|| p.uninstall.as_deref().and_then(rinst::inventory::command_file).and_then(|f| f.parent().map(Path::to_path_buf)).filter(|d| d.is_absolute() && d.is_dir()))
+    p.location.clone().filter(|l| l.is_dir()).or_else(|| {
+        p.uninstall
+            .as_deref()
+            .and_then(rinst::inventory::command_file)
+            .and_then(|f| f.parent().map(Path::to_path_buf))
+            .filter(|d| d.is_absolute() && d.is_dir())
+    })
 }
 
 /// Opens a folder in the file manager.

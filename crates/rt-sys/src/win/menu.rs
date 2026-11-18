@@ -117,7 +117,12 @@ pub fn popup<C: MenuCommand>(
 
 /// Shows a context menu with submenus at the mouse pointer; returns the
 /// chosen command.
-pub fn popup_at_pointer<C: MenuCommand>(hwnd: HWND, items: Vec<M<C>>, checked: impl Fn(C) -> bool, enabled: impl Fn(C) -> bool) -> Option<C> {
+pub fn popup_at_pointer<C: MenuCommand>(
+    hwnd: HWND,
+    items: Vec<M<C>>,
+    checked: impl Fn(C) -> bool,
+    enabled: impl Fn(C) -> bool,
+) -> Option<C> {
     let mut pt = POINT { x: 0, y: 0 };
     // SAFETY: `pt` is a valid POINT to write to.
     unsafe { GetCursorPos(&mut pt) };
@@ -139,12 +144,7 @@ pub fn popup_at_cursor<C: MenuCommand>(hwnd: HWND, items: &[Option<(C, bool)>]) 
             match item {
                 Some((cmd, enabled)) => {
                     let t = wide(&item_text(&cmd.label(), *cmd));
-                    AppendMenuW(
-                        menu,
-                        MF_STRING | if *enabled { MF_ENABLED } else { MF_GRAYED },
-                        FIRST_ID as usize + i,
-                        t.as_ptr(),
-                    );
+                    AppendMenuW(menu, MF_STRING | if *enabled { MF_ENABLED } else { MF_GRAYED }, FIRST_ID as usize + i, t.as_ptr());
                 }
                 None => {
                     AppendMenuW(menu, MF_SEPARATOR, 0, std::ptr::null());
@@ -155,11 +155,6 @@ pub fn popup_at_cursor<C: MenuCommand>(hwnd: HWND, items: &[Option<(C, bool)>]) 
         GetCursorPos(&mut pt);
         let id = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, pt.x, pt.y, 0, hwnd, std::ptr::null());
         DestroyMenu(menu);
-        (id as u32)
-            .checked_sub(FIRST_ID)
-            .and_then(|i| items.get(i as usize))
-            .copied()
-            .flatten()
-            .map(|(c, _)| c)
+        (id as u32).checked_sub(FIRST_ID).and_then(|i| items.get(i as usize)).copied().flatten().map(|(c, _)| c)
     }
 }

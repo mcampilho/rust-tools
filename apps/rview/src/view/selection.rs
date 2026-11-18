@@ -20,15 +20,33 @@ const MAX_AUTOSCROLL: f32 = 60.0;
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Sel {
     /// Byte offsets in the text.
-    Text { anchor: usize, caret: usize },
-    Rich { anchor: Pos, caret: Pos },
+    Text {
+        anchor: usize,
+        caret: usize,
+    },
+    Rich {
+        anchor: Pos,
+        caret: Pos,
+    },
     /// (row, column), row 0 being the header. `rows` selects whole rows,
     /// `cols` whole columns.
-    Csv { anchor: (usize, usize), caret: (usize, usize), rows: bool, cols: bool },
+    Csv {
+        anchor: (usize, usize),
+        caret: (usize, usize),
+        rows: bool,
+        cols: bool,
+    },
     /// (page, glyph boundary).
-    Pdf { anchor: (u32, u32), caret: (u32, u32) },
+    Pdf {
+        anchor: (u32, u32),
+        caret: (u32, u32),
+    },
     /// A rectangle of one PDF page, in page units.
-    Region { page: u32, a: (f32, f32), b: (f32, f32) },
+    Region {
+        page: u32,
+        a: (f32, f32),
+        b: (f32, f32),
+    },
 }
 
 /// Pointer shape over the document.
@@ -95,7 +113,17 @@ fn word_at(s: &str, p: usize) -> (usize, usize) {
 /// first byte is at `base`): (left, right) in pixels. A selected line break
 /// shows as half a cell after the line's end.
 #[allow(clippy::too_many_arguments)]
-pub(super) fn sel_span(line: &str, base: usize, a: usize, b: usize, s: usize, e: usize, x0: f32, cw: f32, max_x: f32) -> Option<(f32, f32)> {
+pub(super) fn sel_span(
+    line: &str,
+    base: usize,
+    a: usize,
+    b: usize,
+    s: usize,
+    e: usize,
+    x0: f32,
+    cw: f32,
+    max_x: f32,
+) -> Option<(f32, f32)> {
     let (mut col, mut base_col) = (0usize, None);
     let (mut from, mut to) = (None, x0);
     let mut end_x = x0;
@@ -274,7 +302,14 @@ fn pdf_events(pages: &[PageText], a: (u32, u32), b: (u32, u32)) -> Vec<Ev> {
                 return;
             }
             let s = style.and_then(|i| page.styles.get(i as usize));
-            let fmt = s.map_or(Fmt::default(), |s| Fmt { bold: s.bold, italic: s.italic, mono: s.mono, size: pdf_size(s.size), color: s.color, ..Fmt::default() });
+            let fmt = s.map_or(Fmt::default(), |s| Fmt {
+                bold: s.bold,
+                italic: s.italic,
+                mono: s.mono,
+                size: pdf_size(s.size),
+                color: s.color,
+                ..Fmt::default()
+            });
             evs.push(Ev::Run(std::mem::take(run), fmt));
         };
         for i in from..to {
@@ -362,8 +397,15 @@ impl Viewer {
     pub fn select_all(&mut self) {
         self.sel = match (&self.state, self.kind) {
             (State::Ready(Content::Text(d)), _) => Some(Sel::Text { anchor: 0, caret: d.text.len() }),
-            (State::Ready(Content::Rich(_)), _) => self.rich.as_ref().and_then(Layout::bounds).map(|(anchor, caret)| Sel::Rich { anchor, caret }),
-            (State::Ready(Content::Csv(d)), _) => (d.rows() > 0 && d.columns > 0).then(|| Sel::Csv { anchor: (0, 0), caret: (d.rows() - 1, d.columns - 1), rows: true, cols: true }),
+            (State::Ready(Content::Rich(_)), _) => {
+                self.rich.as_ref().and_then(Layout::bounds).map(|(anchor, caret)| Sel::Rich { anchor, caret })
+            }
+            (State::Ready(Content::Csv(d)), _) => (d.rows() > 0 && d.columns > 0).then(|| Sel::Csv {
+                anchor: (0, 0),
+                caret: (d.rows() - 1, d.columns - 1),
+                rows: true,
+                cols: true,
+            }),
             (State::Ready(Content::Pdf), _) => match &self.pdf.text {
                 None => {
                     self.pdf.all_pending = true;
@@ -371,7 +413,9 @@ impl Viewer {
                 }
                 Some(pages) => match pages.iter().rposition(|p| !p.glyphs.is_empty()) {
                     Some(last) => Some(Sel::Pdf { anchor: (0, 0), caret: (last as u32, pages[last].glyphs.len() as u32) }),
-                    None => self.pdf.sizes.get(self.pdf.current).map(|s| Sel::Region { page: self.pdf.current as u32, a: (0.0, 0.0), b: *s }),
+                    None => {
+                        self.pdf.sizes.get(self.pdf.current).map(|s| Sel::Region { page: self.pdf.current as u32, a: (0.0, 0.0), b: *s })
+                    }
                 },
             },
             _ => None,
@@ -789,7 +833,11 @@ impl Viewer {
                         Some(Item::Image { key, .. }) => Some(key),
                         _ => None,
                     });
-                    key.and_then(|k| self.images.get(k)).and_then(|i| i.pix.as_ref()).map(|p| Bitmap { w: p.width(), h: p.height(), rgba: p.data().to_vec() })
+                    key.and_then(|k| self.images.get(k)).and_then(|i| i.pix.as_ref()).map(|p| Bitmap {
+                        w: p.width(),
+                        h: p.height(),
+                        rgba: p.data().to_vec(),
+                    })
                 }
                 _ => None,
             }
@@ -841,7 +889,9 @@ impl Viewer {
     fn region_payload(&self, page: u32, plain_only: bool) -> Option<Payload> {
         let r = self.pdf_region(page)?;
         let text = self.pdf.text.as_ref().and_then(|t| t.get(page as usize)).map_or(String::new(), |t| {
-            let inside: Vec<usize> = (0..t.glyphs.len()).filter(|i| r.contains(t.glyphs[*i].x + t.glyphs[*i].w / 2.0, t.glyphs[*i].y + t.glyphs[*i].h / 2.0)).collect();
+            let inside: Vec<usize> = (0..t.glyphs.len())
+                .filter(|i| r.contains(t.glyphs[*i].x + t.glyphs[*i].w / 2.0, t.glyphs[*i].y + t.glyphs[*i].h / 2.0))
+                .collect();
             let mut out = String::new();
             for (n, &i) in inside.iter().enumerate() {
                 if n > 0 && inside[n - 1] + 1 != i && t.glyphs[inside[n - 1]].y != t.glyphs[i].y {
@@ -1014,7 +1064,19 @@ mod tests {
         let t = r.text();
         assert_eq!(t, "Title\n\nSome bold and italic with a link here.\n\n• one\n• two\n\na\tb\n1\t2\n\nquoted\n\nfn f() {}");
         let h = r.html();
-        for want in ["<h1>", "font-weight:bold", "font-style:italic", "<a href=\"https://x.org\">", "<ul>", "<li>", "<table", "<th>", "<td>", "<blockquote>", "<pre"] {
+        for want in [
+            "<h1>",
+            "font-weight:bold",
+            "font-style:italic",
+            "<a href=\"https://x.org\">",
+            "<ul>",
+            "<li>",
+            "<table",
+            "<th>",
+            "<td>",
+            "<blockquote>",
+            "<pre",
+        ] {
             assert!(h.contains(want), "{want} missing in {h}");
         }
         assert!(!h.contains('•'), "lists are real lists: {h}");
@@ -1084,7 +1146,10 @@ mod tests {
     fn sample_pdf() -> Vec<u8> {
         let font = "<< /Type /Font /Subtype /Type1 /BaseFont /Times-Italic /Encoding /WinAnsiEncoding /FirstChar 32 /LastChar 122 /Widths [250 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 600 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500] >>";
         doc::pdf::tests::pdf(
-            &[("/MediaBox [0 0 400 300]", "BT /F1 12 Tf 40 250 Td (hello world) Tj 0 -40 Td (second part) Tj ET"), ("/MediaBox [0 0 400 300]", "BT /F1 12 Tf 40 250 Td (next page) Tj ET")],
+            &[
+                ("/MediaBox [0 0 400 300]", "BT /F1 12 Tf 40 250 Td (hello world) Tj 0 -40 Td (second part) Tj ET"),
+                ("/MediaBox [0 0 400 300]", "BT /F1 12 Tf 40 250 Td (next page) Tj ET"),
+            ],
             font,
             "",
         )

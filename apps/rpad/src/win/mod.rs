@@ -4,7 +4,7 @@ pub mod assoc;
 pub mod menu;
 
 pub use rt_sys::win::{accent, caret_blink_ms, darkmode, set_mnemonics, system_dark, tray, WinMsg};
-use rt_sys::win::{HWND, Ident};
+use rt_sys::win::{Ident, HWND};
 use std::path::PathBuf;
 
 /// How rpad instances find each other.

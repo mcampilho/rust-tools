@@ -97,7 +97,8 @@ pub fn can_modify(p: &Program) -> bool {
     }
     let manager = matches!(p.sources.first(), Some(Source::Chocolatey | Source::Snap | Source::Dism | Source::Vcpkg));
     // `NoModify` and `NoRepair` both set: Windows offers no change either.
-    let flag = |name: &str| p.values.iter().any(|(k, v)| k.eq_ignore_ascii_case(name) && (v.trim() == "1" || v.trim_end().ends_with("(1)")));
+    let flag =
+        |name: &str| p.values.iter().any(|(k, v)| k.eq_ignore_ascii_case(name) && (v.trim() == "1" || v.trim_end().ends_with("(1)")));
     let closed = flag("NoModify") && flag("NoRepair");
     !manager && !closed && p.package.is_none() && (p.msi.is_some() || p.modify.is_some())
 }
@@ -151,7 +152,13 @@ pub fn plan(p: &Program, how: How, admin: bool, me: &Me) -> Plan {
         if how == How::Modify {
             return Plan::Cannot(NO_UNINSTALLER.into());
         }
-        return if mine && me.runs_as { Plan::Package(full.clone()) } else if mine { Plan::Cannot(NOT_ELEVATED_PACKAGE.into()) } else { Plan::Cannot(OTHER_USER.into()) };
+        return if mine && me.runs_as {
+            Plan::Package(full.clone())
+        } else if mine {
+            Plan::Cannot(NOT_ELEVATED_PACKAGE.into())
+        } else {
+            Plan::Cannot(OTHER_USER.into())
+        };
     }
     // Another user's own program: their uninstaller would change their
     // settings, not this account's.
@@ -196,7 +203,12 @@ pub fn plan(p: &Program, how: How, admin: bool, me: &Me) -> Plan {
     // Only winget knows it.
     if let Some(w) = &p.winget {
         let quiet = if how == How::Quiet { " --silent" } else { "" };
-        return hidden("winget", &format!("uninstall --id \"{}\" --exact --disable-interactivity --accept-source-agreements{quiet}", w.id), false, Vec::new());
+        return hidden(
+            "winget",
+            &format!("uninstall --id \"{}\" --exact --disable-interactivity --accept-source-agreements{quiet}", w.id),
+            false,
+            Vec::new(),
+        );
     }
     Plan::Cannot(NO_UNINSTALLER.into())
 }
@@ -461,7 +473,9 @@ fn shell_run(file: &str, params: &str, elevate: bool, hidden: bool) -> Outcome {
 #[cfg(windows)]
 fn grow(family: &mut std::collections::HashSet<u32>) -> usize {
     use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
-    use windows_sys::Win32::System::Diagnostics::ToolHelp::{CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS};
+    use windows_sys::Win32::System::Diagnostics::ToolHelp::{
+        CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
+    };
     // SAFETY: a snapshot of the processes, closed below.
     let snap = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) };
     if snap == INVALID_HANDLE_VALUE {
@@ -501,7 +515,13 @@ mod tests {
     use crate::inventory::WingetInfo;
 
     fn prog(uninstall: Option<&str>) -> Program {
-        Program { name: "X".into(), uninstall: uninstall.map(Into::into), sources: vec![Source::Registry], scope: Scope::Machine, ..Program::default() }
+        Program {
+            name: "X".into(),
+            uninstall: uninstall.map(Into::into),
+            sources: vec![Source::Registry],
+            scope: Scope::Machine,
+            ..Program::default()
+        }
     }
 
     fn me() -> Me {
@@ -541,14 +561,31 @@ mod tests {
         other.scope = Scope::User { name: "Ana".into(), current: false };
         assert_eq!(plan(&other, How::Normal, true, &me), Plan::Cannot(OTHER_USER.into()));
         // A package of the desktop's user: from rinst as that user only.
-        let pk = Program { package: Some("A_1_x64__z".into()), scope: Scope::User { name: "me".into(), current: true }, sources: vec![Source::Store], ..Program::default() };
+        let pk = Program {
+            package: Some("A_1_x64__z".into()),
+            scope: Scope::User { name: "me".into(), current: true },
+            sources: vec![Source::Store],
+            ..Program::default()
+        };
         assert_eq!(plan(&pk, How::Normal, false, &me), Plan::Package("A_1_x64__z".into()));
         let as_admin = Me { runs_as: false, ..me.clone() };
         assert_eq!(plan(&pk, How::Normal, true, &as_admin), Plan::Cannot(NOT_ELEVATED_PACKAGE.into()));
-        let w = Program { winget: Some(WingetInfo { id: "Some.App".into(), ..WingetInfo::default() }), sources: vec![Source::Winget], ..Program::default() };
-        assert!(matches!(plan(&w, How::Quiet, false, &me), Plan::Run { ref file, ref params, hidden: true, .. } if file == "winget" && params.contains("--id \"Some.App\"") && params.ends_with("--silent")));
+        let w = Program {
+            winget: Some(WingetInfo { id: "Some.App".into(), ..WingetInfo::default() }),
+            sources: vec![Source::Winget],
+            ..Program::default()
+        };
+        assert!(
+            matches!(plan(&w, How::Quiet, false, &me), Plan::Run { ref file, ref params, hidden: true, .. } if file == "winget" && params.contains("--id \"Some.App\"") && params.ends_with("--silent"))
+        );
         assert_eq!(plan(&Program::default(), How::Normal, false, &me), Plan::Cannot(NO_UNINSTALLER.into()));
-        let scoop = Program { name: "rg".into(), key: "D:\\scoop\\apps\\rg".into(), sources: vec![Source::Scoop], scope: Scope::User { name: "me".into(), current: true }, ..Program::default() };
+        let scoop = Program {
+            name: "rg".into(),
+            key: "D:\\scoop\\apps\\rg".into(),
+            sources: vec![Source::Scoop],
+            scope: Scope::User { name: "me".into(), current: true },
+            ..Program::default()
+        };
         let Plan::Run { file, params, elevate, env, .. } = plan(&scoop, How::Normal, false, &me) else { panic!() };
         assert_eq!((file.as_str(), elevate), ("powershell.exe", false));
         assert!(params.contains("D:\\scoop\\apps\\scoop\\current\\bin\\scoop.ps1\" uninstall rg"), "{params}");
@@ -573,9 +610,17 @@ mod tests {
         assert!(!can_modify(&closed));
         assert_eq!(plan(&closed, How::Modify, false, &me), Plan::Cannot(NO_MODIFY.into()));
         // Linux: the package manager, through pkexec without root.
-        let deb = Program { name: "htop".into(), values: vec![("Package".into(), "htop:amd64".into())], sources: vec![Source::Dpkg], ..Program::default() };
+        let deb = Program {
+            name: "htop".into(),
+            values: vec![("Package".into(), "htop:amd64".into())],
+            sources: vec![Source::Dpkg],
+            ..Program::default()
+        };
         let Plan::Run { file, params, elevate, env, .. } = plan(&deb, How::Normal, false, &me) else { panic!() };
-        assert!(elevate && params.ends_with(" htop:amd64") && (file == "apt-get" && params.starts_with("remove -y") || file == "dpkg"), "{file} {params}");
+        assert!(
+            elevate && params.ends_with(" htop:amd64") && (file == "apt-get" && params.starts_with("remove -y") || file == "dpkg"),
+            "{file} {params}"
+        );
         assert_eq!(env, [("DEBIAN_FRONTEND".to_string(), "noninteractive".to_string())]);
         let Plan::Run { elevate, .. } = plan(&deb, How::Normal, true, &me) else { panic!() };
         assert!(!elevate, "already root");
@@ -583,22 +628,40 @@ mod tests {
         let Plan::Run { params, .. } = plan(&rc, How::Normal, false, &me) else { panic!() };
         assert!(params.contains("purge"), "settings left are purged: {params}");
         let fp = Program {
-            values: vec![("Ref".into(), "app/org.gimp.GIMP/x86_64/stable".into()), ("Installation".into(), "user".into()), ("Origin".into(), "flathub".into())],
+            values: vec![
+                ("Ref".into(), "app/org.gimp.GIMP/x86_64/stable".into()),
+                ("Installation".into(), "user".into()),
+                ("Origin".into(), "flathub".into()),
+            ],
             sources: vec![Source::Flatpak],
             ..Program::default()
         };
-        assert_eq!(plan(&fp, How::Quiet, false, &me), hidden("flatpak", "uninstall -y --user app/org.gimp.GIMP/x86_64/stable", false, Vec::new()));
+        assert_eq!(
+            plan(&fp, How::Quiet, false, &me),
+            hidden("flatpak", "uninstall -y --user app/org.gimp.GIMP/x86_64/stable", false, Vec::new())
+        );
         let Plan::Run { params, .. } = plan(&fp, How::Modify, false, &me) else { panic!() };
         assert_eq!(params, "install -y --reinstall --user flathub app/org.gimp.GIMP/x86_64/stable");
-        let sn = Program { name: "ponysay".into(), values: vec![("Package".into(), "ponysay".into())], sources: vec![Source::Snap], ..Program::default() };
+        let sn = Program {
+            name: "ponysay".into(),
+            values: vec![("Package".into(), "ponysay".into())],
+            sources: vec![Source::Snap],
+            ..Program::default()
+        };
         assert_eq!(plan(&sn, How::Normal, false, &me), hidden("snap", "remove ponysay", true, Vec::new()));
         assert!(!can_modify(&sn) && can_modify(&deb) && can_modify(&fp));
         // Windows' features and the development tools.
         let feature = &crate::tools::parse_features("TelnetClient\t1\tTelnet Client\n")[0];
-        assert_eq!(plan(feature, How::Normal, false, &me), hidden("dism.exe", "/Online /Disable-Feature /FeatureName:TelnetClient /NoRestart", true, Vec::new()));
+        assert_eq!(
+            plan(feature, How::Normal, false, &me),
+            hidden("dism.exe", "/Online /Disable-Feature /FeatureName:TelnetClient /NoRestart", true, Vec::new())
+        );
         let cap = &crate::tools::parse_capabilities("App.StepsRecorder~~~~0.0.1.0 | Installed\n")[0];
         let Plan::Run { params, elevate, .. } = plan(cap, How::Quiet, true, &me) else { panic!() };
-        assert_eq!((params.as_str(), elevate), ("/Online /Remove-Capability /CapabilityName:App.StepsRecorder~~~~0.0.1.0 /NoRestart /Quiet", false));
+        assert_eq!(
+            (params.as_str(), elevate),
+            ("/Online /Remove-Capability /CapabilityName:App.StepsRecorder~~~~0.0.1.0 /NoRestart /Quiet", false)
+        );
         assert!(!can_modify(feature) && plan(feature, How::Modify, true, &me) == Plan::Cannot(NO_MODIFY.into()));
         let pips = crate::tools::parse_pip(
             r#"[{"name":"affine","version":"3.0.1","location":"D:\\Py\\Lib\\site-packages","installer":"pip"},{"name":"PyYAML","version":"6.0","location":"/usr/lib/python3/dist-packages","installer":"debian"}]"#,
@@ -606,7 +669,10 @@ mod tests {
             "D:\\Py\\python.exe",
             "me",
         );
-        assert_eq!(plan(&pips[0], How::Normal, false, &me), hidden("D:\\Py\\python.exe", "-m pip uninstall -y --disable-pip-version-check affine", false, Vec::new()));
+        assert_eq!(
+            plan(&pips[0], How::Normal, false, &me),
+            hidden("D:\\Py\\python.exe", "-m pip uninstall -y --disable-pip-version-check affine", false, Vec::new())
+        );
         let Plan::Run { params, .. } = plan(&pips[0], How::Modify, false, &me) else { panic!() };
         assert!(params.ends_with("--force-reinstall --no-deps --disable-pip-version-check affine==3.0.1"), "{params}");
         assert_eq!(plan(&pips[1], How::Normal, true, &me), Plan::Cannot(OTHER_MANAGER.into()));

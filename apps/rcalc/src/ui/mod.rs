@@ -120,16 +120,7 @@ pub struct Button<'s> {
 
 impl<'s> Button<'s> {
     pub fn new(action: Action, rect: Rect, label: &'s str, content: Content<'s>, style: Style) -> Button<'s> {
-        Button {
-            action,
-            rect,
-            label,
-            content,
-            style,
-            enabled: true,
-            role: Role::Button,
-            checked: None,
-        }
+        Button { action, rect, label, content, style, enabled: true, role: Role::Button, checked: None }
     }
     pub fn enabled(mut self, e: bool) -> Self {
         self.enabled = e;
@@ -160,17 +151,7 @@ pub struct Ui<'a> {
 
 impl<'a> Ui<'a> {
     pub fn new(g: &'a mut Gfx, t: Theme, s: f32, inp: &'a Input) -> Ui<'a> {
-        Ui {
-            g,
-            t,
-            s,
-            inp,
-            widgets: Vec::with_capacity(96),
-            scrolls: Vec::new(),
-            layer: 0,
-            clip: None,
-            label_seq: 0,
-        }
+        Ui { g, t, s, inp, widgets: Vec::with_capacity(96), scrolls: Vec::new(), layer: 0, clip: None, label_seq: 0 }
     }
 
     pub fn px(&self, v: f32) -> f32 {
@@ -487,8 +468,7 @@ impl<'a> Ui<'a> {
         for i in 1..=4 {
             let d = i as f32 * self.s;
             let shadow = Color::rgba(0x000000, if t.dark { 0x18 } else { 0x0C });
-            self.g
-                .fill_rrect(Rect::new(r.x - d * 0.5, r.y + d * 0.5, r.w + d, r.h + d), rad + d, shadow);
+            self.g.fill_rrect(Rect::new(r.x - d * 0.5, r.y + d * 0.5, r.w + d, r.h + d), rad + d, shadow);
         }
         self.g.fill_rrect(r, rad, t.flyout);
         self.g.stroke_rrect(r, rad, 1.0, t.flyout_border);

@@ -59,7 +59,9 @@ pub struct Cleaned {
 fn wanted(place: &Place, name: &str, modified: Option<SystemTime>, now: SystemTime) -> bool {
     match place.filter {
         Filter::All => true,
-        Filter::OlderThanHours(h) => modified.and_then(|m| now.duration_since(m).ok()).is_some_and(|age| age >= Duration::from_secs(h * 3600)),
+        Filter::OlderThanHours(h) => {
+            modified.and_then(|m| now.duration_since(m).ok()).is_some_and(|age| age >= Duration::from_secs(h * 3600))
+        }
         Filter::Prefix(p) => name.to_lowercase().starts_with(&p.to_lowercase()),
         Filter::Named(n) => name.eq_ignore_ascii_case(n),
     }
@@ -292,7 +294,8 @@ fn recycle_bin() -> Option<(u64, u64)> {
 fn empty_recycle_bin() -> bool {
     use windows_sys::Win32::UI::Shell::{SHEmptyRecycleBinW, SHERB_NOCONFIRMATION, SHERB_NOPROGRESSUI, SHERB_NOSOUND};
     // SAFETY: no window, every drive, no question, no sound.
-    let hr = unsafe { SHEmptyRecycleBinW(std::ptr::null_mut(), std::ptr::null(), SHERB_NOCONFIRMATION | SHERB_NOPROGRESSUI | SHERB_NOSOUND) };
+    let hr =
+        unsafe { SHEmptyRecycleBinW(std::ptr::null_mut(), std::ptr::null(), SHERB_NOCONFIRMATION | SHERB_NOPROGRESSUI | SHERB_NOSOUND) };
     // An empty bin answers with an error: nothing was there.
     hr >= 0 || recycle_bin().is_some_and(|(_, n)| n == 0)
 }

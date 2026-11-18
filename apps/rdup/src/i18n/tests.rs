@@ -189,7 +189,14 @@ fn pages_render_fully_translated() {
     for (stage, roots) in [(Stage::Reading, 1), (Stage::Reading, 2), (Stage::Edges, 1), (Stage::Contents, 1), (Stage::Folders, 1)] {
         app.searching = Some(Searching {
             roots: vec![tt.0.clone(), tt.0.clone()],
-            progress: Progress { stage, roots, total: 5, total_bytes: 5000, read: rt_scan::Progress { errors: 2, ..Default::default() }, ..Progress::default() },
+            progress: Progress {
+                stage,
+                roots,
+                total: 5,
+                total_bytes: 5000,
+                read: rt_scan::Progress { errors: 2, ..Default::default() },
+                ..Progress::default()
+            },
             started: std::time::Instant::now(),
             generation: 1,
         });

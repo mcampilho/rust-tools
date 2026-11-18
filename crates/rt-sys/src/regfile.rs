@@ -105,7 +105,12 @@ mod win {
     pub fn run_hidden(exe: &str, args: &[&str]) -> Result<(), String> {
         use std::os::windows::process::CommandExt;
         const NO_WINDOW: u32 = 0x0800_0000;
-        let o = std::process::Command::new(exe).args(args).creation_flags(NO_WINDOW).stdin(std::process::Stdio::null()).output().map_err(|e| e.to_string())?;
+        let o = std::process::Command::new(exe)
+            .args(args)
+            .creation_flags(NO_WINDOW)
+            .stdin(std::process::Stdio::null())
+            .output()
+            .map_err(|e| e.to_string())?;
         if o.status.success() {
             return Ok(());
         }
@@ -125,8 +130,10 @@ mod win {
 
     /// A whole key (and what is below it) as `.reg` text, without the header.
     pub fn export_key(path: &str) -> Result<String, String> {
-        let tmp = std::env::temp_dir().join(format!("rt-regfile-{}-{:?}.reg", std::process::id(), std::thread::current().id()).replace(['(', ')'], ""));
-        let r = run_hidden("reg.exe", &["export", path, &tmp.to_string_lossy(), "/y", "/reg:64"]).and_then(|_| read_reg(&tmp).ok_or_else(|| "export".to_string()));
+        let tmp = std::env::temp_dir()
+            .join(format!("rt-regfile-{}-{:?}.reg", std::process::id(), std::thread::current().id()).replace(['(', ')'], ""));
+        let r = run_hidden("reg.exe", &["export", path, &tmp.to_string_lossy(), "/y", "/reg:64"])
+            .and_then(|_| read_reg(&tmp).ok_or_else(|| "export".to_string()));
         let _ = std::fs::remove_file(&tmp);
         r.map(|t| {
             let mut t = t.trim_start().trim_start_matches(HEADER).trim_start_matches(['\r', '\n']).to_string();
@@ -229,12 +236,17 @@ mod tests {
         run_hidden("reg.exe", &["add", &key, "/v", "Gone", "/t", "REG_DWORD", "/d", "7", "/f", "/reg:64"]).unwrap();
         let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target").join(format!("regfile-{}", std::process::id()));
         let backup = dir.join("saved.reg");
-        let r = save_then_delete(&[Entry { key: key.clone(), value: Some("Gone".into()) }, Entry { key: format!("{key}\\Sub"), value: None }], &backup);
+        let r = save_then_delete(
+            &[Entry { key: key.clone(), value: Some("Gone".into()) }, Entry { key: format!("{key}\\Sub"), value: None }],
+            &backup,
+        );
         assert_eq!(r, [Ok(()), Ok(())]);
         let rest = key.trim_start_matches("HKEY_CURRENT_USER\\");
         let k = Key::open(Root::CurrentUser, rest, View::Bits64).unwrap();
         assert!(k.value("Gone").is_none() && k.sub("Sub", View::Bits64).is_none());
-        let text = String::from_utf16_lossy(&std::fs::read(&backup).unwrap()[2..].as_chunks::<2>().0.iter().map(|c| u16::from_le_bytes(*c)).collect::<Vec<_>>());
+        let text = String::from_utf16_lossy(
+            &std::fs::read(&backup).unwrap()[2..].as_chunks::<2>().0.iter().map(|c| u16::from_le_bytes(*c)).collect::<Vec<_>>(),
+        );
         assert!(text.starts_with(HEADER) && text.contains("\"Gone\"=dword:00000007") && text.contains("\"Keep\"=\"1\""), "{text}");
         run_hidden("reg.exe", &["import", &backup.to_string_lossy(), "/reg:64"]).unwrap();
         assert!(Key::open(Root::CurrentUser, rest, View::Bits64).unwrap().value("Gone").is_some());

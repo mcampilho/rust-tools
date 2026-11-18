@@ -35,19 +35,11 @@ fn consts() -> &'static Consts {
         let p = CONST_P + 10;
         let inv = |n: i64| Dec::one().div_p(&Dec::from_i64(n), p);
         // Machin: pi = 16 atan(1/5) - 4 atan(1/239)
-        let pi = atan_series(&inv(5), p)
-            .mul_p(&Dec::from_i64(16), p)
-            .sub_p(&atan_series(&inv(239), p).mul_p(&Dec::from_i64(4), p), p);
+        let pi = atan_series(&inv(5), p).mul_p(&Dec::from_i64(16), p).sub_p(&atan_series(&inv(239), p).mul_p(&Dec::from_i64(4), p), p);
         // ln 2 = 2 atanh(1/3); ln 10 = 3 ln 2 + ln 1.25 = 3 ln 2 + 2 atanh(1/9)
         let ln2 = atanh_series(&inv(3), p).mul_p(&Dec::from_i64(2), p);
-        let ln10 = ln2
-            .mul_p(&Dec::from_i64(3), p)
-            .add_p(&atanh_series(&inv(9), p).mul_p(&Dec::from_i64(2), p), p);
-        Consts {
-            pi: pi.round_sig(CONST_P),
-            ln2: ln2.round_sig(CONST_P),
-            ln10: ln10.round_sig(CONST_P),
-        }
+        let ln10 = ln2.mul_p(&Dec::from_i64(3), p).add_p(&atanh_series(&inv(9), p).mul_p(&Dec::from_i64(2), p), p);
+        Consts { pi: pi.round_sig(CONST_P), ln2: ln2.round_sig(CONST_P), ln10: ln10.round_sig(CONST_P) }
     })
 }
 
@@ -225,11 +217,7 @@ pub fn pow(x: &Dec, y: &Dec) -> CalcResult {
         return Ok(Dec::one());
     }
     if x.is_zero() {
-        return if y.is_neg() {
-            Err(CalcError::DivideByZero)
-        } else {
-            Ok(Dec::zero())
-        };
+        return if y.is_neg() { Err(CalcError::DivideByZero) } else { Ok(Dec::zero()) };
     }
     if let Some(n) = y.to_bigint() {
         if let Some(r) = pow_int(x, &n) {
@@ -295,11 +283,7 @@ pub fn root(x: &Dec, y: &Dec) -> CalcResult {
         };
     }
     if x.is_zero() {
-        return if y.is_neg() {
-            Err(CalcError::DivideByZero)
-        } else {
-            Ok(Dec::zero())
-        };
+        return if y.is_neg() { Err(CalcError::DivideByZero) } else { Ok(Dec::zero()) };
     }
     if yi == Some(BigInt::from(2)) {
         return sqrt(x);
@@ -827,10 +811,7 @@ pub fn to_dms(x: &Dec) -> CalcResult {
     let mf = a.sub_p(&d, g).mul_p(&sixty, g);
     let m = mf.trunc();
     let s = mf.sub_p(&m, g).mul_p(&sixty, g);
-    let r = d
-        .add_p(&m.div_p(&Dec::from_i64(100), g), g)
-        .add_p(&s.div_p(&Dec::from_i64(10000), g), g)
-        .round_sig(PREC);
+    let r = d.add_p(&m.div_p(&Dec::from_i64(100), g), g).add_p(&s.div_p(&Dec::from_i64(10000), g), g).round_sig(PREC);
     Ok(if x.is_neg() { r.neg() } else { r })
 }
 
@@ -843,10 +824,7 @@ pub fn from_dms(x: &Dec) -> CalcResult {
     let mf = a.sub_p(&d, g).mul_p(&hundred, g);
     let m = mf.trunc();
     let s = mf.sub_p(&m, g).mul_p(&hundred, g);
-    let r = d
-        .add_p(&m.div_p(&Dec::from_i64(60), g), g)
-        .add_p(&s.div_p(&Dec::from_i64(3600), g), g)
-        .round_sig(PREC);
+    let r = d.add_p(&m.div_p(&Dec::from_i64(60), g), g).add_p(&s.div_p(&Dec::from_i64(3600), g), g).round_sig(PREC);
     Ok(if x.is_neg() { r.neg() } else { r })
 }
 

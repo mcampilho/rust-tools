@@ -155,7 +155,8 @@ impl Shell {
         self.generation += 1;
         let gen = self.generation;
         self.stop = Arc::new(AtomicBool::new(false));
-        let work: Vec<(usize, rclean::targets::Target)> = self.app.items.iter().enumerate().filter(|(_, it)| it.usable()).map(|(i, it)| (i, it.target.clone())).collect();
+        let work: Vec<(usize, rclean::targets::Target)> =
+            self.app.items.iter().enumerate().filter(|(_, it)| it.usable()).map(|(i, it)| (i, it.target.clone())).collect();
         for &(i, _) in &work {
             self.app.items[i].state = State::Analysing;
         }
@@ -185,7 +186,9 @@ impl Shell {
             .app
             .chosen()
             .into_iter()
-            .filter_map(|i| self.app.items[i].found().filter(|f| f.count() > 0 || f.unknown).map(|f| (i, self.app.items[i].target.clone(), f.clone())))
+            .filter_map(|i| {
+                self.app.items[i].found().filter(|f| f.count() > 0 || f.unknown).map(|f| (i, self.app.items[i].target.clone(), f.clone()))
+            })
             .collect();
         if work.is_empty() {
             return;
@@ -195,7 +198,10 @@ impl Shell {
         let mut text = if shortcuts && work.iter().all(|(_, t, _)| t.kind == rclean::targets::Kind::Shortcuts) {
             tf("{} broken shortcuts will go to the Recycle Bin:", &[&format::count(n)])
         } else if shortcuts {
-            tf("{} in {} files will be cleaned (broken shortcuts to the Recycle Bin, the rest for good):", &[&format::size(bytes), &format::count(n)])
+            tf(
+                "{} in {} files will be cleaned (broken shortcuts to the Recycle Bin, the rest for good):",
+                &[&format::size(bytes), &format::count(n)],
+            )
         } else {
             tf("{} in {} files will be deleted for good:", &[&format::size(bytes), &format::count(n)])
         };
@@ -292,7 +298,10 @@ impl Shell {
             }
             if let Some(dir) = self.backups.take().filter(|d| d.is_dir()) {
                 text += "\n\n";
-                text += &tf("The registry entries were saved in {} first: open the .reg files there to put them back.", &[&dir.display().to_string()]);
+                text += &tf(
+                    "The registry entries were saved in {} first: open the .reg files there to put them back.",
+                    &[&dir.display().to_string()],
+                );
             }
             // What a package manager's command said when it did not work.
             let errors: Vec<String> = self
@@ -300,7 +309,9 @@ impl Shell {
                 .items
                 .iter()
                 .filter_map(|it| match &it.state {
-                    State::Cleaned(Cleaned { error: Some(e), .. }) => Some(format!("  {} — {}: {e}", view::group_label(it.target.group), tr(it.target.name))),
+                    State::Cleaned(Cleaned { error: Some(e), .. }) => {
+                        Some(format!("  {} — {}: {e}", view::group_label(it.target.group), tr(it.target.name)))
+                    }
                     _ => None,
                 })
                 .collect();
@@ -622,7 +633,12 @@ impl ApplicationHandler<UserEvent> for Shell {
     fn user_event(&mut self, el: &ActiveEventLoop, event: UserEvent) {
         match event {
             UserEvent::Starting(gen, i) if gen == self.generation => {
-                let name = self.app.items.get(i).map(|it| format!("{} — {}", view::group_label(it.target.group), tr(it.target.name))).unwrap_or_default();
+                let name = self
+                    .app
+                    .items
+                    .get(i)
+                    .map(|it| format!("{} — {}", view::group_label(it.target.group), tr(it.target.name)))
+                    .unwrap_or_default();
                 if let Some(b) = &mut self.app.busy {
                     b.name = name;
                 }
@@ -877,7 +893,8 @@ fn main() {
     #[cfg(windows)]
     let admin = rt_sys::win::elevated();
     #[cfg(not(windows))]
-    let admin = std::fs::read_to_string("/proc/self/status").is_ok_and(|s| s.lines().any(|l| l.starts_with("Uid:") && l.split_whitespace().nth(2) == Some("0")));
+    let admin = std::fs::read_to_string("/proc/self/status")
+        .is_ok_and(|s| s.lines().any(|l| l.starts_with("Uid:") && l.split_whitespace().nth(2) == Some("0")));
     let app = App::new(rclean::targets::all(&rclean::targets::Env::here()), admin, &settings.ticks);
     let mut shell = Shell {
         app,

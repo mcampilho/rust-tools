@@ -26,8 +26,15 @@ impl Region {
     /// The settings of a country, without asking the system.
     pub fn of_country(country: &str) -> Region {
         let c = country.to_ascii_uppercase();
-        let us = matches!(c.as_str(), "US" | "LR" | "MM" | "PR" | "GU" | "VI" | "AS" | "MP" | "UM" | "BS" | "BZ" | "KY" | "PW" | "FM" | "MH");
-        Region { h24: !matches!(c.as_str(), "US" | "CA" | "AU" | "NZ" | "IN" | "PH" | "EG" | "SA" | "PK"), fahrenheit: us, first_day: None, country: c, zone: String::new() }
+        let us =
+            matches!(c.as_str(), "US" | "LR" | "MM" | "PR" | "GU" | "VI" | "AS" | "MP" | "UM" | "BS" | "BZ" | "KY" | "PW" | "FM" | "MH");
+        Region {
+            h24: !matches!(c.as_str(), "US" | "CA" | "AU" | "NZ" | "IN" | "PH" | "EG" | "SA" | "PK"),
+            fahrenheit: us,
+            first_day: None,
+            country: c,
+            zone: String::new(),
+        }
     }
 
     /// The city of the time zone with the country after a comma, ready to
@@ -61,7 +68,9 @@ pub fn region() -> &'static Region {
 
 #[cfg(windows)]
 fn read() -> Region {
-    use windows_sys::Win32::Globalization::{GetLocaleInfoEx, GetUserDefaultGeoName, LOCALE_IFIRSTDAYOFWEEK, LOCALE_IMEASURE, LOCALE_STIMEFORMAT};
+    use windows_sys::Win32::Globalization::{
+        GetLocaleInfoEx, GetUserDefaultGeoName, LOCALE_IFIRSTDAYOFWEEK, LOCALE_IMEASURE, LOCALE_STIMEFORMAT,
+    };
     let info = |what: u32| -> String {
         let mut buf = [0u16; 128];
         // SAFETY: the buffer and its length; a null name is the user's locale.
@@ -128,11 +137,19 @@ fn read() -> Region {
     let var = |k: &str| std::env::var(k).ok().filter(|v| !v.is_empty());
     let locale = var("LC_ALL").or_else(|| var("LC_TIME")).or_else(|| var("LANG")).unwrap_or_default();
     // "pt_PT.UTF-8" → "PT".
-    let country = locale.split(['.', '@']).next().and_then(|l| l.split_once('_')).map(|(_, c)| c.to_string()).filter(|c| c.len() == 2).unwrap_or_default();
+    let country = locale
+        .split(['.', '@'])
+        .next()
+        .and_then(|l| l.split_once('_'))
+        .map(|(_, c)| c.to_string())
+        .filter(|c| c.len() == 2)
+        .unwrap_or_default();
     let mut r = Region::of_country(&country);
     r.zone = var("TZ")
         .map(|z| z.trim_start_matches(':').to_string())
-        .or_else(|| std::fs::read_link("/etc/localtime").ok().and_then(|p| p.to_string_lossy().split("zoneinfo/").nth(1).map(str::to_string)))
+        .or_else(|| {
+            std::fs::read_link("/etc/localtime").ok().and_then(|p| p.to_string_lossy().split("zoneinfo/").nth(1).map(str::to_string))
+        })
         .or_else(|| std::fs::read_to_string("/etc/timezone").ok().map(|s| s.trim().to_string()))
         .unwrap_or_default();
     r

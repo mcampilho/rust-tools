@@ -45,12 +45,24 @@ impl Command {
             Stop => "&Stop",
             #[cfg(windows)]
             RestartAdmin => "Restart as Ad&ministrator",
-            Autostart => if cfg!(windows) { "Start wit&h Windows" } else { "Start &When I Log In" },
+            Autostart => {
+                if cfg!(windows) {
+                    "Start wit&h Windows"
+                } else {
+                    "Start &When I Log In"
+                }
+            }
             Exit => "E&xit",
             TickAll => "Tick &All",
             UntickAll => "&Untick All",
             TickDefaults => "Tick the U&sual Ones",
-            OpenFolder => if cfg!(windows) { "Open Folder in &Explorer" } else { "Open Folder in File &Manager" },
+            OpenFolder => {
+                if cfg!(windows) {
+                    "Open Folder in &Explorer"
+                } else {
+                    "Open Folder in File &Manager"
+                }
+            }
             CopyDetails => "Copy the &Details",
             Theme(0) => "Use &System Setting",
             Theme(1) => "&Light",

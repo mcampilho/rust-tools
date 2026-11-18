@@ -67,7 +67,9 @@ mod imp {
     use super::Volume;
     use rt_sys::win::{from_wide, wide};
     use std::path::PathBuf;
-    use windows_sys::Win32::Storage::FileSystem::{GetDiskFreeSpaceExW, GetDriveTypeW, GetLogicalDriveStringsW, GetVolumeInformationW, GetVolumePathNameW};
+    use windows_sys::Win32::Storage::FileSystem::{
+        GetDiskFreeSpaceExW, GetDriveTypeW, GetLogicalDriveStringsW, GetVolumeInformationW, GetVolumePathNameW,
+    };
     use windows_sys::Win32::System::WindowsProgramming::{DRIVE_CDROM, DRIVE_NO_ROOT_DIR, DRIVE_REMOTE, DRIVE_REMOVABLE};
 
     pub fn space_of(path: &std::path::Path) -> Option<super::Space> {
@@ -82,7 +84,16 @@ mod imp {
         let mut label = vec![0u16; 261];
         // SAFETY: the buffer is as long as stated; the optional outputs are null.
         let named = unsafe {
-            GetVolumeInformationW(rw.as_ptr(), label.as_mut_ptr(), label.len() as u32, std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut(), 0)
+            GetVolumeInformationW(
+                rw.as_ptr(),
+                label.as_mut_ptr(),
+                label.len() as u32,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                0,
+            )
         } != 0;
         let (mut avail, mut total, mut free) = (0u64, 0u64, 0u64);
         // SAFETY: the outputs are valid u64s.
@@ -134,14 +145,7 @@ mod imp {
         if !sized && !ok {
             return None;
         }
-        Some(Volume {
-            path: PathBuf::from(root),
-            label: from_wide(&label),
-            fs: from_wide(&fs),
-            total,
-            free,
-            remote: kind == DRIVE_REMOTE,
-        })
+        Some(Volume { path: PathBuf::from(root), label: from_wide(&label), fs: from_wide(&fs), total, free, remote: kind == DRIVE_REMOTE })
     }
 }
 
@@ -153,8 +157,8 @@ mod imp {
 
     /// File systems that hold files people put there (not /proc, tmpfs...).
     const REAL: &[&str] = &[
-        "ext2", "ext3", "ext4", "btrfs", "xfs", "zfs", "f2fs", "jfs", "reiserfs", "bcachefs", "vfat", "exfat", "ntfs", "ntfs3",
-        "fuseblk", "hfsplus", "nfs", "nfs4", "cifs", "smb3", "9p", "drvfs", "virtiofs",
+        "ext2", "ext3", "ext4", "btrfs", "xfs", "zfs", "f2fs", "jfs", "reiserfs", "bcachefs", "vfat", "exfat", "ntfs", "ntfs3", "fuseblk",
+        "hfsplus", "nfs", "nfs4", "cifs", "smb3", "9p", "drvfs", "virtiofs",
     ];
     const REMOTE: &[&str] = &["nfs", "nfs4", "cifs", "smb3"];
 

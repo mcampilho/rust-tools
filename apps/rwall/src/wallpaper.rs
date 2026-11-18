@@ -39,7 +39,9 @@ mod imp {
         use windows_sys::Win32::System::Registry::{RegSetKeyValueW, HKEY_CURRENT_USER, REG_SZ};
         let (key, name, data) = (wide("Control Panel\\Desktop"), wide(name), wide(value));
         // SAFETY: NUL-terminated strings; the size covers `data` with its NUL.
-        let rc = unsafe { RegSetKeyValueW(HKEY_CURRENT_USER, key.as_ptr(), name.as_ptr(), REG_SZ, data.as_ptr().cast(), (data.len() * 2) as u32) };
+        let rc = unsafe {
+            RegSetKeyValueW(HKEY_CURRENT_USER, key.as_ptr(), name.as_ptr(), REG_SZ, data.as_ptr().cast(), (data.len() * 2) as u32)
+        };
         if rc == 0 {
             Ok(())
         } else {
@@ -48,12 +50,15 @@ mod imp {
     }
 
     pub fn set(file: &Path, fit: Fit) -> Result<(), String> {
-        use windows_sys::Win32::UI::WindowsAndMessaging::{SystemParametersInfoW, SPIF_SENDCHANGE, SPIF_UPDATEINIFILE, SPI_SETDESKWALLPAPER};
+        use windows_sys::Win32::UI::WindowsAndMessaging::{
+            SystemParametersInfoW, SPIF_SENDCHANGE, SPIF_UPDATEINIFILE, SPI_SETDESKWALLPAPER,
+        };
         set_value("WallpaperStyle", style(fit))?;
         set_value("TileWallpaper", "0")?;
         let path = wide(&file.to_string_lossy());
         // SAFETY: a NUL-terminated path that outlives the call.
-        let ok = unsafe { SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, path.as_ptr() as *mut _, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE) } != 0;
+        let ok =
+            unsafe { SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, path.as_ptr() as *mut _, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE) } != 0;
         if ok {
             Ok(())
         } else {

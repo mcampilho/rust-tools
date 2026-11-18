@@ -12,9 +12,9 @@
 // Win32 checks it on every call (an invalid one only makes the call fail).
 #![cfg_attr(windows, allow(clippy::not_unsafe_ptr_arg_deref))]
 
+pub mod autostart;
 #[cfg(target_os = "linux")]
 pub mod linux;
-pub mod autostart;
 pub mod lnk;
 pub mod net;
 pub mod regfile;
@@ -185,9 +185,7 @@ pub fn local_time() -> LocalTime {
     }
     #[cfg(not(any(windows, target_os = "linux")))]
     {
-        let secs = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_or(0, |d| d.as_secs()) as i64;
+        let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs()) as i64;
         // Days to a civil date (Howard Hinnant's algorithm).
         let z = secs.div_euclid(86_400) + 719_468;
         let (era, doe) = (z.div_euclid(146_097), z.rem_euclid(146_097));
@@ -198,14 +196,7 @@ pub fn local_time() -> LocalTime {
         let month = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
         let year = (yoe + era * 400 + i64::from(month <= 2)) as i32;
         let t = secs.rem_euclid(86_400) as u32;
-        LocalTime {
-            year,
-            month,
-            day,
-            hour: t / 3600,
-            minute: t / 60 % 60,
-            second: t % 60,
-        }
+        LocalTime { year, month, day, hour: t / 3600, minute: t / 60 % 60, second: t % 60 }
     }
 }
 
@@ -235,9 +226,6 @@ mod tests {
     fn local_date_matches_the_system() {
         let out = std::process::Command::new("date").arg("+%Y-%-m-%-d").output().unwrap();
         let t = local_time();
-        assert_eq!(
-            String::from_utf8_lossy(&out.stdout).trim(),
-            format!("{}-{}-{}", t.year, t.month, t.day)
-        );
+        assert_eq!(String::from_utf8_lossy(&out.stdout).trim(), format!("{}-{}-{}", t.year, t.month, t.day));
     }
 }

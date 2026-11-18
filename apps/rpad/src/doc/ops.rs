@@ -646,11 +646,8 @@ impl Buffer {
         let last_end = self.sels.iter().map(|s| s.end()).max().unwrap_or(0);
         let hay = self.text.to_string();
         let start_byte = self.text.char_to_byte(last_end);
-        let found = hay[start_byte..]
-            .find(&needle)
-            .map(|b| start_byte + b)
-            .or_else(|| hay.find(&needle))
-            .map(|b| self.text.byte_to_char(b));
+        let found =
+            hay[start_byte..].find(&needle).map(|b| start_byte + b).or_else(|| hay.find(&needle)).map(|b| self.text.byte_to_char(b));
         if let Some(s) = found {
             let e = s + needle.chars().count();
             if self.sels.iter().any(|x| x.start() == s) {
@@ -945,7 +942,13 @@ mod tests {
         b.undo();
         assert_eq!(b.text.to_string(), "hello and world");
         let mut b = Buffer::new("c\na\nb\na");
-        assert_eq!(b.preview_lines(&|mut v: Vec<String>| { v.sort(); v }), (4, 2));
+        assert_eq!(
+            b.preview_lines(&|mut v: Vec<String>| {
+                v.sort();
+                v
+            }),
+            (4, 2)
+        );
         let changed = b.transform_lines(&|mut v: Vec<String>| {
             v.sort();
             v.dedup();

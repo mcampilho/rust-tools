@@ -68,17 +68,14 @@ pub fn text_report(ctx: &Context, results: &[CheckResult], t: &T, max: usize, se
     let title = t.get("report.title");
     out.push(title.to_string());
     out.push("=".repeat(title.chars().count()));
-    let labels: Vec<String> =
-        ["info.root", "info.global_root", "info.other_roots", "info.cache", "info.scoop_db"].iter().map(|k| format!("{}:", t.get(k))).collect();
+    let labels: Vec<String> = ["info.root", "info.global_root", "info.other_roots", "info.cache", "info.scoop_db"]
+        .iter()
+        .map(|k| format!("{}:", t.get(k)))
+        .collect();
     let w = labels.iter().map(|s| s.chars().count()).max().unwrap_or(0);
     out.push(format!("  {} {}  ({})", pad(&labels[0], w), ctx.root, t.get(&format!("src.{}", ctx.roots.root_source))));
     let gstate = t.get(if is_dir(&ctx.global_root) { "status.exists" } else { "status.missing" });
-    out.push(format!(
-        "  {} {}  ({}, {gstate})",
-        pad(&labels[1], w),
-        ctx.global_root,
-        t.get(&format!("src.{}", ctx.roots.global_source))
-    ));
+    out.push(format!("  {} {}  ({}, {gstate})", pad(&labels[1], w), ctx.global_root, t.get(&format!("src.{}", ctx.roots.global_source))));
     let others = other_roots(ctx);
     for (i, o) in others.iter().enumerate() {
         let state = t.get(if is_dir(o) { "status.exists" } else { "status.missing" });
@@ -135,7 +132,12 @@ pub fn text_report(ctx: &Context, results: &[CheckResult], t: &T, max: usize, se
     let (errors, warnings, with) = summary(results);
     let line = t.fill(
         "report.summary_line",
-        &[("errors", &errors.to_string()), ("warnings", &warnings.to_string()), ("checks", &with.to_string()), ("total", &results.len().to_string())],
+        &[
+            ("errors", &errors.to_string()),
+            ("warnings", &warnings.to_string()),
+            ("checks", &with.to_string()),
+            ("total", &results.len().to_string()),
+        ],
     );
     out.push(format!("{}: {line}", t.get("report.summary")));
     if let Some(s) = seconds {
@@ -200,8 +202,7 @@ pub fn json_report(ctx: &Context, results: &[CheckResult], t: &T, seconds: Optio
     o += &format!("  \"global_root\": {},\n", js(&ctx.global_root));
     o += &format!("  \"global_root_exists\": {},\n", is_dir(&ctx.global_root));
     o += &format!("  \"config_file\": {},\n", js(&ctx.roots.config_path));
-    let others: Vec<String> =
-        other_roots(ctx).iter().map(|r| format!("{{\"path\": {}, \"exists\": {}}}", js(r), is_dir(r))).collect();
+    let others: Vec<String> = other_roots(ctx).iter().map(|r| format!("{{\"path\": {}, \"exists\": {}}}", js(r), is_dir(r))).collect();
     o += &format!("  \"other_roots\": [{}],\n", others.join(", "));
     o += &format!("  \"summary\": {{\"errors\": {errors}, \"warnings\": {warnings}, \"checks_with_problems\": {with}}},\n");
     if let Some(s) = seconds {

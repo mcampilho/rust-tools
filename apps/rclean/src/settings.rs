@@ -68,7 +68,12 @@ mod tests {
 
     #[test]
     fn round_trip_and_bad_values() {
-        let s = Settings { theme: 2, language: Some(Lang::PtPT), window: Some((900.0, 700.0, true)), ticks: vec![("chrome.cache".into(), false), ("win.thumbs".into(), true)] };
+        let s = Settings {
+            theme: 2,
+            language: Some(Lang::PtPT),
+            window: Some((900.0, 700.0, true)),
+            ticks: vec![("chrome.cache".into(), false), ("win.thumbs".into(), true)],
+        };
         assert_eq!(Settings::load(&Store::parse(&s.to_store().serialize("rclean"))), s);
         let bad = Settings::load(&Store::parse("theme=??\nwindow=abc\nlanguage=xx-YY\nticks=a:2,:1,b\n"));
         assert_eq!(bad, Settings::default());

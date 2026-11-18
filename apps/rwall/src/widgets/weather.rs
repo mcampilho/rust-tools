@@ -62,8 +62,18 @@ impl Sky {
         }
     }
 
-    pub const ALL: [Sky; 10] =
-        [Sky::Clear, Sky::MostlyClear, Sky::PartlyCloudy, Sky::Overcast, Sky::Fog, Sky::Drizzle, Sky::Rain, Sky::Snow, Sky::Showers, Sky::Thunder];
+    pub const ALL: [Sky; 10] = [
+        Sky::Clear,
+        Sky::MostlyClear,
+        Sky::PartlyCloudy,
+        Sky::Overcast,
+        Sky::Fog,
+        Sky::Drizzle,
+        Sky::Rain,
+        Sky::Snow,
+        Sky::Showers,
+        Sky::Thunder,
+    ];
 }
 
 /// A day of the forecast.
@@ -106,7 +116,11 @@ pub fn split_city(typed: &str) -> (&str, &str) {
 }
 
 pub fn geocode_url(city: &str, lang: &str) -> String {
-    format!("https://geocoding-api.open-meteo.com/v1/search?name={}&count=10&language={}&format=json", net::encode(split_city(city).0), net::encode(lang))
+    format!(
+        "https://geocoding-api.open-meteo.com/v1/search?name={}&count=10&language={}&format=json",
+        net::encode(split_city(city).0),
+        net::encode(lang)
+    )
 }
 
 pub fn forecast_url(lat: f64, lon: f64, fahrenheit: bool) -> String {
@@ -227,7 +241,10 @@ mod tests {
         assert_eq!(Sky::from_code(99), Sky::Thunder);
         assert_eq!(Sky::from_code(86), Sky::Snow);
         assert!(geocode_url("São Paulo, Brasil", "pt").contains("name=S%C3%A3o+Paulo&count=10&language=pt"));
-        assert!(forecast_url(38.71667, -9.13333, true).contains("latitude=38.7167&longitude=-9.1333&") && forecast_url(0.0, 0.0, true).ends_with("fahrenheit"));
+        assert!(
+            forecast_url(38.71667, -9.13333, true).contains("latitude=38.7167&longitude=-9.1333&")
+                && forecast_url(0.0, 0.0, true).ends_with("fahrenheit")
+        );
     }
 
     /// Asks Open-Meteo for real (`cargo test -p rwall --lib weather_live -- --ignored --nocapture`).

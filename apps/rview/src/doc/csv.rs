@@ -121,7 +121,9 @@ impl CsvDoc {
 /// Whether a cell looks numeric (right-aligned in the grid).
 pub fn is_number(s: &str) -> bool {
     let t = s.trim().trim_start_matches(['+', '-']).trim_end_matches('%');
-    !t.is_empty() && t.chars().any(|c| c.is_ascii_digit()) && t.chars().all(|c| c.is_ascii_digit() || matches!(c, '.' | ',' | ' ' | 'e' | 'E'))
+    !t.is_empty()
+        && t.chars().any(|c| c.is_ascii_digit())
+        && t.chars().all(|c| c.is_ascii_digit() || matches!(c, '.' | ',' | ' ' | 'e' | 'E'))
 }
 
 #[cfg(test)]

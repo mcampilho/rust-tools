@@ -160,7 +160,16 @@ impl Painter {
     pub fn new(scene: Scene) -> Painter {
         let (w, h) = scene.size();
         let (w, h) = (w as usize, h as usize);
-        let mut p = Painter { scene, w, h, base: vec![0; w * h], stars: Vec::new(), ground: vec![h; w], curtains: Vec::new(), sea_rows: Vec::new() };
+        let mut p = Painter {
+            scene,
+            w,
+            h,
+            base: vec![0; w * h],
+            stars: Vec::new(),
+            ground: vec![h; w],
+            curtains: Vec::new(),
+            sea_rows: Vec::new(),
+        };
         let mut rng = Rng(0x9E37_79B9_7F4A_7C15 ^ scene.key().len() as u64);
         match scene {
             Scene::Aurora => p.aurora_base(&mut rng),
@@ -321,7 +330,9 @@ impl Painter {
                 } else {
                     let d = ((xf - ax) * dy - (yf - ay) * dx).abs() / len;
                     let band = (-(d / width) * (d / width)).exp();
-                    let clumps = 0.55 + 0.25 * (xf * 0.031 + yf * 0.017).sin() * (xf * 0.012 - yf * 0.043).cos() + 0.2 * (xf * 0.09 + yf * 0.07).sin();
+                    let clumps = 0.55
+                        + 0.25 * (xf * 0.031 + yf * 0.017).sin() * (xf * 0.012 - yf * 0.043).cos()
+                        + 0.2 * (xf * 0.09 + yf * 0.07).sin();
                     c = mix(c, [58.0, 54.0, 84.0], (band * clumps).clamp(0.0, 1.0) * 0.55);
                 }
                 self.base[y * w + x] = pack(c);
@@ -452,12 +463,14 @@ impl Painter {
             for x in 0..w {
                 let xf = x as f32;
                 let fi = i as f32;
-                let crest = base_y + amp * ((xf * freq + t * speed + fi).sin() + 0.5 * (xf * freq * 2.3 - t * speed * 1.3 + 2.0 * fi).sin());
+                let crest =
+                    base_y + amp * ((xf * freq + t * speed + fi).sin() + 0.5 * (xf * freq * 2.3 - t * speed * 1.3 + 2.0 * fi).sin());
                 let top = crest.max(hz).ceil() as usize;
                 for y in top..h {
                     let c = self.sea_rows[y][shade];
                     let edge = y - top;
-                    out[y * w + x] = if edge < 2 { pack(mix(unpack(c), [255.0, 180.0, 120.0], crest_light * (1.0 - edge as f32 * 0.5))) } else { c };
+                    out[y * w + x] =
+                        if edge < 2 { pack(mix(unpack(c), [255.0, 180.0, 120.0], crest_light * (1.0 - edge as f32 * 0.5))) } else { c };
                 }
             }
         }
@@ -490,7 +503,8 @@ impl Painter {
         ];
         let (w, h) = (self.w, self.h);
         let aspect = w as f32 / h as f32;
-        let pos: Vec<(f32, f32)> = BLOBS.iter().map(|b| (0.5 * aspect + 0.42 * aspect * (t * b.1 + b.3).sin(), 0.5 + 0.42 * (t * b.2 + b.4).cos())).collect();
+        let pos: Vec<(f32, f32)> =
+            BLOBS.iter().map(|b| (0.5 * aspect + 0.42 * aspect * (t * b.1 + b.3).sin(), 0.5 + 0.42 * (t * b.2 + b.4).cos())).collect();
         for y in 0..h {
             let yf = (y as f32 + 0.5) / h as f32;
             for x in 0..w {

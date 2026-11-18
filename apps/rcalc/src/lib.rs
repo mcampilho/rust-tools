@@ -8,12 +8,12 @@ pub mod date;
 pub mod expr;
 pub mod format;
 pub mod i18n;
+#[cfg(target_os = "linux")]
+pub mod linuxshell;
 pub mod num;
 pub mod platform;
 pub mod storage;
 pub mod ui;
-#[cfg(target_os = "linux")]
-pub mod linuxshell;
 #[cfg(windows)]
 pub mod winshell;
 

@@ -180,8 +180,20 @@ impl Command {
             CloseOthers => "Close Ot&hers",
             CloseAll => "Close A&ll",
             CopyPath => "Copy Full &Path",
-            RevealInExplorer => if cfg!(windows) { "Show in &Explorer" } else { "Show in File &Manager" },
-            Autostart => if cfg!(windows) { "Start wit&h Windows" } else { "Start &When I Log In" },
+            RevealInExplorer => {
+                if cfg!(windows) {
+                    "Show in &Explorer"
+                } else {
+                    "Show in File &Manager"
+                }
+            }
+            Autostart => {
+                if cfg!(windows) {
+                    "Start wit&h Windows"
+                } else {
+                    "Start &When I Log In"
+                }
+            }
             Exit => "E&xit",
             Undo => "&Undo",
             Redo => "&Redo",
@@ -315,30 +327,112 @@ impl Command {
     pub fn palette() -> Vec<(Command, &'static str)> {
         let mut v: Vec<(Command, &'static str)> = Vec::new();
         for (cat, items) in [
-            ("File", vec![New, Open, ReopenClosed, Save, SaveAs, SaveAll, Reload, LocalHistory, CloseTab, CloseOthers, CloseAll, CopyPath, RevealInExplorer, ClearRecent]),
+            (
+                "File",
+                vec![
+                    New,
+                    Open,
+                    ReopenClosed,
+                    Save,
+                    SaveAs,
+                    SaveAll,
+                    Reload,
+                    LocalHistory,
+                    CloseTab,
+                    CloseOthers,
+                    CloseAll,
+                    CopyPath,
+                    RevealInExplorer,
+                    ClearRecent,
+                ],
+            ),
             (
                 "Edit",
                 vec![
-                    Undo, Redo, Cut, Copy, Paste, SelectAll, Duplicate, DeleteLine, MoveLineUp, MoveLineDown, JoinLines, Indent, Outdent,
-                    ToggleComment, CaretAbove, CaretBelow, AddNextOccurrence, SelectAllOccurrences, SplitSelectionIntoLines, InsertDateTime,
-                    InsertSnippet, SaveSnippet, EditSnippets, ToggleOverwrite,
+                    Undo,
+                    Redo,
+                    Cut,
+                    Copy,
+                    Paste,
+                    SelectAll,
+                    Duplicate,
+                    DeleteLine,
+                    MoveLineUp,
+                    MoveLineDown,
+                    JoinLines,
+                    Indent,
+                    Outdent,
+                    ToggleComment,
+                    CaretAbove,
+                    CaretBelow,
+                    AddNextOccurrence,
+                    SelectAllOccurrences,
+                    SplitSelectionIntoLines,
+                    InsertDateTime,
+                    InsertSnippet,
+                    SaveSnippet,
+                    EditSnippets,
+                    ToggleOverwrite,
                 ],
             ),
             ("Search", vec![Find, Replace, FindNext, FindPrev, FindInDocs, FindInFiles, GotoLine, GotoBracket, GotoSymbol]),
             (
                 "View",
                 vec![
-                    WordWrap, LineNumbers, HighlightLine, ShowWhitespace, ShowEol, ShowRuler, FoldMargin, FoldCurrent, UnfoldCurrent, FoldAll,
-                    UnfoldAll, ZoomIn, ZoomOut, ZoomReset, Toolbar, StatusBar, Outline, MarkdownPreview, ResultsPanel, FullScreen,
+                    WordWrap,
+                    LineNumbers,
+                    HighlightLine,
+                    ShowWhitespace,
+                    ShowEol,
+                    ShowRuler,
+                    FoldMargin,
+                    FoldCurrent,
+                    UnfoldCurrent,
+                    FoldAll,
+                    UnfoldAll,
+                    ZoomIn,
+                    ZoomOut,
+                    ZoomReset,
+                    Toolbar,
+                    StatusBar,
+                    Outline,
+                    MarkdownPreview,
+                    ResultsPanel,
+                    FullScreen,
                 ],
             ),
             ("Format", vec![LangAuto, UseSpaces, UseTabs, IndentToSpaces, IndentToTabs, AutoIndent, Font]),
             (
                 "Tools",
                 vec![
-                    Upper, Lower, TitleCase, SentenceCase, InvertCase, SortAsc, SortDesc, SortCi, SortNatural, Reverse, Dedupe, RemoveBlank,
-                    TrimTrailing, TrimLeading, PrefixSuffix, TabsToSpaces, SpacesToTabs, JsonEscape, JsonUnescape, XmlEscape, XmlUnescape,
-                    UrlEncode, UrlDecode, B64Encode, B64Decode, XmlCheck, XmlFormat, OpenDataFolder,
+                    Upper,
+                    Lower,
+                    TitleCase,
+                    SentenceCase,
+                    InvertCase,
+                    SortAsc,
+                    SortDesc,
+                    SortCi,
+                    SortNatural,
+                    Reverse,
+                    Dedupe,
+                    RemoveBlank,
+                    TrimTrailing,
+                    TrimLeading,
+                    PrefixSuffix,
+                    TabsToSpaces,
+                    SpacesToTabs,
+                    JsonEscape,
+                    JsonUnescape,
+                    XmlEscape,
+                    XmlUnescape,
+                    UrlEncode,
+                    UrlDecode,
+                    B64Encode,
+                    B64Decode,
+                    XmlCheck,
+                    XmlFormat,
+                    OpenDataFolder,
                 ],
             ),
             ("Help", vec![Shortcuts, About]),
@@ -547,11 +641,27 @@ pub fn menu_tree(recent: &[std::path::PathBuf]) -> Vec<(&'static str, Vec<M>)> {
                 Sep,
                 Sub(
                     "&Line",
-                    vec![Item(Duplicate), Item(DeleteLine), Item(MoveLineUp), Item(MoveLineDown), Item(JoinLines), Sep, Item(Indent), Item(Outdent), Item(ToggleComment)],
+                    vec![
+                        Item(Duplicate),
+                        Item(DeleteLine),
+                        Item(MoveLineUp),
+                        Item(MoveLineDown),
+                        Item(JoinLines),
+                        Sep,
+                        Item(Indent),
+                        Item(Outdent),
+                        Item(ToggleComment),
+                    ],
                 ),
                 Sub(
                     "&Multiple Carets",
-                    vec![Item(CaretAbove), Item(CaretBelow), Item(AddNextOccurrence), Item(SelectAllOccurrences), Item(SplitSelectionIntoLines)],
+                    vec![
+                        Item(CaretAbove),
+                        Item(CaretBelow),
+                        Item(AddNextOccurrence),
+                        Item(SelectAllOccurrences),
+                        Item(SplitSelectionIntoLines),
+                    ],
                 ),
                 Sub("S&nippets", vec![Item(InsertSnippet), Item(SaveSnippet), Item(EditSnippets)]),
                 Item(InsertDateTime),
@@ -611,7 +721,17 @@ pub fn menu_tree(recent: &[std::path::PathBuf]) -> Vec<(&'static str, Vec<M>)> {
                 Sub("Line E&ndings", vec![Item(SetEol(0)), Item(SetEol(1)), Item(SetEol(2))]),
                 Sub(
                     "&Indentation",
-                    vec![Item(UseSpaces), Item(UseTabs), Sep, Item(TabWidth(2)), Item(TabWidth(4)), Item(TabWidth(8)), Sep, Item(IndentToSpaces), Item(IndentToTabs)],
+                    vec![
+                        Item(UseSpaces),
+                        Item(UseTabs),
+                        Sep,
+                        Item(TabWidth(2)),
+                        Item(TabWidth(4)),
+                        Item(TabWidth(8)),
+                        Sep,
+                        Item(IndentToSpaces),
+                        Item(IndentToTabs),
+                    ],
                 ),
                 Item(AutoIndent),
                 Sep,
@@ -703,7 +823,20 @@ pub fn editor_menu() -> Vec<M> {
 /// The context menu of a tab.
 pub fn tab_menu() -> Vec<M> {
     use rt_core::menu::M::*;
-    vec![Item(Save), Item(SaveAs), Item(Reload), Sep, Item(CopyPath), Item(RevealInExplorer), Sep, Item(CloseTab), Item(CloseOthers), Item(CloseAll), Sep, Item(ReopenClosed)]
+    vec![
+        Item(Save),
+        Item(SaveAs),
+        Item(Reload),
+        Sep,
+        Item(CopyPath),
+        Item(RevealInExplorer),
+        Sep,
+        Item(CloseTab),
+        Item(CloseOthers),
+        Item(CloseAll),
+        Sep,
+        Item(ReopenClosed),
+    ]
 }
 
 #[cfg(test)]

@@ -47,7 +47,13 @@ fn every_kind_reads_back() {
                 };
                 assert_eq!(l.format, want, "{name}");
                 let x = d.join(format!("x-{name}"));
-                let r = extract(&out, &l, &Job { dest: x.clone(), wanted: None, strip: String::new(), overwrite: Overwrite::Replace }, &Meter::default()).unwrap();
+                let r = extract(
+                    &out,
+                    &l,
+                    &Job { dest: x.clone(), wanted: None, strip: String::new(), overwrite: Overwrite::Replace },
+                    &Meter::default(),
+                )
+                .unwrap();
                 assert!(r.errors.is_empty(), "{name}: {r:?}");
                 check(&x);
                 assert!(test(&out, &l, &Meter::default()).unwrap().errors.is_empty(), "{name}");
@@ -77,7 +83,13 @@ fn zip_methods_and_single_files() {
             create(std::slice::from_ref(&src), &out, &spec, &Meter::default()).unwrap_or_else(|e| panic!("{name}: {e:?}"));
             let l = open(&out, &Meter::default()).unwrap();
             let x = d.join(format!("x-{name}"));
-            let r = extract(&out, &l, &Job { dest: x.clone(), wanted: None, strip: String::new(), overwrite: Overwrite::Replace }, &Meter::default()).unwrap();
+            let r = extract(
+                &out,
+                &l,
+                &Job { dest: x.clone(), wanted: None, strip: String::new(), overwrite: Overwrite::Replace },
+                &Meter::default(),
+            )
+            .unwrap();
             assert!(r.errors.is_empty(), "{name}: {r:?}");
             check(&x);
         }
@@ -89,10 +101,17 @@ fn zip_methods_and_single_files() {
         let l = open(&out, &Meter::default()).unwrap();
         assert_eq!(l.entries[0].path, "text.txt", "{kind:?}");
         let x = d.join(format!("x-{}", kind.ext()));
-        extract(&out, &l, &Job { dest: x.clone(), wanted: None, strip: String::new(), overwrite: Overwrite::Replace }, &Meter::default()).unwrap();
+        extract(&out, &l, &Job { dest: x.clone(), wanted: None, strip: String::new(), overwrite: Overwrite::Replace }, &Meter::default())
+            .unwrap();
         assert!(fs::read(x.join("text.txt")).unwrap() == sample_files()[1].1);
     }
-    assert!(create(&[src.clone(), file.clone()], &d.join("two.gz"), &Spec { kind: Kind::Single(Codec::Gzip), ..Spec::default() }, &Meter::default()).is_err());
+    assert!(create(
+        &[src.clone(), file.clone()],
+        &d.join("two.gz"),
+        &Spec { kind: Kind::Single(Codec::Gzip), ..Spec::default() },
+        &Meter::default()
+    )
+    .is_err());
 }
 
 #[test]

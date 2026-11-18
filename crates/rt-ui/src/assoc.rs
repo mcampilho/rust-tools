@@ -217,7 +217,11 @@ impl AssocPanel {
         let r = px(8.0);
         for i in 1..=4 {
             let d = i as f32 * s;
-            g.fill_rrect(Rect::new(panel.x - d, panel.y - d + 2.0 * s, panel.w + 2.0 * d, panel.h + 2.0 * d), r + d, Color::rgba(0x000000, 0x18));
+            g.fill_rrect(
+                Rect::new(panel.x - d, panel.y - d + 2.0 * s, panel.w + 2.0 * d, panel.h + 2.0 * d),
+                r + d,
+                Color::rgba(0x000000, 0x18),
+            );
         }
         g.fill_rrect(panel, r, pal.panel);
         g.stroke_rrect(panel, r, 1.0, pal.border);
@@ -250,7 +254,9 @@ impl AssocPanel {
             p.note(text, x, list_bottom + px(6.0), inner_w, *warn);
         }
         let mut bx = panel.right() - pad;
-        for (label, hit, primary) in [(tr("Close"), Hit::Close, false), (tr("Apply"), Hit::Apply, true), (tr("Default apps…"), Hit::DefaultApps, false)] {
+        for (label, hit, primary) in
+            [(tr("Close"), Hit::Close, false), (tr("Apply"), Hit::Apply, true), (tr("Default apps…"), Hit::DefaultApps, false)]
+        {
             let bw = p.text_width(label, 88.0);
             bx -= bw;
             p.button(Rect::new(bx, by, bw, btn_h), label, hit, true, primary);

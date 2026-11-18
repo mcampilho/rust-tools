@@ -189,7 +189,9 @@ fn write(w: &mut impl Write, entries: &HashMap<String, Entry>) -> io::Result<()>
         w.write_all(&e.size.to_le_bytes())?;
         w.write_all(&e.mtime.to_le_bytes())?;
         w.write_all(&e.used.to_le_bytes())?;
-        let has = if e.ident.is_some() { HAS_IDENT } else { 0 } | if e.edges.is_some() { HAS_EDGES } else { 0 } | if e.whole.is_some() { HAS_WHOLE } else { 0 };
+        let has = if e.ident.is_some() { HAS_IDENT } else { 0 }
+            | if e.edges.is_some() { HAS_EDGES } else { 0 }
+            | if e.whole.is_some() { HAS_WHOLE } else { 0 };
         w.write_all(&[has])?;
         let (a, b) = e.ident.unwrap_or_default();
         w.write_all(&a.to_le_bytes())?;

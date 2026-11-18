@@ -156,7 +156,6 @@ impl Level {
             Level::Ultra => 19,
         }
     }
-
 }
 
 /// What to make.
@@ -233,7 +232,11 @@ pub fn suggested_name(paths: &[PathBuf], kind: Kind) -> String {
                 }
             }
         }
-        _ => paths.first().and_then(|p| p.parent()).and_then(|d| d.file_name()).map_or("archive".into(), |n| n.to_string_lossy().into_owned()),
+        _ => paths
+            .first()
+            .and_then(|p| p.parent())
+            .and_then(|d| d.file_name())
+            .map_or("archive".into(), |n| n.to_string_lossy().into_owned()),
     };
     format!("{stem}.{}", kind.ext())
 }
@@ -391,7 +394,6 @@ finisher!(Lz, lzma_rust2::LzipWriter<W>, |e| e.finish().map_err(io::Error::other
 finisher!(Zst, zstd::Encoder<'static, W>, |e| e.finish().and_then(|mut w| w.flush()));
 finisher!(L4, lz4_flex::frame::FrameEncoder<W>, |e| e.finish().map_err(io::Error::other).and_then(|mut w| w.flush()));
 
-
 fn threads() -> u32 {
     std::thread::available_parallelism().map_or(1, |n| n.get() as u32)
 }
@@ -474,7 +476,8 @@ fn zip_time(secs: i64) -> Option<::zip::DateTime> {
     let local = secs + rt_scan::format::day_start(1970, 1, 1).map_or(0, |d| -d);
     let (y, m, d) = rt_scan::format::civil(local.div_euclid(86_400) as i32);
     let t = local.rem_euclid(86_400);
-    ::zip::DateTime::from_date_and_time(y.clamp(1980, 2107) as u16, m as u8, d as u8, (t / 3600) as u8, (t / 60 % 60) as u8, (t % 60) as u8).ok()
+    ::zip::DateTime::from_date_and_time(y.clamp(1980, 2107) as u16, m as u8, d as u8, (t / 3600) as u8, (t / 60 % 60) as u8, (t % 60) as u8)
+        .ok()
 }
 
 fn zip<W: Write + Seek>(items: &[Item], out: W, spec: &Spec, meter: &Meter, made: &mut Made) -> Result<(), Error> {
@@ -490,7 +493,8 @@ fn zip<W: Write + Seek>(items: &[Item], out: W, spec: &Spec, meter: &Meter, made
     };
     for it in items {
         meter.check()?;
-        let mut opts = SimpleFileOptions::default().compression_method(method).compression_level(level).large_file(it.size >= u32::MAX as u64);
+        let mut opts =
+            SimpleFileOptions::default().compression_method(method).compression_level(level).large_file(it.size >= u32::MAX as u64);
         if let Some(t) = zip_time(it.mtime) {
             opts = opts.last_modified_time(t);
         }

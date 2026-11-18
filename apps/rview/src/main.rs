@@ -11,26 +11,27 @@
 
 mod clip;
 mod commands;
-mod input;
-mod menus;
-mod render;
 mod doc;
 mod i18n;
+mod input;
 mod io;
+#[cfg(not(windows))]
+mod linux;
 mod media;
+mod menus;
+mod render;
 mod rich;
 mod settings;
-mod syntax;
 mod storage;
+mod syntax;
 mod ui;
 mod view;
 #[cfg(windows)]
 mod win;
-#[cfg(not(windows))]
-mod linux;
 
 use commands::Command;
 use i18n::{tf, tr};
+use rt_ui::Message;
 use settings::Settings;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
@@ -44,7 +45,6 @@ use winit::dpi::LogicalSize;
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
 use winit::keyboard::{Key as WKey, ModifiersState, NamedKey};
-use rt_ui::Message;
 use winit::window::{CursorIcon, Fullscreen, Theme as WinTheme, Window, WindowId};
 
 enum UserEvent {
@@ -338,7 +338,9 @@ impl Shell {
     fn count_click(&mut self, x: f32, y: f32) -> u32 {
         let now = Instant::now();
         let n = match self.last_click {
-            Some((t, cx, cy, n)) if now - t < DOUBLE_CLICK && (cx - x).abs() < DOUBLE_CLICK_SLOP && (cy - y).abs() < DOUBLE_CLICK_SLOP => n % 3 + 1,
+            Some((t, cx, cy, n)) if now - t < DOUBLE_CLICK && (cx - x).abs() < DOUBLE_CLICK_SLOP && (cy - y).abs() < DOUBLE_CLICK_SLOP => {
+                n % 3 + 1
+            }
             _ => 1,
         };
         self.last_click = Some((now, x, y, n));
@@ -478,7 +480,6 @@ impl Shell {
     // ------------------------------------------------------------ input
 
     // ------------------------------------------------------------ frame
-
 }
 
 fn shortcuts_text() -> String {
@@ -608,7 +609,8 @@ impl ApplicationHandler<UserEvent> for Shell {
                     any |= self.viewer.on_media(done);
                 }
                 if any {
-                    if !self.viewer.pdf_text_pending() && self.status_note.as_deref() == Some(tr("Reading the text of this PDF…").as_str()) {
+                    if !self.viewer.pdf_text_pending() && self.status_note.as_deref() == Some(tr("Reading the text of this PDF…").as_str())
+                    {
                         self.status_note = None;
                     }
                     self.menu_dirty = true;
@@ -816,7 +818,9 @@ impl ApplicationHandler<UserEvent> for Shell {
             },
             WindowEvent::MouseInput { state, button: MouseButton::Middle, .. } if !self.modal() => match state {
                 ElementState::Pressed => {
-                    if let Some((x, y)) = self.cursor.filter(|(x, y)| self.viewer.in_view(*x, *y) && self.viewer.scrollbar_at(*x, *y).is_none()) {
+                    if let Some((x, y)) =
+                        self.cursor.filter(|(x, y)| self.viewer.in_view(*x, *y) && self.viewer.scrollbar_at(*x, *y).is_none())
+                    {
                         self.start_pan(x, y);
                         self.update_hover();
                     }
@@ -920,7 +924,10 @@ fn integrate(action: Integration) -> Result<String, String> {
     match action {
         Integration::Register => {
             assoc::register(&exe, &verb).map_err(failed)?;
-            Ok(tf("rview was added to the Explorer context menu and to the “Open with” list for: {}", &[&assoc::list(&assoc::extensions())]))
+            Ok(tf(
+                "rview was added to the Explorer context menu and to the “Open with” list for: {}",
+                &[&assoc::list(&assoc::extensions())],
+            ))
         }
         Integration::Unregister => {
             assoc::unregister().map_err(failed)?;

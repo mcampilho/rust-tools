@@ -233,7 +233,8 @@ pub fn merge_msi(programs: &mut Vec<Program>, products: Vec<crate::msi::Product>
         let same = programs.iter().position(|p| {
             p.sources.contains(&Source::Registry)
                 && p.scope == scope
-                && (p.msi.as_deref().is_some_and(|c| c.eq_ignore_ascii_case(&m.code)) || p.key.rsplit('\\').next().is_some_and(|k| k.eq_ignore_ascii_case(&m.code)))
+                && (p.msi.as_deref().is_some_and(|c| c.eq_ignore_ascii_case(&m.code))
+                    || p.key.rsplit('\\').next().is_some_and(|k| k.eq_ignore_ascii_case(&m.code)))
         });
         match same {
             Some(i) => {
@@ -357,7 +358,9 @@ mod imp {
         let session = rt_sys::win::session_user();
         let sid = session.as_deref().and_then(rt_sys::win::sid_of).unwrap_or_else(|| token.clone());
         let name = session.unwrap_or_else(|| std::env::var("USERNAME").unwrap_or_default());
-        let home = Key::open(Root::LocalMachine, &format!("{PROFILES}\\{sid}"), View::Bits64).and_then(|k| k.string("ProfileImagePath")).map(PathBuf::from);
+        let home = Key::open(Root::LocalMachine, &format!("{PROFILES}\\{sid}"), View::Bits64)
+            .and_then(|k| k.string("ProfileImagePath"))
+            .map(PathBuf::from);
         Me { runs_as: sid.eq_ignore_ascii_case(&token), sid, name, home }
     }
 
@@ -434,7 +437,14 @@ mod imp {
             match Key::load_hive(&home.join("NTUSER.DAT")) {
                 Ok(hive) => {
                     if let Some(k) = hive.sub(UNINSTALL, View::Bits64) {
-                        entries(&k, View::Bits64, &scope, Bits::Any, &format!("{}\\NTUSER.DAT\\{UNINSTALL}", home.display()), &mut inv.programs);
+                        entries(
+                            &k,
+                            View::Bits64,
+                            &scope,
+                            Bits::Any,
+                            &format!("{}\\NTUSER.DAT\\{UNINSTALL}", home.display()),
+                            &mut inv.programs,
+                        );
                     }
                     inv.other_users.push((name, home.clone()));
                 }
@@ -474,7 +484,10 @@ mod tests {
         assert_eq!(parse_icon("C:\\a b\\x.ico"), Some((PathBuf::from("C:\\a b\\x.ico"), 0)));
         assert_eq!(parse_icon("C:\\x.dll,-101"), Some((PathBuf::from("C:\\x.dll"), -101)));
         assert_eq!(parse_icon(" "), None);
-        assert_eq!(command_file("\"C:\\Program Files\\X\\unins000.exe\" /SILENT"), Some(PathBuf::from("C:\\Program Files\\X\\unins000.exe")));
+        assert_eq!(
+            command_file("\"C:\\Program Files\\X\\unins000.exe\" /SILENT"),
+            Some(PathBuf::from("C:\\Program Files\\X\\unins000.exe"))
+        );
         assert_eq!(command_file("C:\\Program Files\\Y\\uninstall.exe /S"), Some(PathBuf::from("C:\\Program Files\\Y\\uninstall.exe")));
         assert_eq!(command_file("MsiExec.exe /X{1234}"), Some(PathBuf::from("MsiExec.exe")));
         assert!(is_update("Security Update for X (KB123456)", None, false));

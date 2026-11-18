@@ -56,11 +56,7 @@ pub fn reg_dword(key: &str, value: &str) -> Option<u32> {
 
 /// Whether apps should use the dark theme (Windows personalization setting).
 pub fn system_dark() -> Option<bool> {
-    reg_dword(
-        "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
-        "AppsUseLightTheme",
-    )
-    .map(|v| v == 0)
+    reg_dword("Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", "AppsUseLightTheme").map(|v| v == 0)
 }
 
 /// System accent color as 0xRRGGBB.
@@ -129,7 +125,13 @@ pub fn file_type_name(ext: &str) -> Option<String> {
     // SAFETY: NUL-terminated name; `info` is as large as stated. With
     // SHGFI_USEFILEATTRIBUTES the file need not exist.
     let ok = unsafe {
-        SHGetFileInfoW(name.as_ptr(), FILE_ATTRIBUTE_NORMAL, &mut info, std::mem::size_of::<SHFILEINFOW>() as u32, SHGFI_TYPENAME | SHGFI_USEFILEATTRIBUTES)
+        SHGetFileInfoW(
+            name.as_ptr(),
+            FILE_ATTRIBUTE_NORMAL,
+            &mut info,
+            std::mem::size_of::<SHFILEINFOW>() as u32,
+            SHGFI_TYPENAME | SHGFI_USEFILEATTRIBUTES,
+        )
     } != 0;
     let text = from_wide(&info.szTypeName);
     (ok && !text.trim().is_empty()).then(|| text.trim().to_string())
@@ -201,7 +203,9 @@ pub fn user_sid() -> Option<String> {
 /// It differs from the user running the process when it was started as
 /// another (an administrator's account, asked for by Windows).
 pub fn session_user() -> Option<String> {
-    use windows_sys::Win32::System::RemoteDesktop::{WTSFreeMemory, WTSQuerySessionInformationW, WTSUserName, WTS_CURRENT_SERVER_HANDLE, WTS_CURRENT_SESSION};
+    use windows_sys::Win32::System::RemoteDesktop::{
+        WTSFreeMemory, WTSQuerySessionInformationW, WTSUserName, WTS_CURRENT_SERVER_HANDLE, WTS_CURRENT_SESSION,
+    };
     let mut buf: windows_sys::core::PWSTR = std::ptr::null_mut();
     let mut len = 0u32;
     // SAFETY: asks this session's user name; the buffer is freed with WTSFreeMemory.
@@ -230,7 +234,17 @@ pub fn sid_of(name: &str) -> Option<String> {
     let mut domain_len = domain.len() as u32;
     let mut kind: SID_NAME_USE = 0;
     // SAFETY: the buffers are as large as stated.
-    let ok = unsafe { LookupAccountNameW(std::ptr::null(), n.as_ptr(), sid.as_mut_ptr().cast(), &mut sid_len, domain.as_mut_ptr(), &mut domain_len, &mut kind) } != 0;
+    let ok = unsafe {
+        LookupAccountNameW(
+            std::ptr::null(),
+            n.as_ptr(),
+            sid.as_mut_ptr().cast(),
+            &mut sid_len,
+            domain.as_mut_ptr(),
+            &mut domain_len,
+            &mut kind,
+        )
+    } != 0;
     if !ok {
         return None;
     }
@@ -259,7 +273,14 @@ pub fn restart_elevated(args: &str) -> bool {
     let (verb, file, params) = (wide("runas"), wide(&exe.to_string_lossy()), wide(args));
     // SAFETY: valid NUL-terminated strings; no parent window needed.
     let r = unsafe {
-        windows_sys::Win32::UI::Shell::ShellExecuteW(std::ptr::null_mut(), verb.as_ptr(), file.as_ptr(), params.as_ptr(), std::ptr::null(), SW_SHOWNORMAL)
+        windows_sys::Win32::UI::Shell::ShellExecuteW(
+            std::ptr::null_mut(),
+            verb.as_ptr(),
+            file.as_ptr(),
+            params.as_ptr(),
+            std::ptr::null(),
+            SW_SHOWNORMAL,
+        )
     };
     r as usize > 32
 }
@@ -269,7 +290,9 @@ pub fn restart_elevated(args: &str) -> bool {
 /// before deleting it for good. Err when it is still there: it failed, or
 /// the user said no.
 pub fn recycle(owner: HWND, path: &std::path::Path) -> Result<(), String> {
-    use windows_sys::Win32::UI::Shell::{SHFileOperationW, FOF_ALLOWUNDO, FOF_NOCONFIRMATION, FOF_WANTNUKEWARNING, FO_DELETE, SHFILEOPSTRUCTW};
+    use windows_sys::Win32::UI::Shell::{
+        SHFileOperationW, FOF_ALLOWUNDO, FOF_NOCONFIRMATION, FOF_WANTNUKEWARNING, FO_DELETE, SHFILEOPSTRUCTW,
+    };
     // A list of paths, each NUL-terminated, ending with an empty one.
     let mut from: Vec<u16> = path.as_os_str().to_string_lossy().encode_utf16().collect();
     from.extend([0, 0]);
@@ -336,8 +359,8 @@ pub fn print_to_console(text: &str) -> bool {
     use windows_sys::Win32::Foundation::{CloseHandle, GENERIC_READ, GENERIC_WRITE, INVALID_HANDLE_VALUE};
     use windows_sys::Win32::Storage::FileSystem::{CreateFileW, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING};
     use windows_sys::Win32::System::Console::{
-        AttachConsole, FreeConsole, WriteConsoleInputW, WriteConsoleW, ATTACH_PARENT_PROCESS, INPUT_RECORD, INPUT_RECORD_0, KEY_EVENT, KEY_EVENT_RECORD,
-        KEY_EVENT_RECORD_0,
+        AttachConsole, FreeConsole, WriteConsoleInputW, WriteConsoleW, ATTACH_PARENT_PROCESS, INPUT_RECORD, INPUT_RECORD_0, KEY_EVENT,
+        KEY_EVENT_RECORD, KEY_EVENT_RECORD_0,
     };
     // SAFETY: attaching to the parent's console has no other effect.
     if unsafe { AttachConsole(ATTACH_PARENT_PROCESS) } == 0 {
@@ -346,7 +369,17 @@ pub fn print_to_console(text: &str) -> bool {
     let open = |name: &str| {
         let n = wide(name);
         // SAFETY: a NUL-terminated name of the attached console's buffer.
-        unsafe { CreateFileW(n.as_ptr(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, std::ptr::null(), OPEN_EXISTING, 0, std::ptr::null_mut()) }
+        unsafe {
+            CreateFileW(
+                n.as_ptr(),
+                GENERIC_READ | GENERIC_WRITE,
+                FILE_SHARE_READ | FILE_SHARE_WRITE,
+                std::ptr::null(),
+                OPEN_EXISTING,
+                0,
+                std::ptr::null_mut(),
+            )
+        }
     };
     let out = open("CONOUT$");
     if out != INVALID_HANDLE_VALUE {

@@ -36,7 +36,18 @@ pub fn list(path: &Path, c: Option<Codec>, meter: &Meter) -> Result<Listing, Err
         let path = clean_path(&e.path_bytes());
         // `./` alone: the archive's own root.
         if path.is_empty() && kind == Kind::Dir {
-            entries.push(Entry { path, kind: Kind::Other, size: Some(0), packed: None, mtime: 0, method: String::new(), encrypted: false, crc: None, mode: None, link: None });
+            entries.push(Entry {
+                path,
+                kind: Kind::Other,
+                size: Some(0),
+                packed: None,
+                mtime: 0,
+                method: String::new(),
+                encrypted: false,
+                crc: None,
+                mode: None,
+                link: None,
+            });
             continue;
         }
         entries.push(Entry {
@@ -56,7 +67,13 @@ pub fn list(path: &Path, c: Option<Codec>, meter: &Meter) -> Result<Listing, Err
     Ok(Listing { format: Format { container: super::Container::Tar, codec: c }, entries, file_size: 0, comment: String::new() })
 }
 
-pub fn each(path: &Path, listing: &Listing, wanted: &dyn Fn(usize) -> bool, meter: &Meter, f: &mut dyn FnMut(usize, Contents) -> Result<(), Error>) -> Result<(), Error> {
+pub fn each(
+    path: &Path,
+    listing: &Listing,
+    wanted: &dyn Fn(usize) -> bool,
+    meter: &Meter,
+    f: &mut dyn FnMut(usize, Contents) -> Result<(), Error>,
+) -> Result<(), Error> {
     let Some(last) = (0..listing.entries.len()).rev().find(|&i| wanted(i)) else { return Ok(()) };
     let mut ar = tar::Archive::new(reader(path, listing.format.codec, meter)?);
     for (i, e) in ar.entries()?.enumerate() {

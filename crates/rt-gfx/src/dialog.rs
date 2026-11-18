@@ -174,12 +174,7 @@ pub fn draw_message(g: &mut Gfx, full: Rect, st: &DialogStyle, s: f32, title: &s
     let inner = (w - 2.0 * pad - (columns - 1) as f32 * gap) / columns as f32;
     let per_column = rows.len().div_ceil(columns).max(1);
     let h = (chrome + per_column.min(rows.len()) as f32 * lh).min(full.h - 16.0 * s);
-    let panel = Rect::new(
-        ((full.w - w) / 2.0).round(),
-        ((full.h - h) / 2.0).round().max(8.0 * s),
-        w.round(),
-        h.round(),
-    );
+    let panel = Rect::new(((full.w - w) / 2.0).round(), ((full.h - h) / 2.0).round().max(8.0 * s), w.round(), h.round());
     let bg = if st.dark { Color::rgb(0x2B2B2B) } else { Color::rgb(0xFFFFFF) };
     let r = (8.0 * s).round();
     for i in 1..=4 {
@@ -224,14 +219,7 @@ pub fn draw_message(g: &mut Gfx, full: Rect, st: &DialogStyle, s: f32, title: &s
     let ok = Rect::new(panel.right() - pad - bw, panel.bottom() - pad - btn_h, bw, btn_h);
     let accent = if st.dark { Color::rgb(0x4CC2FF) } else { Color::rgb(0x0067C0) };
     g.fill_rrect(ok, (4.0 * s).round(), accent);
-    g.text_in(
-        "OK",
-        ok,
-        13.0 * s,
-        FontId::Bold,
-        if st.dark { Color::rgb(0x000000) } else { Color::rgb(0xFFFFFF) },
-        Align::Center,
-    );
+    g.text_in("OK", ok, 13.0 * s, FontId::Bold, if st.dark { Color::rgb(0x000000) } else { Color::rgb(0xFFFFFF) }, Align::Center);
     (panel, ok)
 }
 

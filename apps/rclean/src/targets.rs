@@ -126,7 +126,9 @@ fn desktop_of(home: &Path, config: &Path) -> PathBuf {
     }
     #[cfg(not(windows))]
     if let Some(d) = std::fs::read_to_string(config.join("user-dirs.dirs")).ok().and_then(|t| {
-        t.lines().find_map(|l| l.strip_prefix("XDG_DESKTOP_DIR=")).map(|v| v.trim().trim_matches('"').replace("$HOME", &home.to_string_lossy()))
+        t.lines()
+            .find_map(|l| l.strip_prefix("XDG_DESKTOP_DIR="))
+            .map(|v| v.trim().trim_matches('"').replace("$HOME", &home.to_string_lossy()))
     }) {
         return PathBuf::from(d);
     }
@@ -174,7 +176,20 @@ pub fn all(env: &Env) -> Vec<Target> {
 impl Target {
     /// A target of files, the others as given.
     pub fn files(id: &str, group: Group, name: &'static str, about: &'static str, places: Vec<Place>) -> Target {
-        Target { id: id.to_string(), group, name, about, places, kind: Kind::Files, admin: false, default_on: true, process: &[], commands: Vec::new(), locate: None, measure: true }
+        Target {
+            id: id.to_string(),
+            group,
+            name,
+            about,
+            places,
+            kind: Kind::Files,
+            admin: false,
+            default_on: true,
+            process: &[],
+            commands: Vec::new(),
+            locate: None,
+            measure: true,
+        }
     }
 }
 
@@ -223,7 +238,10 @@ pub fn windows(e: &Env) -> Vec<Target> {
             "win.errors-system",
             "Error reports of the system",
             "The same, for Windows itself and the programs of every user.",
-            vec![Place::new(at(&e.program_data, "Microsoft/Windows/WER/ReportArchive"), All), Place::new(at(&e.program_data, "Microsoft/Windows/WER/ReportQueue"), All)],
+            vec![
+                Place::new(at(&e.program_data, "Microsoft/Windows/WER/ReportArchive"), All),
+                Place::new(at(&e.program_data, "Microsoft/Windows/WER/ReportQueue"), All),
+            ],
             true,
             true,
         ),
@@ -259,7 +277,14 @@ pub fn windows(e: &Env) -> Vec<Target> {
         ),
         Target {
             kind: Kind::RecycleBin,
-            ..system("win.recycle", "Recycle Bin", "The files deleted to the Recycle Bin, on every drive. They cannot be brought back after.", Vec::new(), false, false)
+            ..system(
+                "win.recycle",
+                "Recycle Bin",
+                "The files deleted to the Recycle Bin, on every drive. They cannot be brought back after.",
+                Vec::new(),
+                false,
+                false,
+            )
         },
     ]
 }
@@ -323,8 +348,22 @@ struct Chromium {
 }
 
 const CHROMIUM: &[Chromium] = &[
-    Chromium { name: "Google Chrome", id: "chrome", win: "Google/Chrome/User Data", linux: "google-chrome", win_process: &["chrome.exe"], linux_process: &["chrome"] },
-    Chromium { name: "Microsoft Edge", id: "edge", win: "Microsoft/Edge/User Data", linux: "microsoft-edge", win_process: &["msedge.exe"], linux_process: &["msedge"] },
+    Chromium {
+        name: "Google Chrome",
+        id: "chrome",
+        win: "Google/Chrome/User Data",
+        linux: "google-chrome",
+        win_process: &["chrome.exe"],
+        linux_process: &["chrome"],
+    },
+    Chromium {
+        name: "Microsoft Edge",
+        id: "edge",
+        win: "Microsoft/Edge/User Data",
+        linux: "microsoft-edge",
+        win_process: &["msedge.exe"],
+        linux_process: &["msedge"],
+    },
     Chromium {
         name: "Brave",
         id: "brave",
@@ -333,13 +372,42 @@ const CHROMIUM: &[Chromium] = &[
         win_process: &["brave.exe"],
         linux_process: &["brave"],
     },
-    Chromium { name: "Vivaldi", id: "vivaldi", win: "Vivaldi/User Data", linux: "vivaldi", win_process: &["vivaldi.exe"], linux_process: &["vivaldi-bin"] },
-    Chromium { name: "Opera", id: "opera", win: "Opera Software/Opera Stable", linux: "opera", win_process: &["opera.exe"], linux_process: &["opera"] },
-    Chromium { name: "Chromium", id: "chromium", win: "Chromium/User Data", linux: "chromium", win_process: &["chrome.exe"], linux_process: &["chromium"] },
+    Chromium {
+        name: "Vivaldi",
+        id: "vivaldi",
+        win: "Vivaldi/User Data",
+        linux: "vivaldi",
+        win_process: &["vivaldi.exe"],
+        linux_process: &["vivaldi-bin"],
+    },
+    Chromium {
+        name: "Opera",
+        id: "opera",
+        win: "Opera Software/Opera Stable",
+        linux: "opera",
+        win_process: &["opera.exe"],
+        linux_process: &["opera"],
+    },
+    Chromium {
+        name: "Chromium",
+        id: "chromium",
+        win: "Chromium/User Data",
+        linux: "chromium",
+        win_process: &["chrome.exe"],
+        linux_process: &["chromium"],
+    },
 ];
 
 /// The caches inside a Chromium profile, and in its `User Data` folder.
-const CHROMIUM_PROFILE_CACHES: &[&str] = &["Cache", "Code Cache", "GPUCache", "DawnGraphiteCache", "DawnWebGPUCache", "Service Worker/CacheStorage", "Service Worker/ScriptCache"];
+const CHROMIUM_PROFILE_CACHES: &[&str] = &[
+    "Cache",
+    "Code Cache",
+    "GPUCache",
+    "DawnGraphiteCache",
+    "DawnWebGPUCache",
+    "Service Worker/CacheStorage",
+    "Service Worker/ScriptCache",
+];
 const CHROMIUM_ROOT_CACHES: &[&str] = &["ShaderCache", "GrShaderCache", "GraphiteDawnCache", "component_crx_cache"];
 
 /// A browser built on Firefox: where its profiles' caches are.
@@ -359,20 +427,51 @@ const GECKO: &[Gecko] = &[
         name: "Firefox",
         id: "firefox",
         win: "Mozilla/Firefox/Profiles",
-        linux: &["~cache/mozilla/firefox", "~/snap/firefox/common/.cache/mozilla/firefox", "~/.var/app/org.mozilla.firefox/cache/mozilla/firefox"],
+        linux: &[
+            "~cache/mozilla/firefox",
+            "~/snap/firefox/common/.cache/mozilla/firefox",
+            "~/.var/app/org.mozilla.firefox/cache/mozilla/firefox",
+        ],
         win_process: &["firefox.exe"],
         linux_process: &["firefox", "firefox-bin"],
     },
-    Gecko { name: "LibreWolf", id: "librewolf", win: "librewolf/Profiles", linux: &["~cache/librewolf"], win_process: &["librewolf.exe"], linux_process: &["librewolf"] },
-    Gecko { name: "Waterfox", id: "waterfox", win: "Waterfox/Profiles", linux: &["~cache/waterfox"], win_process: &["waterfox.exe"], linux_process: &["waterfox"] },
-    Gecko { name: "Floorp", id: "floorp", win: "Floorp/Profiles", linux: &["~cache/floorp"], win_process: &["floorp.exe"], linux_process: &["floorp"] },
+    Gecko {
+        name: "LibreWolf",
+        id: "librewolf",
+        win: "librewolf/Profiles",
+        linux: &["~cache/librewolf"],
+        win_process: &["librewolf.exe"],
+        linux_process: &["librewolf"],
+    },
+    Gecko {
+        name: "Waterfox",
+        id: "waterfox",
+        win: "Waterfox/Profiles",
+        linux: &["~cache/waterfox"],
+        win_process: &["waterfox.exe"],
+        linux_process: &["waterfox"],
+    },
+    Gecko {
+        name: "Floorp",
+        id: "floorp",
+        win: "Floorp/Profiles",
+        linux: &["~cache/floorp"],
+        win_process: &["floorp.exe"],
+        linux_process: &["floorp"],
+    },
 ];
 
 const GECKO_CACHES: &[&str] = &["cache2", "startupCache", "jumpListCache"];
 
 /// The folders right inside `dir`.
 fn subdirs(dir: &Path) -> Vec<PathBuf> {
-    let mut out: Vec<PathBuf> = std::fs::read_dir(dir).into_iter().flatten().flatten().filter(|e| e.file_type().is_ok_and(|t| t.is_dir())).map(|e| e.path()).collect();
+    let mut out: Vec<PathBuf> = std::fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
+        .map(|e| e.path())
+        .collect();
     out.sort();
     out
 }
@@ -380,7 +479,8 @@ fn subdirs(dir: &Path) -> Vec<PathBuf> {
 /// The caches of one Chromium browser's `root` (its `User Data`, or Opera's
 /// profile): of each profile in it, and of the root.
 fn chromium_places(root: &Path, out: &mut Vec<Place>) {
-    let mut profiles: Vec<PathBuf> = subdirs(root).into_iter().filter(|d| CHROMIUM_PROFILE_CACHES.iter().any(|c| at(d, c).is_dir())).collect();
+    let mut profiles: Vec<PathBuf> =
+        subdirs(root).into_iter().filter(|d| CHROMIUM_PROFILE_CACHES.iter().any(|c| at(d, c).is_dir())).collect();
     // Opera keeps its one profile in the root itself.
     if CHROMIUM_PROFILE_CACHES.iter().any(|c| at(root, c).is_dir()) {
         profiles.insert(0, root.to_path_buf());
@@ -394,7 +494,8 @@ fn chromium_places(root: &Path, out: &mut Vec<Place>) {
 /// The browsers found, with their caches (none: not listed).
 pub fn browsers(e: &Env, windows: bool) -> Vec<Target> {
     let mut out = Vec::new();
-    let target = |id: &str, name: &'static str, places: Vec<Place>, process: &'static [&'static str]| Target {
+    let target = |id: &str, name: &'static str, places: Vec<Place>, process: &'static [&'static str]| {
+        Target {
         process,
         ..Target::files(
             &format!("{id}.cache"),
@@ -403,6 +504,7 @@ pub fn browsers(e: &Env, windows: bool) -> Vec<Target> {
             "Pages, pictures and scripts kept to open sites faster. They are downloaded again when needed; history, cookies and passwords stay.",
             places,
         )
+    }
     };
     for b in CHROMIUM {
         let mut places = Vec::new();
@@ -435,8 +537,13 @@ pub fn browsers(e: &Env, windows: bool) -> Vec<Target> {
                 })
                 .collect()
         };
-        let places: Vec<Place> =
-            roots.iter().flat_map(|r| subdirs(r)).flat_map(|p| GECKO_CACHES.iter().map(move |c| p.join(c))).filter(|d| d.is_dir()).map(|d| Place::new(d, Filter::All)).collect();
+        let places: Vec<Place> = roots
+            .iter()
+            .flat_map(|r| subdirs(r))
+            .flat_map(|p| GECKO_CACHES.iter().map(move |c| p.join(c)))
+            .filter(|d| d.is_dir())
+            .map(|d| Place::new(d, Filter::All))
+            .collect();
         if !places.is_empty() {
             out.push(target(b.id, b.name, places, if windows { b.win_process } else { b.linux_process }));
         }
@@ -462,7 +569,14 @@ mod tests {
     #[test]
     fn browsers_found_by_their_caches() {
         let root = dir("browsers");
-        let e = Env { local: root.join("local"), roaming: root.join("roaming"), cache: root.join("cache"), config: root.join("config"), home: root.join("home"), ..Env::default() };
+        let e = Env {
+            local: root.join("local"),
+            roaming: root.join("roaming"),
+            cache: root.join("cache"),
+            config: root.join("config"),
+            home: root.join("home"),
+            ..Env::default()
+        };
         mk(&e.local, "Google/Chrome/User Data/Default/Cache/Cache_Data");
         mk(&e.local, "Google/Chrome/User Data/Profile 1/Code Cache/js");
         mk(&e.local, "Google/Chrome/User Data/ShaderCache");
@@ -474,8 +588,16 @@ mod tests {
         let ts = browsers(&e, true);
         let ids: Vec<&str> = ts.iter().map(|t| t.id.as_str()).collect();
         assert_eq!(ids, ["chrome.cache", "opera.cache", "firefox.cache"], "Edge has no cache yet");
-        let chrome: Vec<String> = ts[0].places.iter().map(|p| p.dir.strip_prefix(&e.local).unwrap().to_string_lossy().replace('\\', "/")).collect();
-        assert_eq!(chrome, ["Google/Chrome/User Data/Default/Cache", "Google/Chrome/User Data/Profile 1/Code Cache", "Google/Chrome/User Data/ShaderCache"]);
+        let chrome: Vec<String> =
+            ts[0].places.iter().map(|p| p.dir.strip_prefix(&e.local).unwrap().to_string_lossy().replace('\\', "/")).collect();
+        assert_eq!(
+            chrome,
+            [
+                "Google/Chrome/User Data/Default/Cache",
+                "Google/Chrome/User Data/Profile 1/Code Cache",
+                "Google/Chrome/User Data/ShaderCache"
+            ]
+        );
         assert_eq!(ts[1].places.len(), 2, "Opera: its profile in the root, and its cache apart");
         assert_eq!(ts[0].group, Group::Browser("Google Chrome"));
         assert!(ts.iter().all(|t| t.places.iter().all(|p| p.filter == Filter::All)));
@@ -491,7 +613,13 @@ mod tests {
 
     #[test]
     fn system_targets() {
-        let e = Env { temp: PathBuf::from("T"), windows: PathBuf::from("W"), local: PathBuf::from("L"), program_data: PathBuf::from("P"), ..Env::default() };
+        let e = Env {
+            temp: PathBuf::from("T"),
+            windows: PathBuf::from("W"),
+            local: PathBuf::from("L"),
+            program_data: PathBuf::from("P"),
+            ..Env::default()
+        };
         let w = windows(&e);
         let ids: Vec<&str> = w.iter().map(|t| t.id.as_str()).collect();
         assert_eq!(ids.len(), ids.iter().collect::<std::collections::HashSet<_>>().len(), "ids are unique");

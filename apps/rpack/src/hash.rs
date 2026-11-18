@@ -26,8 +26,19 @@ pub enum Algo {
 }
 
 impl Algo {
-    pub const ALL: [Algo; 11] =
-        [Algo::Crc32, Algo::Crc64, Algo::Xxh64, Algo::Md5, Algo::Sha1, Algo::Sha256, Algo::Sha384, Algo::Sha512, Algo::Sha3_256, Algo::Blake2sp, Algo::Blake3];
+    pub const ALL: [Algo; 11] = [
+        Algo::Crc32,
+        Algo::Crc64,
+        Algo::Xxh64,
+        Algo::Md5,
+        Algo::Sha1,
+        Algo::Sha256,
+        Algo::Sha384,
+        Algo::Sha512,
+        Algo::Sha3_256,
+        Algo::Blake2sp,
+        Algo::Blake3,
+    ];
 
     pub fn name(self) -> &'static str {
         match self {
@@ -321,7 +332,10 @@ mod tests {
         assert_eq!(get(&s, Algo::Md5), "900150983cd24fb0d6963f7d28e17f72");
         assert_eq!(get(&s, Algo::Sha1), "a9993e364706816aba3e25717850c26c9cd0d89d");
         assert_eq!(get(&s, Algo::Sha256), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
-        assert_eq!(get(&s, Algo::Sha384), "cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7");
+        assert_eq!(
+            get(&s, Algo::Sha384),
+            "cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7"
+        );
         assert_eq!(
             get(&s, Algo::Sha512),
             "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f"

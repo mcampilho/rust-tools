@@ -17,9 +17,8 @@ use crate::model::{Id, Kind, Tree};
 use rt_gfx::Color;
 
 /// Colours of the largest extensions, in order.
-pub const PALETTE: [u32; 12] = [
-    0x2F7FEA, 0xE5533C, 0x3DB36B, 0xF0B429, 0x9B5DE5, 0x00B5C8, 0xF07A2D, 0xE04FA0, 0x7FBF3F, 0x5468D9, 0xC8A27A, 0x2E9E8E,
-];
+pub const PALETTE: [u32; 12] =
+    [0x2F7FEA, 0xE5533C, 0x3DB36B, 0xF0B429, 0x9B5DE5, 0x00B5C8, 0xF07A2D, 0xE04FA0, 0x7FBF3F, 0x5468D9, 0xC8A27A, 0x2E9E8E];
 /// Files of the other extensions.
 pub const OTHER: u32 = 0xA3A3A3;
 /// Folders too small to show their contents, and links.
@@ -113,7 +112,8 @@ impl Map {
             let p = Place { tree, head: f64::from(head.max(0.0)) };
             p.place(root, [0.0, 0.0, w as f64, h as f64], [0.0; 4], RIDGE, 0, &mut tiles);
         }
-        let mut map = Map { root, w, h, tiles, image: tiny_skia::Pixmap::new(w, h).expect("treemap size"), owner: vec![u32::MAX; (w * h) as usize] };
+        let mut map =
+            Map { root, w, h, tiles, image: tiny_skia::Pixmap::new(w, h).expect("treemap size"), owner: vec![u32::MAX; (w * h) as usize] };
         map.paint(tree);
         map
     }

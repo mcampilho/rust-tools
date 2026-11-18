@@ -133,7 +133,10 @@ fn commands_and_menus_have_translations() {
 fn access_keys_differ_within_each_menu() {
     use crate::commands::{item_menu, menu_tree};
     install();
-    let problems = rt_core::menu::access_key_clashes(&menu_tree(), &[("context menu", item_menu()), ("disk menu", crate::commands::disk_menu(None, true, true))]);
+    let problems = rt_core::menu::access_key_clashes(
+        &menu_tree(),
+        &[("context menu", item_menu()), ("disk menu", crate::commands::disk_menu(None, true, true))],
+    );
     assert!(problems.is_empty(), "{problems:#?}");
 }
 
@@ -180,7 +183,15 @@ fn pages_render_fully_translated() {
     }
     app.add = None;
     for task in [Task::Opening, Task::Extracting, Task::Testing, Task::Hashing] {
-        app.busy = Some(Busy { task, meter: Default::default(), started: std::time::Instant::now(), total: 0, by_read: false, path: zip.clone(), count: 3 });
+        app.busy = Some(Busy {
+            task,
+            meter: Default::default(),
+            started: std::time::Instant::now(),
+            total: 0,
+            by_read: false,
+            path: zip.clone(),
+            count: 3,
+        });
         draw(&app);
         let _ = view::busy_title(app.busy.as_ref().unwrap());
     }

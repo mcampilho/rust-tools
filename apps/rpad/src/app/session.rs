@@ -196,8 +196,28 @@ mod tests {
     #[test]
     fn session_round_trip() {
         let tabs = vec![
-            SessionTab { path: Some("C:\\x\\a.rs".into()), recovery: None, title: String::new(), enc: Enc::Utf8Bom, eol: Eol::Lf, lang: Some(Lang::Rust), caret: 42, top: 3, active: true },
-            SessionTab { path: None, recovery: Some("1-2.txt".into()), title: "Untitled 1".into(), enc: Enc::Utf8, eol: Eol::CrLf, lang: None, caret: 0, top: 0, active: false },
+            SessionTab {
+                path: Some("C:\\x\\a.rs".into()),
+                recovery: None,
+                title: String::new(),
+                enc: Enc::Utf8Bom,
+                eol: Eol::Lf,
+                lang: Some(Lang::Rust),
+                caret: 42,
+                top: 3,
+                active: true,
+            },
+            SessionTab {
+                path: None,
+                recovery: Some("1-2.txt".into()),
+                title: "Untitled 1".into(),
+                enc: Enc::Utf8,
+                eol: Eol::CrLf,
+                lang: None,
+                caret: 0,
+                top: 0,
+                active: false,
+            },
         ];
         assert_eq!(parse(&serialize(&tabs)), tabs);
         assert!(parse("tab=garbage\nnot a tab\n").is_empty());

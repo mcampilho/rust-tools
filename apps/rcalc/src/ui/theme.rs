@@ -60,11 +60,7 @@ impl Theme {
         if dark {
             // Windows uses the lighter accent shades on dark backgrounds.
             let a = lighten(accent, 0.45);
-            let text_on = if luminance(a) > 0.35 {
-                Color::rgb(0x000000)
-            } else {
-                Color::rgb(0xFFFFFF)
-            };
+            let text_on = if luminance(a) > 0.35 { Color::rgb(0x000000) } else { Color::rgb(0xFFFFFF) };
             Theme {
                 dark,
                 bg: Color::rgb(0x202020),
@@ -94,11 +90,7 @@ impl Theme {
             }
         } else {
             let a = darken(accent, 0.15);
-            let text_on = if luminance(a) > 0.35 {
-                Color::rgb(0x000000)
-            } else {
-                Color::rgb(0xFFFFFF)
-            };
+            let text_on = if luminance(a) > 0.35 { Color::rgb(0x000000) } else { Color::rgb(0xFFFFFF) };
             Theme {
                 dark,
                 bg: Color::rgb(0xF3F3F3),

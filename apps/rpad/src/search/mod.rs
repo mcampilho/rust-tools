@@ -31,17 +31,13 @@ impl Query {
             let last = self.text.chars().last().is_some_and(is_word);
             pat = format!("{}(?:{pat}){}", if first || self.regex { r"\b" } else { "" }, if last || self.regex { r"\b" } else { "" });
         }
-        RegexBuilder::new(&pat)
-            .case_insensitive(!self.case)
-            .multi_line(true)
-            .size_limit(16 << 20)
-            .dfa_size_limit(16 << 20)
-            .build()
-            .map_err(|e| match e {
+        RegexBuilder::new(&pat).case_insensitive(!self.case).multi_line(true).size_limit(16 << 20).dfa_size_limit(16 << 20).build().map_err(
+            |e| match e {
                 regex::Error::Syntax(s) => s.lines().last().unwrap_or("Invalid regular expression").trim().to_string(),
                 regex::Error::CompiledTooBig(_) => crate::i18n::tr("The regular expression is too large"),
                 _ => crate::i18n::tr("Invalid regular expression"),
-            })
+            },
+        )
     }
 }
 
@@ -244,5 +240,4 @@ mod tests {
         // range restriction
         assert_eq!(plan_replace_all("aaaa", &q("a", true, false, false), "b", false, (1, 3)).len(), 2);
     }
-
 }

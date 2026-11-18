@@ -145,7 +145,10 @@ mod tests {
         assert_eq!(names(Lang::Rust, "pub fn a() {}\nstruct B;\nimpl B {\n    async fn c(&self) {}\n}\nmod m;"), ["a", "B", "B", "c", "m"]);
         assert_eq!(names(Lang::Python, "class A:\n    def f(self):\n        pass\nasync def g(): pass"), ["A", "f", "g"]);
         assert_eq!(names(Lang::JavaScript, "function a() {}\nconst b = (x) => x;\nexport class C {}"), ["a", "b", "C"]);
-        assert_eq!(names(Lang::C, "int main(int argc, char **argv)\n{\n    if (x) {\n    }\n}\nstatic void helper(void) {"), ["main", "helper"]);
+        assert_eq!(
+            names(Lang::C, "int main(int argc, char **argv)\n{\n    if (x) {\n    }\n}\nstatic void helper(void) {"),
+            ["main", "helper"]
+        );
         assert_eq!(names(Lang::Markdown, "# One\ntext\n## Two ##\n```\n# not\n```"), ["One", "Two"]);
         assert_eq!(names(Lang::Ini, "[a]\nx=1\n[b c]"), ["a", "b c"]);
         assert_eq!(names(Lang::Sql, "CREATE TABLE users (id int);\ncreate or replace view v as select 1;"), ["users", "v"]);

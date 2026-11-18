@@ -89,20 +89,10 @@ pub struct Color {
 
 impl Color {
     pub const fn rgb(hex: u32) -> Color {
-        Color {
-            r: (hex >> 16) as u8,
-            g: (hex >> 8) as u8,
-            b: hex as u8,
-            a: 255,
-        }
+        Color { r: (hex >> 16) as u8, g: (hex >> 8) as u8, b: hex as u8, a: 255 }
     }
     pub const fn rgba(hex: u32, a: u8) -> Color {
-        Color {
-            r: (hex >> 16) as u8,
-            g: (hex >> 8) as u8,
-            b: hex as u8,
-            a,
-        }
+        Color { r: (hex >> 16) as u8, g: (hex >> 8) as u8, b: hex as u8, a }
     }
     pub const TRANSPARENT: Color = Color { r: 0, g: 0, b: 0, a: 0 };
 
@@ -113,12 +103,7 @@ impl Color {
     /// Linear mix toward `o` by `t` (0..1).
     pub fn mix(self, o: Color, t: f32) -> Color {
         let m = |a: u8, b: u8| (a as f32 + (b as f32 - a as f32) * t).round() as u8;
-        Color {
-            r: m(self.r, o.r),
-            g: m(self.g, o.g),
-            b: m(self.b, o.b),
-            a: m(self.a, o.a),
-        }
+        Color { r: m(self.r, o.r), g: m(self.g, o.g), b: m(self.b, o.b), a: m(self.a, o.a) }
     }
 
     fn paint(self) -> Paint<'static> {
@@ -150,40 +135,15 @@ pub enum Align {
 }
 
 /// Default monospace fonts, in order of preference.
-pub const MONO_FONTS: &[&str] = &[
-    "CascadiaMono.ttf",
-    "consola.ttf",
-    "DejaVuSansMono.ttf",
-    "NotoSansMono-Regular.ttf",
-    "LiberationMono-Regular.ttf",
-    "cour.ttf",
-];
+pub const MONO_FONTS: &[&str] =
+    &["CascadiaMono.ttf", "consola.ttf", "DejaVuSansMono.ttf", "NotoSansMono-Regular.ttf", "LiberationMono-Regular.ttf", "cour.ttf"];
 
-const SEMIBOLD_FONTS: &[&str] = &[
-    "seguisb.ttf",
-    "DejaVuSans-Bold.ttf",
-    "NotoSans-SemiBold.ttf",
-    "NotoSans-Bold.ttf",
-    "LiberationSans-Bold.ttf",
-];
-const BOLD_FONTS: &[&str] = &[
-    "segoeuib.ttf",
-    "DejaVuSans-Bold.ttf",
-    "NotoSans-Bold.ttf",
-    "LiberationSans-Bold.ttf",
-];
-const ITALIC_FONTS: &[&str] = &[
-    "segoeuii.ttf",
-    "DejaVuSans-Oblique.ttf",
-    "NotoSans-Italic.ttf",
-    "LiberationSans-Italic.ttf",
-];
-const BOLD_ITALIC_FONTS: &[&str] = &[
-    "segoeuiz.ttf",
-    "DejaVuSans-BoldOblique.ttf",
-    "NotoSans-BoldItalic.ttf",
-    "LiberationSans-BoldItalic.ttf",
-];
+const SEMIBOLD_FONTS: &[&str] =
+    &["seguisb.ttf", "DejaVuSans-Bold.ttf", "NotoSans-SemiBold.ttf", "NotoSans-Bold.ttf", "LiberationSans-Bold.ttf"];
+const BOLD_FONTS: &[&str] = &["segoeuib.ttf", "DejaVuSans-Bold.ttf", "NotoSans-Bold.ttf", "LiberationSans-Bold.ttf"];
+const ITALIC_FONTS: &[&str] = &["segoeuii.ttf", "DejaVuSans-Oblique.ttf", "NotoSans-Italic.ttf", "LiberationSans-Italic.ttf"];
+const BOLD_ITALIC_FONTS: &[&str] =
+    &["segoeuiz.ttf", "DejaVuSans-BoldOblique.ttf", "NotoSans-BoldItalic.ttf", "LiberationSans-BoldItalic.ttf"];
 const ICON_FONTS: &[&str] = &["SegoeIcons.ttf", "segmdl2.ttf"];
 
 // Font slots, also the font part of the glyph cache key.
@@ -277,15 +237,9 @@ fn lazy<'a>(cell: &'a Lazy, names: &[&str]) -> Option<&'a FontVec> {
 
 impl Fonts {
     fn load() -> Result<Fonts, String> {
-        let regular = load_font(&[
-            "segoeui.ttf",
-            "DejaVuSans.ttf",
-            "NotoSans-Regular.ttf",
-            "LiberationSans-Regular.ttf",
-            "Arial.ttf",
-            "arial.ttf",
-        ])
-        .ok_or("No usable system font found (expected Segoe UI on Windows, DejaVu Sans or Noto Sans on Linux).")?;
+        let regular =
+            load_font(&["segoeui.ttf", "DejaVuSans.ttf", "NotoSans-Regular.ttf", "LiberationSans-Regular.ttf", "Arial.ttf", "arial.ttf"])
+                .ok_or("No usable system font found (expected Segoe UI on Windows, DejaVu Sans or Noto Sans on Linux).")?;
         Ok(Fonts {
             regular,
             semibold: Lazy::new(),
@@ -407,13 +361,7 @@ pub struct Gfx {
 
 impl Gfx {
     pub fn new() -> Result<Gfx, String> {
-        Ok(Gfx {
-            pix: Pixmap::new(1, 1).expect("pixmap"),
-            fonts: Fonts::load()?,
-            cache: HashMap::new(),
-            clip: None,
-            lut: contrast_lut(),
-        })
+        Ok(Gfx { pix: Pixmap::new(1, 1).expect("pixmap"), fonts: Fonts::load()?, cache: HashMap::new(), clip: None, lut: contrast_lut() })
     }
 
     pub fn resize(&mut self, w: u32, h: u32) {
@@ -529,8 +477,7 @@ impl Gfx {
         }
         if let Some(path) = Self::rrect_path(r, rad) {
             let mask = self.clip.as_ref().map(|(_, m)| m);
-            self.pix
-                .fill_path(&path, &c.paint(), FillRule::Winding, Transform::identity(), mask);
+            self.pix.fill_path(&path, &c.paint(), FillRule::Winding, Transform::identity(), mask);
         }
     }
 
@@ -541,10 +488,7 @@ impl Gfx {
         let half = width / 2.0;
         let r = Rect::new(r.x + half, r.y + half, r.w - width, r.h - width);
         if let Some(path) = Self::rrect_path(r, (rad - half).max(0.0)) {
-            let stroke = Stroke {
-                width,
-                ..Stroke::default()
-            };
+            let stroke = Stroke { width, ..Stroke::default() };
             let mask = self.clip.as_ref().map(|(_, m)| m);
             self.pix.stroke_path(&path, &c.paint(), &stroke, Transform::identity(), mask);
         }
@@ -553,8 +497,7 @@ impl Gfx {
     pub fn fill_circle(&mut self, cx: f32, cy: f32, rad: f32, c: Color) {
         if let Some(path) = PathBuilder::from_circle(cx, cy, rad) {
             let mask = self.clip.as_ref().map(|(_, m)| m);
-            self.pix
-                .fill_path(&path, &c.paint(), FillRule::Winding, Transform::identity(), mask);
+            self.pix.fill_path(&path, &c.paint(), FillRule::Winding, Transform::identity(), mask);
         }
     }
 
@@ -589,12 +532,7 @@ impl Gfx {
             pb.close();
         }
         if let Some(path) = pb.finish() {
-            let stroke = Stroke {
-                width,
-                line_cap: tiny_skia::LineCap::Round,
-                line_join: tiny_skia::LineJoin::Round,
-                ..Stroke::default()
-            };
+            let stroke = Stroke { width, line_cap: tiny_skia::LineCap::Round, line_join: tiny_skia::LineJoin::Round, ..Stroke::default() };
             let mask = self.clip.as_ref().map(|(_, m)| m);
             self.pix.stroke_path(&path, &c.paint(), &stroke, Transform::identity(), mask);
         }
@@ -609,18 +547,10 @@ impl Gfx {
         let sy = dest.h / img.height() as f32;
         let exact = (sx - 1.0).abs() < 0.001 && (sy - 1.0).abs() < 0.001;
         let paint = PixmapPaint {
-            quality: if exact {
-                tiny_skia::FilterQuality::Nearest
-            } else {
-                tiny_skia::FilterQuality::Bilinear
-            },
+            quality: if exact { tiny_skia::FilterQuality::Nearest } else { tiny_skia::FilterQuality::Bilinear },
             ..PixmapPaint::default()
         };
-        let (x, y) = if exact {
-            (dest.x.round(), dest.y.round())
-        } else {
-            (dest.x, dest.y)
-        };
+        let (x, y) = if exact { (dest.x.round(), dest.y.round()) } else { (dest.x, dest.y) };
         let t = Transform::from_row(sx, 0.0, 0.0, sy, x, y);
         let mask = self.clip.as_ref().map(|(_, m)| m);
         self.pix.draw_pixmap(0, 0, img.as_ref(), &paint, t, mask);
@@ -692,27 +622,14 @@ impl Gfx {
             }
             let ix = pen.floor();
             let sub = ((pen - ix) * 4.0).floor() as u8 % 4;
-            let key = GlyphKey {
-                font: fi,
-                glyph: g.0,
-                size_q,
-                sub_x: sub,
-            };
+            let key = GlyphKey { font: fi, glyph: g.0, size_q, sub_x: sub };
             if !self.cache.contains_key(&key) {
                 let bmp = self.raster(fi, g, px, sub as f32 / 4.0);
                 self.cache.insert(key, bmp);
             }
             let bmp = &self.cache[&key];
             if bmp.w > 0 {
-                blit(
-                    &mut self.pix,
-                    bmp,
-                    ix as i32 + bmp.x,
-                    baseline + bmp.y,
-                    c,
-                    self.clip.as_ref().map(|(r, _)| *r),
-                    &self.lut,
-                );
+                blit(&mut self.pix, bmp, ix as i32 + bmp.x, baseline + bmp.y, c, self.clip.as_ref().map(|(r, _)| *r), &self.lut);
             }
             pen += self.fonts.get(fi).h_advance_unscaled(g) * k;
             prev = Some((fi, g));
@@ -728,13 +645,7 @@ impl Gfx {
         let scale = ab_glyph::PxScale::from(px * height / upem);
         let glyph = g.with_scale_and_position(scale, Point { x: sub_x, y: 0.0 });
         let Some(outlined) = font.outline_glyph(glyph) else {
-            return GlyphBmp {
-                x: 0,
-                y: 0,
-                w: 0,
-                h: 0,
-                cov: Vec::new(),
-            };
+            return GlyphBmp { x: 0, y: 0, w: 0, h: 0, cov: Vec::new() };
         };
         let b = outlined.px_bounds();
         let (w, h) = (b.width() as u32, b.height() as u32);
@@ -745,13 +656,7 @@ impl Gfx {
                 cov[i] = (v.clamp(0.0, 1.0) * 255.0).round() as u8;
             }
         });
-        GlyphBmp {
-            x: b.min.x as i32,
-            y: b.min.y as i32,
-            w,
-            h,
-            cov,
-        }
+        GlyphBmp { x: b.min.x as i32, y: b.min.y as i32, w, h, cov }
     }
 
     /// Draws text aligned inside `r`, vertically centered on the font's
@@ -789,12 +694,7 @@ impl Gfx {
 fn blit(pix: &mut Pixmap, g: &GlyphBmp, x0: i32, y0: i32, c: Color, clip: Option<Rect>, lut: &[u8; 256]) {
     let (pw, ph) = (pix.width() as i32, pix.height() as i32);
     let (cx0, cy0, cx1, cy1) = match clip {
-        Some(r) => (
-            r.x.max(0.0) as i32,
-            r.y.max(0.0) as i32,
-            (r.right() as i32).min(pw),
-            (r.bottom() as i32).min(ph),
-        ),
+        Some(r) => (r.x.max(0.0) as i32, r.y.max(0.0) as i32, (r.right() as i32).min(pw), (r.bottom() as i32).min(ph)),
         None => (0, 0, pw, ph),
     };
     let data = pix.data_mut();
@@ -837,14 +737,8 @@ mod tests {
         assert_eq!(r.take_left(30.0).w, 30.0);
         assert_eq!(r.take_right(20.0), Rect::new(80.0, 0.0, 20.0, 50.0));
         assert_eq!(r, Rect::new(30.0, 0.0, 50.0, 50.0));
-        assert_eq!(
-            Rect::new(0.0, 0.0, 10.0, 10.0).intersect(&Rect::new(5.0, 5.0, 10.0, 10.0)),
-            Rect::new(5.0, 5.0, 5.0, 5.0)
-        );
-        assert_eq!(
-            Rect::new(0.0, 0.0, 100.0, 100.0).cell(2, 2, 1, 1, 10.0),
-            Rect::new(55.0, 55.0, 45.0, 45.0)
-        );
+        assert_eq!(Rect::new(0.0, 0.0, 10.0, 10.0).intersect(&Rect::new(5.0, 5.0, 10.0, 10.0)), Rect::new(5.0, 5.0, 5.0, 5.0));
+        assert_eq!(Rect::new(0.0, 0.0, 100.0, 100.0).cell(2, 2, 1, 1, 10.0), Rect::new(55.0, 55.0, 45.0, 45.0));
     }
 
     #[test]
@@ -859,14 +753,7 @@ mod tests {
         let Ok(mut g) = Gfx::new() else { return };
         g.resize(200, 40);
         g.clear(Color::rgb(0xFFFFFF));
-        let w = g.text_in(
-            "Hello",
-            Rect::new(0.0, 0.0, 200.0, 40.0),
-            16.0,
-            FontId::Bold,
-            Color::rgb(0x000000),
-            Align::Center,
-        );
+        let w = g.text_in("Hello", Rect::new(0.0, 0.0, 200.0, 40.0), 16.0, FontId::Bold, Color::rgb(0x000000), Align::Center);
         assert!(w > 20.0 && (w - g.measure("Hello", 16.0, FontId::Bold)).abs() < 1.0);
         assert!(g.pix.pixels().iter().any(|p| p.red() < 128), "something was drawn");
         assert!(g.fit_size("A long line of text", 50.0, 16.0, 6.0, FontId::Regular) < 16.0);

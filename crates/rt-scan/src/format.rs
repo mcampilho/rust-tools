@@ -126,9 +126,7 @@ pub fn days_from_civil(y: i32, m: u32, d: u32) -> i64 {
 fn utc_offset() -> i64 {
     static OFFSET: OnceLock<i64> = OnceLock::new();
     *OFFSET.get_or_init(|| {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_or(0, |d| d.as_secs() as i64);
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs() as i64);
         let t = rt_sys::local_time();
         let local = days_from_civil(t.year, t.month, t.day) * 86_400 + (t.hour * 3600 + t.minute * 60 + t.second) as i64;
         // Time zones are whole quarter hours.

@@ -91,11 +91,7 @@ pub fn lex_line(def: &Def, line: &str, state: State, out: &mut Vec<Span>) -> Sta
                 None
             };
             if let Some(tok) = tok {
-                out.push(Span {
-                    start: 0,
-                    end: line.len(),
-                    tok,
-                });
+                out.push(Span { start: 0, end: line.len(), tok });
             }
             NORMAL
         }
@@ -318,10 +314,7 @@ fn lex_code(def: &Def, line: &str, from: usize, state: State, out: &mut Vec<Span
         }
         // Decorators / annotations
         if c == '@'
-            && matches!(
-                def.lang,
-                Lang::Python | Lang::Java | Lang::CSharp | Lang::TypeScript | Lang::JavaScript
-            )
+            && matches!(def.lang, Lang::Python | Lang::Java | Lang::CSharp | Lang::TypeScript | Lang::JavaScript)
             && rest[1..].chars().next().is_some_and(|ch| ch.is_alphabetic())
         {
             let e = rest[1..].find(|ch: char| !is_ident(ch, ".")).map_or(rest.len(), |p| p + 1);
@@ -342,11 +335,7 @@ fn lex_code(def: &Def, line: &str, from: usize, state: State, out: &mut Vec<Span
                 .map_or(rest.len(), |p| p + c.len_utf8());
             if e > 1 {
                 let word = &rest[..e];
-                let tok = if def.constants.iter().any(|k| k.eq_ignore_ascii_case(word)) {
-                    Tok::Constant
-                } else {
-                    Tok::Variable
-                };
+                let tok = if def.constants.iter().any(|k| k.eq_ignore_ascii_case(word)) { Tok::Constant } else { Tok::Variable };
                 push(out, i, i + e, tok);
                 i += e;
                 continue;
@@ -463,9 +452,7 @@ fn lex_markup(line: &str, state: State, out: &mut Vec<Span>) -> State {
                 } else if c == '=' {
                     i += 1;
                 } else {
-                    let e = rest
-                        .find(|ch: char| ch.is_whitespace() || matches!(ch, '=' | '>' | '/' | '"' | '\''))
-                        .unwrap_or(rest.len());
+                    let e = rest.find(|ch: char| ch.is_whitespace() || matches!(ch, '=' | '>' | '/' | '"' | '\'')).unwrap_or(rest.len());
                     let e = e.max(c.len_utf8());
                     push(out, i, i + e, Tok::Attr);
                     i += e;
@@ -487,13 +474,10 @@ fn lex_markup(line: &str, state: State, out: &mut Vec<Span>) -> State {
                     push(out, i, end, Tok::Meta);
                     i = end;
                 } else if rest.starts_with('<') && rest[1..].starts_with(|c: char| c.is_alphabetic() || c == '/' || c == '_' || c == ':') {
-                    let name_end = rest[1..]
-                        .find(|ch: char| ch.is_whitespace() || ch == '>' || (ch == '/' && true))
-                        .map_or(rest.len(), |p| p + 1);
+                    let name_end =
+                        rest[1..].find(|ch: char| ch.is_whitespace() || ch == '>' || (ch == '/' && true)).map_or(rest.len(), |p| p + 1);
                     let name_end = if rest[1..].starts_with('/') {
-                        rest[2..]
-                            .find(|ch: char| ch.is_whitespace() || ch == '>')
-                            .map_or(rest.len(), |p| p + 2)
+                        rest[2..].find(|ch: char| ch.is_whitespace() || ch == '>').map_or(rest.len(), |p| p + 2)
                     } else {
                         name_end
                     };
@@ -653,8 +637,7 @@ fn lex_ini(def: &Def, line: &str, state: State, out: &mut Vec<Span>) -> State {
     let key_end = if rest.starts_with(['"', '\'']) {
         None
     } else {
-        rest.find(sep)
-            .filter(|p| def.lang != Lang::Yaml || rest[p + 1..].is_empty() || rest[p + 1..].starts_with(' '))
+        rest.find(sep).filter(|p| def.lang != Lang::Yaml || rest[p + 1..].is_empty() || rest[p + 1..].starts_with(' '))
     };
     match key_end {
         Some(p) if p > 0 => {
@@ -714,10 +697,7 @@ mod tests {
 
     #[test]
     fn python_multiline_strings_and_comments() {
-        let r = toks(
-            Lang::Python,
-            &["def f(x):  # c", "    s = \"\"\"doc", "still doc\"\"\" + 'x'", "@decorator"],
-        );
+        let r = toks(Lang::Python, &["def f(x):  # c", "    s = \"\"\"doc", "still doc\"\"\" + 'x'", "@decorator"]);
         assert!(has(&r[0], "def", Tok::Keyword));
         assert!(has(&r[0], "# c", Tok::Comment));
         assert!(has(&r[1], "\"\"\"doc", Tok::String));
@@ -739,15 +719,7 @@ mod tests {
 
     #[test]
     fn markup() {
-        let r = toks(
-            Lang::Xml,
-            &[
-                "<?xml version=\"1.0\"?>",
-                "<a href=\"x\">&amp; <!-- c",
-                "c --></a>",
-                "<![CDATA[ <x> ]]>",
-            ],
-        );
+        let r = toks(Lang::Xml, &["<?xml version=\"1.0\"?>", "<a href=\"x\">&amp; <!-- c", "c --></a>", "<![CDATA[ <x> ]]>"]);
         assert!(has(&r[0], "<?xml version=\"1.0\"?>", Tok::Meta));
         assert!(has(&r[1], "<a", Tok::Tag));
         assert!(has(&r[1], "href", Tok::Attr));
@@ -762,14 +734,7 @@ mod tests {
     fn markdown() {
         let r = toks(
             Lang::Markdown,
-            &[
-                "# Title",
-                "Some **bold** and *em* and `code` [link](http://x)",
-                "```rust",
-                "# not heading",
-                "```",
-                "- item",
-            ],
+            &["# Title", "Some **bold** and *em* and `code` [link](http://x)", "```rust", "# not heading", "```", "- item"],
         );
         assert!(has(&r[0], "# Title", Tok::Heading));
         assert!(has(&r[1], "**bold**", Tok::Strong));

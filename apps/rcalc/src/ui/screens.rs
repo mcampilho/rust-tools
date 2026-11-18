@@ -32,18 +32,7 @@ fn keys(a: &mut App, ks: &[Key]) {
 
 /// Drives the app through every mode and overlay, calling `f` after each step.
 fn tour(a: &mut App, mut f: impl FnMut(&App, &str)) {
-    keys(
-        a,
-        &[
-            Key::Digit(1),
-            Key::Digit(2),
-            Key::Point,
-            Key::Digit(5),
-            Key::Bin(BinOp::Add),
-            Key::Digit(5),
-            Key::Equals,
-        ],
-    );
+    keys(a, &[Key::Digit(1), Key::Digit(2), Key::Point, Key::Digit(5), Key::Bin(BinOp::Add), Key::Digit(5), Key::Equals]);
     f(a, "standard");
     a.apply(&Action::Mem(crate::app::MemOp::Store));
     a.apply(&Action::Open(Overlay::Panel(PanelTab::History)));
@@ -130,13 +119,9 @@ fn rendered_views_are_translated() {
 #[ignore]
 fn localized_screenshots() {
     let mut g = Gfx::new().expect("fonts");
-    for lang in [
-        crate::i18n::Lang::DeDE,
-        crate::i18n::Lang::JaJP,
-        crate::i18n::Lang::ZhCN,
-        crate::i18n::Lang::FrFR,
-        crate::i18n::Lang::PtPT,
-    ] {
+    for lang in
+        [crate::i18n::Lang::DeDE, crate::i18n::Lang::JaJP, crate::i18n::Lang::ZhCN, crate::i18n::Lang::FrFR, crate::i18n::Lang::PtPT]
+    {
         let mut a = app();
         a.lang_pref = Some(lang);
         a.apply_language();
@@ -158,18 +143,7 @@ fn localized_screenshots() {
 fn screenshots() {
     let mut g = Gfx::new().expect("fonts");
     let mut a = app();
-    keys(
-        &mut a,
-        &[
-            Key::Digit(1),
-            Key::Digit(2),
-            Key::Digit(3),
-            Key::Digit(4),
-            Key::Bin(BinOp::Add),
-            Key::Digit(5),
-            Key::Equals,
-        ],
-    );
+    keys(&mut a, &[Key::Digit(1), Key::Digit(2), Key::Digit(3), Key::Digit(4), Key::Bin(BinOp::Add), Key::Digit(5), Key::Equals]);
     keys(&mut a, &[Key::Digit(9), Key::Bin(BinOp::Mul), Key::Digit(7)]);
     shot(&mut g, &a, "standard_dark", 340, 560, 1.0, true);
     shot(&mut g, &a, "standard_light", 340, 560, 1.0, false);

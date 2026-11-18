@@ -146,7 +146,9 @@ pub fn match_programs(programs: &[Program], shortcuts: &[Shortcut]) -> Vec<Vec<u
             homes
                 .iter()
                 .enumerate()
-                .filter_map(|(i, h)| h.as_ref().filter(|h| t.starts_with(h.as_str()) && t[h.len()..].starts_with('\\')).map(|h| (i, h.len())))
+                .filter_map(|(i, h)| {
+                    h.as_ref().filter(|h| t.starts_with(h.as_str()) && t[h.len()..].starts_with('\\')).map(|h| (i, h.len()))
+                })
                 .max_by_key(|&(_, n)| n)
                 .map(|(i, _)| i)
         });
@@ -198,7 +200,13 @@ mod tests {
             program("Viewer", None, Some("\"D:\\Viewer\\viewer.exe\",0")),
             program("Something Else", None, None),
         ];
-        let s = |name: &str, t: Option<&str>| Shortcut { path: PathBuf::from(format!("{name}.lnk")), name: name.into(), place: Place::StartMenu, scope: Scope::Machine, target: t.map(PathBuf::from) };
+        let s = |name: &str, t: Option<&str>| Shortcut {
+            path: PathBuf::from(format!("{name}.lnk")),
+            name: name.into(),
+            place: Place::StartMenu,
+            scope: Scope::Machine,
+            target: t.map(PathBuf::from),
+        };
         let shortcuts = vec![
             s("Big", Some("D:\\Apps\\Big\\big.exe")),
             s("Tools", Some("D:\\Apps\\Big\\Tools\\t.exe")),
@@ -223,7 +231,12 @@ mod tests {
         let mine = inv.programs.iter().filter(|p| matches!(p.scope, Scope::User { current: true, .. })).count();
         let linked: usize = m.iter().map(|v| v.len()).sum();
         let broken = shortcuts.iter().filter(|s| s.broken()).count();
-        println!("{} entries ({visible} shown, {mine} this user's), other users read {:?}, not read {:?}", inv.programs.len(), inv.other_users, inv.unread_users);
+        println!(
+            "{} entries ({visible} shown, {mine} this user's), other users read {:?}, not read {:?}",
+            inv.programs.len(),
+            inv.other_users,
+            inv.unread_users
+        );
         println!("{} shortcuts, {linked} matched to a program, {broken} broken; {:?}", shortcuts.len(), t.elapsed());
         for (p, s) in inv.programs.iter().zip(&m).filter(|(p, _)| p.visible() && !p.sources.contains(&crate::inventory::Source::Registry)) {
             println!("  {} | {} | {:?} | {:?} | {} shortcuts", p.name, p.publisher, p.scope, p.sources, s.len());

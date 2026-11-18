@@ -30,7 +30,13 @@ impl Shell {
         let right = self.viewer.status().join("    ");
         let rw = g.measure(&right, px, FontId::Regular);
         g.text_in(&right, Rect::new(status.right() - rw - pad, status.y, rw, status.h), px, FontId::Regular, theme.dim, Align::Left);
-        let left = self.viewer.hover_link.clone().or_else(|| self.status_note.clone()).or_else(|| self.viewer.path.as_ref().map(|p| p.display().to_string())).unwrap_or_default();
+        let left = self
+            .viewer
+            .hover_link
+            .clone()
+            .or_else(|| self.status_note.clone())
+            .or_else(|| self.viewer.path.as_ref().map(|p| p.display().to_string()))
+            .unwrap_or_default();
         let lw = (status.w - rw - 3.0 * pad).max(0.0);
         let left = rt_gfx::dialog::ellipsize(g, &left, lw, px, FontId::Regular);
         g.text_in(&left, Rect::new(status.x + pad, status.y, lw, status.h), px, FontId::Regular, theme.text, Align::Left);
@@ -64,7 +70,14 @@ impl Shell {
         let docid = NodeId(1);
         let statusid = NodeId(2);
         let mut d = Node::new(Role::Document);
-        d.set_label(self.viewer.path.as_ref().and_then(|p| p.file_name()).map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| "rview".into()));
+        d.set_label(
+            self.viewer
+                .path
+                .as_ref()
+                .and_then(|p| p.file_name())
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "rview".into()),
+        );
         d.set_value(self.viewer.accessible_text());
         d.add_action(accesskit::Action::Focus);
         let mut st = Node::new(Role::Label);

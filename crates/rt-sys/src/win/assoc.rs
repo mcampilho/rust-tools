@@ -107,7 +107,16 @@ fn set_str(key: &str, name: Option<&str>, value: &str) -> Result<(), Error> {
     let v = wide(value);
     // SAFETY: NUL-terminated strings; the data length includes the NUL.
     // RegSetKeyValueW creates the key when it does not exist.
-    let rc = unsafe { RegSetKeyValueW(HKEY_CURRENT_USER, k.as_ptr(), n.as_ref().map_or(null(), |n| n.as_ptr()), REG_SZ, v.as_ptr().cast(), (v.len() * 2) as u32) };
+    let rc = unsafe {
+        RegSetKeyValueW(
+            HKEY_CURRENT_USER,
+            k.as_ptr(),
+            n.as_ref().map_or(null(), |n| n.as_ptr()),
+            REG_SZ,
+            v.as_ptr().cast(),
+            (v.len() * 2) as u32,
+        )
+    };
     if rc != 0 {
         return Err(rc);
     }
@@ -168,7 +177,20 @@ fn delete_if_empty(key: &str) -> Result<(), Error> {
             return Ok(());
         }
         let (mut subkeys, mut values) = (0u32, 0u32);
-        let rc = RegQueryInfoKeyW(h, null_mut(), null_mut(), null(), &mut subkeys, null_mut(), null_mut(), &mut values, null_mut(), null_mut(), null_mut(), null_mut());
+        let rc = RegQueryInfoKeyW(
+            h,
+            null_mut(),
+            null_mut(),
+            null(),
+            &mut subkeys,
+            null_mut(),
+            null_mut(),
+            &mut values,
+            null_mut(),
+            null_mut(),
+            null_mut(),
+            null_mut(),
+        );
         RegCloseKey(h);
         if rc != 0 || subkeys > 0 || values > 0 {
             return Ok(());
@@ -316,7 +338,16 @@ fn friendly_name(ext: &str) -> Option<String> {
     let mut buf = vec![0u16; 512];
     let mut len = buf.len() as u32;
     // SAFETY: `buf` holds `len` characters; the extension is NUL-terminated.
-    let hr = unsafe { AssocQueryStringW(ASSOCF_INIT_IGNOREUNKNOWN | ASSOCF_NOTRUNCATE, ASSOCSTR_FRIENDLYAPPNAME, e.as_ptr(), null(), buf.as_mut_ptr(), &mut len) };
+    let hr = unsafe {
+        AssocQueryStringW(
+            ASSOCF_INIT_IGNOREUNKNOWN | ASSOCF_NOTRUNCATE,
+            ASSOCSTR_FRIENDLYAPPNAME,
+            e.as_ptr(),
+            null(),
+            buf.as_mut_ptr(),
+            &mut len,
+        )
+    };
     (hr == 0).then(|| from_wide(&buf)).filter(|n| !n.is_empty())
 }
 
@@ -431,7 +462,12 @@ mod tests {
         name: "rview",
         description: "A small, fast, portable document viewer.",
         exts: &[(".pdf", "rview.pdf"), (".md", "rview.md"), (".txt", "rview.txt"), (".csv", "rview.csv")],
-        progids: &[("rview.pdf", "PDF Document"), ("rview.md", "Markdown Document"), ("rview.txt", "Text Document"), ("rview.csv", "CSV Document")],
+        progids: &[
+            ("rview.pdf", "PDF Document"),
+            ("rview.md", "Markdown Document"),
+            ("rview.txt", "Text Document"),
+            ("rview.csv", "CSV Document"),
+        ],
     };
 
     /// Everything under a scratch key of HKCU that is removed afterwards.
@@ -502,7 +538,10 @@ mod tests {
         assert_eq!(get_str(&format!("{}\\.txt", keys.classes), None).as_deref(), Some("txtfile"));
         assert_eq!(get_str(&format!("{}\\.md", keys.classes), None), None);
         assert_eq!(get_str(&format!("{}\\.pdf\\UserChoice", keys.file_exts), Some("ProgId")).as_deref(), Some("OtherPdf"));
-        assert_eq!(get_str(&format!("{}\\SystemFileAssociations\\.md\\shell\\edit\\command", keys.classes), None).as_deref(), Some("other"));
+        assert_eq!(
+            get_str(&format!("{}\\SystemFileAssociations\\.md\\shell\\edit\\command", keys.classes), None).as_deref(),
+            Some("other")
+        );
         assert_eq!(get_str(&format!("{}\\rview.pdf", keys.classes), None), None);
         assert_eq!(get_str(&keys.registered, Some("rview")), None);
         assert_eq!(get_str(&format!("{}\\Capabilities", keys.app), Some("ApplicationName")), None);

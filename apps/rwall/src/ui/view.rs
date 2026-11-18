@@ -199,7 +199,18 @@ type Button = rt_ui::controls::Button<Hit>;
 /// detail and one more line, with buttons along the bottom. Returns its
 /// height.
 #[allow(clippy::too_many_arguments)]
-fn card(p: &mut Painter, x: f32, y: f32, w: f32, thumb: Option<&tiny_skia::Pixmap>, title: Option<&str>, empty: &str, detail: &str, last: &str, buttons: &[Button]) -> f32 {
+fn card(
+    p: &mut Painter,
+    x: f32,
+    y: f32,
+    w: f32,
+    thumb: Option<&tiny_skia::Pixmap>,
+    title: Option<&str>,
+    empty: &str,
+    detail: &str,
+    last: &str,
+    buttons: &[Button],
+) -> f32 {
     let t = *p.t;
     let tw = p.px(192.0).min(w * 0.4);
     let th = tw * 9.0 / 16.0;
@@ -342,7 +353,11 @@ fn static_tab(p: &mut Painter, m: &Model, x: f32, mut y: f32, w: f32) -> f32 {
     y += p.px(30.0);
     let (title, detail, last) = match &st.current {
         Some(c) => {
-            let title = if c.title.is_empty() { c.file.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default() } else { c.title.clone() };
+            let title = if c.title.is_empty() {
+                c.file.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default()
+            } else {
+                c.title.clone()
+            };
             let src = Source::from_key(&c.source).map(|s| tr(s.label())).unwrap_or_default();
             let line = if c.when.is_empty() { src } else { format!("{src} · {}", c.when) };
             (Some(title), c.credit.clone(), line)
@@ -430,7 +445,15 @@ fn static_tab(p: &mut Painter, m: &Model, x: f32, mut y: f32, w: f32) -> f32 {
     }
     let add_w = p.px(150.0);
     p.button(Rect::new(indent, y + p.px(2.0), add_w, p.px(28.0)), &tr("Add a folder…"), Hit::AddFolder, true, false);
-    p.choice(indent + add_w + p.px(16.0), y + p.px(3.0), fw - add_w - p.px(16.0), &tr("Include subfolders"), st.subfolders, false, Hit::Subfolders);
+    p.choice(
+        indent + add_w + p.px(16.0),
+        y + p.px(3.0),
+        fw - add_w - p.px(16.0),
+        &tr("Include subfolders"),
+        st.subfolders,
+        false,
+        Hit::Subfolders,
+    );
     y += p.px(36.0) + gap;
 
     // ---- Position
@@ -498,7 +521,8 @@ fn dynamic_tab(p: &mut Painter, m: &Model, x: f32, mut y: f32, w: f32) -> f32 {
         if kind == Kind::Scene {
             p.choice(x, y, w, &tr(kind.label()), on, true, Hit::LiveKind(kind));
             y += row + p.px(2.0);
-            let scenes: Vec<Button> = Scene::ALL.into_iter().map(|s| (tr(s.label()), Hit::LiveScene(s), true, on && l.scene == s)).collect();
+            let scenes: Vec<Button> =
+                Scene::ALL.into_iter().map(|s| (tr(s.label()), Hit::LiveScene(s), true, on && l.scene == s)).collect();
             p.segments(x + p.px(26.0), y, w - p.px(26.0), &scenes, 140.0);
             y += row + p.px(6.0);
             continue;
@@ -523,7 +547,13 @@ fn dynamic_tab(p: &mut Painter, m: &Model, x: f32, mut y: f32, w: f32) -> f32 {
             let indent = x + p.px(26.0);
             p.choice(indent, y, w - p.px(26.0), &tr("Include subfolders"), l.subfolders, false, Hit::LiveSubfolders);
             y += row;
-            y = p.note(&tr("Another video comes at each change chosen on the Static wallpaper tab (with rwall --tray)."), indent, y, w - p.px(26.0), false) + p.px(6.0);
+            y = p.note(
+                &tr("Another video comes at each change chosen on the Static wallpaper tab (with rwall --tray)."),
+                indent,
+                y,
+                w - p.px(26.0),
+                false,
+            ) + p.px(6.0);
         }
     }
     y += gap - p.px(6.0);
@@ -713,7 +743,10 @@ fn widget_row(p: &mut Painter, m: &Model, wd: &Widget, x: f32, y: f32, w: f32) -
             let cap = tr("City:");
             let cw = p.g.measure(&cap, p.px(12.5), FontId::Regular) + p.px(8.0);
             p.g.text_in(&cap, Rect::new(ix, ry, cw, p.px(26.0)), p.px(12.5), FontId::Regular, t.text, Align::Left);
-            let units = [("°C".to_string(), Hit::WidgetUnits(wd.id, false), true, !wd.fahrenheit), ("°F".to_string(), Hit::WidgetUnits(wd.id, true), true, wd.fahrenheit)];
+            let units = [
+                ("°C".to_string(), Hit::WidgetUnits(wd.id, false), true, !wd.fahrenheit),
+                ("°F".to_string(), Hit::WidgetUnits(wd.id, true), true, wd.fahrenheit),
+            ];
             let uw = p.px(104.0);
             let fw = (iw - cw - uw - p.px(12.0)).max(p.px(80.0));
             let f = Field::City(wd.id);
@@ -732,7 +765,11 @@ fn widget_row(p: &mut Painter, m: &Model, wd: &Widget, x: f32, y: f32, w: f32) -
             let choose = tr("Choose…");
             let bw = p.text_width(&choose, 84.0);
             let px = p.px(12.0);
-            let (text, c, font) = if wd.folder.as_os_str().is_empty() { (tr("Nothing chosen."), t.dim, FontId::Italic) } else { (wd.folder.display().to_string(), t.text, FontId::Regular) };
+            let (text, c, font) = if wd.folder.as_os_str().is_empty() {
+                (tr("Nothing chosen."), t.dim, FontId::Italic)
+            } else {
+                (wd.folder.display().to_string(), t.text, FontId::Regular)
+            };
             let tw = (iw - bw - p.px(10.0)).max(0.0);
             let text = ellipsize_middle(p.g, &text, tw, px, font);
             p.g.text_in(&text, Rect::new(ix, ry, tw, p.px(26.0)), px, font, c, Align::Left);

@@ -799,7 +799,12 @@ impl From<io::Error> for Skip {
 /// volume's MFT, when it is on a local NTFS volume and the volume can be
 /// opened.
 #[cfg(windows)]
-pub fn scan_volume(root: &std::path::Path, cancel: &AtomicBool, progress: &dyn Fn(&Progress), label: &dyn Fn(u64) -> String) -> Result<Tree, Skip> {
+pub fn scan_volume(
+    root: &std::path::Path,
+    cancel: &AtomicBool,
+    progress: &dyn Fn(&Progress),
+    label: &dyn Fn(u64) -> String,
+) -> Result<Tree, Skip> {
     let (device, parts, text) = locate(root)?;
     let mut disk = Volume::open(&device, false)?;
     Ok(scan_disk(&mut disk, &parts, &text, cancel, progress, label)?)
@@ -853,7 +858,9 @@ pub fn timings(root: &std::path::Path) -> String {
 #[cfg(windows)]
 fn locate(root: &std::path::Path) -> Result<(String, Vec<String>, String), Skip> {
     use rt_sys::win::{from_wide, wide};
-    use windows_sys::Win32::Storage::FileSystem::{GetDriveTypeW, GetVolumeInformationW, GetVolumeNameForVolumeMountPointW, GetVolumePathNameW};
+    use windows_sys::Win32::Storage::FileSystem::{
+        GetDriveTypeW, GetVolumeInformationW, GetVolumeNameForVolumeMountPointW, GetVolumePathNameW,
+    };
     use windows_sys::Win32::System::WindowsProgramming::DRIVE_REMOTE;
     let text = root.to_string_lossy().into_owned();
     let w = wide(&text);
@@ -871,7 +878,16 @@ fn locate(root: &std::path::Path) -> Result<(String, Vec<String>, String), Skip>
     let mut fs = vec![0u16; 64];
     // SAFETY: the buffer is as long as stated; the other outputs are null.
     let ok = unsafe {
-        GetVolumeInformationW(mw.as_ptr(), std::ptr::null_mut(), 0, std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut(), fs.as_mut_ptr(), fs.len() as u32)
+        GetVolumeInformationW(
+            mw.as_ptr(),
+            std::ptr::null_mut(),
+            0,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            fs.as_mut_ptr(),
+            fs.len() as u32,
+        )
     };
     if ok == 0 || from_wide(&fs) != "NTFS" {
         return Err(Skip::NotNtfs);

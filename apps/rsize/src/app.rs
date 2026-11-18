@@ -446,7 +446,10 @@ mod tests {
         t.finish();
         let mut a = App::new();
         a.page = 3;
-        a.set_scan(Scan { tree: t, method: Method::System, elapsed: Duration::ZERO, complete: true, admin_would_help: false }, SizeMode::Logical);
+        a.set_scan(
+            Scan { tree: t, method: Method::System, elapsed: Duration::ZERO, complete: true, admin_would_help: false },
+            SizeMode::Logical,
+        );
         a
     }
 

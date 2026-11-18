@@ -74,7 +74,13 @@ impl Command {
         Ok(match self {
             OpenArchive => "&Open Archive...",
             CloseArchive => "&Close Archive",
-            Autostart => if cfg!(windows) { "Start wit&h Windows" } else { "Start &When I Log In" },
+            Autostart => {
+                if cfg!(windows) {
+                    "Start wit&h Windows"
+                } else {
+                    "Start &When I Log In"
+                }
+            }
             Exit => "E&xit",
             OpenItem => "&Open",
             Up => "&Up One Level",
@@ -98,7 +104,13 @@ impl Command {
             Hash(ALL_HASHES) => "&All Hashes",
             Hash(i) => return Err(Algo::ALL.get(i as usize).map_or("", |a| a.name()).to_string()),
             SaveHashes => "&Save Hashes...",
-            Reveal => if cfg!(windows) { "Sho&w in Explorer" } else { "Show in File &Manager" },
+            Reveal => {
+                if cfg!(windows) {
+                    "Sho&w in Explorer"
+                } else {
+                    "Show in File &Manager"
+                }
+            }
             CopyPath => "&Copy Path",
             Recycle if cfg!(windows) => "Move to Recycle &Bin",
             Recycle => "Mo&ve to Trash",
@@ -172,10 +184,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
     langs.extend((1..=Lang::ALL.len()).map(|i| Item(UiLanguage(i as u8))));
     vec![
         ("&File", vec![Item(OpenArchive), Item(CloseArchive), Sep, Item(Autostart), Sep, Item(Exit)]),
-        (
-            "&Edit",
-            vec![Item(OpenItem), Item(Up), Item(Refresh), Sep, Item(SelectAll), Sep, Item(CopyPath), Item(Reveal), Item(Recycle)],
-        ),
+        ("&Edit", vec![Item(OpenItem), Item(Up), Item(Refresh), Sep, Item(SelectAll), Sep, Item(CopyPath), Item(Reveal), Item(Recycle)]),
         (
             "&Archive",
             vec![

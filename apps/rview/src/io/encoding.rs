@@ -155,7 +155,17 @@ pub fn decode(bytes: &[u8], fallback: &'static Encoding) -> Decoded {
         Enc::Utf8 | Enc::Utf8Bom => String::from_utf8_lossy(body).into_owned(),
         Enc::Utf16Le | Enc::Utf16Be => {
             let le = enc == Enc::Utf16Le;
-            let units = body.chunks(2).map(|p| if p.len() == 2 { if le { u16::from_le_bytes([p[0], p[1]]) } else { u16::from_be_bytes([p[0], p[1]]) } } else { 0xFFFD });
+            let units = body.chunks(2).map(|p| {
+                if p.len() == 2 {
+                    if le {
+                        u16::from_le_bytes([p[0], p[1]])
+                    } else {
+                        u16::from_be_bytes([p[0], p[1]])
+                    }
+                } else {
+                    0xFFFD
+                }
+            });
             char::decode_utf16(units).map(|r| r.unwrap_or('\u{FFFD}')).collect()
         }
         Enc::Legacy(e) => e.decode_without_bom_handling(body).0.into_owned(),

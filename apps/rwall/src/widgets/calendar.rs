@@ -6,7 +6,8 @@ use crate::schedule::{civil_from_days, days_from_civil};
 use rt_sys::LocalTime;
 
 /// Months, as keys of the table of texts.
-pub const MONTHS: [&str; 12] = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+pub const MONTHS: [&str; 12] =
+    ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 /// Days of the week from Sunday, as keys of the table of texts.
 pub const WEEKDAYS: [&str; 7] = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];

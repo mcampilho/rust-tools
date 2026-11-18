@@ -46,7 +46,8 @@ pub enum Tab {
 
 impl Tab {
     /// The tabs that list programs.
-    pub const LISTS: [Tab; 10] = [Tab::Programs, Tab::Scoop, Tab::Chocolatey, Tab::Flatpak, Tab::Snap, Tab::Dism, Tab::Npm, Tab::Pip, Tab::Cargo, Tab::Vcpkg];
+    pub const LISTS: [Tab; 10] =
+        [Tab::Programs, Tab::Scoop, Tab::Chocolatey, Tab::Flatpak, Tab::Snap, Tab::Dism, Tab::Npm, Tab::Pip, Tab::Cargo, Tab::Vcpkg];
 }
 
 /// The leftovers found after uninstalling, and which are ticked.
@@ -376,7 +377,8 @@ impl App {
         if q.is_empty() {
             return true;
         }
-        let hay = format!("{} {} {}", p.name, p.publisher, p.location.as_ref().map(|l| l.display().to_string()).unwrap_or_default()).to_lowercase();
+        let hay = format!("{} {} {}", p.name, p.publisher, p.location.as_ref().map(|l| l.display().to_string()).unwrap_or_default())
+            .to_lowercase();
         q.split_whitespace().all(|w| hay.contains(w))
     }
 
@@ -752,7 +754,15 @@ pub mod tests {
         ];
         programs[4].system = true;
         programs[5].update = true;
-        Found::new(Inventory { programs, unread_users: vec!["Guest".into()], other_users: vec![("Ana".into(), PathBuf::from("C:\\Users\\Ana"))], ..Inventory::default() }, Vec::new())
+        Found::new(
+            Inventory {
+                programs,
+                unread_users: vec!["Guest".into()],
+                other_users: vec![("Ana".into(), PathBuf::from("C:\\Users\\Ana"))],
+                ..Inventory::default()
+            },
+            Vec::new(),
+        )
     }
 
     fn names(app: &App) -> Vec<&str> {

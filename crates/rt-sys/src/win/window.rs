@@ -131,11 +131,7 @@ unsafe extern "system" fn subclass_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LP
                 Vec::new()
             } else {
                 let units = std::slice::from_raw_parts(cds.lpData as *const u16, cds.cbData as usize / 2);
-                String::from_utf16_lossy(units)
-                    .split('\n')
-                    .filter(|p| !p.is_empty())
-                    .map(PathBuf::from)
-                    .collect()
+                String::from_utf16_lossy(units).split('\n').filter(|p| !p.is_empty()).map(PathBuf::from).collect()
             };
             emit(WinMsg::OpenFiles(paths));
             1
@@ -183,11 +179,7 @@ fn find_instance(ident: &Ident, resident_only: bool) -> HWND {
         }
         1
     }
-    let prop = if resident_only {
-        ident.resident_prop()
-    } else {
-        ident.instance_prop()
-    };
+    let prop = if resident_only { ident.resident_prop() } else { ident.instance_prop() };
     let mut found = Found(std::ptr::null_mut(), prop);
     // SAFETY: the callback writes only into `found`, which outlives the call.
     unsafe {
@@ -237,11 +229,7 @@ pub fn hand_off(ident: &Ident, paths: &[PathBuf], any: bool, activate: bool) -> 
         .collect::<Vec<_>>()
         .join("\n");
     let data: Vec<u16> = joined.encode_utf16().collect();
-    let cds = COPYDATASTRUCT {
-        dwData: ident.copydata,
-        cbData: (data.len() * 2) as u32,
-        lpData: data.as_ptr() as *mut _,
-    };
+    let cds = COPYDATASTRUCT { dwData: ident.copydata, cbData: (data.len() * 2) as u32, lpData: data.as_ptr() as *mut _ };
     // SAFETY: WM_COPYDATA marshals `data` synchronously; buffers live until return.
     unsafe {
         let mut pid = 0;

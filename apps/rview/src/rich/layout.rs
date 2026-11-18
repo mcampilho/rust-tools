@@ -99,9 +99,22 @@ pub enum ImgState {
 #[derive(Clone, Debug)]
 pub enum Item {
     /// Text with its baseline at `y`.
-    Text { x: f32, y: f32, s: String, px: f32, font: FontId, color: Color },
-    Fill { r: Rect, color: Color },
-    Image { r: Rect, key: String },
+    Text {
+        x: f32,
+        y: f32,
+        s: String,
+        px: f32,
+        font: FontId,
+        color: Color,
+    },
+    Fill {
+        r: Rect,
+        color: Color,
+    },
+    Image {
+        r: Rect,
+        key: String,
+    },
 }
 
 /// A place in the text of a layout: inside text item `item` (an index into
@@ -249,7 +262,8 @@ impl Layout {
         let node = self.meta[i].node;
         let same = |k: &usize| self.item_len(*k) > 0 && self.meta[*k].node == node;
         let first = (0..=i).rev().take_while(|k| self.item_len(*k) == 0 || self.meta[*k].node == node).filter(same).last().unwrap_or(i);
-        let last = (i..self.items.len()).take_while(|k| self.item_len(*k) == 0 || self.meta[*k].node == node).filter(same).last().unwrap_or(i);
+        let last =
+            (i..self.items.len()).take_while(|k| self.item_len(*k) == 0 || self.meta[*k].node == node).filter(same).last().unwrap_or(i);
         (Pos { item: first as u32, byte: 0 }, Pos { item: last as u32, byte: self.item_len(last) as u32 })
     }
 
@@ -469,7 +483,9 @@ impl Ctx<'_> {
         match s.color {
             Some(c) => self.pal.fg(c),
             None if s.link != 0 => self.pal.link,
-            None if s.tok != 0 => crate::syntax::tok_from(s.tok - 1).and_then(|t| crate::syntax::color(t, self.pal.dark)).unwrap_or(self.text),
+            None if s.tok != 0 => {
+                crate::syntax::tok_from(s.tok - 1).and_then(|t| crate::syntax::color(t, self.pal.dark)).unwrap_or(self.text)
+            }
             None => self.text,
         }
     }
@@ -549,7 +565,17 @@ impl Ctx<'_> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn flush_line(&mut self, atoms: &[Atom], line: &mut Vec<(usize, f32)>, x: f32, w: f32, y: f32, align: Align, first: Style, forced: bool) -> f32 {
+    fn flush_line(
+        &mut self,
+        atoms: &[Atom],
+        line: &mut Vec<(usize, f32)>,
+        x: f32,
+        w: f32,
+        y: f32,
+        align: Align,
+        first: Style,
+        forced: bool,
+    ) -> f32 {
         // Line metrics.
         let mut asc: f32 = 0.0;
         let mut desc: f32 = 0.0;
@@ -856,7 +882,9 @@ impl Ctx<'_> {
     fn measure_blocks(&mut self, blocks: &[Block]) -> (f32, f32) {
         let mut r = (0.0f32, 0.0f32);
         for b in blocks {
-            let extra = b.indent * self.em + if b.bg.is_some() { 2.0 * b.padding.max(0.5) * self.em } else { 0.0 } + if b.bar { self.em * 1.2 } else { 0.0 };
+            let extra = b.indent * self.em
+                + if b.bg.is_some() { 2.0 * b.padding.max(0.5) * self.em } else { 0.0 }
+                + if b.bar { self.em * 1.2 } else { 0.0 };
             let (mi, ma) = match &b.kind {
                 Kind::Para(v) => self.measure_inlines(v, false),
                 Kind::Pre(v) => self.measure_inlines(v, true),
@@ -955,7 +983,13 @@ impl Ctx<'_> {
                 let span = c.colspan.max(1).min(ncols - col);
                 let cw: f32 = widths[col..col + span].iter().sum();
                 let zebra = ri % 2 == 0 && ri > 0 && !c.header;
-                let bg = c.bg.map(|x| self.pal.bgc(x)).or(if c.header { Some(self.pal.header_bg) } else if zebra { Some(self.pal.header_bg.mix(self.pal.bg, 0.5)) } else { None });
+                let bg = c.bg.map(|x| self.pal.bgc(x)).or(if c.header {
+                    Some(self.pal.header_bg)
+                } else if zebra {
+                    Some(self.pal.header_bg.mix(self.pal.bg, 0.5))
+                } else {
+                    None
+                });
                 let bg_item = bg.map(|color| self.out.push(Item::Fill { r: Rect::default(), color }));
                 self.cell_align = Some(c.align);
                 let row_node = self.enter(Tag::Cell { header: c.header, colspan: c.colspan.max(1), align: c.align, bg: c.bg });
@@ -994,7 +1028,20 @@ pub fn layout(doc: &RichDoc, g: &mut Gfx, width: f32, em: f32, pal: Palette, img
     let col = doc.max_width.map_or(width - 2.0 * pad, |m| (m * em).min(width - 2.0 * pad)).max(em * 8.0);
     let x = ((width - col) / 2.0).max(pad).round();
     let text = doc.page_color.map_or(pal.text, |c| pal.fg(c));
-    let mut ctx = Ctx { g, em, pal, text, img, out: Layout::default(), marker: None, list_depth: 0, cell_align: None, node: 0, lead_space: false, lead_breaks: 0 };
+    let mut ctx = Ctx {
+        g,
+        em,
+        pal,
+        text,
+        img,
+        out: Layout::default(),
+        marker: None,
+        list_depth: 0,
+        cell_align: None,
+        node: 0,
+        lead_space: false,
+        lead_breaks: 0,
+    };
     ctx.out.nodes.push(Node { parent: 0, tag: Tag::Quote }); // the root; never written out
     let bottom = ctx.blocks(&doc.blocks, x, col, pad);
     let mut out = ctx.out;

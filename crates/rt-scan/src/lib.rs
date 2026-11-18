@@ -222,7 +222,9 @@ pub fn scan_with(root: &Path, ways: Ways, cancel: &AtomicBool, progress: &dyn Fn
     #[cfg(windows)]
     if ways.everything {
         match everything::scan_index(&root, cancel, progress) {
-            Ok(tree) => return Ok(Scan { tree, method: Method::Everything, elapsed: start.elapsed(), complete: true, admin_would_help: false }),
+            Ok(tree) => {
+                return Ok(Scan { tree, method: Method::Everything, elapsed: start.elapsed(), complete: true, admin_would_help: false })
+            }
             Err(everything::Skip::Stopped) => return stopped(Method::Everything),
             Err(everything::Skip::NotRunning | everything::Skip::NotIndexed) => {}
         }
@@ -342,10 +344,7 @@ fn device_of(_: &std::fs::Metadata) -> u64 {
 
 /// Seconds since 1970 of the last change.
 pub(crate) fn mtime_of(m: &std::fs::Metadata) -> i64 {
-    m.modified()
-        .ok()
-        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-        .map_or(0, |d| d.as_secs() as i64)
+    m.modified().ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map_or(0, |d| d.as_secs() as i64)
 }
 
 /// Helpers for the tests of the apps that read with this crate.

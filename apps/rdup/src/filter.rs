@@ -20,16 +20,16 @@ pub const KINDS: [FileKind; 7] = [
         label: "Images",
         id: "images",
         exts: &[
-            "jpg", "jpeg", "jpe", "jfif", "png", "gif", "bmp", "webp", "tif", "tiff", "svg", "svgz", "ico", "heic", "heif", "avif", "jxl", "psd",
-            "xcf", "raw", "dng", "cr2", "cr3", "nef", "arw", "orf", "rw2",
+            "jpg", "jpeg", "jpe", "jfif", "png", "gif", "bmp", "webp", "tif", "tiff", "svg", "svgz", "ico", "heic", "heif", "avif", "jxl",
+            "psd", "xcf", "raw", "dng", "cr2", "cr3", "nef", "arw", "orf", "rw2",
         ],
     },
     FileKind {
         label: "Videos",
         id: "videos",
         exts: &[
-            "mp4", "m4v", "mpg", "mpeg", "mpe", "mkv", "avi", "mov", "wmv", "flv", "webm", "vob", "ts", "m2ts", "mts", "3gp", "ogv", "rm", "rmvb",
-            "divx", "vid",
+            "mp4", "m4v", "mpg", "mpeg", "mpe", "mkv", "avi", "mov", "wmv", "flv", "webm", "vob", "ts", "m2ts", "mts", "3gp", "ogv", "rm",
+            "rmvb", "divx", "vid",
         ],
     },
     FileKind {
@@ -40,28 +40,34 @@ pub const KINDS: [FileKind; 7] = [
     FileKind {
         label: "Archives",
         id: "archives",
-        exts: &["zip", "7z", "rar", "gz", "tgz", "bz2", "tbz2", "xz", "txz", "zst", "lz", "lzma", "tar", "cab", "iso", "img", "dmg", "arj", "lzh"],
+        exts: &[
+            "zip", "7z", "rar", "gz", "tgz", "bz2", "tbz2", "xz", "txz", "zst", "lz", "lzma", "tar", "cab", "iso", "img", "dmg", "arj",
+            "lzh",
+        ],
     },
     FileKind {
         label: "Office",
         id: "office",
-        exts: &["doc*", "dot*", "xl*", "ppt*", "pps*", "pot*", "mdb", "accdb", "pdf", "csv", "db", "rtf", "odt", "ods", "odp", "odg", "epub", "txt"],
+        exts: &[
+            "doc*", "dot*", "xl*", "ppt*", "pps*", "pot*", "mdb", "accdb", "pdf", "csv", "db", "rtf", "odt", "ods", "odp", "odg", "epub",
+            "txt",
+        ],
     },
     FileKind {
         label: "Programming",
         id: "code",
         exts: &[
-            "py", "c", "cc", "cpp", "cxx", "h", "hpp", "cs", "rs", "go", "java", "kt", "swift", "ps1", "psm1", "php", "sh", "bat", "cmd", "vbs",
-            "pas", "lua", "rb", "pl", "sql", "js", "mjs", "cjs", "tsx", "jsx", "node", "html", "htm", "css", "json", "toml", "yaml", "yml", "xml",
-            "ini", "jar", "class", "crate", "cargo", "pdb", "ipynb",
+            "py", "c", "cc", "cpp", "cxx", "h", "hpp", "cs", "rs", "go", "java", "kt", "swift", "ps1", "psm1", "php", "sh", "bat", "cmd",
+            "vbs", "pas", "lua", "rb", "pl", "sql", "js", "mjs", "cjs", "tsx", "jsx", "node", "html", "htm", "css", "json", "toml", "yaml",
+            "yml", "xml", "ini", "jar", "class", "crate", "cargo", "pdb", "ipynb",
         ],
     },
     FileKind {
         label: "System",
         id: "system",
         exts: &[
-            "dll", "sys", "exe", "msi", "msp", "so", "bin", "reg", "inf", "cat", "drv", "ocx", "cpl", "efi", "mui", "vhd", "vhdx", "ttf", "otf",
-            "fon", "cer", "crt",
+            "dll", "sys", "exe", "msi", "msp", "so", "bin", "reg", "inf", "cat", "drv", "ocx", "cpl", "efi", "mui", "vhd", "vhdx", "ttf",
+            "otf", "fon", "cer", "crt",
         ],
     },
 ];

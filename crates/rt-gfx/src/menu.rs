@@ -23,17 +23,7 @@ impl<C> Item<C> {
     /// An item from a label with its `&` access key.
     pub fn new(label: &str, cmd: Option<C>, enabled: bool) -> Item<C> {
         let (label, mnemonic, mark) = parse_label(label);
-        Item {
-            label,
-            mark,
-            mnemonic,
-            shortcut: None,
-            cmd,
-            sub: Vec::new(),
-            sep: false,
-            checked: false,
-            enabled,
-        }
+        Item { label, mark, mnemonic, shortcut: None, cmd, sub: Vec::new(), sep: false, checked: false, enabled }
     }
 
     pub fn separator() -> Item<C> {
@@ -122,12 +112,7 @@ impl Title {
     /// A menu bar title from a label with its `&` access key.
     pub fn new(label: &str) -> Title {
         let (label, mnemonic, mark) = parse_label(label);
-        Title {
-            label,
-            mnemonic,
-            mark,
-            rect: Rect::default(),
-        }
+        Title { label, mnemonic, mark, rect: Rect::default() }
     }
 }
 
@@ -146,14 +131,7 @@ pub struct Level<C> {
 
 impl<C> Level<C> {
     fn new(items: Vec<Item<C>>, anchor: (f32, f32)) -> Level<C> {
-        Level {
-            items,
-            sel: None,
-            scroll: 0,
-            anchor,
-            rect: Rect::new(anchor.0, anchor.1, 0.0, 0.0),
-            rows: Vec::new(),
-        }
+        Level { items, sel: None, scroll: 0, anchor, rect: Rect::new(anchor.0, anchor.1, 0.0, 0.0), rows: Vec::new() }
     }
 
     fn selectable(&self, i: usize) -> bool {
@@ -194,12 +172,7 @@ pub struct Menu<C> {
 
 impl<C> Default for Menu<C> {
     fn default() -> Menu<C> {
-        Menu {
-            titles: Vec::new(),
-            top: None,
-            levels: Vec::new(),
-            hot: None,
-        }
+        Menu { titles: Vec::new(), top: None, levels: Vec::new(), hot: None }
     }
 }
 
@@ -320,10 +293,7 @@ impl<C: Copy> Menu<C> {
 
     pub fn right(&mut self) -> Act<C> {
         let l = self.levels.len().saturating_sub(1);
-        let has_sub = self
-            .levels
-            .last()
-            .is_some_and(|lv| lv.sel.is_some_and(|s| !lv.items[s].sub.is_empty()));
+        let has_sub = self.levels.last().is_some_and(|lv| lv.sel.is_some_and(|s| !lv.items[s].sub.is_empty()));
         if has_sub {
             self.open_sub(l, true);
             Act::None
@@ -530,12 +500,7 @@ mod tests {
     fn menu() -> Menu<Cmd> {
         let mut more = Item::new("&More", None, true);
         more.sub = vec![Item::new("&Inner", Some(Cmd::Inner), true)];
-        let items = vec![
-            Item::new("&Open", Some(Cmd::Open), true),
-            Item::new("&Gone", Some(Cmd::Save), false),
-            Item::separator(),
-            more,
-        ];
+        let items = vec![Item::new("&Open", Some(Cmd::Open), true), Item::new("&Gone", Some(Cmd::Save), false), Item::separator(), more];
         let mut m = Menu::default();
         m.open(Some(1), items, (0.0, 0.0), true);
         m
@@ -552,11 +517,7 @@ mod tests {
 
     #[test]
     fn items_come_from_the_tree() {
-        let tree = vec![
-            M::Item(Cmd::Open),
-            M::Sep,
-            M::Sub("&More", vec![M::Dyn(Cmd::Inner, "&1 a.txt".into())]),
-        ];
+        let tree = vec![M::Item(Cmd::Open), M::Sep, M::Sub("&More", vec![M::Dyn(Cmd::Inner, "&1 a.txt".into())])];
         let items = build(tree, &|c| c == Cmd::Open, &|c| c != Cmd::Save);
         assert_eq!(items[0].label, "Open");
         assert_eq!(items[0].shortcut, Some("Ctrl+O"));

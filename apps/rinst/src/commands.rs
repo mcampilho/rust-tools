@@ -69,13 +69,25 @@ impl Command {
             #[cfg(windows)]
             RestartAdmin => "Restart as Ad&ministrator",
             Export => "&Export to CSV...",
-            Autostart => if cfg!(windows) { "Start wit&h Windows" } else { "Start &When I Log In" },
+            Autostart => {
+                if cfg!(windows) {
+                    "Start wit&h Windows"
+                } else {
+                    "Start &When I Log In"
+                }
+            }
             Exit => "E&xit",
             Uninstall => "Un&install...",
             UninstallQuiet => "Uninstall &Quietly...",
             Modify => "&Modify or Repair...",
             SelectAll => "Select &All",
-            OpenFolder => if cfg!(windows) { "Open Folder in &Explorer" } else { "Open Folder in &File Manager" },
+            OpenFolder => {
+                if cfg!(windows) {
+                    "Open Folder in &Explorer"
+                } else {
+                    "Open Folder in &File Manager"
+                }
+            }
             CopyName => "Copy the &Name",
             CopyCommand => "Copy the &Uninstall Command",
             CopyKey => "Copy the Registry &Key",
@@ -84,7 +96,13 @@ impl Command {
             FindLeftovers => "Find &Leftovers...",
             RemoveLeftovers => "Remove the Ticked Ones...",
             CloseLeftovers => "Close This List",
-            OpenLeftover => if cfg!(windows) { "Open Folder in &Explorer" } else { "Open Folder in &File Manager" },
+            OpenLeftover => {
+                if cfg!(windows) {
+                    "Open Folder in &Explorer"
+                } else {
+                    "Open Folder in &File Manager"
+                }
+            }
             TextCut => "Cu&t",
             TextCopy => "&Copy",
             TextPaste => "&Paste",
@@ -192,7 +210,20 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
 /// What can be done with the program selected (also its context menu).
 pub fn program_menu() -> Vec<M> {
     use rt_core::menu::M::*;
-    vec![Item(Uninstall), Item(UninstallQuiet), Item(Modify), Sep, Item(OpenFolder), Sep, Item(CopyName), Item(CopyCommand), Item(CopyKey), Item(CopyDetails), Sep, Item(SelectAll)]
+    vec![
+        Item(Uninstall),
+        Item(UninstallQuiet),
+        Item(Modify),
+        Sep,
+        Item(OpenFolder),
+        Sep,
+        Item(CopyName),
+        Item(CopyCommand),
+        Item(CopyKey),
+        Item(CopyDetails),
+        Sep,
+        Item(SelectAll),
+    ]
 }
 
 /// The search box's right-click menu.

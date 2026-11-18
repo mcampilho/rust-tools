@@ -166,14 +166,17 @@ impl Host2<'_> {
         if !w.hover {
             w.hover = true;
             w.dirty = true;
-            let mut t = TRACKMOUSEEVENT { cbSize: size_of::<TRACKMOUSEEVENT>() as u32, dwFlags: TME_LEAVE, hwndTrack: w.hwnd, dwHoverTime: 0 };
+            let mut t =
+                TRACKMOUSEEVENT { cbSize: size_of::<TRACKMOUSEEVENT>() as u32, dwFlags: TME_LEAVE, hwndTrack: w.hwnd, dwHoverTime: 0 };
             // SAFETY: a window of this thread.
             let _ = unsafe { TrackMouseEvent(&mut t) };
         }
         let Some(d) = w.drag.as_mut() else {
             let zone = w.painted.zone(x, y).filter(|z| *z != Zone::Resize || !w.cfg.locked);
             if zone != w.hot {
-                if matches!(zone, Some(Zone::Prev | Zone::Next | Zone::Today | Zone::Item(_) | Zone::Day(_))) || matches!(w.hot, Some(Zone::Prev | Zone::Next | Zone::Today | Zone::Item(_) | Zone::Day(_))) {
+                if matches!(zone, Some(Zone::Prev | Zone::Next | Zone::Today | Zone::Item(_) | Zone::Day(_)))
+                    || matches!(w.hot, Some(Zone::Prev | Zone::Next | Zone::Today | Zone::Item(_) | Zone::Day(_)))
+                {
                     w.dirty = true;
                 }
                 w.hot = zone;
@@ -470,15 +473,18 @@ impl Host2<'_> {
             match cfg.kind {
                 WKind::Note => {
                     add(m, NEW_NOTE, &tr("New note"), false);
-                    let colors: Vec<(u32, String, bool)> = NOTE_COLORS.iter().enumerate().map(|(k, (n, _))| (NOTE_COLOR + k as u32, tr(n), cfg.color as usize == k)).collect();
+                    let colors: Vec<(u32, String, bool)> =
+                        NOTE_COLORS.iter().enumerate().map(|(k, (n, _))| (NOTE_COLOR + k as u32, tr(n), cfg.color as usize == k)).collect();
                     sub(m, &tr("Color"), &colors);
                     sep(m);
                 }
                 WKind::Annotation => {
                     add(m, EDIT, &tr("Edit the text"), false);
-                    let sizes: Vec<(u32, String, bool)> = TEXT_SIZES.iter().enumerate().map(|(k, (n, _))| (TEXT_SIZE + k as u32, tr(n), cfg.size as usize == k)).collect();
+                    let sizes: Vec<(u32, String, bool)> =
+                        TEXT_SIZES.iter().enumerate().map(|(k, (n, _))| (TEXT_SIZE + k as u32, tr(n), cfg.size as usize == k)).collect();
                     sub(m, &tr("Size"), &sizes);
-                    let colors: Vec<(u32, String, bool)> = TEXT_COLORS.iter().enumerate().map(|(k, (n, _))| (TEXT_COLOR + k as u32, tr(n), cfg.color as usize == k)).collect();
+                    let colors: Vec<(u32, String, bool)> =
+                        TEXT_COLORS.iter().enumerate().map(|(k, (n, _))| (TEXT_COLOR + k as u32, tr(n), cfg.color as usize == k)).collect();
                     sub(m, &tr("Color"), &colors);
                     sep(m);
                 }
@@ -588,7 +594,15 @@ impl Host2<'_> {
                 let w = &self.ws[i];
                 let ask = w.cfg.kind.editable() && !w.cfg.text.trim().is_empty();
                 // SAFETY: a plain message box.
-                let yes = !ask || unsafe { MessageBoxW(Some(w.hwnd), &HSTRING::from(tr("Remove this widget? What is written in it is lost.")), w!("rwall"), MB_YESNO | MB_ICONQUESTION) } == IDYES;
+                let yes = !ask
+                    || unsafe {
+                        MessageBoxW(
+                            Some(w.hwnd),
+                            &HSTRING::from(tr("Remove this widget? What is written in it is lost.")),
+                            w!("rwall"),
+                            MB_YESNO | MB_ICONQUESTION,
+                        )
+                    } == IDYES;
                 if yes {
                     self.send(Event::Remove(w.cfg.id));
                 }

@@ -58,12 +58,7 @@ pub struct Quote {
 }
 
 const fn q(open: &'static str, close: &'static str, escape: bool, multiline: bool) -> Quote {
-    Quote {
-        open,
-        close,
-        escape,
-        multiline,
-    }
+    Quote { open, close, escape, multiline }
 }
 
 pub struct Def {

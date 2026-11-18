@@ -42,11 +42,7 @@ fn gradient(y0: f32, y1: f32, top: (u8, u8, u8), bottom: (u8, u8, u8)) -> Paint<
         Transform::identity(),
     )
     .unwrap_or(Shader::SolidColor(c(top)));
-    Paint {
-        shader,
-        anti_alias: true,
-        ..Paint::default()
-    }
+    Paint { shader, anti_alias: true, ..Paint::default() }
 }
 
 /// Renders the icon at `n`×`n` pixels as straight (non-premultiplied) RGBA.
@@ -90,11 +86,8 @@ pub fn render(n: u32) -> Vec<u8> {
             let x = gx + c as f32 * (kw + gap);
             let y = gy + r as f32 * (kh + gap);
             let accent = r == rows - 1 && c == cols - 1;
-            let paint = if accent {
-                gradient(y * s, (y + kh) * s, (0x5C, 0xC8, 0xFF), (0x1E, 0x8C, 0xE8))
-            } else {
-                solid(0x6B, 0x71, 0x7A)
-            };
+            let paint =
+                if accent { gradient(y * s, (y + kh) * s, (0x5C, 0xC8, 0xFF), (0x1E, 0x8C, 0xE8)) } else { solid(0x6B, 0x71, 0x7A) };
             fill(&mut pm, rrect(x * s, y * s, kw * s, kh * s, 7.0 * s), &paint);
             if accent && n >= 32 {
                 let white = solid(0xFF, 0xFF, 0xFF);

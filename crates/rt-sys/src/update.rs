@@ -76,13 +76,16 @@ pub fn latest(app: &str, list: &str) -> Option<Release> {
     let prefix = format!("{app}-v");
     json.items()
         .iter()
-        .filter(|r| !matches!(r.get("draft"), rt_core::json::Json::Bool(true)) && !matches!(r.get("prerelease"), rt_core::json::Json::Bool(true)))
+        .filter(|r| {
+            !matches!(r.get("draft"), rt_core::json::Json::Bool(true)) && !matches!(r.get("prerelease"), rt_core::json::Json::Bool(true))
+        })
         .filter_map(|r| {
             let version = r.get("tag_name").str().strip_prefix(&prefix)?.to_string();
             parse_version(&version)?;
             let want = asset_name(app, &version);
             let assets = r.get("assets").items();
-            let url_of = |name: &str| assets.iter().find(|a| a.get("name").str() == name).map(|a| a.get("browser_download_url").str().to_string());
+            let url_of =
+                |name: &str| assets.iter().find(|a| a.get("name").str() == name).map(|a| a.get("browser_download_url").str().to_string());
             Some(Release {
                 asset_url: url_of(&want)?,
                 sums_url: url_of("SHA256SUMS.txt"),

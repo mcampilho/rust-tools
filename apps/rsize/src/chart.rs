@@ -15,7 +15,9 @@ use crate::model::{Id, Kind as NodeKind, Tree};
 use crate::treemap::{OTHER, PALETTE};
 use rt_gfx::Rect;
 use std::f32::consts::{PI, TAU};
-use tiny_skia::{Color as SkColor, FillRule, GradientStop, Paint, PathBuilder, Pixmap, Point, RadialGradient, SpreadMode, Stroke, Transform};
+use tiny_skia::{
+    Color as SkColor, FillRule, GradientStop, Paint, PathBuilder, Pixmap, Point, RadialGradient, SpreadMode, Stroke, Transform,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
@@ -145,12 +147,34 @@ impl Chart {
         for (i, &k) in kids[..shown].iter().enumerate() {
             let size = tree.size(k);
             let a1 = a + angle(size);
-            c.segments.push(Segment { node: Some(k), parent: None, depth: 1, a0: a, a1, r0: 0.0, r1: radius, color: PALETTE[i % PALETTE.len()], size, others: 0 });
+            c.segments.push(Segment {
+                node: Some(k),
+                parent: None,
+                depth: 1,
+                a0: a,
+                a1,
+                r0: 0.0,
+                r1: radius,
+                color: PALETTE[i % PALETTE.len()],
+                size,
+                others: 0,
+            });
             a = a1;
         }
         if shown < kids.len() {
             let size: u64 = kids[shown..].iter().map(|&k| tree.size(k)).sum();
-            c.segments.push(Segment { node: None, parent: None, depth: 1, a0: a, a1: TAU, r0: 0.0, r1: radius, color: OTHER, size, others: kids.len() - shown });
+            c.segments.push(Segment {
+                node: None,
+                parent: None,
+                depth: 1,
+                a0: a,
+                a1: TAU,
+                r0: 0.0,
+                r1: radius,
+                color: OTHER,
+                size,
+                others: kids.len() - shown,
+            });
         }
         if let Some(last) = c.segments.last_mut() {
             last.a1 = TAU;
@@ -260,9 +284,15 @@ impl Chart {
         }
         // A soft light from the middle gives the pie some volume.
         if self.kind == Kind::Pie && !self.segments.is_empty() {
-            let stops = vec![GradientStop::new(0.0, SkColor::from_rgba8(255, 255, 255, 70)), GradientStop::new(1.0, SkColor::from_rgba8(0, 0, 0, 40))];
+            let stops = vec![
+                GradientStop::new(0.0, SkColor::from_rgba8(255, 255, 255, 70)),
+                GradientStop::new(1.0, SkColor::from_rgba8(0, 0, 0, 40)),
+            ];
             let c = Point::from_xy(self.cx - self.radius * 0.25, self.cy - self.radius * 0.3);
-            if let (Some(shader), Some(circle)) = (RadialGradient::new(c, c, self.radius * 1.3, stops, SpreadMode::Pad, id), PathBuilder::from_circle(self.cx, self.cy, self.radius)) {
+            if let (Some(shader), Some(circle)) = (
+                RadialGradient::new(c, c, self.radius * 1.3, stops, SpreadMode::Pad, id),
+                PathBuilder::from_circle(self.cx, self.cy, self.radius),
+            ) {
                 let p = Paint { shader, anti_alias: true, ..Paint::default() };
                 self.image.fill_path(&circle, &p, FillRule::Winding, id, None);
             }

@@ -25,7 +25,8 @@ pub enum Frequency {
 }
 
 impl Frequency {
-    pub const ALL: [Frequency; 6] = [Frequency::Daily, Frequency::HalfDay, Frequency::Quarter, Frequency::Weekly, Frequency::Monthly, Frequency::Custom];
+    pub const ALL: [Frequency; 6] =
+        [Frequency::Daily, Frequency::HalfDay, Frequency::Quarter, Frequency::Weekly, Frequency::Monthly, Frequency::Custom];
 
     /// Name in the settings file.
     pub fn key(self) -> &'static str {

@@ -23,8 +23,16 @@ pub enum TrayCmd {
 pub const RESUME: &str = "&Resume the dynamic wallpaper";
 
 impl TrayCmd {
-    pub const ALL: [TrayCmd; 8] =
-        [TrayCmd::Next, TrayCmd::About, TrayCmd::Settings, TrayCmd::ShowFile, TrayCmd::Exit, TrayCmd::LivePause, TrayCmd::AboutApp, TrayCmd::CheckUpdates];
+    pub const ALL: [TrayCmd; 8] = [
+        TrayCmd::Next,
+        TrayCmd::About,
+        TrayCmd::Settings,
+        TrayCmd::ShowFile,
+        TrayCmd::Exit,
+        TrayCmd::LivePause,
+        TrayCmd::AboutApp,
+        TrayCmd::CheckUpdates,
+    ];
 
     /// The untranslated label, with its `&` access key.
     pub fn key(self) -> &'static str {
@@ -65,7 +73,14 @@ pub fn tray_menu() -> Vec<M<TrayCmd>> {
     if cfg!(windows) {
         m.push(M::Item(TrayCmd::LivePause));
     }
-    m.extend([M::Item(TrayCmd::Settings), M::Item(TrayCmd::ShowFile), M::Sep, M::Item(TrayCmd::CheckUpdates), M::Item(TrayCmd::AboutApp), M::Item(TrayCmd::Exit)]);
+    m.extend([
+        M::Item(TrayCmd::Settings),
+        M::Item(TrayCmd::ShowFile),
+        M::Sep,
+        M::Item(TrayCmd::CheckUpdates),
+        M::Item(TrayCmd::AboutApp),
+        M::Item(TrayCmd::Exit),
+    ]);
     m
 }
 

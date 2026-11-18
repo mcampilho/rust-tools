@@ -73,12 +73,7 @@ fn message(paths: &[PathBuf]) -> Vec<u8> {
 
 fn parse(data: &[u8]) -> Option<Vec<PathBuf>> {
     let rest = data.strip_prefix(&[OPEN])?;
-    Some(
-        rest.split(|b| *b == 0)
-            .filter(|p| !p.is_empty())
-            .map(|p| PathBuf::from(std::ffi::OsString::from_vec(p.to_vec())))
-            .collect(),
-    )
+    Some(rest.split(|b| *b == 0).filter(|p| !p.is_empty()).map(|p| PathBuf::from(std::ffi::OsString::from_vec(p.to_vec()))).collect())
 }
 
 /// Hands `paths` to the running instance of `app`, if it is resident or
@@ -147,11 +142,7 @@ impl ksni::Tray for Tray {
         // RGBA to the ARGB byte order of the protocol.
         let mut data = (self.icon)(size as u32);
         data.as_chunks_mut::<4>().0.iter_mut().for_each(|p| p.rotate_right(1));
-        vec![ksni::Icon {
-            width: size,
-            height: size,
-            data,
-        }]
+        vec![ksni::Icon { width: size, height: size, data }]
     }
 
     fn activate(&mut self, _x: i32, _y: i32) {
@@ -225,22 +216,17 @@ impl Shell {
 
     /// Like [`Shell::new`], with the app's own tray menu: `items` are (id,
     /// text), id 0 a separator; choosing one calls `on_item` with its id.
-    pub fn with_items(cfg: Config, items: Vec<(u32, String)>, on_item: Option<Box<dyn Fn(u32) + Send + Sync>>, sink: Box<dyn Fn(Msg) + Send + Sync>) -> Shell {
+    pub fn with_items(
+        cfg: Config,
+        items: Vec<(u32, String)>,
+        on_item: Option<Box<dyn Fn(u32) + Send + Sync>>,
+        sink: Box<dyn Fn(Msg) + Send + Sync>,
+    ) -> Shell {
         use ksni::blocking::TrayMethods;
         let sink: Sink = Arc::from(sink);
         let on_item: Option<ItemSink> = on_item.map(Arc::from);
-        let tray = cfg.tray.and_then(|labels| {
-            Tray {
-                app: cfg.app,
-                icon: cfg.icon,
-                sink: sink.clone(),
-                labels,
-                items,
-                on_item,
-            }
-            .spawn()
-            .ok()
-        });
+        let tray =
+            cfg.tray.and_then(|labels| Tray { app: cfg.app, icon: cfg.icon, sink: sink.clone(), labels, items, on_item }.spawn().ok());
         let mut socket = None;
         if tray.is_some() || cfg.listen_without_icon {
             let path = socket_path(cfg.app);
@@ -306,21 +292,13 @@ mod tests {
         let app: &'static str = Box::leak(format!("rt-sys-test-{}", std::process::id()).into_boxed_str());
         let (tx, rx) = mpsc::channel();
         let tx = std::sync::Mutex::new(tx);
-        let cfg = Config {
-            app,
-            icon: |n| vec![0; (n * n * 4) as usize],
-            tray: None,
-            listen_without_icon: true,
-        };
+        let cfg = Config { app, icon: |n| vec![0; (n * n * 4) as usize], tray: None, listen_without_icon: true };
         let shell = Shell::new(cfg, Box::new(move |m| tx.lock().unwrap().send(m).unwrap()));
         assert!(!shell.has_icon());
         assert!(!resident_running(app), "no icon, so not resident");
         assert!(!hand_off(app, &[PathBuf::from("/a.txt")], false), "only to a resident instance");
         assert!(hand_off(app, &[PathBuf::from("/a.txt")], true));
-        assert_eq!(
-            rx.recv_timeout(Duration::from_secs(5)).unwrap(),
-            Msg::Open(vec![PathBuf::from("/a.txt")])
-        );
+        assert_eq!(rx.recv_timeout(Duration::from_secs(5)).unwrap(), Msg::Open(vec![PathBuf::from("/a.txt")]));
         drop(shell);
         assert!(!hand_off(app, &[], true), "the socket is gone");
     }

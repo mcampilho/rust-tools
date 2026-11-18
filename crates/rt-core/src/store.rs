@@ -139,21 +139,11 @@ impl Location {
         if let Some(d) = &exe_dir {
             let marker = d.join(format!("{}.portable", place.app));
             if marker.exists() || (place.file_marks_portable && d.join(place.file).exists()) {
-                return Location {
-                    place,
-                    dir: Some(d.clone()),
-                    portable: true,
-                    error: None,
-                };
+                return Location { place, dir: Some(d.clone()), portable: true, error: None };
             }
         }
         match user_base() {
-            Some(b) => Location {
-                place,
-                dir: Some(b.join(place.app)),
-                portable: false,
-                error: None,
-            },
+            Some(b) => Location { place, dir: Some(b.join(place.app)), portable: false, error: None },
             None => Location::nowhere(place),
         }
     }
@@ -173,22 +163,12 @@ impl Location {
 
     /// A fixed folder (tests, or a folder chosen by the app).
     pub fn at(place: Place, dir: PathBuf) -> Location {
-        Location {
-            place,
-            dir: Some(dir),
-            portable: true,
-            error: None,
-        }
+        Location { place, dir: Some(dir), portable: true, error: None }
     }
 
     /// No folder: nothing can be saved.
     pub fn nowhere(place: Place) -> Location {
-        Location {
-            place,
-            dir: None,
-            portable: false,
-            error: Some(tr("No user data folder is available.").to_string()),
-        }
+        Location { place, dir: None, portable: false, error: Some(tr("No user data folder is available.").to_string()) }
     }
 
     pub fn file(&self, name: &str) -> Option<PathBuf> {
@@ -246,10 +226,7 @@ impl Location {
                 true
             }
             Err(e) => {
-                self.error = Some(tf(
-                    "Settings can't be saved to {}: {}",
-                    &[&dir.display().to_string(), &e.to_string()],
-                ));
+                self.error = Some(tf("Settings can't be saved to {}: {}", &[&dir.display().to_string(), &e.to_string()]));
                 false
             }
         }
@@ -260,11 +237,7 @@ impl Location {
 mod tests {
     use super::*;
 
-    const PLACE: Place = Place {
-        app: "rt-core-test",
-        file: "settings.ini",
-        file_marks_portable: false,
-    };
+    const PLACE: Place = Place { app: "rt-core-test", file: "settings.ini", file_marks_portable: false };
 
     #[test]
     fn round_trip_with_escapes() {

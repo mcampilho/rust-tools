@@ -242,14 +242,20 @@ fn draw_actions(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, hot: Hot
     if let Some(busy) = &app.busy {
         let text = match (busy.cleaning, busy.stopping) {
             (_, true) => tr("Stopping after this one…"),
-            (true, _) => tf("Cleaning {} ({} of {})…", &[&busy.name, &(busy.done + 1).min(busy.total).to_string(), &busy.total.to_string()]),
-            (false, _) => tf("Analyzing {} ({} of {})…", &[&busy.name, &(busy.done + 1).min(busy.total).to_string(), &busy.total.to_string()]),
+            (true, _) => {
+                tf("Cleaning {} ({} of {})…", &[&busy.name, &(busy.done + 1).min(busy.total).to_string(), &busy.total.to_string()])
+            }
+            (false, _) => {
+                tf("Analyzing {} ({} of {})…", &[&busy.name, &(busy.done + 1).min(busy.total).to_string(), &busy.total.to_string()])
+            }
         };
         // A turning arc, then what is going on.
         let (cx, cy, rad) = (b.x + 22.0 * s, b.center_y() - 1.0 * s, 7.0 * s);
         let start = busy.phase * std::f32::consts::TAU * 2.0;
         g.polyline(
-            &(0..=24).map(|i| (cx + rad * (start + i as f32 / 24.0 * 4.4).cos(), cy + rad * (start + i as f32 / 24.0 * 4.4).sin())).collect::<Vec<_>>(),
+            &(0..=24)
+                .map(|i| (cx + rad * (start + i as f32 / 24.0 * 4.4).cos(), cy + rad * (start + i as f32 / 24.0 * 4.4).sin()))
+                .collect::<Vec<_>>(),
             2.0 * s,
             th.accent,
             false,
@@ -326,7 +332,9 @@ pub fn draw(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, hot: Hot, en
     g.fill_rect(Rect::new(l.header.x, l.header.bottom() - 1.0, l.header.w + l.track.w, 1.0), th.border);
     let name_r = Rect::new(l.header.x + pad, l.header.y, l.files_col.0 - l.header.x - 2.0 * pad, l.header.h);
     g.text_in(&tr("What"), name_r, p, FontId::Semibold, th.dim, Align::Left);
-    for (title, (x, w), align) in [("Files", l.files_col, Align::Right), ("Size", l.size_col, Align::Right), ("Note", l.note_col, Align::Left)] {
+    for (title, (x, w), align) in
+        [("Files", l.files_col, Align::Right), ("Size", l.size_col, Align::Right), ("Note", l.note_col, Align::Left)]
+    {
         if w > 0.0 {
             let r = Rect::new(x + pad, l.header.y, w - 2.0 * pad, l.header.h);
             let t = ellipsize(g, &tr(title), r.w, p, FontId::Semibold);
@@ -371,7 +379,16 @@ pub fn draw(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, hot: Hot, en
                     State::Found(_) if it.open => th.warn,
                     _ => th.dim,
                 };
-                (tr(it.target.name), if it.ticked { Tick::On } else { Tick::Off }, it.usable(), files, size, note_text(it), FontId::Regular, colour)
+                (
+                    tr(it.target.name),
+                    if it.ticked { Tick::On } else { Tick::Off },
+                    it.usable(),
+                    files,
+                    size,
+                    note_text(it),
+                    FontId::Regular,
+                    colour,
+                )
             }
         };
         check_box(g, x0 + pad, row.center_y(), th, s, tick, usable);
@@ -480,8 +497,10 @@ fn details_lines(app: &App) -> Vec<(String, u8)> {
             if it.target.kind == Kind::Command {
                 // Where its manager said, and the command that cleans it.
                 let found = it.found();
-                let dirs: Vec<String> = found.map(|f| f.dirs_found.iter().map(|d| d.to_string_lossy().into_owned()).collect()).unwrap_or_default();
-                let dirs = if dirs.is_empty() { it.target.places.iter().map(|p| p.dir.to_string_lossy().into_owned()).collect() } else { dirs };
+                let dirs: Vec<String> =
+                    found.map(|f| f.dirs_found.iter().map(|d| d.to_string_lossy().into_owned()).collect()).unwrap_or_default();
+                let dirs =
+                    if dirs.is_empty() { it.target.places.iter().map(|p| p.dir.to_string_lossy().into_owned()).collect() } else { dirs };
                 out.extend(dirs.into_iter().map(|d| (d, 2)));
                 out.push((tr("Cleaned by its own command"), 1));
                 let cmds = found.map(|f| &f.commands).filter(|c| !c.is_empty()).unwrap_or(&it.target.commands);
@@ -510,7 +529,14 @@ fn details_lines(app: &App) -> Vec<(String, u8)> {
                 for pl in &it.target.places {
                     out.push((pl.dir.to_string_lossy().into_owned(), 2));
                 }
-                out.push((if cfg!(windows) { tr("Shortcuts go to the Recycle Bin, where they can be put back.") } else { tr("Shortcuts go to the trash, where they can be put back.") }, 3));
+                out.push((
+                    if cfg!(windows) {
+                        tr("Shortcuts go to the Recycle Bin, where they can be put back.")
+                    } else {
+                        tr("Shortcuts go to the trash, where they can be put back.")
+                    },
+                    3,
+                ));
                 // Each one, and what it opened.
                 let links = it.found().map(|f| f.links.as_slice()).unwrap_or(&[]);
                 if !links.is_empty() {
@@ -607,8 +633,12 @@ pub fn status_text(app: &App) -> (String, String) {
         Some(n) => n,
         None => match app.selected_item() {
             Some(it) => match it.found() {
-                Some(f) if it.target.kind == Kind::Registry => format!("{}: {}", tr(it.target.name), tf("{} entries", &[&format::count(f.count())])),
-                Some(f) => format!("{}: {}", tr(it.target.name), tf("{} in {} files", &[&format::size(f.bytes), &format::count(f.count())])),
+                Some(f) if it.target.kind == Kind::Registry => {
+                    format!("{}: {}", tr(it.target.name), tf("{} entries", &[&format::count(f.count())]))
+                }
+                Some(f) => {
+                    format!("{}: {}", tr(it.target.name), tf("{} in {} files", &[&format::size(f.bytes), &format::count(f.count())]))
+                }
                 None => tr(it.target.name),
             },
             None => String::new(),

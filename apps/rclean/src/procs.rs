@@ -9,7 +9,9 @@ pub fn running() -> HashSet<String> {
     #[cfg(windows)]
     {
         use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
-        use windows_sys::Win32::System::Diagnostics::ToolHelp::{CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS};
+        use windows_sys::Win32::System::Diagnostics::ToolHelp::{
+            CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
+        };
         let mut out = HashSet::new();
         // SAFETY: a snapshot of the processes, closed below.
         let snap = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) };

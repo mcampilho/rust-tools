@@ -171,11 +171,14 @@ impl Settings {
     pub fn to_store(&self) -> Store {
         let mut s = Store::default();
         let bv = |v: bool| if v { "1" } else { "0" };
-        s.set("theme", match self.theme {
-            ThemePref::System => "system",
-            ThemePref::Light => "light",
-            ThemePref::Dark => "dark",
-        });
+        s.set(
+            "theme",
+            match self.theme {
+                ThemePref::System => "system",
+                ThemePref::Light => "light",
+                ThemePref::Dark => "dark",
+            },
+        );
         s.set("language", self.language.map_or("", |l| l.tag()));
         s.set("font_face", self.font_face.clone());
         s.set("font_size", format!("{}", self.font_size));

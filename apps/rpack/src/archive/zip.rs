@@ -91,7 +91,13 @@ pub fn list(path: &Path, meter: &Meter) -> Result<Listing, Error> {
     Ok(Listing { format: Format { container: super::Container::Zip, codec: None }, entries, file_size: 0, comment })
 }
 
-pub fn each(path: &Path, listing: &Listing, wanted: &dyn Fn(usize) -> bool, meter: &Meter, f: &mut dyn FnMut(usize, Contents) -> Result<(), Error>) -> Result<(), Error> {
+pub fn each(
+    path: &Path,
+    listing: &Listing,
+    wanted: &dyn Fn(usize) -> bool,
+    meter: &Meter,
+    f: &mut dyn FnMut(usize, Contents) -> Result<(), Error>,
+) -> Result<(), Error> {
     let mut zip = zip::ZipArchive::new(input(path, meter)?)?;
     let count = zip.len();
     for (i, entry) in listing.entries.iter().enumerate().take(count) {

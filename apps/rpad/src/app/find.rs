@@ -1,8 +1,8 @@
 //! Find and replace in the active document.
 
-use crate::i18n::{tf, tr};
 use super::{App, Focus, Host};
 use crate::doc::{After, Edit, Kind, Sel};
+use crate::i18n::{tf, tr};
 use crate::search::{self, Query};
 use crate::ui::lineedit::LineEdit;
 use std::sync::{mpsc, Arc};
@@ -291,7 +291,13 @@ impl App {
             let line = rope.byte_to_line(p.start);
             let old: String = text[p.start..p.end].chars().take(40).collect();
             let new: String = p.text.chars().take(40).collect();
-            preview.push_str(&format!("  {}\n", tf("line {}: \"{}\" \u{2192} \"{}\"", &[&(line + 1).to_string(), &old.replace('\n', "\u{21B5}"), &new.replace('\n', "\u{21B5}")])));
+            preview.push_str(&format!(
+                "  {}\n",
+                tf(
+                    "line {}: \"{}\" \u{2192} \"{}\"",
+                    &[&(line + 1).to_string(), &old.replace('\n', "\u{21B5}"), &new.replace('\n', "\u{21B5}")]
+                )
+            ));
         }
         if plan.len() > 6 {
             preview.push_str(&format!("  {}\n", tf("… and {} more", &[&(plan.len() - 6).to_string()])));
@@ -302,14 +308,12 @@ impl App {
             "Replace {} occurrence(s) on {} line(s) in this document?\n\n{}\nYou can undo this with Ctrl+Z."
         };
         let ok = plan.len() == 1
-            || host.confirm(
-                &tr("Replace all"),
-                &tf(template, &[&plan.len().to_string(), &lines.len().to_string(), &preview]),
-            );
+            || host.confirm(&tr("Replace all"), &tf(template, &[&plan.len().to_string(), &lines.len().to_string(), &preview]));
         if !ok {
             return;
         }
-        let edits: Vec<Edit> = plan.iter().map(|p| Edit::new(rope.byte_to_char(p.start), rope.byte_to_char(p.end), p.text.clone())).collect();
+        let edits: Vec<Edit> =
+            plan.iter().map(|p| Edit::new(rope.byte_to_char(p.start), rope.byte_to_char(p.end), p.text.clone())).collect();
         let n = edits.len();
         self.edit(|b| b.apply(edits, After::Map, Kind::Other));
         if scope.is_some() {

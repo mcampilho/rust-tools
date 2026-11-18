@@ -64,7 +64,9 @@ mod imp {
         let mut buf = vec![0u16; 2048];
         let mut size = (buf.len() * 2) as u32;
         // SAFETY: `buf` is as large as `size` says.
-        let rc = unsafe { RegGetValueW(HKEY_CURRENT_USER, k.as_ptr(), n.as_ptr(), RRF_RT_REG_SZ, std::ptr::null_mut(), buf.as_mut_ptr().cast(), &mut size) };
+        let rc = unsafe {
+            RegGetValueW(HKEY_CURRENT_USER, k.as_ptr(), n.as_ptr(), RRF_RT_REG_SZ, std::ptr::null_mut(), buf.as_mut_ptr().cast(), &mut size)
+        };
         (rc == 0).then(|| from_wide(&buf))
     }
 

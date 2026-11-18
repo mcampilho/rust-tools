@@ -65,12 +65,24 @@ impl Command {
             #[cfg(windows)]
             ExplorerMenu => "&Explorer Context Menu",
             ExportCsv => "&Export to CSV...",
-            Autostart => if cfg!(windows) { "Start wit&h Windows" } else { "Start &When I Log In" },
+            Autostart => {
+                if cfg!(windows) {
+                    "Start wit&h Windows"
+                } else {
+                    "Start &When I Log In"
+                }
+            }
             Exit => "E&xit",
             CopyPath => "&Copy Path",
             Delete => "&Delete...",
             OpenItem => "&Open",
-            Reveal => if cfg!(windows) { "Show in &Explorer" } else { "Show in File &Manager" },
+            Reveal => {
+                if cfg!(windows) {
+                    "Show in &Explorer"
+                } else {
+                    "Show in File &Manager"
+                }
+            }
             ZoomIn => "Zoom &In",
             ZoomOut => "Zoom O&ut",
             ZoomTop => "Zoom to &Top",

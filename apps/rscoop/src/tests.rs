@@ -8,12 +8,11 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 /// A fresh empty folder for one test.
 pub fn scratch(name: &str) -> PathBuf {
     static N: AtomicUsize = AtomicUsize::new(0);
-    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join("..")
-        .join("target")
-        .join("rscoop-tests")
-        .join(format!("{name}-{}-{}", std::process::id(), N.fetch_add(1, Ordering::Relaxed)));
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("..").join("target").join("rscoop-tests").join(format!(
+        "{name}-{}-{}",
+        std::process::id(),
+        N.fetch_add(1, Ordering::Relaxed)
+    ));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     // Plain path text: no \\?\ prefix. (`normpath` writes Windows paths, so it
@@ -135,7 +134,8 @@ mod fake {
             f.app("gone", "1.0", "main", None, true, true);
             f.app("orphan", "1.0", "extras", None, true, true);
             // persisted folder linked to the wrong place, and one missing
-            let wp = f.app("wrongpersist", "1.0", "main", Some(r#"{"version": "1.0", "persist": [["cfg", "config"], "logs"]}"#), true, true);
+            let wp =
+                f.app("wrongpersist", "1.0", "main", Some(r#"{"version": "1.0", "persist": [["cfg", "config"], "logs"]}"#), true, true);
             std::fs::create_dir_all(join(&f.base, "elsewhere")).unwrap();
             make_junction(&join(&wp, "cfg"), &join(&f.base, "elsewhere")).unwrap();
             std::fs::create_dir_all(join(&f.persist, r"wrongpersist\config")).unwrap();
@@ -162,8 +162,11 @@ mod fake {
             std::fs::create_dir_all(join(&f.start_menu, "Sub")).unwrap();
             let lnk = crate::lnk::build(&good_exe, Some(&f.current("good")), Some(&format!("{good_exe},0")), None);
             std::fs::write(join(&f.start_menu, "Good.lnk"), lnk).unwrap();
-            std::fs::write(join(&f.start_menu, r"Sub\Old.lnk"), crate::lnk::build(&format!(r"{OLD_ROOT}\apps\x\current\x.exe"), None, None, None))
-                .unwrap();
+            std::fs::write(
+                join(&f.start_menu, r"Sub\Old.lnk"),
+                crate::lnk::build(&format!(r"{OLD_ROOT}\apps\x\current\x.exe"), None, None, None),
+            )
+            .unwrap();
             std::fs::write(join(&f.start_menu, "Junk.lnk"), b"not a shortcut").unwrap();
             f
         }
@@ -180,7 +183,13 @@ mod fake {
             r.set(uh, uk, "NOT_A_PATH", "hello", 1);
             r.set(MACHINE_ENV.0, MACHINE_ENV.1, "Path", r"C:\Windows;C:\Does\Not\Exist", 1);
             let c = r"Software\Classes";
-            r.set("HKCU", &format!(r"{c}\goodfile\shell\open\command"), "", &format!("\"{root}\\apps\\good\\current\\good.exe\" \"%1\""), 1);
+            r.set(
+                "HKCU",
+                &format!(r"{c}\goodfile\shell\open\command"),
+                "",
+                &format!("\"{root}\\apps\\good\\current\\good.exe\" \"%1\""),
+                1,
+            );
             r.set("HKCU", &format!(r"{c}\oldfile\shell\open\command"), "", &format!("\"{OLD_ROOT}\\apps\\x\\x.exe\" \"%1\""), 1);
             r.set("HKCU", &format!(r"{c}\lostfile\DefaultIcon"), "", &format!(r"{root}\apps\good\current\lost.ico,0"), 1);
             r.set("HKCU", &format!(r"{c}\notscoop\DefaultIcon"), "", r"C:\Nowhere\x.ico", 1);
@@ -315,7 +324,13 @@ mod fake {
     fn all_results(ctx: &Context, f: &Fake) -> Vec<CheckResult> {
         crate::fix::FIX_ORDER
             .iter()
-            .map(|id| if *id == "shortcuts" { checks::check_shortcuts(ctx, Some(vec![f.start_menu.clone()])) } else { checks::run_check(ctx, id) })
+            .map(|id| {
+                if *id == "shortcuts" {
+                    checks::check_shortcuts(ctx, Some(vec![f.start_menu.clone()]))
+                } else {
+                    checks::run_check(ctx, id)
+                }
+            })
             .collect()
     }
 

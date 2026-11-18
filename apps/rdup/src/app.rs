@@ -3,12 +3,12 @@
 
 use crate::actions::{mark_by, Rule};
 use crate::filter::{Choice, Field};
-use crate::i18n::tr;
-use std::collections::HashSet;
 use crate::folders::Group as FolderGroup;
+use crate::i18n::tr;
 use crate::search::{Found, Progress};
 use crate::volumes::Volume;
 use rt_core::textedit::{boundary, TextEdit};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
@@ -465,7 +465,15 @@ impl App {
                         grp.folders.iter().map(move |&i| {
                             let d = &f.folders[i];
                             let marked = if grp.identical() { yes(&d.path) } else { String::new() };
-                            vec![(g + 1).to_string(), d.path.display().to_string(), share.clone(), d.bytes.to_string(), d.files.to_string(), crate::format::datetime(d.mtime), marked]
+                            vec![
+                                (g + 1).to_string(),
+                                d.path.display().to_string(),
+                                share.clone(),
+                                d.bytes.to_string(),
+                                d.files.to_string(),
+                                crate::format::datetime(d.mtime),
+                                marked,
+                            ]
                         })
                     })
                     .collect(),
@@ -594,7 +602,14 @@ mod tests {
         app.toggle_root(Path::new("D:/"));
         assert_eq!(app.chosen.len(), 2);
         assert!(app.is_chosen(Path::new("C:/data")));
-        app.volumes = Some(vec![Volume { path: rt_scan::normalize(Path::new("D:/")), label: String::new(), fs: String::new(), total: 0, free: 0, remote: false }]);
+        app.volumes = Some(vec![Volume {
+            path: rt_scan::normalize(Path::new("D:/")),
+            label: String::new(),
+            fs: String::new(),
+            total: 0,
+            free: 0,
+            remote: false,
+        }]);
         assert_eq!(app.folders(), vec![rt_scan::normalize(Path::new("C:/data"))]);
         app.toggle_root(Path::new("C:/data"));
         assert!(!app.is_chosen(Path::new("C:/data")));
@@ -705,7 +720,10 @@ mod tests {
         let mut app = App::new();
         app.page = 4;
         app.set_found(sys(std::slice::from_ref(&tt.0)).unwrap());
-        assert_eq!(app.rows, [Row::Group(0), Row::File(0, 0), Row::File(0, 1), Row::File(0, 2), Row::Group(1), Row::File(1, 0), Row::File(1, 1)]);
+        assert_eq!(
+            app.rows,
+            [Row::Group(0), Row::File(0, 0), Row::File(0, 1), Row::File(0, 2), Row::Group(1), Row::File(1, 0), Row::File(1, 1)]
+        );
         assert_eq!(app.sel, Some(1), "the first file");
         assert!(app.selected_path().unwrap().ends_with("big copy.bin"));
         app.move_sel(3);

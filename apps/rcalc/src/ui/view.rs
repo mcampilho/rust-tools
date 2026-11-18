@@ -67,26 +67,14 @@ pub fn build(app: &App, ui: &mut Ui) {
 fn header(app: &App, ui: &mut Ui, r: Rect, docked: bool) {
     let t = ui.t;
     let btn = Rect::new(r.x + ui.px(4.0), r.y + ui.px(4.0), ui.px(40.0), ui.px(36.0));
-    ui.button(Button::new(
-        Action::OpenNav,
-        btn,
-        "Open navigation",
-        Content::Icon(Icon::Menu, 16.0),
-        Style::Subtle,
-    ));
+    ui.button(Button::new(Action::OpenNav, btn, "Open navigation", Content::Icon(Icon::Menu, 16.0), Style::Subtle));
     let title = app.mode_title();
     let tr = Rect::new(btn.right() + ui.px(8.0), btn.y, r.w, btn.h);
     let tw = ui.text(title, tr, 20.0, FontId::Semibold, t.text, Align::Left);
     ui.label(Rect::new(tr.x, tr.y, tw, tr.h), title, Role::Label);
     if app.mode == Mode::Standard {
         let kr = Rect::new(tr.x + tw + ui.px(8.0), btn.y, ui.px(40.0), btn.h);
-        ui.button(Button::new(
-            Action::KeepOnTop(true),
-            kr,
-            "Keep on top",
-            Content::Icon(Icon::KeepOnTop, 14.0),
-            Style::Subtle,
-        ));
+        ui.button(Button::new(Action::KeepOnTop(true), kr, "Keep on top", Content::Icon(Icon::KeepOnTop, 14.0), Style::Subtle));
     }
     if app.has_history() && !docked {
         let hr = Rect::new(r.right() - ui.px(44.0), btn.y, ui.px(40.0), btn.h);
@@ -115,11 +103,7 @@ fn calc_display(ui: &mut Ui, e: &Engine, r: Rect, notice: Option<&str>) {
     if !expr.is_empty() {
         ui.label(er, &tf("Expression is {}", &[&expr]), Role::Label);
     }
-    let result = if e.error().is_some() {
-        tr(&e.display_text()).to_string()
-    } else {
-        num(&e.display_text())
-    };
+    let result = if e.error().is_some() { tr(&e.display_text()).to_string() } else { num(&e.display_text()) };
     let max = (rr.h / ui.s * 0.62).clamp(28.0, 72.0);
     let max = if e.error().is_some() { max.min(32.0) } else { max };
     ui.fit_text(&result, rr, max, 12.0, FontId::Semibold, t.text, Align::Right);
@@ -160,33 +144,16 @@ struct K {
 }
 
 fn k(text: &str, label: &'static str, key: Key, style: Style) -> K {
-    K {
-        text: text.to_string(),
-        label,
-        action: Action::Key(key),
-        style,
-        enabled: true,
-        sub: None,
-        icon: None,
-    }
+    K { text: text.to_string(), label, action: Action::Key(key), style, enabled: true, sub: None, icon: None }
 }
 
 fn ka(text: &str, label: &'static str, action: Action, style: Style) -> K {
-    K {
-        text: text.to_string(),
-        label,
-        action,
-        style,
-        enabled: true,
-        sub: None,
-        icon: None,
-    }
+    K { text: text.to_string(), label, action, style, enabled: true, sub: None, icon: None }
 }
 
 fn digit(d: u8) -> K {
-    const NAMES: [&str; 16] = [
-        "Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "A", "B", "C", "D", "E", "F",
-    ];
+    const NAMES: [&str; 16] =
+        ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "A", "B", "C", "D", "E", "F"];
     let text = std::char::from_digit(d as u32, 16).unwrap().to_ascii_uppercase().to_string();
     let style = if d < 10 { Style::Num } else { Style::Op };
     k(&text, NAMES[d as usize], Key::Digit(d), style)
@@ -203,11 +170,7 @@ fn grid(ui: &mut Ui, r: Rect, cols: usize, keys: Vec<K>) {
         if key.label.is_empty() {
             continue;
         }
-        let font = if key.style == Style::Num {
-            FontId::Semibold
-        } else {
-            FontId::Regular
-        };
+        let font = if key.style == Style::Num { FontId::Semibold } else { FontId::Regular };
         let content = if let Some(icon) = key.icon {
             Content::Icon(icon, size * 0.8)
         } else if let Some((a, b, c)) = &key.sub {
@@ -256,10 +219,7 @@ fn apply_error_state(keys: &mut [K], e: &Engine) {
         return;
     }
     for key in keys {
-        let keep = matches!(
-            key.action,
-            Action::Key(Key::Digit(_) | Key::Point | Key::Clear | Key::ClearEntry | Key::Back | Key::Equals)
-        );
+        let keep = matches!(key.action, Action::Key(Key::Digit(_) | Key::Point | Key::Clear | Key::ClearEntry | Key::Back | Key::Equals));
         if !keep {
             key.enabled = false;
         }
@@ -274,13 +234,7 @@ fn standard(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors, docked: bool) {
     if app.keep_on_top {
         let top = r.take_top(ui.px(40.0));
         let br = Rect::new(top.right() - ui.px(44.0), top.y + ui.px(2.0), ui.px(40.0), ui.px(36.0));
-        ui.button(Button::new(
-            Action::KeepOnTop(false),
-            br,
-            "Back to full view",
-            Content::Icon(Icon::BackToFull, 14.0),
-            Style::Subtle,
-        ));
+        ui.button(Button::new(Action::KeepOnTop(false), br, "Back to full view", Content::Icon(Icon::BackToFull, 14.0), Style::Subtle));
         let disp_h = (r.h * 0.3).max(ui.px(72.0));
         calc_display(ui, e, r.take_top(disp_h), None);
     } else {
@@ -289,14 +243,7 @@ fn standard(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors, docked: bool) {
         calc_display(ui, e, r.take_top(disp_h), None);
         a.flyout_area = r;
         let mr = r.take_top(ui.px(34.0));
-        memory_row(
-            app,
-            ui,
-            Rect::new(mr.x + ui.px(4.0), mr.y, mr.w - ui.px(8.0), mr.h),
-            e,
-            !docked,
-            false,
-        );
+        memory_row(app, ui, Rect::new(mr.x + ui.px(4.0), mr.y, mr.w - ui.px(8.0), mr.h), e, !docked, false);
     }
     let pad = ui.px(4.0);
     let pad_r = Rect::new(r.x + pad, r.y + ui.px(2.0), r.w - 2.0 * pad, r.h - pad - ui.px(2.0));
@@ -354,30 +301,15 @@ fn scientific(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors, docked: bool) {
         Angle::Grad => "Gradians, switch to degrees",
     };
     let c0 = Rect::new(row.x + pad, row.y, ui.px(64.0), row.h);
-    ui.button(Button::new(
-        Action::CycleAngle,
-        c0,
-        angle_label,
-        Content::Text(angle, 12.0, FontId::Semibold),
-        Style::Subtle,
-    ));
+    ui.button(Button::new(Action::CycleAngle, c0, angle_label, Content::Text(angle, 12.0, FontId::Semibold), Style::Subtle));
     let c1 = Rect::new(c0.right() + ui.px(2.0), row.y, ui.px(56.0), row.h);
     ui.button(
-        Button::new(
-            Action::ToggleFE,
-            c1,
-            "Scientific notation (F-E)",
-            Content::Text("F-E", 12.0, FontId::Semibold),
-            Style::Subtle,
-        )
-        .role(Role::Toggle)
-        .checked(e.fe),
+        Button::new(Action::ToggleFE, c1, "Scientific notation (F-E)", Content::Text("F-E", 12.0, FontId::Semibold), Style::Subtle)
+            .role(Role::Toggle)
+            .checked(e.fe),
     );
     if e.fe {
-        ui.g.fill_rect(
-            Rect::new(c1.x + ui.px(14.0), c1.bottom() - ui.px(4.0), c1.w - ui.px(28.0), ui.px(2.0)),
-            t.accent_fg,
-        );
+        ui.g.fill_rect(Rect::new(c1.x + ui.px(14.0), c1.bottom() - ui.px(4.0), c1.w - ui.px(28.0), ui.px(2.0)), t.accent_fg);
     }
     let mr = r.take_top(ui.px(32.0));
     memory_row(app, ui, Rect::new(mr.x + pad, mr.y, mr.w - 2.0 * pad, mr.h), e, !docked, false);
@@ -409,12 +341,7 @@ fn scientific(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors, docked: bool) {
     );
     let pad_r = Rect::new(r.x + pad, r.y + ui.px(2.0), r.w - 2.0 * pad, r.h - pad - ui.px(2.0));
     let s2 = app.sci_2nd;
-    let mut second = ka(
-        "2ⁿᵈ",
-        "Second functions",
-        Action::Toggle2nd,
-        if s2 { Style::Accent } else { Style::Op },
-    );
+    let mut second = ka("2ⁿᵈ", "Second functions", Action::Toggle2nd, if s2 { Style::Accent } else { Style::Op });
     second.text = "2nd".into();
     let paren_count = e.open_parens().to_string();
     let mut logy = un("logᵧx", "Log base y", Unary::Log);
@@ -428,20 +355,12 @@ fn scientific(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors, docked: bool) {
         k("e", "Euler's number", Key::Const(Constant::E), Style::Op),
         clear_key(e),
         backspace(),
-        if s2 {
-            un("x³", "Cube", Unary::Cube)
-        } else {
-            un("x²", "Square", Unary::Square)
-        },
+        if s2 { un("x³", "Cube", Unary::Cube) } else { un("x²", "Square", Unary::Square) },
         un("¹/x", "Reciprocal", Unary::Recip),
         un("|x|", "Absolute value", Unary::Abs),
         k("exp", "Exponential notation", Key::Exp, Style::Op),
         op("mod", "Modulo", BinOp::Mod),
-        if s2 {
-            un("∛x", "Cube root", Unary::Cbrt)
-        } else {
-            un("²√x", "Square root", Unary::Sqrt)
-        },
+        if s2 { un("∛x", "Cube root", Unary::Cbrt) } else { un("²√x", "Square root", Unary::Sqrt) },
         {
             let mut lp = k("(", "Left parenthesis", Key::LParen, Style::Op);
             if e.open_parens() > 0 {
@@ -453,20 +372,12 @@ fn scientific(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors, docked: bool) {
         k(")", "Right parenthesis", Key::RParen, Style::Op),
         un("n!", "Factorial", Unary::Fact),
         op("÷", "Divide by", BinOp::Div),
-        if s2 {
-            op("ʸ√x", "Y root of x", BinOp::Root)
-        } else {
-            op("xʸ", "X to the exponent", BinOp::Pow)
-        },
+        if s2 { op("ʸ√x", "Y root of x", BinOp::Root) } else { op("xʸ", "X to the exponent", BinOp::Pow) },
         digit(7),
         digit(8),
         digit(9),
         op("×", "Multiply by", BinOp::Mul),
-        if s2 {
-            un("2ˣ", "Two to the exponent", Unary::Pow2)
-        } else {
-            un("10ˣ", "Ten to the exponent", Unary::Pow10)
-        },
+        if s2 { un("2ˣ", "Two to the exponent", Unary::Pow2) } else { un("10ˣ", "Ten to the exponent", Unary::Pow10) },
         digit(4),
         digit(5),
         digit(6),
@@ -476,11 +387,7 @@ fn scientific(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors, docked: bool) {
         digit(2),
         digit(3),
         op("+", "Plus", BinOp::Add),
-        if s2 {
-            un("eˣ", "E to the exponent", Unary::Exp)
-        } else {
-            un("ln", "Natural log", Unary::Ln)
-        },
+        if s2 { un("eˣ", "E to the exponent", Unary::Exp) } else { un("ln", "Natural log", Unary::Ln) },
         k("+/−", "Positive negative", Key::Negate, Style::Num),
         digit(0),
         k(i18n::decimal_point(), "Decimal separator", Key::Point, Style::Num),
@@ -509,30 +416,15 @@ fn programmer(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors, docked: bool) {
     for radix in Radix::all() {
         let row = r.take_top(ui.px(26.0));
         let selected = e.radix == radix;
-        let value = if err {
-            String::new()
-        } else {
-            num(&crate::calc::programmer::format(v, radix, e.word))
-        };
+        let value = if err { String::new() } else { num(&crate::calc::programmer::format(v, radix, e.word)) };
         let label = format!("{} {}", radix.label(), value);
-        ui.button(
-            Button::new(Action::Radix(radix), row, &label, Content::None, Style::Subtle)
-                .role(Role::Radio)
-                .checked(selected),
-        );
+        ui.button(Button::new(Action::Radix(radix), row, &label, Content::None, Style::Subtle).role(Role::Radio).checked(selected));
         if selected {
             let bar = Rect::new(row.x + ui.px(4.0), row.y + ui.px(6.0), ui.px(3.0), row.h - ui.px(12.0));
             ui.g.fill_rrect(bar, ui.px(1.5), t.accent_fg);
         }
         let lr = Rect::new(row.x + ui.px(16.0), row.y, ui.px(48.0), row.h);
-        ui.text(
-            radix.label(),
-            lr,
-            13.0,
-            if selected { FontId::Semibold } else { FontId::Regular },
-            t.text,
-            Align::Left,
-        );
+        ui.text(radix.label(), lr, 13.0, if selected { FontId::Semibold } else { FontId::Regular }, t.text, Align::Left);
         let vr = Rect::new(lr.right(), row.y, row.w - lr.w - ui.px(28.0), row.h);
         ui.fit_text(&value, vr, 13.0, 8.0, FontId::Regular, t.text, Align::Left);
     }
@@ -545,51 +437,24 @@ fn programmer(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors, docked: bool) {
     let gap2 = ui.px(2.0);
     let cell = |i: usize| row.cell(n, 1, i, 0, gap2);
     ui.button(
-        Button::new(
-            Action::BitPad(false),
-            cell(0),
-            "Full keypad",
-            Content::Icon(Icon::FullKeypad, 14.0),
-            Style::Subtle,
-        )
-        .role(Role::Radio)
-        .checked(!app.bitpad),
+        Button::new(Action::BitPad(false), cell(0), "Full keypad", Content::Icon(Icon::FullKeypad, 14.0), Style::Subtle)
+            .role(Role::Radio)
+            .checked(!app.bitpad),
     );
     ui.button(
-        Button::new(
-            Action::BitPad(true),
-            cell(1),
-            "Bit toggling keypad",
-            Content::Icon(Icon::BitKeypad, 14.0),
-            Style::Subtle,
-        )
-        .role(Role::Radio)
-        .checked(app.bitpad),
+        Button::new(Action::BitPad(true), cell(1), "Bit toggling keypad", Content::Icon(Icon::BitKeypad, 14.0), Style::Subtle)
+            .role(Role::Radio)
+            .checked(app.bitpad),
     );
     let sel = if app.bitpad { cell(1) } else { cell(0) };
-    ui.g.fill_rect(
-        Rect::new(sel.x + sel.w * 0.3, sel.bottom() - ui.px(3.0), sel.w * 0.4, ui.px(2.0)),
-        t.accent_fg,
-    );
+    ui.g.fill_rect(Rect::new(sel.x + sel.w * 0.3, sel.bottom() - ui.px(3.0), sel.w * 0.4, ui.px(2.0)), t.accent_fg);
     let word_label = tf("Word size {}, change", &[e.word.label()]);
     let wr = Rect::new(cell(2).x, row.y, cell(3).right() - cell(2).x, row.h);
-    ui.button(Button::new(
-        Action::CycleWord,
-        wr,
-        &word_label,
-        Content::Text(e.word.label(), 13.0, FontId::Semibold),
-        Style::Subtle,
-    ));
+    ui.button(Button::new(Action::CycleWord, wr, &word_label, Content::Text(e.word.label(), 13.0, FontId::Semibold), Style::Subtle));
     let ms = cell(4);
     ui.button(
-        Button::new(
-            Action::Mem(MemOp::Store),
-            ms,
-            "Memory store",
-            Content::Text("MS", 12.0, FontId::Semibold),
-            Style::Subtle,
-        )
-        .enabled(!err),
+        Button::new(Action::Mem(MemOp::Store), ms, "Memory store", Content::Text("MS", 12.0, FontId::Semibold), Style::Subtle)
+            .enabled(!err),
     );
     if !docked {
         ui.button(
@@ -609,24 +474,12 @@ fn programmer(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors, docked: bool) {
     a.bitwise = Rect::new(row.x + pad, row.y + ui.px(2.0), half, row.h - ui.px(4.0));
     a.shift = Rect::new(a.bitwise.right() + ui.px(2.0), a.bitwise.y, half, a.bitwise.h);
     ui.button(
-        Button::new(
-            Action::Open(Overlay::Bitwise),
-            a.bitwise,
-            "Bitwise",
-            Content::Dropdown(None, "Bitwise", 14.0),
-            Style::Subtle,
-        )
-        .enabled(!err),
+        Button::new(Action::Open(Overlay::Bitwise), a.bitwise, "Bitwise", Content::Dropdown(None, "Bitwise", 14.0), Style::Subtle)
+            .enabled(!err),
     );
     ui.button(
-        Button::new(
-            Action::Open(Overlay::Shift),
-            a.shift,
-            "Bit shift",
-            Content::Dropdown(None, "Bit shift", 14.0),
-            Style::Subtle,
-        )
-        .enabled(!err),
+        Button::new(Action::Open(Overlay::Shift), a.shift, "Bit shift", Content::Dropdown(None, "Bit shift", 14.0), Style::Subtle)
+            .enabled(!err),
     );
     let pad_r = Rect::new(r.x + pad, r.y + ui.px(2.0), r.w - 2.0 * pad, r.h - pad - ui.px(2.0));
     if app.bitpad {
@@ -736,11 +589,7 @@ fn side_panel(app: &App, ui: &mut Ui, r: Rect) {
     let t = ui.t;
     let mut r = r;
     let tabs = r.take_top(ui.px(44.0));
-    let list: Vec<PanelTab> = if app.has_history() {
-        vec![PanelTab::History, PanelTab::Memory]
-    } else {
-        vec![PanelTab::Memory]
-    };
+    let list: Vec<PanelTab> = if app.has_history() { vec![PanelTab::History, PanelTab::Memory] } else { vec![PanelTab::Memory] };
     let tab = if app.has_history() { app.panel_tab } else { PanelTab::Memory };
     let mut x = tabs.x + ui.px(12.0);
     for tb in list {
@@ -748,22 +597,12 @@ fn side_panel(app: &App, ui: &mut Ui, r: Rect) {
         let w = ui.g.measure(name, ui.fs(14.0), FontId::Semibold) + ui.px(20.0);
         let tr = Rect::new(x, tabs.y + ui.px(6.0), w, ui.px(34.0));
         ui.button(
-            Button::new(
-                Action::PanelTab(tb),
-                tr,
-                name,
-                Content::Text(name, 14.0, FontId::Semibold),
-                Style::Subtle,
-            )
-            .role(Role::Tab)
-            .checked(tab == tb),
+            Button::new(Action::PanelTab(tb), tr, name, Content::Text(name, 14.0, FontId::Semibold), Style::Subtle)
+                .role(Role::Tab)
+                .checked(tab == tb),
         );
         if tab == tb {
-            ui.g.fill_rrect(
-                Rect::new(tr.x + w * 0.3, tr.bottom() - ui.px(3.0), w * 0.4, ui.px(3.0)),
-                ui.px(1.5),
-                t.accent_fg,
-            );
+            ui.g.fill_rrect(Rect::new(tr.x + w * 0.3, tr.bottom() - ui.px(3.0), w * 0.4, ui.px(3.0)), ui.px(1.5), t.accent_fg);
         }
         x += w + ui.px(4.0);
     }
@@ -781,22 +620,14 @@ fn panel_list(app: &App, ui: &mut Ui, r: Rect, tab: PanelTab) {
         PanelTab::Memory => app.memory.is_empty(),
     };
     if empty {
-        let msg = if tab == PanelTab::History {
-            "There's no history yet"
-        } else {
-            "There's nothing saved in memory"
-        };
+        let msg = if tab == PanelTab::History { "There's no history yet" } else { "There's nothing saved in memory" };
         let mr = Rect::new(list.x + pad, list.y + ui.px(8.0), list.w - 2.0 * pad, ui.px(24.0));
         ui.text(msg, mr, 14.0, FontId::Regular, t.text, Align::Left);
         ui.label(mr, msg, Role::Label);
         return;
     }
     let item_h = ui.px(if tab == PanelTab::History { 68.0 } else { 78.0 });
-    let count = if tab == PanelTab::History {
-        app.history.len()
-    } else {
-        app.memory.len()
-    };
+    let count = if tab == PanelTab::History { app.history.len() } else { app.memory.len() };
     let content_h = count as f32 * item_h;
     let offset = app.scroll(ScrollId::Panel).min((content_h - list.h).max(0.0));
     ui.scroll_area(ScrollId::Panel, list, content_h, offset);
@@ -837,14 +668,8 @@ fn panel_list(app: &App, ui: &mut Ui, r: Rect, tab: PanelTab) {
             PanelTab::Memory => {
                 let v = num(&app.format_memory(&app.memory[i]));
                 ui.button(
-                    Button::new(
-                        Action::MemItem(i, MemOp::Recall),
-                        ir,
-                        &tf("Memory item {}", &[&v]),
-                        Content::None,
-                        Style::Subtle,
-                    )
-                    .role(Role::ListItem),
+                    Button::new(Action::MemItem(i, MemOp::Recall), ir, &tf("Memory item {}", &[&v]), Content::None, Style::Subtle)
+                        .role(Role::ListItem),
                 );
                 ui.fit_text(
                     &v,
@@ -861,13 +686,7 @@ fn panel_list(app: &App, ui: &mut Ui, r: Rect, tab: PanelTab) {
                     ("M+", "Add to memory item", MemOp::Add),
                     ("M-", "Subtract from memory item", MemOp::Sub),
                 ] {
-                    ui.button(Button::new(
-                        Action::MemItem(i, op),
-                        br,
-                        label,
-                        Content::Text(txt, 11.0, FontId::Semibold),
-                        Style::Op,
-                    ));
+                    ui.button(Button::new(Action::MemItem(i, op), br, label, Content::Text(txt, 11.0, FontId::Semibold), Style::Op));
                     br.x += ui.px(40.0);
                 }
             }
@@ -875,11 +694,8 @@ fn panel_list(app: &App, ui: &mut Ui, r: Rect, tab: PanelTab) {
     }
     ui.set_clip(None);
     let tr = Rect::new(bottom.right() - ui.px(48.0), bottom.y + ui.px(4.0), ui.px(40.0), ui.px(40.0));
-    let (action, label) = if tab == PanelTab::History {
-        (Action::ClearHistory, "Clear all history")
-    } else {
-        (Action::ClearMemory, "Clear all memory")
-    };
+    let (action, label) =
+        if tab == PanelTab::History { (Action::ClearHistory, "Clear all history") } else { (Action::ClearMemory, "Clear all memory") };
     ui.button(Button::new(action, tr, label, Content::Icon(Icon::Trash, 15.0), Style::Subtle));
 }
 
@@ -889,14 +705,8 @@ fn combo(app: &App, ui: &mut Ui, a: &mut Anchors, id: ComboId, r: Rect, label: &
     let value = tr(&app.combo_label(id)).to_string();
     a.combo[id as usize] = r;
     let full_label = format!("{}, {value}", tr(label));
-    let b = Button::new(
-        Action::Open(Overlay::Combo(id)),
-        r,
-        &full_label,
-        Content::Dropdown(None, &value, 14.0),
-        Style::Num,
-    )
-    .role(Role::ComboBox);
+    let b = Button::new(Action::Open(Overlay::Combo(id)), r, &full_label, Content::Dropdown(None, &value, 14.0), Style::Num)
+        .role(Role::ComboBox);
     ui.button(b);
     if let Some(w) = ui.widgets.last_mut() {
         w.value = Some(value);
@@ -906,24 +716,13 @@ fn combo(app: &App, ui: &mut Ui, a: &mut Anchors, id: ComboId, r: Rect, label: &
 fn caption(ui: &mut Ui, r: &mut Rect, text: &str) {
     let t = ui.t;
     let lr = r.take_top(ui.px(28.0));
-    ui.text(
-        text,
-        Rect::new(lr.x, lr.y + ui.px(4.0), lr.w, lr.h - ui.px(4.0)),
-        14.0,
-        FontId::Regular,
-        t.text_secondary,
-        Align::Left,
-    );
+    ui.text(text, Rect::new(lr.x, lr.y + ui.px(4.0), lr.w, lr.h - ui.px(4.0)), 14.0, FontId::Regular, t.text_secondary, Align::Left);
     ui.label(lr, text, Role::Label);
 }
 
 fn radio(ui: &mut Ui, action: Action, r: Rect, text: &str, on: bool) {
     let t = ui.t;
-    ui.button(
-        Button::new(action, r, text, Content::None, Style::Subtle)
-            .role(Role::Radio)
-            .checked(on),
-    );
+    ui.button(Button::new(action, r, text, Content::None, Style::Subtle).role(Role::Radio).checked(on));
     let cx = r.x + ui.px(14.0);
     let cy = r.center_y();
     let rad = ui.px(10.0);
@@ -934,14 +733,7 @@ fn radio(ui: &mut Ui, action: Action, r: Rect, text: &str, on: bool) {
     } else {
         ui.g.stroke_rrect(outline, rad, ui.px(1.0).max(1.0), t.text_secondary);
     }
-    ui.text(
-        text,
-        Rect::new(r.x + ui.px(32.0), r.y, r.w - ui.px(32.0), r.h),
-        14.0,
-        FontId::Regular,
-        t.text,
-        Align::Left,
-    );
+    ui.text(text, Rect::new(r.x + ui.px(32.0), r.y, r.w - ui.px(32.0), r.h), 14.0, FontId::Regular, t.text, Align::Left);
 }
 
 fn date_field(ui: &mut Ui, a: &mut Anchors, idx: u8, r: Rect, d: Date, label: &str) {
@@ -949,14 +741,8 @@ fn date_field(ui: &mut Ui, a: &mut Anchors, idx: u8, r: Rect, d: Date, label: &s
     let text = dates::short_date(d);
     let full = format!("{}, {}", tr(label), dates::long_date(d));
     ui.button(
-        Button::new(
-            Action::Open(Overlay::Calendar(idx)),
-            r,
-            &full,
-            Content::Dropdown(Some(Icon::Calendar), &text, 14.0),
-            Style::Num,
-        )
-        .role(Role::ComboBox),
+        Button::new(Action::Open(Overlay::Calendar(idx)), r, &full, Content::Dropdown(Some(Icon::Calendar), &text, 14.0), Style::Num)
+            .role(Role::ComboBox),
     );
 }
 
@@ -968,14 +754,7 @@ fn date_view(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors) {
     let mut c = Rect::new(r.x + pad, r.y + ui.px(4.0), r.w - 2.0 * pad, r.h - pad);
     let field_w = c.w.min(ui.px(320.0));
     let cr = c.take_top(ui.px(36.0));
-    combo(
-        app,
-        ui,
-        a,
-        ComboId::DateMode,
-        Rect::new(cr.x, cr.y, field_w, cr.h),
-        "Calculation mode",
-    );
+    combo(app, ui, a, ComboId::DateMode, Rect::new(cr.x, cr.y, field_w, cr.h), "Calculation mode");
     c.take_top(ui.px(16.0));
     let dw = c.w.min(ui.px(260.0));
     if !app.date.add_mode {
@@ -1005,28 +784,13 @@ fn date_view(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors) {
         date_field(ui, a, 0, Rect::new(fr.x, fr.y, dw, fr.h), app.date.from, "From");
         c.take_top(ui.px(12.0));
         let rr = c.take_top(ui.px(36.0));
-        radio(
-            ui,
-            Action::DateSubtract(false),
-            Rect::new(rr.x, rr.y, ui.px(110.0), rr.h),
-            "Add",
-            !app.date.subtract,
-        );
-        radio(
-            ui,
-            Action::DateSubtract(true),
-            Rect::new(rr.x + ui.px(120.0), rr.y, ui.px(130.0), rr.h),
-            "Subtract",
-            app.date.subtract,
-        );
+        radio(ui, Action::DateSubtract(false), Rect::new(rr.x, rr.y, ui.px(110.0), rr.h), "Add", !app.date.subtract);
+        radio(ui, Action::DateSubtract(true), Rect::new(rr.x + ui.px(120.0), rr.y, ui.px(130.0), rr.h), "Subtract", app.date.subtract);
         c.take_top(ui.px(8.0));
         let colw = ((c.w - ui.px(16.0)) / 3.0).min(ui.px(100.0));
         let lr = c.take_top(ui.px(28.0));
         let cr = c.take_top(ui.px(36.0));
-        for (i, (id, name)) in [(ComboId::Years, "Years"), (ComboId::Months, "Months"), (ComboId::Days, "Days")]
-            .into_iter()
-            .enumerate()
-        {
+        for (i, (id, name)) in [(ComboId::Years, "Years"), (ComboId::Months, "Months"), (ComboId::Days, "Days")].into_iter().enumerate() {
             let x = lr.x + i as f32 * (colw + ui.px(8.0));
             let l = Rect::new(x, lr.y + ui.px(4.0), colw, lr.h - ui.px(4.0));
             ui.text(name, l, 14.0, FontId::Regular, t.text_secondary, Align::Left);
@@ -1037,10 +801,7 @@ fn date_view(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors) {
         let br = c.take_top(ui.px(40.0));
         let text = match app.date_result() {
             Some(d) => dates::long_date(d),
-            None => tf(
-                "Outside the supported range ({}–{})",
-                &[&date::MIN_YEAR.to_string(), &date::MAX_YEAR.to_string()],
-            ),
+            None => tf("Outside the supported range ({}–{})", &[&date::MIN_YEAR.to_string(), &date::MAX_YEAR.to_string()]),
         };
         ui.fit_text(&text, br, 24.0, 12.0, FontId::Semibold, t.text, Align::Left);
         ui.label(br, &tf("Resulting date {}", &[&text]), Role::Display);
@@ -1068,29 +829,14 @@ fn converter(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors) {
         let active = app.conv_active as usize == idx;
         let fr = c.take_top(field_h);
         let unit_name = tr(&cat.units[unit].name);
-        let label = if active {
-            tf("Input value {} {}", &[&text, unit_name])
-        } else {
-            tf("Converts into {} {}", &[&text, unit_name])
-        };
-        ui.button(
-            Button::new(Action::ConvField(idx as u8), fr, &label, Content::None, Style::Subtle)
-                .role(Role::Field)
-                .checked(active),
-        );
+        let label = if active { tf("Input value {} {}", &[&text, unit_name]) } else { tf("Converts into {} {}", &[&text, unit_name]) };
+        ui.button(Button::new(Action::ConvField(idx as u8), fr, &label, Content::None, Style::Subtle).role(Role::Field).checked(active));
         let font = if active { FontId::Semibold } else { FontId::Regular };
         let max = (field_h / ui.s * 0.68).clamp(20.0, 46.0);
         let tr = Rect::new(fr.x + ui.px(4.0), fr.y, fr.w - ui.px(8.0), fr.h);
         ui.fit_text(&text, tr, max, 12.0, font, t.text, Align::Left);
         let cr = c.take_top(ui.px(34.0));
-        combo(
-            app,
-            ui,
-            a,
-            combo_id,
-            Rect::new(cr.x, cr.y, combo_w, cr.h),
-            if idx == 0 { "Input unit" } else { "Output unit" },
-        );
+        combo(app, ui, a, combo_id, Rect::new(cr.x, cr.y, combo_w, cr.h), if idx == 0 { "Input unit" } else { "Output unit" });
         c.take_top(ui.px(8.0));
     }
     if is_currency {
@@ -1153,30 +899,13 @@ fn settings(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors) {
     };
     heading(ui, &mut y, "Appearance");
     sub(ui, &mut y, "App theme");
-    for (pref, name) in [
-        (ThemePref::Light, "Light"),
-        (ThemePref::Dark, "Dark"),
-        (ThemePref::System, "Use system setting"),
-    ] {
-        radio(
-            ui,
-            Action::Theme(pref),
-            Rect::new(x, y, w.min(ui.px(280.0)), ui.px(36.0)),
-            name,
-            app.theme_pref == pref,
-        );
+    for (pref, name) in [(ThemePref::Light, "Light"), (ThemePref::Dark, "Dark"), (ThemePref::System, "Use system setting")] {
+        radio(ui, Action::Theme(pref), Rect::new(x, y, w.min(ui.px(280.0)), ui.px(36.0)), name, app.theme_pref == pref);
         y += ui.px(38.0);
     }
     y += ui.px(8.0);
     sub(ui, &mut y, "Language");
-    combo(
-        app,
-        ui,
-        a,
-        ComboId::Language,
-        Rect::new(x, y, w.min(ui.px(300.0)), ui.px(36.0)),
-        "Language",
-    );
+    combo(app, ui, a, ComboId::Language, Rect::new(x, y, w.min(ui.px(300.0)), ui.px(36.0)), "Language");
     y += ui.px(52.0);
 
     heading(ui, &mut y, "Calculator key");
@@ -1195,15 +924,7 @@ fn settings(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors) {
         );
         toggle_switch(ui, Rect::new(x + ui.px(4.0), y + ui.px(10.0), ui.px(40.0), ui.px(20.0)), on);
         let lr = Rect::new(x + ui.px(56.0), y, w - ui.px(56.0), ui.px(40.0));
-        ui.fit_text(
-            "Open rcalc with the keyboard Calculator key",
-            lr,
-            14.0,
-            10.0,
-            FontId::Regular,
-            t.text,
-            Align::Left,
-        );
+        ui.fit_text("Open rcalc with the keyboard Calculator key", lr, 14.0, 10.0, FontId::Regular, t.text, Align::Left);
         y += ui.px(46.0);
     }
     y += ui.paragraph(
@@ -1254,10 +975,7 @@ fn settings(app: &App, ui: &mut Ui, r: Rect, a: &mut Anchors) {
         storage.push_str(&tf("Warning: {}", &[err]));
     }
     storage.push(' ');
-    storage.push_str(&tf(
-        "To run fully portable, create an empty file named {} next to rcalc.exe.",
-        &[crate::storage::PORTABLE_MARKER],
-    ));
+    storage.push_str(&tf("To run fully portable, create an empty file named {} next to rcalc.exe.", &[crate::storage::PORTABLE_MARKER]));
     y += ui.paragraph(&storage, Rect::new(x, y, w, 0.0), 14.0, FontId::Regular, t.text) + ui.px(16.0);
     heading(ui, &mut y, "Currency rates");
     let cur = tf(
@@ -1316,12 +1034,7 @@ fn overlays(app: &App, ui: &mut Ui, a: &Anchors, full: Rect) {
         Overlay::Trig => {
             let inv = app.trig_inv;
             let hyp = app.trig_hyp;
-            let mut keys = vec![ka(
-                "2nd",
-                "Inverse functions",
-                Action::TrigInv,
-                if inv { Style::Accent } else { Style::Op },
-            )];
+            let mut keys = vec![ka("2nd", "Inverse functions", Action::TrigInv, if inv { Style::Accent } else { Style::Op })];
             let fns = [(Trig::Sin, "sin"), (Trig::Cos, "cos"), (Trig::Tan, "tan")];
             let fns2 = [(Trig::Sec, "sec"), (Trig::Csc, "csc"), (Trig::Cot, "cot")];
             let push = |keys: &mut Vec<K>, f: Trig| {
@@ -1339,12 +1052,7 @@ fn overlays(app: &App, ui: &mut Ui, a: &Anchors, full: Rect) {
             for (f, _) in fns {
                 push(&mut keys, f);
             }
-            keys.push(ka(
-                "hyp",
-                "Hyperbolic functions",
-                Action::TrigHyp,
-                if hyp { Style::Accent } else { Style::Op },
-            ));
+            keys.push(ka("hyp", "Hyperbolic functions", Action::TrigHyp, if hyp { Style::Accent } else { Style::Op }));
             for (f, _) in fns2 {
                 push(&mut keys, f);
             }
@@ -1378,16 +1086,8 @@ fn overlays(app: &App, ui: &mut Ui, a: &Anchors, full: Rect) {
             let h = ui.px(3.0 * 40.0 + 12.0);
             let fr = place(Rect::new(a.shift.x, a.shift.bottom() + ui.px(4.0), w, h), full, ui.px(4.0));
             ui.flyout(fr);
-            for (i, m) in [ShiftMode::Arithmetic, ShiftMode::Logical, ShiftMode::Rotate]
-                .into_iter()
-                .enumerate()
-            {
-                let rr = Rect::new(
-                    fr.x + ui.px(8.0),
-                    fr.y + ui.px(6.0) + i as f32 * ui.px(40.0),
-                    fr.w - ui.px(16.0),
-                    ui.px(40.0),
-                );
+            for (i, m) in [ShiftMode::Arithmetic, ShiftMode::Logical, ShiftMode::Rotate].into_iter().enumerate() {
+                let rr = Rect::new(fr.x + ui.px(8.0), fr.y + ui.px(6.0) + i as f32 * ui.px(40.0), fr.w - ui.px(16.0), ui.px(40.0));
                 radio(ui, Action::SetShift(m), rr, m.label(), app.prog.shift == m);
             }
         }
@@ -1467,13 +1167,7 @@ fn nav(app: &App, ui: &mut Ui, full: Rect) {
         layer: 1,
     });
     let btn = Rect::new(ui.px(4.0), ui.px(4.0), ui.px(40.0), ui.px(36.0));
-    ui.button(Button::new(
-        Action::CloseOverlay,
-        btn,
-        "Close navigation",
-        Content::Icon(Icon::Menu, 16.0),
-        Style::Subtle,
-    ));
+    ui.button(Button::new(Action::CloseOverlay, btn, "Close navigation", Content::Icon(Icon::Menu, 16.0), Style::Subtle));
     let mut r = Rect::new(0.0, ui.px(48.0), w, full.h - ui.px(48.0));
     let settings_r = r.take_bottom(ui.px(48.0));
     enum Row {
@@ -1493,10 +1187,7 @@ fn nav(app: &App, ui: &mut Ui, full: Rect) {
     }
     let header_h = ui.px(36.0);
     let item_h = ui.px(40.0);
-    let content_h: f32 = rows
-        .iter()
-        .map(|r| if matches!(r, Row::Header(_)) { header_h } else { item_h })
-        .sum();
+    let content_h: f32 = rows.iter().map(|r| if matches!(r, Row::Header(_)) { header_h } else { item_h }).sum();
     let offset = app.scroll(ScrollId::Nav).min((content_h - r.h).max(0.0));
     ui.scroll_area(ScrollId::Nav, r, content_h, offset);
     ui.set_clip(Some(r));
@@ -1510,13 +1201,7 @@ fn nav(app: &App, ui: &mut Ui, full: Rect) {
                 y += header_h;
             }
             Row::Item(m, name) => {
-                nav_item(
-                    app,
-                    ui,
-                    Rect::new(r.x + ui.px(4.0), y, r.w - ui.px(8.0), item_h - ui.px(4.0)),
-                    *m,
-                    name,
-                );
+                nav_item(app, ui, Rect::new(r.x + ui.px(4.0), y, r.w - ui.px(8.0), item_h - ui.px(4.0)), *m, name);
                 y += item_h;
             }
         }
@@ -1526,12 +1211,7 @@ fn nav(app: &App, ui: &mut Ui, full: Rect) {
     nav_item(
         app,
         ui,
-        Rect::new(
-            settings_r.x + ui.px(4.0),
-            settings_r.y + ui.px(4.0),
-            settings_r.w - ui.px(8.0),
-            item_h - ui.px(4.0),
-        ),
+        Rect::new(settings_r.x + ui.px(4.0), settings_r.y + ui.px(4.0), settings_r.w - ui.px(8.0), item_h - ui.px(4.0)),
         Mode::Settings,
         "Settings",
     );
@@ -1543,11 +1223,7 @@ fn nav_item(app: &App, ui: &mut Ui, r: Rect, m: Mode, name: &str) {
     if selected {
         ui.g.fill_rrect(r, ui.px(4.0), t.selected);
     }
-    ui.button(
-        Button::new(Action::Navigate(m), r, name, Content::None, Style::Subtle)
-            .role(Role::MenuItem)
-            .checked(selected),
-    );
+    ui.button(Button::new(Action::Navigate(m), r, name, Content::None, Style::Subtle).role(Role::MenuItem).checked(selected));
     if selected {
         ui.g.fill_rrect(Rect::new(r.x, r.y + r.h * 0.3, ui.px(3.0), r.h * 0.4), ui.px(1.5), t.accent_fg);
     }
@@ -1586,23 +1262,11 @@ fn combo_list(app: &App, ui: &mut Ui, anchor: Rect, id: ComboId, full: Rect) {
         if i == sel {
             ui.g.fill_rrect(ir, ui.px(4.0), t.selected);
         }
-        ui.button(
-            Button::new(Action::ComboPick(id, i), ir, item, Content::None, Style::Subtle)
-                .role(Role::ListItem)
-                .checked(i == sel),
-        );
+        ui.button(Button::new(Action::ComboPick(id, i), ir, item, Content::None, Style::Subtle).role(Role::ListItem).checked(i == sel));
         if i == sel {
             ui.g.fill_rrect(Rect::new(ir.x, ir.y + ir.h * 0.3, ui.px(3.0), ir.h * 0.4), ui.px(1.5), t.accent_fg);
         }
-        ui.fit_text(
-            item,
-            Rect::new(ir.x + ui.px(12.0), ir.y, ir.w - ui.px(16.0), ir.h),
-            14.0,
-            10.0,
-            FontId::Regular,
-            t.text,
-            Align::Left,
-        );
+        ui.fit_text(item, Rect::new(ir.x + ui.px(12.0), ir.y, ir.w - ui.px(16.0), ir.h), 14.0, 10.0, FontId::Regular, t.text, Align::Left);
     }
     ui.set_clip(None);
 }
@@ -1618,31 +1282,12 @@ fn calendar(app: &App, ui: &mut Ui, anchor: Rect, target: u8, full: Rect) {
     let (vy, vm) = app.cal_view;
     let head = r.take_top(ui.px(40.0));
     let title = dates::month_year(vy, vm);
-    ui.text(
-        &title,
-        Rect::new(head.x + ui.px(8.0), head.y, head.w, head.h),
-        15.0,
-        FontId::Semibold,
-        t.text,
-        Align::Left,
-    );
+    ui.text(&title, Rect::new(head.x + ui.px(8.0), head.y, head.w, head.h), 15.0, FontId::Semibold, t.text, Align::Left);
     ui.label(head, &title, Role::Label);
     let down = Rect::new(head.right() - ui.px(36.0), head.y + ui.px(4.0), ui.px(32.0), ui.px(32.0));
     let up = Rect::new(down.x - ui.px(34.0), down.y, down.w, down.h);
-    ui.button(Button::new(
-        Action::CalMonth(-1),
-        up,
-        "Previous month",
-        Content::Icon(Icon::ChevronUp, 12.0),
-        Style::Subtle,
-    ));
-    ui.button(Button::new(
-        Action::CalMonth(1),
-        down,
-        "Next month",
-        Content::Icon(Icon::ChevronDown, 12.0),
-        Style::Subtle,
-    ));
+    ui.button(Button::new(Action::CalMonth(-1), up, "Previous month", Content::Icon(Icon::ChevronUp, 12.0), Style::Subtle));
+    ui.button(Button::new(Action::CalMonth(1), down, "Next month", Content::Icon(Icon::ChevronDown, 12.0), Style::Subtle));
     let wd = r.take_top(ui.px(28.0));
     for (i, n) in dates::weekday_headers().iter().enumerate() {
         let c = wd.cell(7, 1, i, 0, 0.0);

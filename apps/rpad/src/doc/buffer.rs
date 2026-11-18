@@ -220,10 +220,7 @@ impl Buffer {
     fn store_sels(&mut self, sels: Vec<Sel>, primary: usize) {
         let len = self.len();
         let prim = sels.get(primary).copied();
-        let mut v: Vec<Sel> = sels
-            .into_iter()
-            .map(|s| Sel::new(s.anchor.min(len), s.head.min(len)))
-            .collect();
+        let mut v: Vec<Sel> = sels.into_iter().map(|s| Sel::new(s.anchor.min(len), s.head.min(len))).collect();
         if v.is_empty() {
             v.push(Sel::caret(0));
         }
@@ -241,9 +238,7 @@ impl Buffer {
             }
             merged.push(s);
         }
-        self.primary = prim
-            .and_then(|p| merged.iter().position(|s| s.start() <= p.head && p.head <= s.end()))
-            .unwrap_or(merged.len() - 1);
+        self.primary = prim.and_then(|p| merged.iter().position(|s| s.start() <= p.head && p.head <= s.end())).unwrap_or(merged.len() - 1);
         self.sels = merged;
     }
 

@@ -88,12 +88,15 @@ fn compound(s: &str) -> Compound {
     while !rest.is_empty() {
         let kind = rest.as_bytes()[0];
         let body = &rest[1..];
-        let end = if kind == b'[' { body.find(']').map_or(body.len(), |e| e + 1) } else { body.find(['.', '#', '[', ':']).unwrap_or(body.len()) };
+        let end =
+            if kind == b'[' { body.find(']').map_or(body.len(), |e| e + 1) } else { body.find(['.', '#', '[', ':']).unwrap_or(body.len()) };
         let token = &body[..end.min(body.len())];
         match kind {
             b'.' => c.classes.push(token.to_string()),
             b'#' => c.ids.push(token.to_string()),
-            b'[' => c.attrs.push(token.trim_end_matches(']').split(['=', '~', '|', '^', '$', '*']).next().unwrap_or("").trim().to_ascii_lowercase()),
+            b'[' => c
+                .attrs
+                .push(token.trim_end_matches(']').split(['=', '~', '|', '^', '$', '*']).next().unwrap_or("").trim().to_ascii_lowercase()),
             b':' => {
                 let p = token.trim_start_matches(':').to_ascii_lowercase();
                 if !matches!(p.as_str(), "link" | "visited" | "root") {
@@ -172,7 +175,9 @@ impl Sheet {
                     let query = q.trim_start_matches("media").trim();
                     let applies = query.split(',').any(|m| {
                         let m = m.trim();
-                        (m.is_empty() || m.starts_with("screen") || m.starts_with("all")) && !m.contains("width") && !m.contains("prefers-color-scheme: dark")
+                        (m.is_empty() || m.starts_with("screen") || m.starts_with("all"))
+                            && !m.contains("width")
+                            && !m.contains("prefers-color-scheme: dark")
                     });
                     if applies {
                         self.add_rules(body);
@@ -242,19 +247,77 @@ fn matches(sel: &Selector, path: &[Elem]) -> bool {
 }
 
 const NAMED: &[(&str, u32)] = &[
-    ("black", 0x000000), ("silver", 0xC0C0C0), ("gray", 0x808080), ("grey", 0x808080), ("white", 0xFFFFFF), ("maroon", 0x800000),
-    ("red", 0xFF0000), ("purple", 0x800080), ("fuchsia", 0xFF00FF), ("magenta", 0xFF00FF), ("green", 0x008000), ("lime", 0x00FF00),
-    ("olive", 0x808000), ("yellow", 0xFFFF00), ("navy", 0x000080), ("blue", 0x0000FF), ("teal", 0x008080), ("aqua", 0x00FFFF),
-    ("cyan", 0x00FFFF), ("orange", 0xFFA500), ("darkgray", 0xA9A9A9), ("darkgrey", 0xA9A9A9), ("lightgray", 0xD3D3D3),
-    ("lightgrey", 0xD3D3D3), ("gainsboro", 0xDCDCDC), ("whitesmoke", 0xF5F5F5), ("dimgray", 0x696969), ("dimgrey", 0x696969),
-    ("darkred", 0x8B0000), ("darkgreen", 0x006400), ("darkblue", 0x00008B), ("darkorange", 0xFF8C00), ("brown", 0xA52A2A),
-    ("pink", 0xFFC0CB), ("gold", 0xFFD700), ("indigo", 0x4B0082), ("violet", 0xEE82EE), ("crimson", 0xDC143C), ("coral", 0xFF7F50),
-    ("tomato", 0xFF6347), ("salmon", 0xFA8072), ("khaki", 0xF0E68C), ("beige", 0xF5F5DC), ("ivory", 0xFFFFF0), ("lavender", 0xE6E6FA),
-    ("steelblue", 0x4682B4), ("royalblue", 0x4169E1), ("skyblue", 0x87CEEB), ("lightblue", 0xADD8E6), ("dodgerblue", 0x1E90FF),
-    ("seagreen", 0x2E8B57), ("forestgreen", 0x228B22), ("lightgreen", 0x90EE90), ("lightyellow", 0xFFFFE0), ("aliceblue", 0xF0F8FF),
-    ("slategray", 0x708090), ("darkslategray", 0x2F4F4F), ("midnightblue", 0x191970), ("firebrick", 0xB22222), ("chocolate", 0xD2691E),
-    ("tan", 0xD2B48C), ("wheat", 0xF5DEB3), ("linen", 0xFAF0E6), ("honeydew", 0xF0FFF0), ("mintcream", 0xF5FFFA), ("snow", 0xFFFAFA),
-    ("orchid", 0xDA70D6), ("plum", 0xDDA0DD), ("turquoise", 0x40E0D0), ("cornflowerblue", 0x6495ED), ("darkviolet", 0x9400D3),
+    ("black", 0x000000),
+    ("silver", 0xC0C0C0),
+    ("gray", 0x808080),
+    ("grey", 0x808080),
+    ("white", 0xFFFFFF),
+    ("maroon", 0x800000),
+    ("red", 0xFF0000),
+    ("purple", 0x800080),
+    ("fuchsia", 0xFF00FF),
+    ("magenta", 0xFF00FF),
+    ("green", 0x008000),
+    ("lime", 0x00FF00),
+    ("olive", 0x808000),
+    ("yellow", 0xFFFF00),
+    ("navy", 0x000080),
+    ("blue", 0x0000FF),
+    ("teal", 0x008080),
+    ("aqua", 0x00FFFF),
+    ("cyan", 0x00FFFF),
+    ("orange", 0xFFA500),
+    ("darkgray", 0xA9A9A9),
+    ("darkgrey", 0xA9A9A9),
+    ("lightgray", 0xD3D3D3),
+    ("lightgrey", 0xD3D3D3),
+    ("gainsboro", 0xDCDCDC),
+    ("whitesmoke", 0xF5F5F5),
+    ("dimgray", 0x696969),
+    ("dimgrey", 0x696969),
+    ("darkred", 0x8B0000),
+    ("darkgreen", 0x006400),
+    ("darkblue", 0x00008B),
+    ("darkorange", 0xFF8C00),
+    ("brown", 0xA52A2A),
+    ("pink", 0xFFC0CB),
+    ("gold", 0xFFD700),
+    ("indigo", 0x4B0082),
+    ("violet", 0xEE82EE),
+    ("crimson", 0xDC143C),
+    ("coral", 0xFF7F50),
+    ("tomato", 0xFF6347),
+    ("salmon", 0xFA8072),
+    ("khaki", 0xF0E68C),
+    ("beige", 0xF5F5DC),
+    ("ivory", 0xFFFFF0),
+    ("lavender", 0xE6E6FA),
+    ("steelblue", 0x4682B4),
+    ("royalblue", 0x4169E1),
+    ("skyblue", 0x87CEEB),
+    ("lightblue", 0xADD8E6),
+    ("dodgerblue", 0x1E90FF),
+    ("seagreen", 0x2E8B57),
+    ("forestgreen", 0x228B22),
+    ("lightgreen", 0x90EE90),
+    ("lightyellow", 0xFFFFE0),
+    ("aliceblue", 0xF0F8FF),
+    ("slategray", 0x708090),
+    ("darkslategray", 0x2F4F4F),
+    ("midnightblue", 0x191970),
+    ("firebrick", 0xB22222),
+    ("chocolate", 0xD2691E),
+    ("tan", 0xD2B48C),
+    ("wheat", 0xF5DEB3),
+    ("linen", 0xFAF0E6),
+    ("honeydew", 0xF0FFF0),
+    ("mintcream", 0xF5FFFA),
+    ("snow", 0xFFFAFA),
+    ("orchid", 0xDA70D6),
+    ("plum", 0xDDA0DD),
+    ("turquoise", 0x40E0D0),
+    ("cornflowerblue", 0x6495ED),
+    ("darkviolet", 0x9400D3),
 ];
 
 /// Parses a CSS color. Translucent colors are blended over white.

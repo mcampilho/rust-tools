@@ -24,12 +24,29 @@ pub enum Job {
 }
 
 pub enum Done {
-    PdfOpened { gen: u64, sizes: Vec<(f32, f32)> },
-    PdfFailed { gen: u64, message: String },
-    Page { gen: u64, page: u32, width: u32, bmp: Bitmap },
-    Image { key: String, bmp: Option<Bitmap> },
+    PdfOpened {
+        gen: u64,
+        sizes: Vec<(f32, f32)>,
+    },
+    PdfFailed {
+        gen: u64,
+        message: String,
+    },
+    Page {
+        gen: u64,
+        page: u32,
+        width: u32,
+        bmp: Bitmap,
+    },
+    Image {
+        key: String,
+        bmp: Option<Bitmap>,
+    },
     /// The text of the PDF's pages (empty when it cannot be read).
-    PdfText { gen: u64, pages: Vec<PageText> },
+    PdfText {
+        gen: u64,
+        pages: Vec<PageText>,
+    },
 }
 
 type Queue = Arc<(Mutex<VecDeque<Job>>, Condvar)>;
@@ -53,10 +70,7 @@ impl Media {
         let (tx, rx) = mpsc::channel();
         let q = queue.clone();
         let (worker_tx, worker_wake) = (tx.clone(), wake.clone());
-        std::thread::Builder::new()
-            .name("media".into())
-            .spawn(move || worker(q, worker_tx, worker_wake))
-            .expect("spawn media thread");
+        std::thread::Builder::new().name("media".into()).spawn(move || worker(q, worker_tx, worker_wake)).expect("spawn media thread");
         Media { queue, rx, tx, wake, text_gen: Arc::new(AtomicU64::new(0)) }
     }
 
@@ -106,7 +120,10 @@ mod winrt {
     use super::Bitmap;
     use windows::core::{Interface, HSTRING};
     use windows::Data::Pdf::{PdfDocument, PdfPageRenderOptions};
-    use windows::Graphics::Imaging::{BitmapAlphaMode, BitmapDecoder, BitmapEncoder, BitmapInterpolationMode, BitmapPixelFormat, BitmapTransform, ColorManagementMode, ExifOrientationMode};
+    use windows::Graphics::Imaging::{
+        BitmapAlphaMode, BitmapDecoder, BitmapEncoder, BitmapInterpolationMode, BitmapPixelFormat, BitmapTransform, ColorManagementMode,
+        ExifOrientationMode,
+    };
     use windows::Storage::StorageFile;
     use windows::Storage::Streams::{DataWriter, IRandomAccessStream, InMemoryRandomAccessStream};
 
@@ -167,7 +184,13 @@ mod winrt {
             h = ((h as f64 * k).round() as u32).max(1);
         }
         let pd = dec
-            .GetPixelDataTransformedAsync(BitmapPixelFormat::Rgba8, BitmapAlphaMode::Premultiplied, &t, ExifOrientationMode::RespectExifOrientation, ColorManagementMode::DoNotColorManage)?
+            .GetPixelDataTransformedAsync(
+                BitmapPixelFormat::Rgba8,
+                BitmapAlphaMode::Premultiplied,
+                &t,
+                ExifOrientationMode::RespectExifOrientation,
+                ColorManagementMode::DoNotColorManage,
+            )?
             .join()?;
         let data = pd.DetachPixelData()?;
         let rgba = data.as_slice().to_vec();
@@ -200,7 +223,12 @@ mod native {
         let data = std::fs::read(path).map_err(|e| e.to_string())?;
         let damaged = || crate::i18n::tr("The file is damaged or protected.");
         let pdf = Pdf::new(data).map_err(|_| damaged())?;
-        let sizes: Vec<(f32, f32)> = pdf.pages().iter().map(|p| p.render_dimensions()).map(|(w, h)| ((w * DIPS_PER_POINT).max(1.0), (h * DIPS_PER_POINT).max(1.0))).collect();
+        let sizes: Vec<(f32, f32)> = pdf
+            .pages()
+            .iter()
+            .map(|p| p.render_dimensions())
+            .map(|(w, h)| ((w * DIPS_PER_POINT).max(1.0), (h * DIPS_PER_POINT).max(1.0)))
+            .collect();
         if sizes.is_empty() {
             return Err(damaged());
         }
@@ -293,7 +321,8 @@ fn worker(queue: Queue, tx: mpsc::Sender<Done>, wake: Wake) {
             Job::Image { key, bytes } => Done::Image { key, bmp: winrt::decode_bytes(&bytes, MAX_EDGE).ok() },
             #[cfg(not(windows))]
             Job::OpenPdf { path, gen } => {
-                let opened = native::guard(|| native::open_pdf(&path)).unwrap_or_else(|| Err(crate::i18n::tr("The file is damaged or protected.")));
+                let opened =
+                    native::guard(|| native::open_pdf(&path)).unwrap_or_else(|| Err(crate::i18n::tr("The file is damaged or protected.")));
                 match opened {
                     Ok((doc, sizes)) => {
                         pdf = Some((gen, doc));

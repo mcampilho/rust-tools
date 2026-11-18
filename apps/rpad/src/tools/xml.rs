@@ -164,7 +164,13 @@ impl<'a> Parser<'a> {
             let r = self.rest();
             if r.starts_with("/>") {
                 self.i += 2;
-                return Ok(Element { start_tag: self.s[start..self.i].to_string(), end_tag: None, children: Vec::new(), span: (start, self.i), preserve });
+                return Ok(Element {
+                    start_tag: self.s[start..self.i].to_string(),
+                    end_tag: None,
+                    children: Vec::new(),
+                    span: (start, self.i),
+                    preserve,
+                });
             }
             if r.starts_with('>') {
                 self.i += 1;
@@ -353,8 +359,8 @@ fn write_node(n: &Node, depth: usize, indent: &str, src: &str, out: &mut String)
             out.push('\n');
         }
         Node::Element(e) => {
-            let mixed = e.preserve
-                || e.children.iter().any(|c| matches!(c, Node::Text(t) if !t.trim().is_empty()) || matches!(c, Node::CData(_)));
+            let mixed =
+                e.preserve || e.children.iter().any(|c| matches!(c, Node::Text(t) if !t.trim().is_empty()) || matches!(c, Node::CData(_)));
             out.push_str(&pad);
             if mixed || e.end_tag.is_none() || e.children.is_empty() {
                 // Copy verbatim: whitespace here may be significant.

@@ -112,7 +112,11 @@ impl Shell {
                 f
             }
             Kind::Video | Kind::Anim => {
-                let (label, exts) = if kind == Kind::Video { (tr("Videos"), &live::VIDEO_EXTENSIONS[..]) } else { (tr("Animated pictures"), &live::ANIM_EXTENSIONS[..]) };
+                let (label, exts) = if kind == Kind::Video {
+                    (tr("Videos"), &live::VIDEO_EXTENSIONS[..])
+                } else {
+                    (tr("Animated pictures"), &live::ANIM_EXTENSIONS[..])
+                };
                 let pattern: String = exts.iter().map(|e| format!("*.{e}")).collect::<Vec<_>>().join(";");
                 #[cfg(windows)]
                 let f = {

@@ -38,7 +38,9 @@ fn reason_text(why: &str) -> String {
         uninstall::NO_MODIFY => tr("it has no command to change or repair it"),
         uninstall::OTHER_MANAGER => tr("it was installed by the system's package manager: remove it there"),
         uninstall::NEEDS_ROOT => tr("it needs root, and pkexec was not found: start rinst as root"),
-        uninstall::NOT_ELEVATED_PACKAGE => tr("Store apps are removed for the user rinst runs as: start rinst without administrator rights"),
+        uninstall::NOT_ELEVATED_PACKAGE => {
+            tr("Store apps are removed for the user rinst runs as: start rinst without administrator rights")
+        }
         other => other.to_string(),
     }
 }
@@ -46,7 +48,9 @@ fn reason_text(why: &str) -> String {
 fn outcome_text(o: &Outcome) -> String {
     match o {
         Outcome::Ended(code, tail) if tail.is_empty() => tf("it ended with code {}", &[&code.to_string()]),
-        Outcome::Ended(code, tail) => format!("{}\n      {}", tf("it ended with code {}", &[&code.to_string()]), tail.replace('\n', "\n      ")),
+        Outcome::Ended(code, tail) => {
+            format!("{}\n      {}", tf("it ended with code {}", &[&code.to_string()]), tail.replace('\n', "\n      "))
+        }
         Outcome::Failed(e) => e.clone(),
         Outcome::Cannot(why) => reason_text(why),
     }
@@ -65,7 +69,8 @@ impl Shell {
         if how == How::Modify {
             chosen.truncate(1);
         }
-        let plans: Vec<(String, String, Plan)> = chosen.iter().map(|p| (p.name.clone(), p.key.clone(), uninstall::plan(p, how, self.admin, me))).collect();
+        let plans: Vec<(String, String, Plan)> =
+            chosen.iter().map(|p| (p.name.clone(), p.key.clone(), uninstall::plan(p, how, self.admin, me))).collect();
         if plans.is_empty() {
             return;
         }
@@ -82,7 +87,11 @@ impl Shell {
             })
             .collect();
         if can.is_empty() {
-            let head = if how == How::Modify { tr("This program cannot be changed from here:") } else { tr("None of these programs can be uninstalled from here:") };
+            let head = if how == How::Modify {
+                tr("This program cannot be changed from here:")
+            } else {
+                tr("None of these programs can be uninstalled from here:")
+            };
             self.info(&tr("Uninstall"), &format!("{head}\n\n{}", cannot_text.join("\n")));
             return;
         }
@@ -200,9 +209,9 @@ impl Shell {
         let Some(found) = &self.app.found else { return };
         // A dpkg package whose settings are all that is left is gone.
         let still = |key: &str, name: &str| {
-            rinst::app::Tab::LISTS
-                .iter()
-                .any(|&t| found.list(t).iter().any(|p| p.key == key && p.name == name && !p.problems.contains(&rinst::inventory::Problem::ConfigOnly)))
+            rinst::app::Tab::LISTS.iter().any(|&t| {
+                found.list(t).iter().any(|p| p.key == key && p.name == name && !p.problems.contains(&rinst::inventory::Problem::ConfigOnly))
+            })
         };
         let (mut gone, mut there, mut failed, mut skipped) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
         let mut restart = false;

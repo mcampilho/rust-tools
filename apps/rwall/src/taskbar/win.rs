@@ -15,7 +15,9 @@ use std::ffi::c_void;
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::time::{Duration, Instant};
 use windows_sys::Win32::Foundation::{BOOL, HWND, LPARAM, RECT};
-use windows_sys::Win32::Graphics::Gdi::{EnumDisplayMonitors, GetMonitorInfoW, MonitorFromWindow, HDC, HMONITOR, MONITORINFO, MONITORINFOEXW, MONITOR_DEFAULTTONEAREST};
+use windows_sys::Win32::Graphics::Gdi::{
+    EnumDisplayMonitors, GetMonitorInfoW, MonitorFromWindow, HDC, HMONITOR, MONITORINFO, MONITORINFOEXW, MONITOR_DEFAULTTONEAREST,
+};
 use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleW, GetProcAddress};
 use windows_sys::Win32::UI::WindowsAndMessaging::{FindWindowExW, FindWindowW, IsWindow};
 
@@ -62,7 +64,8 @@ fn functions() -> Option<(Composition, Composition)> {
 }
 
 fn accent(f: Composition, hwnd: HWND, p: &mut AccentPolicy) -> bool {
-    let mut d = CompositionData { attribute: WCA_ACCENT_POLICY, data: (p as *mut AccentPolicy).cast(), size: std::mem::size_of::<AccentPolicy>() };
+    let mut d =
+        CompositionData { attribute: WCA_ACCENT_POLICY, data: (p as *mut AccentPolicy).cast(), size: std::mem::size_of::<AccentPolicy>() };
     // SAFETY: `d` points at `p`, which lives through the call.
     unsafe { f(hwnd, &mut d) != 0 }
 }
@@ -86,7 +89,12 @@ fn monitor_info(m: HMONITOR) -> Option<(String, bool, u32, u32)> {
         let len = mi.szDevice.iter().position(|c| *c == 0).unwrap_or(mi.szDevice.len());
         let name = String::from_utf16_lossy(&mi.szDevice[..len]);
         let r = mi.monitorInfo.rcMonitor;
-        Some((name.trim_start_matches("\\\\.\\").to_string(), mi.monitorInfo.dwFlags & 1 != 0, (r.right - r.left) as u32, (r.bottom - r.top) as u32))
+        Some((
+            name.trim_start_matches("\\\\.\\").to_string(),
+            mi.monitorInfo.dwFlags & 1 != 0,
+            (r.right - r.left) as u32,
+            (r.bottom - r.top) as u32,
+        ))
     }
 }
 
@@ -283,7 +291,8 @@ mod tests {
     fn clear_white_for_two_seconds() {
         let before = bar_lightness();
         let k = Keeper::start().unwrap();
-        let all: Vec<(String, Style)> = screens().into_iter().map(|s| (s.id, Style { look: super::super::Look::Clear, tint: 100 })).collect();
+        let all: Vec<(String, Style)> =
+            screens().into_iter().map(|s| (s.id, Style { look: super::super::Look::Clear, tint: 100 })).collect();
         k.set(all, false);
         std::thread::sleep(Duration::from_millis(500));
         let (c0, t0) = (cpu(), Instant::now());

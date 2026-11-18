@@ -319,7 +319,8 @@ impl<'a> Font<'a> {
         let subtype = dict.get_deref(b"Subtype", doc).and_then(Object::as_name).unwrap_or(b"");
         let wide = subtype == b"Type0";
         let type3 = subtype == b"Type3";
-        let font_matrix = dict.get_deref(b"FontMatrix", doc).and_then(Object::as_array).ok().and_then(|a| a.first()).and_then(|o| number(doc, o));
+        let font_matrix =
+            dict.get_deref(b"FontMatrix", doc).and_then(Object::as_array).ok().and_then(|a| a.first()).and_then(|o| number(doc, o));
         let encoding = name_of(dict, doc, b"Encoding");
         // The CID font holds the metrics of a composite font.
         let cid = dict
@@ -348,7 +349,10 @@ impl<'a> Font<'a> {
         let widths = if wide {
             Vec::new()
         } else {
-            metrics.get_deref(b"Widths", doc).and_then(Object::as_array).map_or(Vec::new(), |a| a.iter().map(|o| number(doc, o).unwrap_or(0.0)).collect())
+            metrics
+                .get_deref(b"Widths", doc)
+                .and_then(Object::as_array)
+                .map_or(Vec::new(), |a| a.iter().map(|o| number(doc, o).unwrap_or(0.0)).collect())
         };
         let missing = descriptor.and_then(|d| d.get(b"MissingWidth").ok()).and_then(|o| number(doc, o));
         let default_width = if wide {
@@ -369,7 +373,12 @@ impl<'a> Font<'a> {
             default_width,
             width_scale: if type3 { font_matrix.unwrap_or(0.001) * 1000.0 } else { 1.0 },
             tex_codes: type3,
-            bold: flags & (1 << 18) != 0 || name.contains("bold") || name.contains("black") || name.contains("heavy") || described(b"StemV") >= BOLD_STEM || described(b"FontWeight") >= 600.0,
+            bold: flags & (1 << 18) != 0
+                || name.contains("bold")
+                || name.contains("black")
+                || name.contains("heavy")
+                || described(b"StemV") >= BOLD_STEM
+                || described(b"FontWeight") >= 600.0,
             italic: flags & 64 != 0 || name.contains("italic") || name.contains("oblique") || described(b"ItalicAngle") != 0.0,
             mono,
             decoded: RefCell::new(HashMap::new()),
@@ -414,11 +423,16 @@ impl<'a> Font<'a> {
             return s.clone();
         }
         // Text for people: no control characters, plain spaces and hyphens.
-        let s: String = self.decode_raw(code, bytes).chars().filter(|c| !c.is_control()).map(|c| match c {
-            '\u{A0}' => ' ',
-            '\u{AD}' => '-',
-            c => c,
-        }).collect();
+        let s: String = self
+            .decode_raw(code, bytes)
+            .chars()
+            .filter(|c| !c.is_control())
+            .map(|c| match c {
+                '\u{A0}' => ' ',
+                '\u{AD}' => '-',
+                c => c,
+            })
+            .collect();
         let s: Rc<str> = if s.is_empty() { " ".into() } else { s.into() };
         self.decoded.borrow_mut().insert(code, s.clone());
         s
@@ -509,7 +523,8 @@ impl<'a> Reader<'a> {
             let reach = (along.0 - origin.0).hypot(along.1 - origin.1).max(f32::MIN_POSITIVE);
             if w.is_finite() && h.is_finite() && px_size > 0.0 {
                 let dir = ((along.0 - origin.0) / reach, (along.1 - origin.1) / reach);
-                let style = self.out.style_id(TextStyle { bold: font.bold, italic: font.italic, mono: font.mono, size: px_size, color: gs.color });
+                let style =
+                    self.out.style_id(TextStyle { bold: font.bold, italic: font.italic, mono: font.mono, size: px_size, color: gs.color });
                 self.out.push(&text, x0, y0, w.max(0.01), h, style, Pen { origin, end, dir, size: px_size });
             }
             let spacing = gs.char_space + if !font.wide && code == 32 { gs.word_space } else { 0.0 };
@@ -531,7 +546,9 @@ impl<'a> Reader<'a> {
         if stream.dict.get_deref(b"Subtype", doc).and_then(Object::as_name).map_or(true, |s| s != b"Form") {
             return;
         }
-        let Ok(data) = stream.decompressed_content_with_limit(MAX_STREAM).or_else(|_| Ok::<_, lopdf::Error>(stream.content.clone())) else { return };
+        let Ok(data) = stream.decompressed_content_with_limit(MAX_STREAM).or_else(|_| Ok::<_, lopdf::Error>(stream.content.clone())) else {
+            return;
+        };
         let Ok(content) = Content::decode(&data) else { return };
         let mut inner = gs.clone();
         if let Ok(a) = stream.dict.get_deref(b"Matrix", doc).and_then(Object::as_array) {
@@ -579,7 +596,9 @@ impl<'a> Reader<'a> {
                 "TL" => gs.leading = args.first().and_then(|o| o.as_float().ok()).unwrap_or(0.0),
                 "Ts" => gs.rise = args.first().and_then(|o| o.as_float().ok()).unwrap_or(0.0),
                 "Tf" => {
-                    if let (Some(name), Some(size)) = (args.first().and_then(|o| o.as_name().ok()), args.get(1).and_then(|o| o.as_float().ok())) {
+                    if let (Some(name), Some(size)) =
+                        (args.first().and_then(|o| o.as_name().ok()), args.get(1).and_then(|o| o.as_float().ok()))
+                    {
                         gs.font = self.font(name, resources);
                         gs.size = size;
                     }
@@ -676,7 +695,8 @@ fn read_page<'a>(doc: &'a Document, fonts: &'a RefCell<FontCache<'a>>, id: Objec
     let Ok(data) = doc.get_page_content_with_limit(id, MAX_STREAM) else { return PageText::default() };
     let Ok(content) = Content::decode(&data) else { return PageText::default() };
     let mut r = Reader { doc, map, fonts, out: PageText::default(), ops: 0 };
-    let start = State { ctm: IDENTITY, char_space: 0.0, word_space: 0.0, scale: 1.0, leading: 0.0, size: 0.0, rise: 0.0, font: None, color: None };
+    let start =
+        State { ctm: IDENTITY, char_space: 0.0, word_space: 0.0, scale: 1.0, leading: 0.0, size: 0.0, rise: 0.0, font: None, color: None };
     r.run(&content, start, &page_resources(doc, id), 0);
     r.out
 }
@@ -718,7 +738,10 @@ pub mod tests {
         objects.push(font.to_string());
         objects.push(format!("<< /Type /XObject /Subtype /Form /BBox [0 0 600 800] /Resources << /Font << /F1 3 0 R >> >> /Length {} >>\nstream\n{form}\nendstream", form.len()));
         for (i, (extra, content)) in pages.iter().enumerate() {
-            objects.push(format!("<< /Type /Page /Parent 2 0 R {extra} /Contents {} 0 R /Resources << /Font << /F1 3 0 R >> /XObject << /X1 4 0 R >> >> >>", 6 + i * 2));
+            objects.push(format!(
+                "<< /Type /Page /Parent 2 0 R {extra} /Contents {} 0 R /Resources << /Font << /F1 3 0 R >> /XObject << /X1 4 0 R >> >> >>",
+                6 + i * 2
+            ));
             objects.push(format!("<< /Length {} >>\nstream\n{content}\nendstream", content.len()));
         }
         let mut out = b"%PDF-1.4\n".to_vec();
@@ -836,7 +859,8 @@ pub mod tests {
             "<< /Type /Pages /Kids [3 0 R] /Count 1 >>".to_string(),
             "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 100] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>".to_string(),
             "<< /Length 38 >>\nstream\nBT /F1 10 Tf 20 80 Td <00010002> Tj ET\nendstream".to_string(),
-            "<< /Type /Font /Subtype /Type0 /BaseFont /Arial-ItalicMT /Encoding /Identity-H /DescendantFonts [6 0 R] /ToUnicode 7 0 R >>".to_string(),
+            "<< /Type /Font /Subtype /Type0 /BaseFont /Arial-ItalicMT /Encoding /Identity-H /DescendantFonts [6 0 R] /ToUnicode 7 0 R >>"
+                .to_string(),
             "<< /Type /Font /Subtype /CIDFontType2 /BaseFont /Arial-ItalicMT /DW 1000 /W [1 [700] 2 2 400] >>".to_string(),
             format!("<< /Length {} >>\nstream\n{cmap}\nendstream", cmap.len()),
         ];

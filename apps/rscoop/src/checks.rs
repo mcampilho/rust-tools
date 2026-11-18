@@ -4,8 +4,7 @@
 use crate::cache::{stamp_of, Cache};
 use crate::lnk;
 use crate::paths::{
-    clean, dirname, exists, extract_paths, is_dir, is_file, is_under, join, norm, normpath, read_text, relative_to,
-    scoop_root_of, PathRef,
+    clean, dirname, exists, extract_paths, is_dir, is_file, is_under, join, norm, normpath, read_text, relative_to, scoop_root_of, PathRef,
 };
 use crate::registry::{Registry, MACHINE_ENV, REG_EXPAND_SZ, USER_ENV};
 use crate::sys::{expand, link_kind, read_link, same_file, LinkKind};
@@ -14,7 +13,8 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, OnceLock};
 
-pub const CHECK_IDS: [&str; 10] = ["roots", "shims", "current", "persist", "install", "shortcuts", "regfiles", "registry", "env", "configs"];
+pub const CHECK_IDS: [&str; 10] =
+    ["roots", "shims", "current", "persist", "install", "shortcuts", "regfiles", "registry", "env", "configs"];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Sev {
@@ -191,9 +191,7 @@ pub fn find_roots(reg: &dyn Registry, environ: &HashMap<String, String>, home: &
             }
         }
     }
-    let first = |name: &str| {
-        vars.iter().find(|(n, _, v)| n == name && !v.is_empty()).map(|(_, s, v)| (v.clone(), format!("env_{s}")))
-    };
+    let first = |name: &str| vars.iter().find(|(n, _, v)| n == name && !v.is_empty()).map(|(_, s, v)| (v.clone(), format!("env_{s}")));
     let cfg = |k: &str| Some(config.get(k).str().to_string()).filter(|s| !s.is_empty());
     let (root, root_source) = match root_option {
         Some(r) => (r.to_string(), "option".to_string()),
@@ -201,10 +199,11 @@ pub fn find_roots(reg: &dyn Registry, environ: &HashMap<String, String>, home: &
             .or_else(|| cfg("root_path").map(|r| (r, "config".into())))
             .unwrap_or_else(|| (join(home, "scoop"), "default".into())),
     };
-    let (global_root, global_source) = first("SCOOP_GLOBAL").or_else(|| cfg("global_path").map(|r| (r, "config".into()))).unwrap_or_else(|| {
-        let pd = environ.get("ProgramData").or_else(|| environ.get("PROGRAMDATA")).cloned().unwrap_or_else(|| r"C:\ProgramData".into());
-        (join(&pd, "scoop"), "default".into())
-    });
+    let (global_root, global_source) =
+        first("SCOOP_GLOBAL").or_else(|| cfg("global_path").map(|r| (r, "config".into()))).unwrap_or_else(|| {
+            let pd = environ.get("ProgramData").or_else(|| environ.get("PROGRAMDATA")).cloned().unwrap_or_else(|| r"C:\ProgramData".into());
+            (join(&pd, "scoop"), "default".into())
+        });
     Roots { root: clean(&root), root_source, global_root: clean(&global_root), global_source, config_path, config, vars }
 }
 
@@ -826,8 +825,7 @@ pub fn check_install(ctx: &Context) -> CheckResult {
         match buckets.get(&bucket.to_lowercase()) {
             None => missing.entry(bucket.to_string()).or_default().push(app.name.clone()),
             Some(bdir) => {
-                let in_db =
-                    ctx.scoop_db.as_ref().is_some_and(|db| db.contains(&(bucket.to_lowercase(), app.name.to_lowercase())));
+                let in_db = ctx.scoop_db.as_ref().is_some_and(|db| db.contains(&(bucket.to_lowercase(), app.name.to_lowercase())));
                 if !in_db && !bucket_manifest(bdir, &app.name) {
                     res.add(Sev::Warning, &app.dir, "manifest_gone").with("bucket", bucket);
                 }

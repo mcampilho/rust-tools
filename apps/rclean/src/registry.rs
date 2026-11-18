@@ -26,9 +26,18 @@ const fn k(s: &'static str) -> &'static str {
 
 /// What is looked for (a target's `id` says which).
 pub fn targets() -> Vec<Target> {
-    let t = |id: &str, name: &'static str, about: &'static str, admin: bool| Target { kind: Kind::Registry, admin, ..Target::files(id, Group::Registry, name, about, Vec::new()) };
+    let t = |id: &str, name: &'static str, about: &'static str, admin: bool| Target {
+        kind: Kind::Registry,
+        admin,
+        ..Target::files(id, Group::Registry, name, about, Vec::new())
+    };
     vec![
-        t("reg.uninstall", k("Uninstall entries"), k("Your entries in Apps and features of programs whose uninstaller and folder are gone."), false),
+        t(
+            "reg.uninstall",
+            k("Uninstall entries"),
+            k("Your entries in Apps and features of programs whose uninstaller and folder are gone."),
+            false,
+        ),
         t("reg.uninstall-all", k("Uninstall entries of the system"), k("The same, among the programs installed for every user."), true),
         t("reg.run", k("Startup entries"), k("Programs started with Windows for you that are gone."), false),
         t("reg.run-all", k("Startup entries of the system"), k("Programs started with Windows for every user that are gone."), true),
@@ -140,7 +149,9 @@ mod win {
     /// The key as written, in the 64-bit view (`WOW6432Node` for the 32-bit one).
     fn key_path(r: Root, path: &str, view: View) -> String {
         let path = match (view, path.split_once('\\')) {
-            (View::Bits32, Some((first, rest))) if first.eq_ignore_ascii_case("Software") && r == Root::LocalMachine => format!("{first}\\WOW6432Node\\{rest}"),
+            (View::Bits32, Some((first, rest))) if first.eq_ignore_ascii_case("Software") && r == Root::LocalMachine => {
+                format!("{first}\\WOW6432Node\\{rest}")
+            }
             _ => path.to_string(),
         };
         format!("{}\\{path}", root_name(r))
@@ -218,7 +229,10 @@ mod win {
                 if let Some(k) = Key::open(Root::CurrentUser, path, View::Bits64) {
                     for (name, _) in k.values() {
                         if let Some(file) = mui_program(&name).filter(|f| gone(f, false)) {
-                            out.push((Entry { key: key_path(Root::CurrentUser, path, View::Bits64), value: Some(name.clone()) }, file.to_string()));
+                            out.push((
+                                Entry { key: key_path(Root::CurrentUser, path, View::Bits64), value: Some(name.clone()) },
+                                file.to_string(),
+                            ));
                         }
                     }
                 }
@@ -232,7 +246,12 @@ mod win {
                         let files: Vec<String> = shell
                             .subkeys()
                             .iter()
-                            .filter_map(|verb| shell.sub(&format!("{verb}\\command"), View::Bits64).and_then(|c| c.string("")).and_then(|c| command_file(&c)))
+                            .filter_map(|verb| {
+                                shell
+                                    .sub(&format!("{verb}\\command"), View::Bits64)
+                                    .and_then(|c| c.string(""))
+                                    .and_then(|c| command_file(&c))
+                            })
                             .collect();
                         if !files.is_empty() && files.iter().all(|f| gone(f, false)) {
                             out.push(key_entry(Root::CurrentUser, format!("{path}\\{app}"), View::Bits64, format!("{app} → {}", files[0])));
@@ -269,9 +288,13 @@ mod win {
                     let Some(k) = Key::open(r, path, View::Bits64) else { continue };
                     for (name, v) in k.values() {
                         let Some(file) = text(&v).filter(|f| !f.trim().is_empty()) else { continue };
-                        let full = if Path::new(&file).is_absolute() { file.clone() } else { fonts.join(&file).to_string_lossy().into_owned() };
+                        let full =
+                            if Path::new(&file).is_absolute() { file.clone() } else { fonts.join(&file).to_string_lossy().into_owned() };
                         if gone(&full, false) {
-                            out.push((Entry { key: key_path(r, path, View::Bits64), value: Some(name.clone()) }, format!("{name} → {full}")));
+                            out.push((
+                                Entry { key: key_path(r, path, View::Bits64), value: Some(name.clone()) },
+                                format!("{name} → {full}"),
+                            ));
                         }
                     }
                 }

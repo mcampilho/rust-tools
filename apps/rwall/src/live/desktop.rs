@@ -12,9 +12,13 @@ use super::Px;
 use windows::core::{w, BOOL, PCWSTR};
 use windows::Win32::Foundation::{HANDLE, HWND, LPARAM, POINT, RECT, WPARAM};
 use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED};
-use windows::Win32::Graphics::Gdi::{ClientToScreen, EnumDisplayMonitors, GetMonitorInfoW, MonitorFromWindow, HDC, HMONITOR, MONITORINFO, MONITOR_DEFAULTTONULL};
+use windows::Win32::Graphics::Gdi::{
+    ClientToScreen, EnumDisplayMonitors, GetMonitorInfoW, MonitorFromWindow, HDC, HMONITOR, MONITORINFO, MONITOR_DEFAULTTONULL,
+};
 use windows::Win32::System::Power::{GetSystemPowerStatus, SYSTEM_POWER_STATUS};
-use windows::Win32::System::StationsAndDesktops::{CloseDesktop, GetUserObjectInformationW, OpenInputDesktop, DESKTOP_CONTROL_FLAGS, DESKTOP_READOBJECTS, UOI_NAME};
+use windows::Win32::System::StationsAndDesktops::{
+    CloseDesktop, GetUserObjectInformationW, OpenInputDesktop, DESKTOP_CONTROL_FLAGS, DESKTOP_READOBJECTS, UOI_NAME,
+};
 use windows::Win32::UI::Shell::{SHQueryUserNotificationState, QUNS_BUSY, QUNS_PRESENTATION_MODE, QUNS_RUNNING_D3D_FULL_SCREEN};
 use windows::Win32::UI::WindowsAndMessaging::*;
 
@@ -114,8 +118,11 @@ pub fn layout() -> Layout {
     unsafe {
         let _ = EnumDisplayMonitors(None, None, Some(add_monitor), LPARAM(&mut rects as *mut Vec<RECT> as isize));
     }
-    let mut screens: Vec<Px> =
-        rects.iter().map(|r| Px { x: r.left - all.x, y: r.top - all.y, w: r.right - r.left, h: r.bottom - r.top }).filter(|p| p.w > 0 && p.h > 0).collect();
+    let mut screens: Vec<Px> = rects
+        .iter()
+        .map(|r| Px { x: r.left - all.x, y: r.top - all.y, w: r.right - r.left, h: r.bottom - r.top })
+        .filter(|p| p.w > 0 && p.h > 0)
+        .collect();
     if screens.is_empty() {
         screens.push(Px { x: 0, y: 0, w: all.w, h: all.h });
     }
@@ -163,7 +170,14 @@ pub fn repaint_wallpaper() {
     // SAFETY: the buffer is as long as said; setting the same picture again
     // only repaints it.
     unsafe {
-        if SystemParametersInfoW(SPI_GETDESKWALLPAPER, buf.len() as u32, Some(buf.as_mut_ptr().cast()), SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0)).is_ok() {
+        if SystemParametersInfoW(
+            SPI_GETDESKWALLPAPER,
+            buf.len() as u32,
+            Some(buf.as_mut_ptr().cast()),
+            SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0),
+        )
+        .is_ok()
+        {
             let _ = SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, Some(buf.as_mut_ptr().cast()), SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0));
         }
     }
@@ -180,7 +194,15 @@ fn class_of(h: HWND) -> String {
 fn is_shell(h: HWND) -> bool {
     matches!(
         class_of(h).as_str(),
-        "Progman" | "WorkerW" | "Shell_TrayWnd" | "Shell_SecondaryTrayWnd" | "Windows.UI.Core.CoreWindow" | "rwall-live" | "rwall-live-control" | "rwall-widget" | "rwall-widget-control"
+        "Progman"
+            | "WorkerW"
+            | "Shell_TrayWnd"
+            | "Shell_SecondaryTrayWnd"
+            | "Windows.UI.Core.CoreWindow"
+            | "rwall-live"
+            | "rwall-live-control"
+            | "rwall-widget"
+            | "rwall-widget-control"
     )
 }
 
@@ -278,7 +300,8 @@ pub fn locked() -> bool {
         let Ok(d) = OpenInputDesktop(DESKTOP_CONTROL_FLAGS(0), false, DESKTOP_READOBJECTS) else { return true };
         let mut buf = [0u16; 64];
         let mut need = 0u32;
-        let ok = GetUserObjectInformationW(HANDLE(d.0), UOI_NAME, Some(buf.as_mut_ptr().cast()), (buf.len() * 2) as u32, Some(&mut need)).is_ok();
+        let ok = GetUserObjectInformationW(HANDLE(d.0), UOI_NAME, Some(buf.as_mut_ptr().cast()), (buf.len() * 2) as u32, Some(&mut need))
+            .is_ok();
         let _ = CloseDesktop(d);
         let name = String::from_utf16_lossy(&buf[..buf.iter().position(|c| *c == 0).unwrap_or(buf.len())]);
         ok && !name.eq_ignore_ascii_case("Default")

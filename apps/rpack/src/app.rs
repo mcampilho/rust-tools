@@ -174,7 +174,15 @@ impl AddForm {
     pub fn move_caret(&mut self, delta: isize, to_end: bool) {
         let n = self.name.chars().count() as isize;
         self.all = false;
-        self.caret = if to_end { if delta < 0 { 0 } else { n as usize } } else { (self.caret as isize + delta).clamp(0, n) as usize };
+        self.caret = if to_end {
+            if delta < 0 {
+                0
+            } else {
+                n as usize
+            }
+        } else {
+            (self.caret as isize + delta).clamp(0, n) as usize
+        };
     }
 
     fn byte_at(&self, chars: usize) -> usize {
@@ -359,14 +367,7 @@ impl App {
         self.disk_error = None;
         self.disk = volumes
             .into_iter()
-            .map(|v| DiskItem {
-                name: drive_name(&v),
-                path: v.path.clone(),
-                dir: true,
-                size: v.total,
-                mtime: 0,
-                volume: Some(v),
-            })
+            .map(|v| DiskItem { name: drive_name(&v), path: v.path.clone(), dir: true, size: v.total, mtime: 0, volume: Some(v) })
             .collect();
         self.after_move(select);
     }
@@ -865,7 +866,9 @@ mod tests {
         assert_eq!(s("data.bin"), "data");
         assert_eq!(s("noext"), "noext (files)");
         assert_eq!(s(".zip"), ".zip (files)");
-        assert!(looks_like_archive("a.TAR.GZ") && looks_like_archive("b.tzst") && !looks_like_archive("c.txt") && !looks_like_archive("zip"));
+        assert!(
+            looks_like_archive("a.TAR.GZ") && looks_like_archive("b.tzst") && !looks_like_archive("c.txt") && !looks_like_archive("zip")
+        );
     }
 
     #[test]

@@ -214,7 +214,8 @@ impl Host2<'_> {
             let (tx, waker) = (self.done_tx.clone(), self.waker);
             std::thread::spawn(move || {
                 for chunk in wanted.chunks(16) {
-                    let got: Vec<(PathBuf, Option<tiny_skia::Pixmap>)> = chunk.iter().map(|p| (p.clone(), crate::live::thumb::shell_image(p, px))).collect();
+                    let got: Vec<(PathBuf, Option<tiny_skia::Pixmap>)> =
+                        chunk.iter().map(|p| (p.clone(), crate::live::thumb::shell_image(p, px))).collect();
                     let _ = tx.send(Done::Icons(got));
                     waker.wake();
                 }

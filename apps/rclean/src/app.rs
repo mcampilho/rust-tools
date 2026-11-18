@@ -133,7 +133,11 @@ impl App {
 
     /// The ticks to remember: those that differ from the default.
     pub fn ticks(&self) -> Vec<(String, bool)> {
-        self.items.iter().filter(|it| it.usable() && it.ticked != it.target.default_on).map(|it| (it.target.id.clone(), it.ticked)).collect()
+        self.items
+            .iter()
+            .filter(|it| it.usable() && it.ticked != it.target.default_on)
+            .map(|it| (it.target.id.clone(), it.ticked))
+            .collect()
     }
 
     // ------------------------------------------------------------ ticking
@@ -294,7 +298,11 @@ pub mod tests {
             target("firefox.cache", Group::Browser("Firefox"), false, true),
         ];
         let mut app = App::new(ts, false, &[]);
-        let found = |n: usize, b: u64| Found { files: (0..n).map(|i| (std::path::PathBuf::from(format!("f{i}")), b / n as u64)).collect(), bytes: b, ..Found::default() };
+        let found = |n: usize, b: u64| Found {
+            files: (0..n).map(|i| (std::path::PathBuf::from(format!("f{i}")), b / n as u64)).collect(),
+            bytes: b,
+            ..Found::default()
+        };
         app.set_found(0, found(1234, 812_000_000));
         app.set_found(2, found(40, 96_000_000));
         app.set_found(3, Found { bytes: 2_400_000_000, items: 310, ..Found::default() });

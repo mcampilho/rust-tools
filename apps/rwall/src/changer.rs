@@ -118,7 +118,14 @@ mod tests {
         let mut st = Settings { sources: vec![Source::Bing, Source::Folders], ..Settings::default() };
         assert!(job(&Settings { sources: Vec::new(), ..Settings::default() }, PathBuf::new(), (1, 1), (1, 1)).is_none());
         assert_eq!(job(&st, PathBuf::new(), (1, 1), (1, 1)).unwrap().order, vec![Source::Bing, Source::Folders]);
-        let pick = Pick { source: Source::Bing, id: "bing:1".into(), title: "T".into(), credit: String::new(), link: String::new(), file: "a.jpg".into() };
+        let pick = Pick {
+            source: Source::Bing,
+            id: "bing:1".into(),
+            title: "T".into(),
+            credit: String::new(),
+            link: String::new(),
+            file: "a.jpg".into(),
+        };
         let now = rt_sys::LocalTime { year: 2026, month: 11, day: 11, hour: 9, minute: 5, second: 0 };
         record(&mut st, pick, "a.jpg".into(), &now);
         assert_eq!(st.next_source, 1);

@@ -347,11 +347,23 @@ pub type Contents<'a> = Result<&'a mut dyn Read, Error>;
 /// archive's order, and hands each to `f` with its index in the listing.
 /// An error from `f` stops the reading and is returned (the user stopped, the
 /// disk is full); `f` keeps the errors of single entries itself.
-pub fn each(path: &Path, listing: &Listing, wanted: &dyn Fn(usize) -> bool, meter: &Meter, f: &mut dyn FnMut(usize, Contents) -> Result<(), Error>) -> Result<(), Error> {
+pub fn each(
+    path: &Path,
+    listing: &Listing,
+    wanted: &dyn Fn(usize) -> bool,
+    meter: &Meter,
+    f: &mut dyn FnMut(usize, Contents) -> Result<(), Error>,
+) -> Result<(), Error> {
     each_inner(path, listing, wanted, meter, f).map_err(|e| if meter.stopped() { Error::Stopped } else { e })
 }
 
-fn each_inner(path: &Path, listing: &Listing, wanted: &dyn Fn(usize) -> bool, meter: &Meter, f: &mut dyn FnMut(usize, Contents) -> Result<(), Error>) -> Result<(), Error> {
+fn each_inner(
+    path: &Path,
+    listing: &Listing,
+    wanted: &dyn Fn(usize) -> bool,
+    meter: &Meter,
+    f: &mut dyn FnMut(usize, Contents) -> Result<(), Error>,
+) -> Result<(), Error> {
     let wanted_file = |i: usize| listing.entries.get(i).is_some_and(|e| e.kind == Kind::File) && wanted(i);
     match listing.format.container {
         Container::Zip => zip::each(path, listing, &wanted_file, meter, f),

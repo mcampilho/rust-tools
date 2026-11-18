@@ -5,8 +5,8 @@
 //! permissions). If that is not possible, it falls back to writing in place.
 //! A file is never modified except by an explicit save.
 
+use super::encoding::{decode, system_legacy, Decoded, Enc, EncodeError, Eol, Writer};
 use crate::i18n::{tf, tr};
-use super::encoding::{decode, system_legacy, Decoded, EncodeError, Enc, Eol, Writer};
 use ropey::Rope;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -96,7 +96,11 @@ pub enum SaveError {
 impl std::fmt::Display for SaveError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SaveError::Encode(e) => write!(f, "{}", tf("The text cannot be saved in this encoding: {}. Choose another encoding (for example UTF-8).", &[&e.to_string()])),
+            SaveError::Encode(e) => write!(
+                f,
+                "{}",
+                tf("The text cannot be saved in this encoding: {}. Choose another encoding (for example UTF-8).", &[&e.to_string()])
+            ),
             SaveError::ReadOnly => write!(f, "{}", tr("The file is read-only.")),
             SaveError::PermissionDenied => write!(f, "{}", tr("Access was denied. You may need to save it in another folder.")),
             SaveError::Io(e) => write!(f, "{e}"),

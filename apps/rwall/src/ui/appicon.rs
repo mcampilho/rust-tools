@@ -5,7 +5,9 @@
 //!
 //! Must stay self-contained (only `tiny_skia`) because `build.rs` includes it.
 
-use tiny_skia::{FillRule, GradientStop, LinearGradient, LineCap, Paint, PathBuilder, Pixmap, Point, Shader, SpreadMode, Stroke, Transform};
+use tiny_skia::{
+    FillRule, GradientStop, LineCap, LinearGradient, Paint, PathBuilder, Pixmap, Point, Shader, SpreadMode, Stroke, Transform,
+};
 
 fn rounded(x0: f32, y0: f32, x1: f32, y1: f32, r: f32) -> Option<tiny_skia::Path> {
     let r = r.min((x1 - x0) / 2.0).min((y1 - y0) / 2.0).max(0.0);

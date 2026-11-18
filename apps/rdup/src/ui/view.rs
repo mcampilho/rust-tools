@@ -12,10 +12,10 @@
 use super::gfx::{Align, Color, FontId, Gfx, Rect};
 use super::theme::Theme;
 use crate::app::{App, Calendar, Row, View};
-use crate::folders::SHARES;
-use crate::i18n::Lang;
 use crate::filter::{Bad, Field, Why, KINDS};
+use crate::folders::SHARES;
 use crate::format;
+use crate::i18n::Lang;
 use crate::i18n::{tf, tr};
 use crate::search::{Found, Stage};
 use crate::settings::MIN_SIZES;
@@ -176,7 +176,8 @@ impl CalLayout {
 /// Keys of the days of the week, from Sunday.
 const WEEKDAYS: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 /// Keys of the months.
-const MONTHS: [&str; 12] = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const MONTHS: [&str; 12] =
+    ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 /// Whether weeks start on Sunday in the interface language (else on Monday).
 fn week_from_sunday() -> bool {
@@ -246,7 +247,11 @@ fn draw_calendar(g: &mut Gfx, app: &App, c: &CalLayout, th: &Theme, s: f32, hot:
             g.fill_rrect(b, 4.0 * s, th.hover);
         }
         let (cx, cy, a) = (b.x + b.w / 2.0, b.center_y(), 4.0 * s);
-        let pts = if back { [(cx + a / 2.0, cy - a), (cx - a / 2.0, cy), (cx + a / 2.0, cy + a)] } else { [(cx - a / 2.0, cy - a), (cx + a / 2.0, cy), (cx - a / 2.0, cy + a)] };
+        let pts = if back {
+            [(cx + a / 2.0, cy - a), (cx - a / 2.0, cy), (cx + a / 2.0, cy + a)]
+        } else {
+            [(cx - a / 2.0, cy - a), (cx + a / 2.0, cy), (cx - a / 2.0, cy + a)]
+        };
         g.polyline(&pts, 1.6 * s, th.text, false);
     }
     for (r, wd) in &c.heads {
@@ -656,7 +661,14 @@ fn draw_start(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, hot: Hot) 
                     g.fill_rrect(Rect::new(bar.x, bar.y, (bar.w * frac).max(bar.h), bar.h), bar.h / 2.0, th.bar);
                 }
                 let text = tf("{} used of {}", &[&format::size(v.used()), &format::size(v.total)]);
-                g.text_in(&text, Rect::new(bar.x, r.bottom() - 24.0 * s, bar.w, 16.0 * s), px(s) * 0.95, FontId::Regular, th.dim, Align::Right);
+                g.text_in(
+                    &text,
+                    Rect::new(bar.x, r.bottom() - 24.0 * s, bar.w, 16.0 * s),
+                    px(s) * 0.95,
+                    FontId::Regular,
+                    th.dim,
+                    Align::Right,
+                );
             }
             if vols.is_empty() {
                 g.text(&tr("No drives were found."), x, title_y + 64.0 * s, px(s), FontId::Regular, th.dim);
@@ -862,7 +874,9 @@ fn draw_filters(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, hot: Hot
         let text = ellipsize(g, &text, r.right() - tx - 4.0 * s, p, FontId::Regular);
         g.text_in(&text, Rect::new(tx, r.y, r.right() - tx, r.h), p, FontId::Regular, th.text, Align::Left);
     }
-    let help = tr("Separate with spaces or commas; * stands for any text and ? for one character. Names are of files or of the folders they are in.");
+    let help = tr(
+        "Separate with spaces or commas; * stands for any text and ? for one character. Names are of files or of the folders they are in.",
+    );
     let help = ellipsize(g, &help, l.help.w, p * 0.95, FontId::Regular);
     g.text_in(&help, l.help, p * 0.95, FontId::Regular, th.dim, Align::Left);
 }
@@ -1001,11 +1015,17 @@ pub fn folder_group_text(app: &App, gi: usize) -> String {
         tf("{} identical folders of {} · {} can be freed", &[&n, &format::size(grp.same_bytes), &format::size(grp.wasted())])
     } else {
         let files: u64 = grp.folders.iter().map(|&i| f.folders[i].files).max().unwrap_or(0);
-        let same = f.pairs.iter().find(|p| [p.a, p.b] == [grp.folders[0], grp.folders[1]] || [p.b, p.a] == [grp.folders[0], grp.folders[1]]);
+        let same =
+            f.pairs.iter().find(|p| [p.a, p.b] == [grp.folders[0], grp.folders[1]] || [p.b, p.a] == [grp.folders[0], grp.folders[1]]);
         let same_files = same.map_or(0, |p| p.same_files);
         tf(
             "{} the same · {} in common · {} of {} files",
-            &[&format::whole_percent(grp.permille as u64 / 10), &format::size(grp.same_bytes), &format::count(same_files), &format::count(files)],
+            &[
+                &format::whole_percent(grp.permille as u64 / 10),
+                &format::size(grp.same_bytes),
+                &format::count(same_files),
+                &format::count(files),
+            ],
         )
     }
 }
@@ -1062,7 +1082,8 @@ fn draw_result(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, hot: Hot)
     draw_tools(g, app, l, th, s, hot);
     if app.rows.is_empty() {
         let area = Rect::new(l.body.x, l.tools.bottom(), l.body.w, l.body.bottom() - l.tools.bottom());
-        let title = if found.pairs.is_empty() { tr("No folders hold copies of each other.") } else { tr("No folders have this much in common.") };
+        let title =
+            if found.pairs.is_empty() { tr("No folders hold copies of each other.") } else { tr("No folders have this much in common.") };
         message(g, area, &title, &tr("Folders are compared by the contents of all the files below them, whatever their names."));
         return;
     }
@@ -1292,10 +1313,7 @@ pub fn status_text(app: &App, hover: Option<usize>) -> (String, String) {
         ]
     } else {
         let freed: u64 = app.folder_groups.iter().map(|g| g.wasted()).sum();
-        vec![
-            tf("{} groups of folders", &[&format::count(app.folder_groups.len() as u64)]),
-            tf("{} can be freed", &[&format::size(freed)]),
-        ]
+        vec![tf("{} groups of folders", &[&format::count(app.folder_groups.len() as u64)]), tf("{} can be freed", &[&format::size(freed)])]
     };
     let at = parts.len();
     parts.push(tf("{} files compared", &[&format::count(f.files)]));
@@ -1435,7 +1453,21 @@ mod screenshots {
         }
         app.searching = Some(Searching {
             roots: vec!["D:\\".into(), "T:\\".into()],
-            progress: Progress { stage: Stage::Reading, root: 1, roots: 2, files: 812_345, read: rt_scan::Progress { files: 412_000, dirs: 38_765, bytes: 312 * gb, errors: 0, current: "T:\\Backup\\2023\\Photos".into() }, current: "T:\\Backup\\2023\\Photos".into(), ..Progress::default() },
+            progress: Progress {
+                stage: Stage::Reading,
+                root: 1,
+                roots: 2,
+                files: 812_345,
+                read: rt_scan::Progress {
+                    files: 412_000,
+                    dirs: 38_765,
+                    bytes: 312 * gb,
+                    errors: 0,
+                    current: "T:\\Backup\\2023\\Photos".into(),
+                },
+                current: "T:\\Backup\\2023\\Photos".into(),
+                ..Progress::default()
+            },
             started: std::time::Instant::now(),
             generation: 1,
         });

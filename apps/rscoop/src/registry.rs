@@ -138,9 +138,9 @@ pub use win::WinRegistry;
 #[cfg(windows)]
 mod win {
     use super::*;
+    use super::{REG_EXPAND_SZ, REG_MULTI_SZ, REG_SZ};
     use crate::sys::wide;
     use windows_sys::Win32::Foundation::ERROR_SUCCESS;
-    use super::{REG_EXPAND_SZ, REG_MULTI_SZ, REG_SZ};
     use windows_sys::Win32::System::Registry::{
         RegCloseKey, RegEnumKeyExW, RegEnumValueW, RegOpenKeyExW, RegQueryInfoKeyW, RegSetValueExW, HKEY, HKEY_CURRENT_USER,
         HKEY_LOCAL_MACHINE, KEY_QUERY_VALUE, KEY_READ, KEY_SET_VALUE,
@@ -236,9 +236,7 @@ mod win {
             let mut dlen = data.len() as u32;
             let mut t = 0u32;
             // SAFETY: buffers are as long as stated.
-            let r = unsafe {
-                RegEnumValueW(k.0, i, name.as_mut_ptr(), &mut nlen, std::ptr::null(), &mut t, data.as_mut_ptr(), &mut dlen)
-            };
+            let r = unsafe { RegEnumValueW(k.0, i, name.as_mut_ptr(), &mut nlen, std::ptr::null(), &mut t, data.as_mut_ptr(), &mut dlen) };
             if r == 234 {
                 // ERROR_MORE_DATA: a value grew meanwhile.
                 data.resize(data.len() * 2 + 1024, 0);
@@ -320,10 +318,8 @@ mod win {
         ) -> Result<(RegData, RegData, u32), String> {
             let access = KEY_QUERY_VALUE | if write { KEY_SET_VALUE } else { 0 };
             let k = open(hive, path, access)?;
-            let (_, old, t) = all_values(&k)
-                .into_iter()
-                .find(|(n, _, _)| n.eq_ignore_ascii_case(name))
-                .ok_or_else(|| "value not found".to_string())?;
+            let (_, old, t) =
+                all_values(&k).into_iter().find(|(n, _, _)| n.eq_ignore_ascii_case(name)).ok_or_else(|| "value not found".to_string())?;
             let new = old.map(f);
             if write && new != old {
                 let bytes = encode(&new);

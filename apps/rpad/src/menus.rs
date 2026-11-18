@@ -211,7 +211,8 @@ impl Shell {
         self.menu_dark = Some(dark);
         #[cfg(windows)]
         {
-            let colors = dark.then_some(win::darkmode::MenuColors { bar: 0x202020, text: 0xE4E4E4, text_disabled: 0x7A7A7A, hot: 0x3D3D3D });
+            let colors =
+                dark.then_some(win::darkmode::MenuColors { bar: 0x202020, text: 0xE4E4E4, text_disabled: 0x7A7A7A, hot: 0x3D3D3D });
             win::darkmode::apply(self.host.hwnd, colors);
         }
     }

@@ -71,7 +71,10 @@ pub fn which(name: &str) -> Option<PathBuf> {
 pub fn real_file(file: &Path) -> PathBuf {
     std::fs::read_to_string(file.with_extension("shim"))
         .ok()
-        .and_then(|t| t.lines().find_map(|l| l.trim().strip_prefix("path").map(|r| r.trim_start_matches([' ', '=']).trim().trim_matches('"').to_string())))
+        .and_then(|t| {
+            t.lines()
+                .find_map(|l| l.trim().strip_prefix("path").map(|r| r.trim_start_matches([' ', '=']).trim().trim_matches('"').to_string()))
+        })
         .map_or_else(|| file.to_path_buf(), PathBuf::from)
 }
 
@@ -99,8 +102,21 @@ const fn k(s: &'static str) -> &'static str {
     s
 }
 
-fn manager(id: &str, group: &'static str, name: &'static str, about: &'static str, places: Vec<Place>, commands: Vec<Cmd>, default_on: bool) -> Target {
-    Target { kind: if commands.is_empty() { Kind::Files } else { Kind::Command }, default_on, commands, ..Target::files(id, Group::Tool(group), name, about, places) }
+fn manager(
+    id: &str,
+    group: &'static str,
+    name: &'static str,
+    about: &'static str,
+    places: Vec<Place>,
+    commands: Vec<Cmd>,
+    default_on: bool,
+) -> Target {
+    Target {
+        kind: if commands.is_empty() { Kind::Files } else { Kind::Command },
+        default_on,
+        commands,
+        ..Target::files(id, Group::Tool(group), name, about, places)
+    }
 }
 
 fn all_of(dirs: &[PathBuf]) -> Vec<Place> {
@@ -164,18 +180,68 @@ pub fn targets(e: &Env) -> Vec<Target> {
         ));
     }
     if let Some(choco) = which("choco") {
-        out.push(Target { admin: true, ..manager("choco.cache", "Chocolatey", k("Cache"), about_dl, all_of(&[e.temp.join("chocolatey")]), vec![Cmd::new(choco, &["cache", "remove", "-y"])], true) });
+        out.push(Target {
+            admin: true,
+            ..manager(
+                "choco.cache",
+                "Chocolatey",
+                k("Cache"),
+                about_dl,
+                all_of(&[e.temp.join("chocolatey")]),
+                vec![Cmd::new(choco, &["cache", "remove", "-y"])],
+                true,
+            )
+        });
     }
     if let Some(py) = python() {
-        let dir = std::env::var_os("PIP_CACHE_DIR").map(PathBuf::from).unwrap_or_else(|| if cfg!(windows) { at(&e.local, "pip/cache") } else { e.cache.join("pip") });
-        out.push(manager("pip.cache", "pip", k("Cache"), k("Packages pip downloaded and built. It downloads them again when they are needed."), all_of(&[dir]), vec![Cmd::new(py, &["-m", "pip", "cache", "purge"])], true));
+        let dir = std::env::var_os("PIP_CACHE_DIR").map(PathBuf::from).unwrap_or_else(|| {
+            if cfg!(windows) {
+                at(&e.local, "pip/cache")
+            } else {
+                e.cache.join("pip")
+            }
+        });
+        out.push(manager(
+            "pip.cache",
+            "pip",
+            k("Cache"),
+            k("Packages pip downloaded and built. It downloads them again when they are needed."),
+            all_of(&[dir]),
+            vec![Cmd::new(py, &["-m", "pip", "cache", "purge"])],
+            true,
+        ));
     }
-    let asked = |id: &str, group: &'static str, name: &'static str, about: &'static str, clean: Option<Cmd>, ask: Option<Cmd>, sub: &'static str, on: bool| {
+    let asked = |id: &str,
+                 group: &'static str,
+                 name: &'static str,
+                 about: &'static str,
+                 clean: Option<Cmd>,
+                 ask: Option<Cmd>,
+                 sub: &'static str,
+                 on: bool| {
         let (clean, ask) = (clean?, ask?);
         Some(Target { locate: Some(Locate::Ask(ask, sub)), ..manager(id, group, name, about, Vec::new(), vec![clean], on) })
     };
-    out.extend(asked("npm.cache", "npm", k("Cache"), about_dl, tool("npm", &["cache", "clean", "--force"]), tool("npm", &["config", "get", "cache"]), "_cacache", true));
-    out.extend(asked("yarn.cache", "Yarn", k("Cache"), about_dl, tool("yarn", &["cache", "clean"]), tool("yarn", &["cache", "dir"]), "", true));
+    out.extend(asked(
+        "npm.cache",
+        "npm",
+        k("Cache"),
+        about_dl,
+        tool("npm", &["cache", "clean", "--force"]),
+        tool("npm", &["config", "get", "cache"]),
+        "_cacache",
+        true,
+    ));
+    out.extend(asked(
+        "yarn.cache",
+        "Yarn",
+        k("Cache"),
+        about_dl,
+        tool("yarn", &["cache", "clean"]),
+        tool("yarn", &["cache", "dir"]),
+        "",
+        true,
+    ));
     out.extend(asked(
         "pnpm.store",
         "pnpm",
@@ -186,7 +252,16 @@ pub fn targets(e: &Env) -> Vec<Target> {
         "",
         false,
     ));
-    out.extend(asked("go.cache", "Go", k("Build cache"), k("What go build compiled. It is compiled again when needed."), tool("go", &["clean", "-cache"]), tool("go", &["env", "GOCACHE"]), "", true));
+    out.extend(asked(
+        "go.cache",
+        "Go",
+        k("Build cache"),
+        k("What go build compiled. It is compiled again when needed."),
+        tool("go", &["clean", "-cache"]),
+        tool("go", &["env", "GOCACHE"]),
+        "",
+        true,
+    ));
     if let Some(dotnet) = which("dotnet") {
         let dir = if cfg!(windows) { at(&e.local, "NuGet/v3-cache") } else { at(&e.home, ".local/share/NuGet/v3-cache") };
         out.push(manager(
@@ -211,7 +286,9 @@ pub fn targets(e: &Env) -> Vec<Target> {
             true,
         ));
     }
-    let vcpkg = std::env::var_os("VCPKG_ROOT").map(PathBuf::from).or_else(|| which("vcpkg").map(|f| real_file(&f)).and_then(|f| f.parent().map(Path::to_path_buf)));
+    let vcpkg = std::env::var_os("VCPKG_ROOT")
+        .map(PathBuf::from)
+        .or_else(|| which("vcpkg").map(|f| real_file(&f)).and_then(|f| f.parent().map(Path::to_path_buf)));
     if let Some(root) = vcpkg.filter(|r| r.join(".vcpkg-root").exists()) {
         out.push(manager(
             "vcpkg.build",
@@ -235,16 +312,31 @@ fn linux_system() -> Vec<Target> {
     let about = k("Packages it downloaded to install or update. What is installed stays.");
     let sys = |id: &str, group: &'static str, dir: &str, cmd: Option<Cmd>| {
         let cmd = cmd?;
-        Path::new(dir).is_dir().then(|| manager(id, group, k("Package cache"), about, all_of(&[PathBuf::from(dir)]), vec![cmd.root()], true))
+        Path::new(dir)
+            .is_dir()
+            .then(|| manager(id, group, k("Package cache"), about, all_of(&[PathBuf::from(dir)]), vec![cmd.root()], true))
     };
     out.extend(sys("apt.cache", "apt", "/var/cache/apt/archives", which("apt-get").map(|f| Cmd::new(f, &["clean"]))));
     out.extend(sys("dnf.cache", "dnf", "/var/cache/dnf", which("dnf").map(|f| Cmd::new(f, &["clean", "all"]))));
-    out.extend(sys("zypper.cache", "zypper", "/var/cache/zypp/packages", which("zypper").map(|f| Cmd::new(f, &["--non-interactive", "clean", "--all"]))));
+    out.extend(sys(
+        "zypper.cache",
+        "zypper",
+        "/var/cache/zypp/packages",
+        which("zypper").map(|f| Cmd::new(f, &["--non-interactive", "clean", "--all"])),
+    ));
     out.extend(sys("pacman.cache", "pacman", "/var/cache/pacman/pkg", which("pacman").map(|f| Cmd::new(f, &["-Scc", "--noconfirm"]))));
     if let Some(f) = which("flatpak") {
         out.push(Target {
             measure: false,
-            ..manager("flatpak.unused", "Flatpak", k("Unused runtimes"), k("Runtimes and extensions no installed app needs any more."), Vec::new(), vec![Cmd::new(f, &["uninstall", "--unused", "-y"])], false)
+            ..manager(
+                "flatpak.unused",
+                "Flatpak",
+                k("Unused runtimes"),
+                k("Runtimes and extensions no installed app needs any more."),
+                Vec::new(),
+                vec![Cmd::new(f, &["uninstall", "--unused", "-y"])],
+                false,
+            )
         });
     }
     if which("snap").is_some() {
@@ -252,7 +344,15 @@ fn linux_system() -> Vec<Target> {
         out.push(Target {
             locate: Some(Locate::SnapRevisions),
             kind: Kind::Command,
-            ..manager("snap.old", "Snap", k("Old revisions"), k("Older revisions Snap keeps after each update, to go back to."), Vec::new(), Vec::new(), false)
+            ..manager(
+                "snap.old",
+                "Snap",
+                k("Old revisions"),
+                k("Older revisions Snap keeps after each update, to go back to."),
+                Vec::new(),
+                Vec::new(),
+                false,
+            )
         });
     }
     out
@@ -294,7 +394,8 @@ fn command(c: &Cmd) -> std::process::Command {
 
 /// Whether rclean runs as root (Linux).
 pub fn is_root() -> bool {
-    std::fs::read_to_string("/proc/self/status").is_ok_and(|s| s.lines().any(|l| l.starts_with("Uid:") && l.split_whitespace().nth(2) == Some("0")))
+    std::fs::read_to_string("/proc/self/status")
+        .is_ok_and(|s| s.lines().any(|l| l.starts_with("Uid:") && l.split_whitespace().nth(2) == Some("0")))
 }
 
 /// Runs a cleaning command; Err with its last lines when it did not work.
@@ -302,7 +403,9 @@ pub fn is_root() -> bool {
 pub fn run(c: &Cmd) -> Result<(), String> {
     let elevated;
     let c = if c.root && !cfg!(windows) && !is_root() {
-        let Some(pkexec) = which("pkexec") else { return Err(crate::i18n::tr("It needs root, and pkexec was not found: start rclean as root.")) };
+        let Some(pkexec) = which("pkexec") else {
+            return Err(crate::i18n::tr("It needs root, and pkexec was not found: start rclean as root."));
+        };
         let mut args: Vec<String> = vec!["env".into()];
         args.extend(c.env.iter().map(|(k, v)| format!("{k}={v}")));
         args.push(c.file.to_string_lossy().into_owned());
@@ -352,7 +455,12 @@ mod tests {
             #[cfg(windows)]
             {
                 // A junction, as Scoop makes (a symbolic link needs rights).
-                std::process::Command::new("cmd").args(["/c", "mklink", "/J"]).arg(app.join("current")).arg(app.join("14.1")).output().is_ok_and(|o| o.status.success())
+                std::process::Command::new("cmd")
+                    .args(["/c", "mklink", "/J"])
+                    .arg(app.join("current"))
+                    .arg(app.join("14.1"))
+                    .output()
+                    .is_ok_and(|o| o.status.success())
             }
             #[cfg(unix)]
             {

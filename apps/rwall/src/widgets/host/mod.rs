@@ -27,14 +27,18 @@ use std::rc::Rc;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use windows::core::{implement, w, Ref, BOOL, HRESULT, HSTRING, PCWSTR};
-use windows::Win32::Foundation::{COLORREF, DRAGDROP_S_CANCEL, DRAGDROP_S_DROP, DRAGDROP_S_USEDEFAULTCURSORS, HWND, LPARAM, LRESULT, POINT, POINTL, RECT, SIZE, WPARAM};
+use windows::Win32::Foundation::{
+    COLORREF, DRAGDROP_S_CANCEL, DRAGDROP_S_DROP, DRAGDROP_S_USEDEFAULTCURSORS, HWND, LPARAM, LRESULT, POINT, POINTL, RECT, SIZE, WPARAM,
+};
 use windows::Win32::Graphics::Gdi::*;
 use windows::Win32::System::Com::{IBindCtx, IDataObject, DVASPECT_CONTENT, FORMATETC, TYMED_HGLOBAL};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::Ole::*;
 use windows::Win32::System::SystemServices::{MK_CONTROL, MK_LBUTTON, MK_SHIFT, MODIFIERKEYS_FLAGS};
 use windows::Win32::System::Threading::GetCurrentThreadId;
-use windows::Win32::UI::HiDpi::{GetDpiForSystem, GetDpiForWindow, SetThreadDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2};
+use windows::Win32::UI::HiDpi::{
+    GetDpiForSystem, GetDpiForWindow, SetThreadDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
+};
 use windows::Win32::UI::Input::KeyboardAndMouse::*;
 use windows::Win32::UI::Shell::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
@@ -270,7 +274,9 @@ fn register_classes() {
     // SAFETY: the classes point to static names and procedures.
     unsafe {
         let inst = GetModuleHandleW(None).unwrap_or_default();
-        for (name, proc_, style) in [(WIDGET_CLASS, widget_proc as WndProc, CS_DBLCLKS), (CONTROL_CLASS, control_proc as WndProc, WNDCLASS_STYLES(0))] {
+        for (name, proc_, style) in
+            [(WIDGET_CLASS, widget_proc as WndProc, CS_DBLCLKS), (CONTROL_CLASS, control_proc as WndProc, WNDCLASS_STYLES(0))]
+        {
             let wc = WNDCLASSW { style, lpfnWndProc: Some(proc_), hInstance: inst.into(), lpszClassName: name, ..Default::default() };
             RegisterClassW(&wc);
         }
@@ -327,8 +333,19 @@ fn present(h: HWND, pix: &tiny_skia::Pixmap, x: i32, y: i32) {
                 let pos = POINT { x, y };
                 let size = SIZE { cx: w, cy: ht };
                 let src = POINT { x: 0, y: 0 };
-                let blend = BLENDFUNCTION { BlendOp: AC_SRC_OVER as u8, BlendFlags: 0, SourceConstantAlpha: 255, AlphaFormat: AC_SRC_ALPHA as u8 };
-                let _ = UpdateLayeredWindow(h, Some(screen), Some(&pos), Some(&size), Some(mem), Some(&src), COLORREF(0), Some(&blend), ULW_ALPHA);
+                let blend =
+                    BLENDFUNCTION { BlendOp: AC_SRC_OVER as u8, BlendFlags: 0, SourceConstantAlpha: 255, AlphaFormat: AC_SRC_ALPHA as u8 };
+                let _ = UpdateLayeredWindow(
+                    h,
+                    Some(screen),
+                    Some(&pos),
+                    Some(&size),
+                    Some(mem),
+                    Some(&src),
+                    COLORREF(0),
+                    Some(&blend),
+                    ULW_ALPHA,
+                );
                 SelectObject(mem, old);
             }
             let _ = DeleteObject(HGDIOBJ(dib.0));
@@ -525,7 +542,8 @@ fn run(rx: Receiver<Cmd>, report: &dyn Fn(Event), waker: Waker) {
         let _ = OleInitialize(None);
         register_classes();
         let inst = GetModuleHandleW(None).unwrap_or_default();
-        CreateWindowExW(WINDOW_EX_STYLE(0), CONTROL_CLASS, w!("rwall widgets"), WS_POPUP, 0, 0, 0, 0, None, None, Some(inst.into()), None).unwrap_or_default()
+        CreateWindowExW(WINDOW_EX_STYLE(0), CONTROL_CLASS, w!("rwall widgets"), WS_POPUP, 0, 0, 0, 0, None, None, Some(inst.into()), None)
+            .unwrap_or_default()
     };
     let Ok(gfx) = Gfx::new() else { return };
     let (done_tx, done_rx) = channel();
@@ -643,7 +661,20 @@ impl Host2<'_> {
         // SAFETY: the class was registered by this thread.
         let hwnd = unsafe {
             let inst = GetModuleHandleW(None).unwrap_or_default();
-            CreateWindowExW(ex, WIDGET_CLASS, w!("rwall"), WS_POPUP, cfg.x, cfg.y, cfg.w.max(1), cfg.h.max(1), owner, None, Some(inst.into()), None)
+            CreateWindowExW(
+                ex,
+                WIDGET_CLASS,
+                w!("rwall"),
+                WS_POPUP,
+                cfg.x,
+                cfg.y,
+                cfg.w.max(1),
+                cfg.h.max(1),
+                owner,
+                None,
+                Some(inst.into()),
+                None,
+            )
         };
         let Ok(hwnd) = hwnd else { return };
         if !cfg.on_top {
@@ -657,7 +688,8 @@ impl Host2<'_> {
         w.dirty = true;
         if w.cfg.kind == WKind::Fence {
             *w.drop_folder.borrow_mut() = w.cfg.folder.clone();
-            let target: IDropTarget = FenceDrop { folder: w.drop_folder.clone(), files: RefCell::new(Vec::new()), waker: self.waker }.into();
+            let target: IDropTarget =
+                FenceDrop { folder: w.drop_folder.clone(), files: RefCell::new(Vec::new()), waker: self.waker }.into();
             // SAFETY: a window of this OLE thread.
             if unsafe { RegisterDragDrop(hwnd, &target) }.is_ok() {
                 w.drop = Some(target);
@@ -926,7 +958,6 @@ impl Host2<'_> {
     // ------------------------------------------------------------ keyboard
 
     // ------------------------------------------------------------ the menu
-
 }
 
 #[cfg(test)]
@@ -999,7 +1030,21 @@ mod tests {
         // SAFETY: test window of this thread, destroyed at the end.
         unsafe {
             let inst = GetModuleHandleW(None).unwrap_or_default();
-            let h = CreateWindowExW(WS_EX_LAYERED | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE, WIDGET_CLASS, w!("rwall test"), WS_POPUP, 0, 0, 10, 10, Some(owner), None, Some(inst.into()), None).unwrap();
+            let h = CreateWindowExW(
+                WS_EX_LAYERED | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
+                WIDGET_CLASS,
+                w!("rwall test"),
+                WS_POPUP,
+                0,
+                0,
+                10,
+                10,
+                Some(owner),
+                None,
+                Some(inst.into()),
+                None,
+            )
+            .unwrap();
             let _ = ShowWindow(h, SW_SHOWNOACTIVATE);
             with_z(|| SetWindowPos(h, Some(HWND_BOTTOM), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)).unwrap();
             let mut below = Vec::new();

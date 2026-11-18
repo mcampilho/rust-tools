@@ -87,7 +87,8 @@ fn plain(s: &str) -> String {
 /// programs of their own.
 pub fn merge(programs: &mut Vec<Program>, rows: Vec<Row>) {
     for r in rows {
-        let info = WingetInfo { id: r.id.clone(), available: (!r.available.is_empty()).then(|| r.available.clone()), repo: r.source.clone() };
+        let info =
+            WingetInfo { id: r.id.clone(), available: (!r.available.is_empty()).then(|| r.available.clone()), repo: r.source.clone() };
         let found = if let Some(rest) = r.id.strip_prefix("ARP\\") {
             // ARP\Machine\X64\<key> or ARP\User\X64\<key>.
             let mut parts = rest.splitn(3, '\\');
@@ -110,7 +111,10 @@ pub fn merge(programs: &mut Vec<Program>, rows: Vec<Row>) {
                 pn == n || truncated && pn.starts_with(&n)
             };
             // The same name and version first, then the same name.
-            programs.iter().position(|p| same(p) && p.version == r.version && p.winget.is_none()).or_else(|| programs.iter().position(|p| same(p) && p.winget.is_none()))
+            programs
+                .iter()
+                .position(|p| same(p) && p.version == r.version && p.winget.is_none())
+                .or_else(|| programs.iter().position(|p| same(p) && p.winget.is_none()))
         });
         match found {
             Some(i) => {
@@ -150,7 +154,16 @@ Paint                    MSIX\\Microsoft.Paint_11.2_x64__8we   11.2
     fn reads_the_table() {
         let rows = parse(LIST);
         assert_eq!(rows.len(), 4, "{rows:#?}");
-        assert_eq!(rows[0], Row { name: "ChatGPT".into(), id: "OpenAI.ChatGPT".into(), version: "26.1103.0".into(), available: "26.1106.0".into(), source: "winget".into() });
+        assert_eq!(
+            rows[0],
+            Row {
+                name: "ChatGPT".into(),
+                id: "OpenAI.ChatGPT".into(),
+                version: "26.1103.0".into(),
+                available: "26.1106.0".into(),
+                source: "winget".into()
+            }
+        );
         assert_eq!(rows[1].id, "ARP\\Machine\\X64\\Bitdefender");
         assert_eq!(rows[2].available, "");
         assert_eq!(rows[2].source, "winget");
@@ -160,9 +173,25 @@ Paint                    MSIX\\Microsoft.Paint_11.2_x64__8we   11.2
     #[test]
     fn joins_to_the_programs() {
         let mut programs = vec![
-            Program { name: "ChatGPT".into(), version: "26.1103.0".into(), sources: vec![Source::Store], package: Some("OpenAI.Codex_26".into()), ..Program::default() },
-            Program { name: "Bitdefender Total Security".into(), sources: vec![Source::Registry], key: "HKEY_LOCAL_MACHINE\\…\\Uninstall\\Bitdefender".into(), ..Program::default() },
-            Program { name: "Paint".into(), sources: vec![Source::Store], package: Some("Microsoft.Paint_11.2_x64__8we".into()), ..Program::default() },
+            Program {
+                name: "ChatGPT".into(),
+                version: "26.1103.0".into(),
+                sources: vec![Source::Store],
+                package: Some("OpenAI.Codex_26".into()),
+                ..Program::default()
+            },
+            Program {
+                name: "Bitdefender Total Security".into(),
+                sources: vec![Source::Registry],
+                key: "HKEY_LOCAL_MACHINE\\…\\Uninstall\\Bitdefender".into(),
+                ..Program::default()
+            },
+            Program {
+                name: "Paint".into(),
+                sources: vec![Source::Store],
+                package: Some("Microsoft.Paint_11.2_x64__8we".into()),
+                ..Program::default()
+            },
         ];
         merge(&mut programs, parse(LIST));
         assert_eq!(programs.len(), 4);

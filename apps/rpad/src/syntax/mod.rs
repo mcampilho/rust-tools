@@ -79,5 +79,4 @@ impl Highlighter {
             self.states.push(next);
         }
     }
-
 }

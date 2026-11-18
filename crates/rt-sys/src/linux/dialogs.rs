@@ -27,14 +27,8 @@ fn tool() -> Option<Tool> {
     static TOOL: OnceLock<Option<Tool>> = OnceLock::new();
     *TOOL.get_or_init(|| {
         let kde = std::env::var("XDG_CURRENT_DESKTOP").is_ok_and(|d| d.to_uppercase().contains("KDE"));
-        let order = if kde {
-            [Tool::Kdialog, Tool::Zenity]
-        } else {
-            [Tool::Zenity, Tool::Kdialog]
-        };
-        order
-            .into_iter()
-            .find(|t| on_path(if *t == Tool::Zenity { "zenity" } else { "kdialog" }))
+        let order = if kde { [Tool::Kdialog, Tool::Zenity] } else { [Tool::Zenity, Tool::Kdialog] };
+        order.into_iter().find(|t| on_path(if *t == Tool::Zenity { "zenity" } else { "kdialog" }))
     })
 }
 
@@ -49,13 +43,8 @@ fn run(tool: Tool, args: &[String]) -> Option<Output> {
 }
 
 fn zenity_message(kind: &str, title: &str, text: &str, extra: &[String]) -> Vec<String> {
-    let mut a = vec![
-        kind.to_string(),
-        "--no-markup".to_string(),
-        "--width=380".to_string(),
-        format!("--title={title}"),
-        format!("--text={text}"),
-    ];
+    let mut a =
+        vec![kind.to_string(), "--no-markup".to_string(), "--width=380".to_string(), format!("--title={title}"), format!("--text={text}")];
     a.extend_from_slice(extra);
     a
 }
@@ -65,11 +54,7 @@ pub fn ask_save(title: &str, text: &str) -> Answer {
     let (save, dont, cancel) = (tr("Save"), tr("Don't Save"), tr("Cancel"));
     match tool() {
         Some(Tool::Zenity) => {
-            let extra = [
-                format!("--ok-label={save}"),
-                format!("--cancel-label={cancel}"),
-                format!("--extra-button={dont}"),
-            ];
+            let extra = [format!("--ok-label={save}"), format!("--cancel-label={cancel}"), format!("--extra-button={dont}")];
             let Some(out) = run(Tool::Zenity, &zenity_message("--question", title, text, &extra)) else {
                 return Answer::Cancel;
             };
@@ -82,19 +67,8 @@ pub fn ask_save(title: &str, text: &str) -> Answer {
             }
         }
         Some(Tool::Kdialog) => {
-            let args = [
-                "--title",
-                title,
-                "--yesnocancel",
-                text,
-                "--yes-label",
-                save,
-                "--no-label",
-                dont,
-                "--cancel-label",
-                cancel,
-            ]
-            .map(String::from);
+            let args = ["--title", title, "--yesnocancel", text, "--yes-label", save, "--no-label", dont, "--cancel-label", cancel]
+                .map(String::from);
             match run(Tool::Kdialog, &args).and_then(|o| o.status.code()) {
                 Some(0) => Answer::Yes,
                 Some(1) => Answer::No,
@@ -137,11 +111,7 @@ pub fn error(title: &str, text: &str) {
 
 fn lines(out: Option<Output>) -> Vec<PathBuf> {
     match out {
-        Some(o) if o.status.success() => String::from_utf8_lossy(&o.stdout)
-            .lines()
-            .filter(|l| !l.is_empty())
-            .map(PathBuf::from)
-            .collect(),
+        Some(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).lines().filter(|l| !l.is_empty()).map(PathBuf::from).collect(),
         _ => Vec::new(),
     }
 }
@@ -169,10 +139,7 @@ pub fn open_files(dir: Option<&Path>, filter: &[(String, &str)], multiple: bool)
         Some(Tool::Kdialog) => {
             let mut a = vec!["--getopenfilename".to_string(), start];
             if !filter.is_empty() {
-                let list: Vec<String> = filter
-                    .iter()
-                    .map(|(name, pat)| format!("{name} ({})", pat.replace(';', " ")))
-                    .collect();
+                let list: Vec<String> = filter.iter().map(|(name, pat)| format!("{name} ({})", pat.replace(';', " "))).collect();
                 a.push(list.join("|"));
             }
             if multiple {
@@ -190,12 +157,7 @@ pub fn save_file(name: &str, dir: Option<&Path>) -> Option<PathBuf> {
     lines(match tool() {
         Some(Tool::Zenity) => run(
             Tool::Zenity,
-            &[
-                "--file-selection".to_string(),
-                "--save".to_string(),
-                "--confirm-overwrite".to_string(),
-                format!("--filename={start}"),
-            ],
+            &["--file-selection".to_string(), "--save".to_string(), "--confirm-overwrite".to_string(), format!("--filename={start}")],
         ),
         Some(Tool::Kdialog) => run(Tool::Kdialog, &["--getsavefilename", &start].map(String::from)),
         None => None,
@@ -206,14 +168,7 @@ pub fn save_file(name: &str, dir: Option<&Path>) -> Option<PathBuf> {
 
 pub fn pick_folder(title: &str) -> Option<PathBuf> {
     lines(match tool() {
-        Some(Tool::Zenity) => run(
-            Tool::Zenity,
-            &[
-                "--file-selection".to_string(),
-                "--directory".to_string(),
-                format!("--title={title}"),
-            ],
-        ),
+        Some(Tool::Zenity) => run(Tool::Zenity, &["--file-selection".to_string(), "--directory".to_string(), format!("--title={title}")]),
         Some(Tool::Kdialog) => run(Tool::Kdialog, &["--title", title, "--getexistingdirectory", "."].map(String::from)),
         None => None,
     })
@@ -238,20 +193,11 @@ pub fn choose_font(face: &str, size: f32) -> Option<(String, f32)> {
     let current = format!("{size}");
     let (family, chosen) = match tool()? {
         Tool::Zenity => {
-            let mut a = vec![
-                "--list".to_string(),
-                format!("--title={title}"),
-                format!("--column={title}"),
-                "--height=420".to_string(),
-            ];
+            let mut a = vec!["--list".to_string(), format!("--title={title}"), format!("--column={title}"), "--height=420".to_string()];
             a.extend(families);
             let family = stdout_line(run(Tool::Zenity, &a))?;
-            let entry = [
-                "--entry".to_string(),
-                format!("--title={title}"),
-                format!("--text={size_label}"),
-                format!("--entry-text={current}"),
-            ];
+            let entry =
+                ["--entry".to_string(), format!("--title={title}"), format!("--text={size_label}"), format!("--entry-text={current}")];
             (family, stdout_line(run(Tool::Zenity, &entry))?)
         }
         Tool::Kdialog => {

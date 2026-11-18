@@ -44,7 +44,9 @@ pub fn scoop_all(me: &crate::inventory::Me) -> Vec<Program> {
 pub fn scoop_buckets(roots: &[(PathBuf, bool)]) -> Vec<PathBuf> {
     roots
         .iter()
-        .flat_map(|(r, _)| std::fs::read_dir(r.join("buckets")).map(|rd| rd.flatten().map(|e| e.path()).collect::<Vec<_>>()).unwrap_or_default())
+        .flat_map(|(r, _)| {
+            std::fs::read_dir(r.join("buckets")).map(|rd| rd.flatten().map(|e| e.path()).collect::<Vec<_>>()).unwrap_or_default()
+        })
         .collect()
 }
 
@@ -80,12 +82,16 @@ pub fn scoop_apps(root: &Path, global: bool, user: &str, buckets: &[PathBuf]) ->
         let manifest = read("manifest.json").unwrap_or(Json::Null);
         let install = read("install.json").unwrap_or(Json::Null);
         // Without a manifest, the version is the folder `current` leads to.
-        let linked = std::fs::read_link(&current).ok().and_then(|t| t.file_name().map(|n| n.to_string_lossy().into_owned())).filter(|n| n != "current");
+        let linked = std::fs::read_link(&current)
+            .ok()
+            .and_then(|t| t.file_name().map(|n| n.to_string_lossy().into_owned()))
+            .filter(|n| n != "current");
         let version = Some(manifest.get("version").str().to_string()).filter(|v| !v.is_empty()).or(linked).unwrap_or_default();
-        let mtime = std::fs::metadata(&current).ok().and_then(|m| m.modified().ok()).map(|t| match t.duration_since(std::time::UNIX_EPOCH) {
-            Ok(d) => d.as_secs() as i64,
-            Err(_) => 0,
-        });
+        let mtime =
+            std::fs::metadata(&current).ok().and_then(|m| m.modified().ok()).map(|t| match t.duration_since(std::time::UNIX_EPOCH) {
+                Ok(d) => d.as_secs() as i64,
+                Err(_) => 0,
+            });
         let bucket = install.get("bucket").str().to_string();
         let mut problems = Vec::new();
         if matches!(install, Json::Null) {
@@ -96,13 +102,21 @@ pub fn scoop_apps(root: &Path, global: bool, user: &str, buckets: &[PathBuf]) ->
         let in_bucket = if bucket.is_empty() {
             buckets.iter().any(|b| has_manifest(b, &name))
         } else {
-            buckets.iter().filter(|b| b.file_name().is_some_and(|n| n.to_string_lossy().eq_ignore_ascii_case(&bucket))).any(|b| has_manifest(b, &name))
+            buckets
+                .iter()
+                .filter(|b| b.file_name().is_some_and(|n| n.to_string_lossy().eq_ignore_ascii_case(&bucket)))
+                .any(|b| has_manifest(b, &name))
         };
         if !from_url && !buckets.is_empty() && !in_bucket {
             problems.push(crate::inventory::Problem::ManifestRemoved);
         }
         let mut values: Vec<(String, String)> = Vec::new();
-        for (k, v) in [("description", manifest.get("description").str()), ("homepage", manifest.get("homepage").str()), ("bucket", bucket.as_str()), ("architecture", install.get("architecture").str())] {
+        for (k, v) in [
+            ("description", manifest.get("description").str()),
+            ("homepage", manifest.get("homepage").str()),
+            ("bucket", bucket.as_str()),
+            ("architecture", install.get("architecture").str()),
+        ] {
             if !v.is_empty() {
                 values.push((k.to_string(), v.to_string()));
             }
@@ -147,7 +161,12 @@ pub fn choco_packages(root: &Path) -> Vec<Program> {
     for e in rd.flatten() {
         let dir = e.path();
         let id = e.file_name().to_string_lossy().into_owned();
-        let Some(nuspec) = std::fs::read_dir(&dir).ok().and_then(|rd| rd.flatten().map(|f| f.path()).find(|p| p.extension().is_some_and(|x| x.eq_ignore_ascii_case("nuspec")))) else { continue };
+        let Some(nuspec) = std::fs::read_dir(&dir)
+            .ok()
+            .and_then(|rd| rd.flatten().map(|f| f.path()).find(|p| p.extension().is_some_and(|x| x.eq_ignore_ascii_case("nuspec"))))
+        else {
+            continue;
+        };
         let xml = std::fs::read_to_string(&nuspec).unwrap_or_default();
         let title = xml_tag(&xml, "title");
         let mut values = Vec::new();
@@ -189,7 +208,11 @@ mod tests {
         let d = scratch("managers");
         let app = d.join("scoop/apps/ripgrep/current");
         std::fs::create_dir_all(&app).unwrap();
-        std::fs::write(app.join("scoop-manifest.json"), "\u{feff}{\"version\": \"14.1.0\", \"description\": \"Search tool\", \"homepage\": \"https://x\"}").unwrap();
+        std::fs::write(
+            app.join("scoop-manifest.json"),
+            "\u{feff}{\"version\": \"14.1.0\", \"description\": \"Search tool\", \"homepage\": \"https://x\"}",
+        )
+        .unwrap();
         std::fs::write(app.join("install.json"), "{\"bucket\": \"main\", \"architecture\": \"64bit\"}").unwrap();
         std::fs::create_dir_all(d.join("scoop/apps/scoop/current")).unwrap();
         std::fs::create_dir_all(d.join("scoop/buckets/main/bucket")).unwrap();

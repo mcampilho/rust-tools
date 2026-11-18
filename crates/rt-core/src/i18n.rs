@@ -34,18 +34,8 @@ pub enum Lang {
 
 impl Lang {
     /// Picker order (by tag).
-    pub const ALL: [Lang; 10] = [
-        Lang::DeDE,
-        Lang::EnGB,
-        Lang::EnUS,
-        Lang::EsES,
-        Lang::FrFR,
-        Lang::ItIT,
-        Lang::JaJP,
-        Lang::PtBR,
-        Lang::PtPT,
-        Lang::ZhCN,
-    ];
+    pub const ALL: [Lang; 10] =
+        [Lang::DeDE, Lang::EnGB, Lang::EnUS, Lang::EsES, Lang::FrFR, Lang::ItIT, Lang::JaJP, Lang::PtBR, Lang::PtPT, Lang::ZhCN];
 
     pub fn tag(self) -> &'static str {
         match self {
@@ -126,17 +116,8 @@ impl Lang {
 }
 
 /// Column order in a table file after the en-US key.
-pub const FILE_COLUMNS: [Lang; 9] = [
-    Lang::EnGB,
-    Lang::DeDE,
-    Lang::EsES,
-    Lang::FrFR,
-    Lang::ItIT,
-    Lang::JaJP,
-    Lang::PtBR,
-    Lang::PtPT,
-    Lang::ZhCN,
-];
+pub const FILE_COLUMNS: [Lang; 9] =
+    [Lang::EnGB, Lang::DeDE, Lang::EsES, Lang::FrFR, Lang::ItIT, Lang::JaJP, Lang::PtBR, Lang::PtPT, Lang::ZhCN];
 
 /// One row: the text in each language, by [`Lang::column`]. Empty cells
 /// fall back (en-GB to en-US, pt-PT to pt-BR, anything to en-US).
@@ -152,11 +133,7 @@ pub struct Catalog {
 impl Catalog {
     /// A table whose columns are separated by `sep` (usually a tab).
     pub const fn new(text: &'static str, sep: char) -> Catalog {
-        Catalog {
-            text,
-            sep,
-            map: OnceLock::new(),
-        }
+        Catalog { text, sep, map: OnceLock::new() }
     }
 
     /// The table file's text.
@@ -277,9 +254,7 @@ pub fn tr_in(l: Lang, s: &str) -> &str {
         return s;
     };
     let pick = |l: Lang| Some(row[l.column()]).filter(|v| !v.is_empty());
-    pick(l)
-        .or_else(|| if l == Lang::PtPT { pick(Lang::PtBR) } else { None })
-        .unwrap_or(s)
+    pick(l).or_else(|| if l == Lang::PtPT { pick(Lang::PtBR) } else { None }).unwrap_or(s)
 }
 
 /// Translates `s` into the current language (unknown strings pass through).
@@ -379,10 +354,7 @@ pub fn check_table(text: &str, sep: char) -> Vec<String> {
                 problems.push(format!("line {n}: line breaks differ in column {}", i + 1));
             }
             if menu && access_keys(c) != 1 {
-                problems.push(format!(
-                    "line {n}: menu label needs exactly one access key in column {}: {c}",
-                    i + 1
-                ));
+                problems.push(format!("line {n}: menu label needs exactly one access key in column {}: {c}", i + 1));
             }
         }
     }
@@ -402,11 +374,7 @@ pub fn access_keys(s: &str) -> usize {
             }
             let rest = &s[i + 1..];
             let entity = rest.find(';').is_some_and(|p| {
-                p > 0
-                    && p < 8
-                    && rest[..p]
-                        .chars()
-                        .all(|c| c.is_ascii_alphanumeric() || c == '#' || c == '{' || c == '}')
+                p > 0 && p < 8 && rest[..p].chars().all(|c| c.is_ascii_alphanumeric() || c == '#' || c == '{' || c == '}')
             });
             if !entity && rest.starts_with(|c: char| c.is_alphanumeric() || c == '{') {
                 n += 1;

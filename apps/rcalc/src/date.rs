@@ -122,13 +122,7 @@ pub fn difference(a: Date, b: Date) -> Difference {
     }
     let anchor = start.add_months(months).unwrap_or(start);
     let rest = end.to_days() - anchor.to_days();
-    Difference {
-        years: months / 12,
-        months: months % 12,
-        weeks: rest / 7,
-        days: rest % 7,
-        total_days,
-    }
+    Difference { years: months / 12, months: months % 12, weeks: rest / 7, days: rest % 7, total_days }
 }
 
 #[cfg(test)]

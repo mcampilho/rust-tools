@@ -9,9 +9,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use rpack::app::{AddForm, App, Busy, Crumb, Place, Row, Task};
-use rpack::create::{self, Kind as NewKind, Made, Spec};
 use rpack::archive::{self, Error, Listing, Meter};
 use rpack::commands::{self, Command, ALL_HASHES};
+use rpack::create::{self, Kind as NewKind, Made, Spec};
 use rpack::extract::{self, Each, EachDest, Job, Overwrite, Report};
 use rpack::format;
 use rpack::hash::{self, Algo, Sums};
@@ -149,12 +149,8 @@ fn error_text(e: &Error) -> String {
 /// The errors of a report, one per line (the first ones).
 fn errors_text(r: &Report) -> String {
     const SHOWN: usize = 15;
-    let mut lines: Vec<String> = r
-        .errors
-        .iter()
-        .take(SHOWN)
-        .map(|(p, e)| if p.is_empty() { error_text(e) } else { format!("{p}: {}", error_text(e)) })
-        .collect();
+    let mut lines: Vec<String> =
+        r.errors.iter().take(SHOWN).map(|(p, e)| if p.is_empty() { error_text(e) } else { format!("{p}: {}", error_text(e)) }).collect();
     if r.errors.len() > SHOWN {
         lines.push(tf("…and {} more.", &[&format::count((r.errors.len() - SHOWN) as u64)]));
     }
@@ -285,7 +281,15 @@ impl Shell {
 
     /// Starts work on a background thread with a meter of its own.
     #[allow(clippy::too_many_arguments)]
-    fn start(&mut self, task: Task, path: PathBuf, count: usize, total: u64, by_read: bool, work: impl FnOnce(&Meter, u64, EventLoopProxy<UserEvent>) + Send + 'static) {
+    fn start(
+        &mut self,
+        task: Task,
+        path: PathBuf,
+        count: usize,
+        total: u64,
+        by_read: bool,
+        work: impl FnOnce(&Meter, u64, EventLoopProxy<UserEvent>) + Send + 'static,
+    ) {
         self.generation += 1;
         let gen = self.generation;
         let meter = Arc::new(Meter::default());
@@ -299,7 +303,8 @@ impl Shell {
             let p = proxy.clone();
             let run = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| work(&meter, gen, p)));
             if let Err(why) = run {
-                let why = why.downcast_ref::<&str>().map(|s| s.to_string()).or_else(|| why.downcast_ref::<String>().cloned()).unwrap_or_default();
+                let why =
+                    why.downcast_ref::<&str>().map(|s| s.to_string()).or_else(|| why.downcast_ref::<String>().cloned()).unwrap_or_default();
                 let _ = proxy.send_event(UserEvent::Failed(gen, why));
             }
         });
@@ -388,10 +393,16 @@ impl Shell {
             }
             return;
         }
-        let note = tf("{} files extracted ({}) to {}.", &[&format::count(r.files), &format::size(r.bytes), &dest.display().to_string()]) + &extract_notes(&r);
+        let note = tf("{} files extracted ({}) to {}.", &[&format::count(r.files), &format::size(r.bytes), &dest.display().to_string()])
+            + &extract_notes(&r);
         self.app.note = Some(note.clone());
         if !r.errors.is_empty() {
-            let text = format!("{}\n\n{}\n\n{}", tf("{} files could not be extracted:", &[&format::count(r.errors.len() as u64)]), errors_text(&r), note);
+            let text = format!(
+                "{}\n\n{}\n\n{}",
+                tf("{} files could not be extracted:", &[&format::count(r.errors.len() as u64)]),
+                errors_text(&r),
+                note
+            );
             self.info(&tr("Extract"), &text);
         } else if self.app.open_after && r.files + r.dirs > 0 {
             open_path(&dest);
@@ -416,7 +427,9 @@ impl Shell {
             return;
         }
         let text = match result {
-            Ok(r) if r.errors.is_empty() => tf("No errors were found.\n\n{} files, {}.", &[&format::count(r.files), &format::size(r.bytes)]),
+            Ok(r) if r.errors.is_empty() => {
+                tf("No errors were found.\n\n{} files, {}.", &[&format::count(r.files), &format::size(r.bytes)])
+            }
             Ok(r) => format!(
                 "{}\n\n{}\n\n{}",
                 tf("{} errors were found.", &[&format::count(r.errors.len() as u64)]),
@@ -443,7 +456,11 @@ impl Shell {
         let first = paths[0].clone();
         let count = paths.len();
         self.start(task, first, count, total, true, move |meter, gen, proxy| {
-            let results = if task == Task::Testing { extract::test_each(&paths, meter) } else { extract::extract_each(&paths, &to, overwrite, meter) };
+            let results = if task == Task::Testing {
+                extract::test_each(&paths, meter)
+            } else {
+                extract::extract_each(&paths, &to, overwrite, meter)
+            };
             let _ = proxy.send_event(UserEvent::EachDone(gen, task, results));
         });
     }
@@ -471,7 +488,10 @@ impl Shell {
                     trouble |= !r.errors.is_empty();
                     let mut l = format!(
                         "{name}: {}",
-                        tf("{} files extracted ({}) to {}.", &[&format::count(r.files), &format::size(r.bytes), &e.dest.display().to_string()])
+                        tf(
+                            "{} files extracted ({}) to {}.",
+                            &[&format::count(r.files), &format::size(r.bytes), &e.dest.display().to_string()]
+                        )
                     ) + &extract_notes(r);
                     if !r.errors.is_empty() {
                         l.push('\n');
@@ -584,7 +604,11 @@ impl Shell {
     /// Writes the last hashes in the form `sha256sum -c` reads.
     fn save_hashes(&mut self) {
         let Some((algos, sums)) = &self.last_sums else { return };
-        let name = format!("{}.{}", if sums.len() == 1 { sums[0].name.rsplit('/').next().unwrap_or("hashes").to_string() } else { "hashes".into() }, if algos.len() == 1 { algos[0].ext() } else { "txt" });
+        let name = format!(
+            "{}.{}",
+            if sums.len() == 1 { sums[0].name.rsplit('/').next().unwrap_or("hashes").to_string() } else { "hashes".into() },
+            if algos.len() == 1 { algos[0].ext() } else { "txt" }
+        );
         let dir = self.app.disk_folder();
         #[cfg(windows)]
         let chosen = self.win.as_ref().and_then(|w| {
@@ -691,7 +715,10 @@ impl Shell {
             let name = file_name(dest);
             lines.push(match r {
                 Ok(m) => {
-                    let mut l = tf("{} created: {} files, {} → {}.", &[&name, &format::count(m.files), &format::size(m.bytes), &format::size(m.size)]);
+                    let mut l = tf(
+                        "{} created: {} files, {} → {}.",
+                        &[&name, &format::count(m.files), &format::size(m.bytes), &format::size(m.size)],
+                    );
                     if m.links > 0 {
                         l.push(' ');
                         l.push_str(&tf("{} links were left out.", &[&format::count(m.links)]));
@@ -1079,7 +1106,9 @@ impl Shell {
             self.win.as_ref().and_then(|w| rt_sys::win::dialogs::open_file(w.hwnd, dir.as_deref(), &filter))
         }
         #[cfg(not(windows))]
-        rt_sys::linux::dialogs::open_files(dir.as_deref(), &[(tr("Archives"), ARCHIVE_PATTERNS), (tr("All files"), "*")], false).into_iter().next()
+        rt_sys::linux::dialogs::open_files(dir.as_deref(), &[(tr("Archives"), ARCHIVE_PATTERNS), (tr("All files"), "*")], false)
+            .into_iter()
+            .next()
     }
 
     fn pick_folder(&mut self, title: &str) -> Option<PathBuf> {
@@ -1362,7 +1391,9 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.menu.close();
                 self.redraw();
             }
-            WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Right, .. } if self.dialog.is_none() && self.app.add.is_none() => {
+            WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Right, .. }
+                if self.dialog.is_none() && self.app.add.is_none() =>
+            {
                 if let Hot::Row(i) = self.hot {
                     if !self.app.selected.get(i).copied().unwrap_or(false) {
                         self.app.click(i, false, false);

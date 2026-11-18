@@ -32,23 +32,44 @@ pub fn packages(all_users: bool, me: &str) -> Vec<Package> {
     let Ok(pm) = PackageManager::new() else { return Vec::new() };
     // The apps, and the frameworks they use (shown as system components).
     let types = PackageTypes(PackageTypes::Main.0 | PackageTypes::Framework.0);
-    let found = if all_users { pm.FindPackagesWithPackageTypes(types) } else { pm.FindPackagesByUserSecurityIdWithPackageTypes(&HSTRING::new(), types) };
+    let found = if all_users {
+        pm.FindPackagesWithPackageTypes(types)
+    } else {
+        pm.FindPackagesByUserSecurityIdWithPackageTypes(&HSTRING::new(), types)
+    };
     let Ok(found) = found else { return Vec::new() };
     let mut out = Vec::new();
     for p in found {
         let Ok(id) = p.Id() else { continue };
         let full_name = id.FullName().map(|s| s.to_string()).unwrap_or_default();
         let name = id.Name().map(|s| s.to_string()).unwrap_or_default();
-        let display = p.DisplayName().map(|s| s.to_string()).ok().filter(|s| !s.is_empty() && !s.starts_with("ms-resource:")).unwrap_or(name);
+        let display =
+            p.DisplayName().map(|s| s.to_string()).ok().filter(|s| !s.is_empty() && !s.starts_with("ms-resource:")).unwrap_or(name);
         let version = id.Version().map(|v| format!("{}.{}.{}.{}", v.Major, v.Minor, v.Build, v.Revision)).unwrap_or_default();
-        let app_id = p.GetAppListEntries().ok().and_then(|list| list.into_iter().next()).and_then(|e| e.AppUserModelId().ok()).map(|s| s.to_string());
-        let system = p.SignatureKind().is_ok_and(|k| k == PackageSignatureKind::System) || p.IsFramework().unwrap_or(false) || app_id.is_none();
+        let app_id = p
+            .GetAppListEntries()
+            .ok()
+            .and_then(|list| list.into_iter().next())
+            .and_then(|e| e.AppUserModelId().ok())
+            .map(|s| s.to_string());
+        let system =
+            p.SignatureKind().is_ok_and(|k| k == PackageSignatureKind::System) || p.IsFramework().unwrap_or(false) || app_id.is_none();
         // 100 ns since 1601 → the day.
-        let date = p.InstalledDate().ok().map(|d| d.UniversalTime / 10_000_000 - 11_644_473_600).filter(|&s| s > 0).map(|s| rt_scan::format::civil((s / 86_400) as i32));
+        let date = p
+            .InstalledDate()
+            .ok()
+            .map(|d| d.UniversalTime / 10_000_000 - 11_644_473_600)
+            .filter(|&s| s > 0)
+            .map(|s| rt_scan::format::civil((s / 86_400) as i32));
         let users = if all_users {
             // Only those who have it installed (not merely staged for them).
             pm.FindUsers(&HSTRING::from(full_name.as_str()))
-                .map(|it| it.into_iter().filter(|u| u.InstallState().is_ok_and(|s| s == windows::Management::Deployment::PackageInstallState::Installed)).filter_map(|u| u.UserSecurityId().ok().map(|s| s.to_string())).collect())
+                .map(|it| {
+                    it.into_iter()
+                        .filter(|u| u.InstallState().is_ok_and(|s| s == windows::Management::Deployment::PackageInstallState::Installed))
+                        .filter_map(|u| u.UserSecurityId().ok().map(|s| s.to_string()))
+                        .collect()
+                })
                 .unwrap_or_default()
         } else {
             vec![me.to_string()]
@@ -79,7 +100,9 @@ pub fn packages(_all_users: bool, _me: &str) -> Vec<Package> {
 pub fn icon(app_id: &str, px: u32) -> Option<(u32, u32, Vec<u8>)> {
     use windows::core::{HSTRING, PCWSTR};
     use windows::Win32::Foundation::SIZE;
-    use windows::Win32::Graphics::Gdi::{DeleteObject, GetDC, GetDIBits, GetObjectW, ReleaseDC, BITMAP, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HGDIOBJ};
+    use windows::Win32::Graphics::Gdi::{
+        DeleteObject, GetDC, GetDIBits, GetObjectW, ReleaseDC, BITMAP, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HGDIOBJ,
+    };
     use windows::Win32::System::Com::{CoInitializeEx, COINIT_MULTITHREADED};
     use windows::Win32::UI::Shell::{IShellItemImageFactory, SHCreateItemFromParsingName, SIIGBF_ICONONLY};
     let name = HSTRING::from(format!("shell:AppsFolder\\{app_id}"));
@@ -94,7 +117,15 @@ pub fn icon(app_id: &str, px: u32) -> Option<(u32, u32, Vec<u8>)> {
         let (w, h) = (info.bmWidth, info.bmHeight.abs());
         let result = if got > 0 && w > 0 && h > 0 {
             let mut bmi = BITMAPINFO {
-                bmiHeader: BITMAPINFOHEADER { biSize: size_of::<BITMAPINFOHEADER>() as u32, biWidth: w, biHeight: -h, biPlanes: 1, biBitCount: 32, biCompression: BI_RGB.0, ..Default::default() },
+                bmiHeader: BITMAPINFOHEADER {
+                    biSize: size_of::<BITMAPINFOHEADER>() as u32,
+                    biWidth: w,
+                    biHeight: -h,
+                    biPlanes: 1,
+                    biBitCount: 32,
+                    biCompression: BI_RGB.0,
+                    ..Default::default()
+                },
                 ..Default::default()
             };
             let mut buf = vec![0u8; (w * h * 4) as usize];

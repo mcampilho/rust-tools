@@ -6,62 +6,18 @@ use crate::date::{Date, Difference};
 
 fn months(l: Lang) -> [&'static str; 12] {
     match l {
-        Lang::EnUS | Lang::EnGB => [
-            "January",
-            "February",
-            "March",
-            "April",
-            "May",
-            "June",
-            "July",
-            "August",
-            "September",
-            "October",
-            "November",
-            "December",
-        ],
-        Lang::DeDE => [
-            "Januar",
-            "Februar",
-            "März",
-            "April",
-            "Mai",
-            "Juni",
-            "Juli",
-            "August",
-            "September",
-            "Oktober",
-            "November",
-            "Dezember",
-        ],
-        Lang::EsES => [
-            "enero",
-            "febrero",
-            "marzo",
-            "abril",
-            "mayo",
-            "junio",
-            "julio",
-            "agosto",
-            "septiembre",
-            "octubre",
-            "noviembre",
-            "diciembre",
-        ],
-        Lang::FrFR => [
-            "janvier",
-            "février",
-            "mars",
-            "avril",
-            "mai",
-            "juin",
-            "juillet",
-            "août",
-            "septembre",
-            "octobre",
-            "novembre",
-            "décembre",
-        ],
+        Lang::EnUS | Lang::EnGB => {
+            ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+        }
+        Lang::DeDE => {
+            ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"]
+        }
+        Lang::EsES => {
+            ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+        }
+        Lang::FrFR => {
+            ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
+        }
         Lang::ItIT => [
             "gennaio",
             "febbraio",
@@ -76,23 +32,10 @@ fn months(l: Lang) -> [&'static str; 12] {
             "novembre",
             "dicembre",
         ],
-        Lang::PtBR | Lang::PtPT => [
-            "janeiro",
-            "fevereiro",
-            "março",
-            "abril",
-            "maio",
-            "junho",
-            "julho",
-            "agosto",
-            "setembro",
-            "outubro",
-            "novembro",
-            "dezembro",
-        ],
-        Lang::JaJP | Lang::ZhCN => [
-            "1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月",
-        ],
+        Lang::PtBR | Lang::PtPT => {
+            ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
+        }
+        Lang::JaJP | Lang::ZhCN => ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
     }
 }
 
@@ -104,15 +47,7 @@ fn weekdays(l: Lang) -> [&'static str; 7] {
         Lang::EsES => ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"],
         Lang::FrFR => ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"],
         Lang::ItIT => ["domenica", "lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato"],
-        Lang::PtBR | Lang::PtPT => [
-            "domingo",
-            "segunda-feira",
-            "terça-feira",
-            "quarta-feira",
-            "quinta-feira",
-            "sexta-feira",
-            "sábado",
-        ],
+        Lang::PtBR | Lang::PtPT => ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"],
         Lang::JaJP => ["日曜日", "月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日"],
         Lang::ZhCN => ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"],
     }

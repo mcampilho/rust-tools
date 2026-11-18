@@ -188,14 +188,7 @@ END
     let ok = if gnu {
         let res = out.join(format!("{name}_res.o"));
         find_tool(&["windres.exe", "x86_64-w64-mingw32-windres.exe", "windres"]).is_some_and(|w| {
-            let st = Command::new(w)
-                .arg("-O")
-                .arg("coff")
-                .arg("-i")
-                .arg(&rc)
-                .arg("-o")
-                .arg(&res)
-                .status();
+            let st = Command::new(w).arg("-O").arg("coff").arg("-i").arg(&rc).arg("-o").arg(&res).status();
             st.is_ok_and(|s| s.success()) && {
                 println!("cargo:rustc-link-arg-bins={}", res.display());
                 true

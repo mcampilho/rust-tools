@@ -31,11 +31,7 @@ pub struct Url<'a> {
 
 /// Splits an absolute http(s) address.
 pub fn split_url(url: &str) -> Option<Url<'_>> {
-    let (secure, rest) = if let Some(r) = url.strip_prefix("https://") {
-        (true, r)
-    } else {
-        (false, url.strip_prefix("http://")?)
-    };
+    let (secure, rest) = if let Some(r) = url.strip_prefix("https://") { (true, r) } else { (false, url.strip_prefix("http://")?) };
     let cut = rest.find(['/', '?', '#']).unwrap_or(rest.len());
     let (authority, path) = rest.split_at(cut);
     let path = path.split('#').next().unwrap_or("");
@@ -110,7 +106,8 @@ mod imp {
                 return Err(last_error(u.host));
             }
             let flags = if u.secure { WINHTTP_FLAG_SECURE } else { 0 };
-            let request = H(WinHttpOpenRequest(connect.0, verb.as_ptr(), path.as_ptr(), std::ptr::null(), std::ptr::null(), std::ptr::null(), flags));
+            let request =
+                H(WinHttpOpenRequest(connect.0, verb.as_ptr(), path.as_ptr(), std::ptr::null(), std::ptr::null(), std::ptr::null(), flags));
             if request.0.is_null() {
                 return Err(last_error(u.host));
             }

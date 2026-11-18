@@ -35,20 +35,44 @@ pub struct Fmt {
 
 impl Default for Fmt {
     fn default() -> Fmt {
-        Fmt { bold: false, italic: false, underline: false, strike: false, mono: false, size: 1.0, color: None, bg: None, link: None, valign: 0 }
+        Fmt {
+            bold: false,
+            italic: false,
+            underline: false,
+            strike: false,
+            mono: false,
+            size: 1.0,
+            color: None,
+            bg: None,
+            link: None,
+            valign: 0,
+        }
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Tag {
     /// `heading` is 1 to 6, or 0 for body text.
-    Para { align: Align, pre: bool, heading: u8, bg: Option<Color> },
+    Para {
+        align: Align,
+        pre: bool,
+        heading: u8,
+        bg: Option<Color>,
+    },
     Quote,
-    List { ordered: bool, start: u32 },
+    List {
+        ordered: bool,
+        start: u32,
+    },
     Item,
     Table,
     Row,
-    Cell { header: bool, colspan: usize, align: Align, bg: Option<Color> },
+    Cell {
+        header: bool,
+        colspan: usize,
+        align: Align,
+        bg: Option<Color>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -64,7 +88,10 @@ pub enum Ev {
     /// A line break that only exists in the source layout: kept in plain
     /// text, a space in formatted text.
     Soft,
-    Image { src: String, alt: String },
+    Image {
+        src: String,
+        alt: String,
+    },
 }
 
 /// Clipboard contents, as ready-to-write formats.
@@ -270,7 +297,8 @@ pub fn html(evs: &[Ev]) -> String {
         match ev {
             Ev::Enter(t) => {
                 let bare = matches!(t, Tag::Para { align: Align::Left, pre: false, heading: 0, bg: None })
-                    || matches!(t, Tag::Para { pre: false, heading: 0, bg: None, .. }) && close.last().is_some_and(|n| n == "td" || n == "th");
+                    || matches!(t, Tag::Para { pre: false, heading: 0, bg: None, .. })
+                        && close.last().is_some_and(|n| n == "td" || n == "th");
                 if bare && close.last().is_some_and(|n| matches!(n.as_str(), "li" | "td" | "th")) {
                     if std::mem::take(&mut after_bare) {
                         out.push_str("<br>");
@@ -297,7 +325,10 @@ pub fn html(evs: &[Ev]) -> String {
                     Tag::List { ordered: true, .. } => ("ol".to_string(), String::new()),
                     Tag::List { .. } => ("ul".to_string(), String::new()),
                     Tag::Item => ("li".to_string(), String::new()),
-                    Tag::Table => ("table".to_string(), " border=\"1\" cellspacing=\"0\" cellpadding=\"4\" style=\"border-collapse:collapse\"".to_string()),
+                    Tag::Table => (
+                        "table".to_string(),
+                        " border=\"1\" cellspacing=\"0\" cellpadding=\"4\" style=\"border-collapse:collapse\"".to_string(),
+                    ),
                     Tag::Row => ("tr".to_string(), String::new()),
                     Tag::Cell { header, colspan, align, bg } => {
                         let mut css = align_css(*align).to_string();
@@ -688,9 +719,23 @@ mod tests {
     fn html_cells_and_items_hold_bare_text() {
         let cell = Ev::Enter(Tag::Cell { header: false, colspan: 1, align: Align::Right, bg: None });
         let right = Ev::Enter(Tag::Para { align: Align::Right, pre: false, heading: 0, bg: None });
-        let evs = vec![Ev::Enter(Tag::Table), Ev::Enter(Tag::Row), cell, right, run("1"), Ev::Exit, para(), run("two\nlines"), Ev::Exit, Ev::Exit, Ev::Exit, Ev::Exit];
+        let evs = vec![
+            Ev::Enter(Tag::Table),
+            Ev::Enter(Tag::Row),
+            cell,
+            right,
+            run("1"),
+            Ev::Exit,
+            para(),
+            run("two\nlines"),
+            Ev::Exit,
+            Ev::Exit,
+            Ev::Exit,
+            Ev::Exit,
+        ];
         assert!(html(&evs).ends_with("<tr><td style=\"text-align:right;\">1<br>two<br>lines</td></tr></table>"), "{}", html(&evs));
-        let evs = vec![Ev::Enter(Tag::List { ordered: true, start: 3 }), Ev::Enter(Tag::Item), para(), run("a"), Ev::Exit, Ev::Exit, Ev::Exit];
+        let evs =
+            vec![Ev::Enter(Tag::List { ordered: true, start: 3 }), Ev::Enter(Tag::Item), para(), run("a"), Ev::Exit, Ev::Exit, Ev::Exit];
         assert_eq!(html(&evs), "<ol start=\"3\"><li>a</li></ol>");
     }
 
@@ -720,7 +765,8 @@ mod tests {
 
     #[test]
     fn rtf_is_ascii_and_escapes_unicode() {
-        let evs = vec![para(), Ev::Run("é{}\\😀".into(), Fmt { bold: true, color: Some(Color::rgb(0x102030)), ..Fmt::default() }), Ev::Exit];
+        let evs =
+            vec![para(), Ev::Run("é{}\\😀".into(), Fmt { bold: true, color: Some(Color::rgb(0x102030)), ..Fmt::default() }), Ev::Exit];
         let r = rtf(&evs);
         assert!(r.is_ascii());
         assert!(r.starts_with("{\\rtf1"), "{r}");
@@ -742,7 +788,22 @@ mod tests {
     #[test]
     fn rtf_tables_have_a_cell_per_column() {
         let cell = || Ev::Enter(Tag::Cell { header: false, colspan: 1, align: Align::Left, bg: None });
-        let evs = vec![Ev::Enter(Tag::Table), Ev::Enter(Tag::Row), cell(), para(), run("a"), Ev::Exit, Ev::Exit, cell(), para(), run("b"), Ev::Exit, Ev::Exit, Ev::Exit, Ev::Exit];
+        let evs = vec![
+            Ev::Enter(Tag::Table),
+            Ev::Enter(Tag::Row),
+            cell(),
+            para(),
+            run("a"),
+            Ev::Exit,
+            Ev::Exit,
+            cell(),
+            para(),
+            run("b"),
+            Ev::Exit,
+            Ev::Exit,
+            Ev::Exit,
+            Ev::Exit,
+        ];
         let r = rtf(&evs);
         assert_eq!(r.matches("\\cellx").count(), 2);
         assert_eq!(r.matches("\\cell\n").count(), 2);

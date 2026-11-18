@@ -24,7 +24,8 @@ pub fn sample_files() -> Vec<(&'static str, Vec<u8>)> {
 pub fn make_zip(path: &Path) {
     use ::zip::write::SimpleFileOptions;
     let mut z = ::zip::ZipWriter::new(File::create(path).unwrap());
-    let methods = [CompressionMethod::Stored, CompressionMethod::Deflated, CompressionMethod::Bzip2, CompressionMethod::Zstd, CompressionMethod::Xz];
+    let methods =
+        [CompressionMethod::Stored, CompressionMethod::Deflated, CompressionMethod::Bzip2, CompressionMethod::Zstd, CompressionMethod::Xz];
     z.add_directory("docs/", SimpleFileOptions::default()).unwrap();
     z.add_directory("docs/nothing/", SimpleFileOptions::default()).unwrap();
     for (i, (name, data)) in sample_files().into_iter().enumerate() {
@@ -57,7 +58,8 @@ pub fn compress(c: Codec, data: &[u8]) -> Vec<u8> {
             e.finish().unwrap();
         }
         Codec::Lzma => {
-            let mut e = lzma_rust2::LzmaWriter::new_use_header(&mut out, &lzma_rust2::LzmaOptions::with_preset(3), Some(data.len() as u64)).unwrap();
+            let mut e = lzma_rust2::LzmaWriter::new_use_header(&mut out, &lzma_rust2::LzmaOptions::with_preset(3), Some(data.len() as u64))
+                .unwrap();
             e.write_all(data).unwrap();
             e.finish().unwrap();
         }

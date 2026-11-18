@@ -169,7 +169,18 @@ impl<'a> Ui<'a> {
     /// A button with text or an icon glyph. `icon` is a Segoe MDL2 code point
     /// used when the icon font exists, otherwise `text` is drawn.
     #[allow(clippy::too_many_arguments)]
-    pub fn button(&mut self, action: UiAction, r: Rect, text: &str, icon: Option<char>, label: &str, tooltip: Option<&str>, style: Style, checked: Option<bool>, enabled: bool) {
+    pub fn button(
+        &mut self,
+        action: UiAction,
+        r: Rect,
+        text: &str,
+        icon: Option<char>,
+        label: &str,
+        tooltip: Option<&str>,
+        style: Style,
+        checked: Option<bool>,
+        enabled: bool,
+    ) {
         let id = wid(&action);
         let (hover, pressed) = self.state(id);
         let t = self.t;
@@ -284,7 +295,10 @@ impl<'a> Ui<'a> {
             self.g.text(&edit.text, x0, base, px, font, t.text);
         }
         if focused && self.inp.caret_on {
-            self.g.fill_rect(Rect::new((x0 + caret_x).round(), inner.y + self.px(6.0), self.px(1.0).max(1.0), inner.h - self.px(12.0)), t.caret);
+            self.g.fill_rect(
+                Rect::new((x0 + caret_x).round(), inner.y + self.px(6.0), self.px(1.0).max(1.0), inner.h - self.px(12.0)),
+                t.caret,
+            );
         }
         self.g.set_clip(None);
         self.register(Widget {
@@ -336,7 +350,11 @@ impl<'a> Ui<'a> {
         let t = self.t;
         for i in 1..=4 {
             let d = i as f32 * self.s;
-            self.g.fill_rrect(Rect::new(r.x - d * 0.5, r.y + d * 0.5, r.w + d, r.h + d), rad + d, Color::rgba(0x000000, if t.dark { 0x20 } else { 0x10 }));
+            self.g.fill_rrect(
+                Rect::new(r.x - d * 0.5, r.y + d * 0.5, r.w + d, r.h + d),
+                rad + d,
+                Color::rgba(0x000000, if t.dark { 0x20 } else { 0x10 }),
+            );
         }
         self.g.fill_rrect(r, rad, t.popup);
         self.g.stroke_rrect(r, rad, 1.0, t.border);

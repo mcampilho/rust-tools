@@ -39,8 +39,17 @@ pub enum WKind {
 }
 
 impl WKind {
-    pub const ALL: [WKind; 9] =
-        [WKind::Analog, WKind::Digital, WKind::Calendar, WKind::ClockCalendar, WKind::Note, WKind::Annotation, WKind::Weather, WKind::Fence, WKind::Photos];
+    pub const ALL: [WKind; 9] = [
+        WKind::Analog,
+        WKind::Digital,
+        WKind::Calendar,
+        WKind::ClockCalendar,
+        WKind::Note,
+        WKind::Annotation,
+        WKind::Weather,
+        WKind::Fence,
+        WKind::Photos,
+    ];
 
     pub fn key(self) -> &'static str {
         match self {

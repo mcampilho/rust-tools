@@ -58,7 +58,10 @@ fn read(path: &Path) -> Result<Vec<u8>, String> {
         return Err(tf("{} is a folder.", &[&path.display().to_string()]));
     }
     if meta.len() > MAX_SIZE {
-        return Err(tf("{} is too large ({} MB). The limit is {} MB.", &[&path.display().to_string(), &(meta.len() >> 20).to_string(), &(MAX_SIZE >> 20).to_string()]));
+        return Err(tf(
+            "{} is too large ({} MB). The limit is {} MB.",
+            &[&path.display().to_string(), &(meta.len() >> 20).to_string(), &(MAX_SIZE >> 20).to_string()],
+        ));
     }
     std::fs::read(path).map_err(|e| io_message(path, &e))
 }
