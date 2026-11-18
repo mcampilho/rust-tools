@@ -1,13 +1,13 @@
 {
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "Wallpaper changer in the notification area (Bing, NASA, Wallhaven, Picsum, your folders), dynamic wallpaper and desktop widgets",
     "homepage": "https://github.com/mcampilho/rust-tools/tree/master/apps/rwall",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/mcampilho/rust-tools/releases/download/rwall-v0.1.0/rwall-0.1.0-windows-x86_64.zip",
-            "hash": "6d1f3972b9ade64d04819a4a5d0bcb0836f44d3eac480c30f58cf6da4e793736",
-            "extract_dir": "rwall-0.1.0-windows-x86_64"
+            "url": "https://github.com/mcampilho/rust-tools/releases/download/rwall-v0.2.0/rwall-0.2.0-windows-x86_64.zip",
+            "hash": "8edb733b66fbbc99ccdb86e0c8e4ffab3c9e7ab748d237ba6e02adc9844f66a5",
+            "extract_dir": "rwall-0.2.0-windows-x86_64"
         }
     },
     "bin": "rwall.exe",

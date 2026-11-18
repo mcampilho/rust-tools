@@ -1,0 +1,35 @@
+{
+    "version": "0.1.0",
+    "description": "Portable cleaner: temporary files of the system and of the browsers",
+    "homepage": "https://github.com/mcampilho/rust-tools/tree/master/apps/rclean",
+    "license": "MIT",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/mcampilho/rust-tools/releases/download/rclean-v0.1.0/rclean-0.1.0-windows-x86_64.zip",
+            "hash": "4e195e90241d41b4dffe5f60eb6656eaf68707d1b9b502909273207c9fbabf6d",
+            "extract_dir": "rclean-0.1.0-windows-x86_64"
+        }
+    },
+    "bin": "rclean.exe",
+    "shortcuts": [
+        [
+            "rclean.exe",
+            "rclean"
+        ]
+    ],
+    "checkver": {
+        "url": "https://api.github.com/repos/mcampilho/rust-tools/releases",
+        "regex": "\"tag_name\":\\s*\"rclean-v([\\d.]+)\""
+    },
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/mcampilho/rust-tools/releases/download/rclean-v$version/rclean-$version-windows-x86_64.zip",
+                "extract_dir": "rclean-$version-windows-x86_64"
+            }
+        },
+        "hash": {
+            "url": "$baseurl/SHA256SUMS.txt"
+        }
+    }
+}

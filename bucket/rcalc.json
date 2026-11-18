@@ -1,13 +1,13 @@
 {
-    "version": "1.2.1",
+    "version": "1.3.0",
     "description": "Portable calculator: standard, scientific, programmer, date calculation and unit converters",
     "homepage": "https://github.com/mcampilho/rust-tools/tree/master/apps/rcalc",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/mcampilho/rust-tools/releases/download/rcalc-v1.2.1/rcalc-1.2.1-windows-x86_64.zip",
-            "hash": "5d243c587af16bbe47a4d9ca99faa248478a107eb3014d7ae3c6e9bb41a3a3a6",
-            "extract_dir": "rcalc-1.2.1-windows-x86_64"
+            "url": "https://github.com/mcampilho/rust-tools/releases/download/rcalc-v1.3.0/rcalc-1.3.0-windows-x86_64.zip",
+            "hash": "f3d94ec1c3edc32d99792f3d3cad3d72d935e6f90796809f62bd77514c36a23c",
+            "extract_dir": "rcalc-1.3.0-windows-x86_64"
         }
     },
     "bin": "rcalc.exe",
