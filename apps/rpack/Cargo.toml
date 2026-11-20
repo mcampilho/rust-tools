@@ -46,7 +46,7 @@ blake2s_simd = "1"
 blake3 = "1"
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", features = ["Win32_Foundation"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation"] }
 
 # X11 and Wayland both: the same executable runs on either.
 [target.'cfg(target_os = "linux")'.dependencies]
