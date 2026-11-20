@@ -125,6 +125,13 @@ identidade da aplicação. Uma correção num destes assuntos faz-se no crate, u
 - Linux inclui sempre X11 e Wayland.
 - Uma ferramenta nova começa pelos passos de `crates/README.md`.
 
+## Serviço com privilégios (desenho, 2026-11-20)
+
+Em estudo, ainda sem código: um serviço do Windows (`rtsvc`, crate `rt-svc`) que dá a qualquer utilizador a visão
+do sistema (NTFS, programas de todos, tamanhos do limpador) e faz em segundo plano as alterações pedidas por
+clientes elevados. O desenho, o protocolo e o modelo de ameaças estão em `docs/service.md` (e `.pt.md`). As
+atualizações continuam em cada aplicação.
+
 ## Git
 
 Ramo `master`. Commit e push só com aprovação explícita.
