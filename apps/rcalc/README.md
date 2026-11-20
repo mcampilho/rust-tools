@@ -16,11 +16,11 @@ repository root.
 
 | Standard | Scientific | Programmer | Date | Converter |
 |---|---|---|---|---|
-| ![Standard](docs/screenshots/standard_dark.png) | ![Scientific](docs/screenshots/scientific.png) | ![Programmer](docs/screenshots/programmer.png) | ![Date](docs/screenshots/date_add.png) | ![Length](docs/screenshots/converter_length.png) |
+| ![Standard](docs/images/standard_dark.png) | ![Scientific](docs/images/scientific.png) | ![Programmer](docs/images/programmer.png) | ![Date](docs/images/date_add.png) | ![Length](docs/images/converter_length.png) |
 
 Wide windows dock the history and memory panel on the right:
 
-![Wide layout](docs/screenshots/standard_wide.png)
+![Wide layout](docs/images/standard_wide.png)
 
 > rcalc is an independent project and is not affiliated with Microsoft. The
 > reference app was used only as a guide to behaviour and appearance (it is MIT
@@ -30,7 +30,7 @@ Wide windows dock the history and memory panel on the right:
 
 | Deutsch | 日本語 | 中文 | Français |
 |---|---|---|---|
-| ![de-DE](docs/screenshots/de-DE_standard.png) | ![ja-JP](docs/screenshots/ja-JP_scientific.png) | ![zh-CN](docs/screenshots/zh-CN_date.png) | ![fr-FR](docs/screenshots/fr-FR_calendar.png) |
+| ![de-DE](docs/images/de-DE_standard.png) | ![ja-JP](docs/images/ja-JP_scientific.png) | ![zh-CN](docs/images/zh-CN_date.png) | ![fr-FR](docs/images/fr-FR_calendar.png) |
 
 ## Features
 

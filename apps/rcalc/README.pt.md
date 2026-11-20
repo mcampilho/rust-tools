@@ -17,11 +17,11 @@ na raiz do repositório.
 
 | Padrão | Científica | Programador | Data | Conversor |
 |---|---|---|---|---|
-| ![Padrão](docs/screenshots/standard_dark.png) | ![Científica](docs/screenshots/scientific.png) | ![Programador](docs/screenshots/programmer.png) | ![Data](docs/screenshots/date_add.png) | ![Comprimento](docs/screenshots/converter_length.png) |
+| ![Padrão](docs/images/standard_dark.png) | ![Científica](docs/images/scientific.png) | ![Programador](docs/images/programmer.png) | ![Data](docs/images/date_add.png) | ![Comprimento](docs/images/converter_length.png) |
 
 Nas janelas largas, o painel de histórico e memória fica fixo à direita:
 
-![Janela larga](docs/screenshots/standard_wide.png)
+![Janela larga](docs/images/standard_wide.png)
 
 > O rcalc é um projeto independente, sem qualquer ligação à Microsoft. A
 > aplicação de referência serviu apenas de guia para o comportamento e o aspeto
@@ -32,7 +32,7 @@ Nas janelas largas, o painel de histórico e memória fica fixo à direita:
 
 | Deutsch | 日本語 | 中文 | Français |
 |---|---|---|---|
-| ![de-DE](docs/screenshots/de-DE_standard.png) | ![ja-JP](docs/screenshots/ja-JP_scientific.png) | ![zh-CN](docs/screenshots/zh-CN_date.png) | ![fr-FR](docs/screenshots/fr-FR_calendar.png) |
+| ![de-DE](docs/images/de-DE_standard.png) | ![ja-JP](docs/images/ja-JP_scientific.png) | ![zh-CN](docs/images/zh-CN_date.png) | ![fr-FR](docs/images/fr-FR_calendar.png) |
 
 ## Funcionalidades
 
