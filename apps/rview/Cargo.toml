@@ -18,7 +18,7 @@ rt-ui = { path = "../../crates/rt-ui" }
 rt-syntax = { path = "../../crates/rt-syntax" }
 winit = { version = "0.30", default-features = false, features = ["rwh_06"] }
 softbuffer = { version = "0.4", default-features = false }
-tiny-skia = { version = "0.11", default-features = false, features = ["std", "simd"] }
+tiny-skia = { version = "0.12", default-features = false, features = ["std", "simd"] }
 accesskit = "0.25"
 accesskit_winit = { version = "0.34", default-features = false, features = ["rwh_06"] }
 encoding_rs = "0.8"
@@ -66,7 +66,7 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 [build-dependencies]
 rt-build = { path = "../../crates/rt-build" }
 # build.rs draws the icon with the app's own `src/ui/appicon.rs`.
-tiny-skia = { version = "0.11", default-features = false, features = ["std"] }
+tiny-skia = { version = "0.12", default-features = false, features = ["std"] }
 
 [dev-dependencies]
-tiny-skia = { version = "0.11", default-features = false, features = ["std", "simd", "png-format"] }
+tiny-skia = { version = "0.12", default-features = false, features = ["std", "simd", "png-format"] }
