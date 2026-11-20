@@ -263,22 +263,20 @@ mod verify {
     use super::*;
     use crate::access::{owner_of, SID_ADMINISTRATORS, SID_SYSTEM};
     use crate::pipe::Conn;
-    use std::path::PathBuf;
-    use std::ptr::null_mut;
-    use windows_sys::Win32::Foundation::{CloseHandle, GetLastError};
+    use windows_sys::Win32::Foundation::GetLastError;
     use windows_sys::Win32::System::Pipes::GetNamedPipeServerProcessId;
     use windows_sys::Win32::System::Services::{
-        CloseServiceHandle, OpenSCManagerW, OpenServiceW, QueryServiceConfigW, QUERY_SERVICE_CONFIGW, SC_MANAGER_CONNECT,
-        SERVICE_QUERY_CONFIG,
+        CloseServiceHandle, OpenSCManagerW, OpenServiceW, QueryServiceStatusEx, SC_MANAGER_CONNECT, SC_STATUS_PROCESS_INFO,
+        SERVICE_QUERY_STATUS, SERVICE_STATUS_PROCESS,
     };
-    use windows_sys::Win32::System::Threading::{OpenProcess, QueryFullProcessImageNameW, PROCESS_QUERY_LIMITED_INFORMATION};
 
     fn denied(why: &str) -> io::Error {
         io::Error::new(io::ErrorKind::PermissionDenied, format!("the server of the pipe is not the service: {why}"))
     }
 
-    /// The image the Service Control Manager has for the service.
-    fn registered_image() -> io::Result<PathBuf> {
+    /// The id of the process the Service Control Manager says the service runs in (0: it does not run).
+    /// Any user may ask: unlike the process itself, which a user cannot open, the manager tells.
+    fn service_pid() -> io::Result<u32> {
         let name: Vec<u16> = crate::SERVICE_NAME.encode_utf16().chain(Some(0)).collect();
         // SAFETY: plain calls with valid arguments; every handle opened is closed below.
         unsafe {
@@ -286,60 +284,26 @@ mod verify {
             if scm.is_null() {
                 return Err(io::Error::from_raw_os_error(GetLastError() as i32));
             }
-            let svc = OpenServiceW(scm, name.as_ptr(), SERVICE_QUERY_CONFIG);
+            let svc = OpenServiceW(scm, name.as_ptr(), SERVICE_QUERY_STATUS);
             if svc.is_null() {
                 let e = io::Error::from_raw_os_error(GetLastError() as i32);
                 CloseServiceHandle(scm);
                 return Err(e);
             }
+            let mut st: SERVICE_STATUS_PROCESS = std::mem::zeroed();
             let mut need = 0u32;
-            QueryServiceConfigW(svc, null_mut(), 0, &mut need);
-            let mut buf = vec![0u64; (need as usize).div_ceil(8).max(1)];
-            let ok = QueryServiceConfigW(svc, buf.as_mut_ptr() as *mut QUERY_SERVICE_CONFIGW, (buf.len() * 8) as u32, &mut need);
-            let result = if ok == 0 {
-                Err(io::Error::from_raw_os_error(GetLastError() as i32))
-            } else {
-                let p = (*(buf.as_ptr() as *const QUERY_SERVICE_CONFIGW)).lpBinaryPathName;
-                let mut n = 0;
-                while *p.add(n) != 0 {
-                    n += 1;
-                }
-                Ok(String::from_utf16_lossy(std::slice::from_raw_parts(p, n)))
-            };
+            let ok = QueryServiceStatusEx(
+                svc,
+                SC_STATUS_PROCESS_INFO,
+                &mut st as *mut _ as *mut u8,
+                size_of::<SERVICE_STATUS_PROCESS>() as u32,
+                &mut need,
+            );
+            let result = if ok == 0 { Err(io::Error::from_raw_os_error(GetLastError() as i32)) } else { Ok(st.dwProcessId) };
             CloseServiceHandle(svc);
             CloseServiceHandle(scm);
-            let line = result?;
-            // `"C:\...\rtsvc.exe" run`: the quoted part is the image.
-            let image = match line.strip_prefix('"') {
-                Some(rest) => rest.split('"').next().unwrap_or(""),
-                None => line.split(' ').next().unwrap_or(""),
-            };
-            Ok(PathBuf::from(image))
+            result
         }
-    }
-
-    /// The image of the process with id `pid`.
-    fn image_of(pid: u32) -> io::Result<PathBuf> {
-        // SAFETY: plain calls; the handle is closed.
-        unsafe {
-            let p = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
-            if p.is_null() {
-                return Err(io::Error::from_raw_os_error(GetLastError() as i32));
-            }
-            let mut buf = vec![0u16; 1024];
-            let mut n = buf.len() as u32;
-            let ok = QueryFullProcessImageNameW(p, 0, buf.as_mut_ptr(), &mut n);
-            let e = io::Error::from_raw_os_error(GetLastError() as i32);
-            CloseHandle(p);
-            if ok == 0 {
-                return Err(e);
-            }
-            Ok(PathBuf::from(String::from_utf16_lossy(&buf[..n as usize])))
-        }
-    }
-
-    fn same_path(a: &std::path::Path, b: &std::path::Path) -> bool {
-        a.to_string_lossy().to_lowercase() == b.to_string_lossy().to_lowercase()
     }
 
     pub fn server(conn: &Conn) -> io::Result<()> {
@@ -352,10 +316,11 @@ mod verify {
         if unsafe { GetNamedPipeServerProcessId(conn.handle(), &mut pid) } == 0 {
             return Err(denied("its process is unknown"));
         }
-        let running = image_of(pid).map_err(|e| denied(&format!("its image is unknown ({e})")))?;
-        let registered = registered_image().map_err(|e| denied(&format!("the service is not registered ({e})")))?;
-        if !same_path(&running, &registered) {
-            return Err(denied("its image is not the registered one"));
+        // The service is registered, running, and is the process on the pipe. The image it runs
+        // from was checked when it started (it refuses to run from an unsafe folder).
+        let registered = service_pid().map_err(|e| denied(&format!("the service is not registered ({e})")))?;
+        if registered == 0 || registered != pid {
+            return Err(denied("its process is not the one of the service"));
         }
         Ok(())
     }

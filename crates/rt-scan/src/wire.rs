@@ -240,6 +240,29 @@ mod tests {
         assert_eq!((r.len(), r.node(0).size, r.node(0).files), (t.len(), t.node(0).size, t.node(0).files));
     }
 
+    /// With the service installed and running: reads a folder through it (`RT_SCAN_ROOT`, default `C:\Windows`).
+    /// `cargo test -p rt-scan --lib service_here -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn service_here() {
+        let root = std::env::var("RT_SCAN_ROOT").unwrap_or_else(|_| r"C:\Windows".into());
+        let start = std::time::Instant::now();
+        let last = std::cell::Cell::new(String::new());
+        let progress = |p: &crate::Progress| last.set(format!("{} files, {} folders, {}", p.files, p.dirs, p.current));
+        let tree = scan_via_service(std::path::Path::new(&root), &std::sync::atomic::AtomicBool::new(false), &progress)
+            .expect("the service answers");
+        let n = tree.node(tree.root());
+        println!(
+            "{root}: {} nodes, {} files, {} bytes, in {:.1?}; last progress: {}",
+            tree.len(),
+            n.files,
+            n.size,
+            start.elapsed(),
+            last.take()
+        );
+        assert!(tree.len() > 1000);
+    }
+
     #[test]
     fn a_hostile_server_cannot_break_the_builder() {
         let progress = |_: &crate::Progress| {};
