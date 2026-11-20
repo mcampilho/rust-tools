@@ -1,0 +1,16 @@
+[package]
+name = "rt-clean"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.93"
+description = "What the cleaner cleans: the targets (temporary files, caches, shortcuts, registry entries), measuring them and removing them; shared by rclean and the privileged service"
+license = "MIT"
+publish = false
+
+[dependencies]
+rt-core = { path = "../rt-core" }
+rt-sys = { path = "../rt-sys" }
+
+[target.'cfg(windows)'.dependencies]
+# The Recycle Bin (SHQueryRecycleBin, SHEmptyRecycleBin).
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_UI_Shell"] }

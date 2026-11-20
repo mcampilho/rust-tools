@@ -2,17 +2,15 @@
 //! (`main.rs`), so it can be tested without one.
 
 pub mod app;
-pub mod clean;
 pub mod commands;
 pub mod i18n;
-pub mod managers;
 pub mod procs;
-pub mod registry;
 pub mod settings;
-pub mod shortcuts;
 pub mod storage;
-pub mod targets;
 pub mod ui;
+
+// What is cleaned: the engine, shared with the privileged service.
+pub use rt_clean::{clean, managers, registry, shortcuts, targets};
 
 // Sizes and counts as shown, shared with rsize, rdup and rinst.
 pub use rt_scan::format;

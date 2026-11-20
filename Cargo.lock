@@ -2681,6 +2681,7 @@ dependencies = [
  "accesskit",
  "accesskit_winit",
  "rt-build",
+ "rt-clean",
  "rt-core",
  "rt-gfx",
  "rt-scan",
@@ -2811,6 +2812,7 @@ dependencies = [
  "rt-build",
  "rt-core",
  "rt-gfx",
+ "rt-inst",
  "rt-scan",
  "rt-sys",
  "rt-ui",
@@ -2944,6 +2946,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rt-clean"
+version = "0.1.0"
+dependencies = [
+ "rt-core",
+ "rt-sys",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
 name = "rt-cli"
 version = "0.1.0"
 dependencies = [
@@ -2971,6 +2982,16 @@ dependencies = [
  "ab_glyph",
  "rt-core",
  "tiny-skia",
+]
+
+[[package]]
+name = "rt-inst"
+version = "0.1.0"
+dependencies = [
+ "rt-scan",
+ "rt-sys",
+ "windows",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

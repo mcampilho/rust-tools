@@ -404,7 +404,7 @@ pub fn run(c: &Cmd) -> Result<(), String> {
     let elevated;
     let c = if c.root && !cfg!(windows) && !is_root() {
         let Some(pkexec) = which("pkexec") else {
-            return Err(crate::i18n::tr("It needs root, and pkexec was not found: start rclean as root."));
+            return Err(rt_core::i18n::tr("It needs root, and pkexec was not found: start rclean as root.").to_string());
         };
         let mut args: Vec<String> = vec!["env".into()];
         args.extend(c.env.iter().map(|(k, v)| format!("{k}={v}")));
