@@ -149,9 +149,45 @@ fn analyse_manager(t: &Target, stop: &AtomicBool) -> Found {
     f
 }
 
+/// The most places looked at at the same time.
+const WALK_THREADS: usize = 8;
+
 /// Walks the places: files that go (listed, or only counted in `items`),
-/// and the folders inside. `uid`: only that user's files (Linux).
+/// and the folders inside. `uid`: only that user's files (Linux). Many places (Scoop's old
+/// versions are one each) are looked at several at a time: it is mostly waiting for the disk.
 fn walk(places: &[Place], uid: Option<u32>, list: bool, f: &mut Found, stop: &AtomicBool) {
+    if places.len() < 4 {
+        return walk_places(places, uid, list, f, stop);
+    }
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let parts: Vec<Found> = std::thread::scope(|s| {
+        let workers: Vec<_> = (0..places.len().min(WALK_THREADS))
+            .map(|_| {
+                s.spawn(|| {
+                    let mut part = Found::default();
+                    loop {
+                        let i = next.fetch_add(1, Ordering::Relaxed);
+                        if i >= places.len() || stop.load(Ordering::Relaxed) {
+                            break;
+                        }
+                        walk_places(&places[i..=i], uid, list, &mut part, stop);
+                    }
+                    part
+                })
+            })
+            .collect();
+        workers.into_iter().filter_map(|w| w.join().ok()).collect()
+    });
+    for p in parts {
+        f.bytes += p.bytes;
+        f.items += p.items;
+        f.unreadable += p.unreadable;
+        f.files.extend(p.files);
+        f.dirs.extend(p.dirs);
+    }
+}
+
+fn walk_places(places: &[Place], uid: Option<u32>, list: bool, f: &mut Found, stop: &AtomicBool) {
     let now = SystemTime::now();
     for place in places {
         let mut stack = vec![(place.dir.clone(), 0usize)];
@@ -310,8 +346,79 @@ mod tests {
     use super::*;
     use crate::targets::Group;
 
+    /// How long each target of this computer takes to look at, slowest first (one after the other),
+    /// and all of them four at a time: `cargo test -p rt-clean --lib timings_here -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn timings_here() {
+        use std::sync::{Arc, Mutex};
+        use std::time::Instant;
+        let stop = AtomicBool::new(false);
+        let targets: Vec<Target> =
+            crate::targets::all(&crate::targets::Env::here()).into_iter().filter(|t| !t.admin || cfg!(unix)).collect();
+        let whole = Instant::now();
+        let mut times: Vec<(std::time::Duration, String, u64)> = targets
+            .iter()
+            .map(|t| {
+                let at = Instant::now();
+                let f = analyse(t, &stop);
+                (at.elapsed(), t.id.clone(), f.bytes)
+            })
+            .collect();
+        println!("one after the other: {:.1?}", whole.elapsed());
+        times.sort_by_key(|t| std::cmp::Reverse(t.0));
+        for (d, id, bytes) in times.iter().take(10) {
+            println!("  {d:>8.1?}  {id}  ({bytes} bytes)");
+        }
+        let queue = Arc::new(Mutex::new(targets.clone().into_iter()));
+        let stop = Arc::new(AtomicBool::new(false));
+        let at = Instant::now();
+        let hs: Vec<_> = (0..4)
+            .map(|_| {
+                let (q, s) = (queue.clone(), stop.clone());
+                std::thread::spawn(move || {
+                    while let Some(t) = q.lock().unwrap().next() {
+                        analyse(&t, &s);
+                    }
+                })
+            })
+            .collect();
+        for h in hs {
+            h.join().unwrap();
+        }
+        println!("four at a time:      {:.1?}", at.elapsed());
+    }
+
     fn target(places: Vec<Place>) -> Target {
         Target::files("t", Group::System, "", "", places)
+    }
+
+    #[test]
+    fn many_places_add_up_to_the_same_as_one_at_a_time() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target").join(format!("walk-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let mut places = Vec::new();
+        for n in 0..20u64 {
+            let d = root.join(format!("v{n}")).join("sub");
+            std::fs::create_dir_all(&d).unwrap();
+            std::fs::write(d.join("f.bin"), vec![0u8; (n + 1) as usize]).unwrap();
+            std::fs::write(root.join(format!("v{n}")).join("g.bin"), [0u8; 5]).unwrap();
+            places.push(Place { dir: root.join(format!("v{n}")), filter: Filter::All });
+        }
+        places.push(Place { dir: root.join("not-there"), filter: Filter::All });
+        let stop = AtomicBool::new(false);
+        let (mut one, mut many) = (Found::default(), Found::default());
+        walk_places(&places, None, true, &mut one, &stop);
+        walk(&places, None, true, &mut many, &stop);
+        let key = |f: &Found| {
+            let mut v: Vec<_> = f.files.iter().map(|(p, n)| (p.clone(), *n)).collect();
+            v.sort();
+            (f.bytes, f.items, f.unreadable, v, f.dirs.len())
+        };
+        assert_eq!(key(&one), key(&many));
+        assert_eq!(many.bytes, (1..=20u64).sum::<u64>() + 20 * 5);
+        assert_eq!(many.files.len(), 40);
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

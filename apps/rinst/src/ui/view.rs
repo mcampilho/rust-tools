@@ -1066,6 +1066,16 @@ pub fn status_text(app: &App, hover: Option<usize>) -> (String, String) {
     if broken > 0 {
         right += &format!(" · {}", tf("{} with problems", &[&format::count(broken as u64)]));
     }
+    // Where the list of programs came from.
+    if app.tab == Tab::Programs {
+        right += &format!(
+            " · {}",
+            match f.service_age {
+                Some(age) => tf("list from the service ({})", &[&format::ago(age)]),
+                None => tr("list read directly"),
+            }
+        );
+    }
     // Shortcuts and winget are Windows'.
     if app.tab == Tab::Programs && cfg!(windows) {
         right += &format!(" · {}", tf("{} shortcuts", &[&format::count(f.shortcuts.len() as u64)]));

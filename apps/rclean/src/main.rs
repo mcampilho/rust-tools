@@ -17,6 +17,9 @@ use rclean::ui::gfx::{Color, Gfx, Rect};
 use rclean::ui::theme::Theme;
 use rclean::ui::view::{self, Hot, Layout};
 use rt_ui::Message;
+
+/// How many targets are looked at at the same time.
+const ANALYSE_THREADS: usize = 4;
 use std::num::NonZeroU32;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -163,15 +166,29 @@ impl Shell {
         self.start_busy(false, work.len());
         let (proxy, stop) = (self.proxy.clone(), self.stop.clone());
         std::thread::spawn(move || {
-            let running = rclean::procs::running();
-            for (i, t) in work {
-                if stop.load(Ordering::Relaxed) {
-                    break;
-                }
-                let _ = proxy.send_event(UserEvent::Starting(gen, i));
-                let found = clean::analyse(&t, &stop);
-                let open = rclean::procs::any_running(&running, t.process);
-                let _ = proxy.send_event(UserEvent::Analysed(gen, i, Box::new(found), open));
+            let running = Arc::new(rclean::procs::running());
+            // The targets are independent (their own folders, or their own program): a few at a
+            // time, because most of the time goes to waiting for the disk and for commands.
+            let workers = work.len().clamp(1, ANALYSE_THREADS);
+            let queue = Arc::new(std::sync::Mutex::new(work.into_iter()));
+            let handles: Vec<_> = (0..workers)
+                .map(|_| {
+                    let (queue, running, proxy, stop) = (queue.clone(), running.clone(), proxy.clone(), stop.clone());
+                    std::thread::spawn(move || loop {
+                        let next = queue.lock().ok().and_then(|mut q| q.next());
+                        let Some((i, t)) = next else { break };
+                        if stop.load(Ordering::Relaxed) {
+                            break;
+                        }
+                        let _ = proxy.send_event(UserEvent::Starting(gen, i));
+                        let found = clean::analyse(&t, &stop);
+                        let open = rclean::procs::any_running(&running, t.process);
+                        let _ = proxy.send_event(UserEvent::Analysed(gen, i, Box::new(found), open));
+                    })
+                })
+                .collect();
+            for h in handles {
+                let _ = h.join();
             }
             let _ = proxy.send_event(UserEvent::Finished(gen, false));
         });
@@ -898,8 +915,8 @@ fn main() {
     let mut app = App::new(rclean::targets::all(&rclean::targets::Env::here()), admin, &settings.ticks);
     // Not as administrator: what needs it may still have been measured by the privileged service.
     if !admin {
-        if let Some((list, _age)) = rt_clean::snapshot::fetch(6 * 3600) {
-            app.set_known(list);
+        if let Some((list, age)) = rt_clean::snapshot::fetch(6 * 3600) {
+            app.set_known(list, age);
         }
     }
     let mut shell = Shell {

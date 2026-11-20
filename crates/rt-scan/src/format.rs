@@ -53,6 +53,16 @@ pub fn count(n: u64) -> String {
 
 /// A share as a percentage with one decimal: `45.2%` (`45,2 %` where the
 /// language puts a space before the sign).
+/// How long ago, as a short text ("3 min ago").
+pub fn ago(secs: u64) -> String {
+    use rt_core::i18n::{tf, tr};
+    match secs {
+        0..=59 => tr("less than a minute ago").to_string(),
+        60..=7199 => tf("{} min ago", &[&(secs / 60).to_string()]),
+        _ => tf("{} h ago", &[&(secs / 3600).to_string()]),
+    }
+}
+
 pub fn percent(part: u64, whole: u64) -> String {
     let p = if whole == 0 { 0.0 } else { part as f64 * 100.0 / whole as f64 };
     format!("{}{}%", decimal(p, 1), percent_space())

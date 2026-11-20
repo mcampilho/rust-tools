@@ -1331,6 +1331,7 @@ pub fn status_text(app: &App, hover: Option<usize>) -> (String, String) {
     for r in &f.roots {
         let m = match r.method {
             Method::Ntfs => tr("from the NTFS table"),
+            Method::Service => tr("from the NTFS table, through the service"),
             Method::Everything => tr("from the Everything index"),
             Method::System => tr("folder by folder"),
         };

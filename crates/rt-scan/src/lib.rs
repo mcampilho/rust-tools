@@ -56,6 +56,8 @@ pub enum Method {
     Ntfs,
     /// The index of a running Everything (Windows).
     Everything,
+    /// The NTFS table, read by the privileged service for a tool that is not elevated.
+    Service,
 }
 
 /// An entry as a lister returns it.
@@ -236,9 +238,9 @@ pub fn scan_with(root: &Path, ways: Ways, cancel: &AtomicBool, progress: &dyn Fn
         if !rt_svc::access::is_elevated() {
             match wire::scan_via_service(&root, cancel, progress) {
                 Ok(tree) => {
-                    return Ok(Scan { tree, method: Method::Ntfs, elapsed: start.elapsed(), complete: true, admin_would_help: false })
+                    return Ok(Scan { tree, method: Method::Service, elapsed: start.elapsed(), complete: true, admin_would_help: false })
                 }
-                Err(e) if e.kind() == std::io::ErrorKind::Interrupted => return stopped(Method::Ntfs),
+                Err(e) if e.kind() == std::io::ErrorKind::Interrupted => return stopped(Method::Service),
                 Err(_) => {}
             }
         }

@@ -205,16 +205,16 @@ impl Shell {
             let _ = p3.send_event(UserEvent::Tools(gen, tools));
         });
         std::thread::spawn(move || {
-            let inv = use_snapshot
-                .then(|| rt_inst::snapshot::fetch(24 * 3600))
-                .flatten()
-                .map(|(mut inv, _age)| {
+            let (inv, service_age) = match use_snapshot.then(|| rt_inst::snapshot::fetch(24 * 3600)).flatten() {
+                Some((mut inv, age)) => {
                     inv.me = rinst::inventory::me();
-                    inv
-                })
-                .unwrap_or_else(rinst::inventory::read);
+                    (inv, Some(age))
+                }
+                None => (rinst::inventory::read(), None),
+            };
             let shortcuts = rinst::shortcuts::read(&inv.me, &inv.other_users);
             let mut found = Found::new(inv, shortcuts);
+            found.service_age = service_age;
             let scoop = rinst::managers::scoop_all(&found.inv.me);
             found.scoop = (!scoop.is_empty()).then_some(scoop);
             found.chocolatey = rinst::managers::choco_root().map(|r| rinst::managers::choco_packages(&r));

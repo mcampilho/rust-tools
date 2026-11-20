@@ -829,6 +829,7 @@ fn draw_info(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32) {
     }
     let how = match scan.method {
         crate::scan::Method::Ntfs => tr("from the NTFS table"),
+        crate::scan::Method::Service => tr("from the NTFS table, through the service"),
         crate::scan::Method::Everything => tr("from the Everything index"),
         crate::scan::Method::System => tr("folder by folder"),
     };

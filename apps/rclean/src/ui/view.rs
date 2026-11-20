@@ -653,6 +653,9 @@ pub fn status_text(app: &App) -> (String, String) {
     if let Some(c) = &app.freed {
         right += &format!(" · {}", tf("{} freed", &[&format::size(c.bytes)]));
     }
+    if let Some(age) = app.known_age {
+        right += &format!(" · {}", tf("sizes of what needs rights: from the service ({})", &[&format::ago(age)]));
+    }
     (left, right)
 }
 

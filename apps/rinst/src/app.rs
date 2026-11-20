@@ -109,6 +109,8 @@ impl Whose {
 #[derive(Clone, Debug, Default)]
 pub struct Found {
     pub inv: Inventory,
+    /// Set when the programs came from the privileged service: the age of its snapshot, in seconds.
+    pub service_age: Option<u64>,
     pub shortcuts: Vec<Shortcut>,
     /// For each program, the indexes of its shortcuts.
     pub links: Vec<Vec<usize>>,

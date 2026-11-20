@@ -84,6 +84,8 @@ pub struct App {
     pub note: Option<String>,
     /// What the last cleaning freed, for the status bar.
     pub freed: Option<Cleaned>,
+    /// The sizes of what needs rights came from the privileged service: the age of its snapshot, in seconds.
+    pub known_age: Option<u64>,
 }
 
 impl App {
@@ -106,7 +108,8 @@ impl App {
     }
 
     /// Sizes the privileged service measured, for the items that need administrator rights here.
-    pub fn set_known(&mut self, list: Vec<rt_clean::snapshot::Summary>) {
+    pub fn set_known(&mut self, list: Vec<rt_clean::snapshot::Summary>, age: u64) {
+        self.known_age = Some(age);
         for it in self.items.iter_mut().filter(|it| it.state == State::NeedsAdmin) {
             it.known = list.iter().find(|s| s.id == it.target.id).cloned();
         }
@@ -327,7 +330,8 @@ pub mod tests {
         let id = app.items[1].target.id.clone();
         let other = app.items[0].target.id.clone();
         let s = |id: &str| rt_clean::snapshot::Summary { id: id.into(), bytes: 5, count: 2, ..Default::default() };
-        app.set_known(vec![s(&id), s(&other)]);
+        app.set_known(vec![s(&id), s(&other)], 90);
+        assert_eq!(app.known_age, Some(90));
         assert_eq!(app.items[1].known.as_ref().map(|k| k.bytes), Some(5));
         assert!(app.items[0].known.is_none(), "an item rclean can analyse itself is not taken from the service");
         assert_eq!(app.items[1].state, State::NeedsAdmin, "still not cleanable here");
