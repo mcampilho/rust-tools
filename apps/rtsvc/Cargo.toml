@@ -17,12 +17,16 @@ rt-svc = { path = "../../crates/rt-svc" }
 
 [target.'cfg(windows)'.dependencies]
 rt-scan = { path = "../../crates/rt-scan" }
+rt-inst = { path = "../../crates/rt-inst" }
+rt-clean = { path = "../../crates/rt-clean" }
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
     "Win32_Security",
     "Win32_Security_Authorization",
     "Win32_Storage_FileSystem",
     "Win32_System_Console",
+    "Win32_System_Power",
+    "Win32_System_Registry",
     "Win32_System_Services",
     "Win32_System_Threading",
 ] }

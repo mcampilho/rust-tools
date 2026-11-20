@@ -5,6 +5,11 @@ use rt_svc::Visibility;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use windows_sys::Win32::Foundation::LocalFree;
+use windows_sys::Win32::Security::Authorization::{
+    ConvertStringSecurityDescriptorToSecurityDescriptorW, SetNamedSecurityInfoW, SDDL_REVISION_1, SE_FILE_OBJECT,
+};
+use windows_sys::Win32::Security::{GetSecurityDescriptorDacl, ACL, DACL_SECURITY_INFORMATION, PROTECTED_DACL_SECURITY_INFORMATION};
 
 /// `%ProgramData%\rust-tools`: SYSTEM and Administrators write, users read.
 pub fn data_dir() -> PathBuf {
@@ -57,6 +62,49 @@ impl Config {
         std::fs::write(&tmp, self.text())?;
         std::fs::rename(tmp, config_file())
     }
+}
+
+/// Who may do what in `%ProgramData%\rust-tools`: SYSTEM and Administrators everything,
+/// authenticated users read and execute. Inheritance from the parent is cut.
+pub const DATA_SDDL: &str = "D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;AU)";
+/// For what only administrators may even read (the snapshots hold other users' data).
+pub const PRIVATE_SDDL: &str = "D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)";
+
+/// Creates `dir` if need be and gives it exactly the permissions of `sddl` (no inheritance).
+pub fn protect(dir: &Path, sddl: &str) -> std::io::Result<()> {
+    std::fs::create_dir_all(dir)?;
+    let text = crate::scm::wide(sddl);
+    let mut sd = std::ptr::null_mut();
+    // SAFETY: valid string and out pointer.
+    if unsafe { ConvertStringSecurityDescriptorToSecurityDescriptorW(text.as_ptr(), SDDL_REVISION_1, &mut sd, std::ptr::null_mut()) } == 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    let (mut present, mut defaulted) = (0, 0);
+    let mut dacl: *mut ACL = std::ptr::null_mut();
+    // SAFETY: `sd` is the descriptor just made; the out pointers are valid.
+    let ok = unsafe { GetSecurityDescriptorDacl(sd, &mut present, &mut dacl, &mut defaulted) };
+    let mut result = if ok == 0 || present == 0 { Err(std::io::Error::last_os_error()) } else { Ok(()) };
+    if result.is_ok() {
+        let path = crate::scm::wide(&dir.to_string_lossy());
+        // SAFETY: valid path and DACL (inside `sd`, alive until the LocalFree).
+        let r = unsafe {
+            SetNamedSecurityInfoW(
+                path.as_ptr(),
+                SE_FILE_OBJECT,
+                DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                dacl,
+                std::ptr::null_mut(),
+            )
+        };
+        if r != 0 {
+            result = Err(std::io::Error::from_raw_os_error(r as i32));
+        }
+    }
+    // SAFETY: allocated by the conversion.
+    unsafe { LocalFree(sd as *mut _) };
+    result
 }
 
 /// `YYYY-MM-DD HH:MM:SS` (UTC) of a time in seconds since 1970.

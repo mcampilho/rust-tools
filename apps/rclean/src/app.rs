@@ -27,6 +27,8 @@ pub struct Item {
     pub state: State,
     /// Its program is open (a browser): some files may be in use.
     pub open: bool,
+    /// What the privileged service measured, for what needs administrator rights.
+    pub known: Option<rt_clean::snapshot::Summary>,
 }
 
 impl Item {
@@ -94,13 +96,20 @@ impl App {
                 let state = if t.admin && !admin { State::NeedsAdmin } else { State::Waiting };
                 // What cannot be cleaned here is not ticked (nor remembered so).
                 let ticked = state != State::NeedsAdmin && ticks.iter().find(|(id, _)| *id == t.id).map_or(t.default_on, |(_, on)| *on);
-                Item { target: t, ticked, state, open: false }
+                Item { target: t, ticked, state, open: false, known: None }
             })
             .collect();
         let mut app = App { items, page: 20, ..App::default() };
         app.rebuild();
         app.sel = app.rows.iter().position(|r| matches!(r, Row::Item(_)));
         app
+    }
+
+    /// Sizes the privileged service measured, for the items that need administrator rights here.
+    pub fn set_known(&mut self, list: Vec<rt_clean::snapshot::Summary>) {
+        for it in self.items.iter_mut().filter(|it| it.state == State::NeedsAdmin) {
+            it.known = list.iter().find(|s| s.id == it.target.id).cloned();
+        }
     }
 
     /// The rows: each group's title, then its items, in the order found.
@@ -310,6 +319,18 @@ pub mod tests {
         app.set_cleaned(5, Cleaned { bytes: 250_000_000, files: 900, failed: 12, error: None });
         app.items[4].open = true;
         app
+    }
+
+    #[test]
+    fn what_the_service_measured_is_shown_only_for_what_needs_rights() {
+        let mut app = sample();
+        let id = app.items[1].target.id.clone();
+        let other = app.items[0].target.id.clone();
+        let s = |id: &str| rt_clean::snapshot::Summary { id: id.into(), bytes: 5, count: 2, ..Default::default() };
+        app.set_known(vec![s(&id), s(&other)]);
+        assert_eq!(app.items[1].known.as_ref().map(|k| k.bytes), Some(5));
+        assert!(app.items[0].known.is_none(), "an item rclean can analyse itself is not taken from the service");
+        assert_eq!(app.items[1].state, State::NeedsAdmin, "still not cleanable here");
     }
 
     #[test]

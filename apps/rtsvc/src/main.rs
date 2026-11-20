@@ -13,11 +13,19 @@ mod config;
 #[cfg(windows)]
 mod handler;
 #[cfg(windows)]
+mod idle;
+#[cfg(windows)]
 mod install;
+#[cfg(windows)]
+mod kinds;
 #[cfg(windows)]
 mod scm;
 #[cfg(windows)]
 mod service;
+#[cfg(windows)]
+mod snapshots;
+#[cfg(windows)]
+mod watch;
 
 use cli::{Command, Opts};
 use rt_cli::Texts;

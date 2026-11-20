@@ -6,3 +6,4 @@ pub mod appx;
 pub mod inventory;
 pub mod linux_pkgs;
 pub mod msi;
+pub mod snapshot;

@@ -2950,6 +2950,7 @@ name = "rt-clean"
 version = "0.1.0"
 dependencies = [
  "rt-core",
+ "rt-svc",
  "rt-sys",
  "windows-sys 0.59.0",
 ]
@@ -2989,6 +2990,7 @@ name = "rt-inst"
 version = "0.1.0"
 dependencies = [
  "rt-scan",
+ "rt-svc",
  "rt-sys",
  "windows",
  "windows-sys 0.59.0",
@@ -3044,7 +3046,9 @@ dependencies = [
 name = "rtsvc"
 version = "0.1.0"
 dependencies = [
+ "rt-clean",
  "rt-cli",
+ "rt-inst",
  "rt-scan",
  "rt-svc",
  "windows-sys 0.59.0",

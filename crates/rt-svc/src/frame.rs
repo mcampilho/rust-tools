@@ -21,6 +21,10 @@ pub mod kind {
     pub const PING: u16 = 2;
     pub const STATUS: u16 = 3;
     pub const SCAN_VOLUME: u16 = 4;
+    /// A snapshot kept by the service (programs, what can be cleaned).
+    pub const GET_SNAPSHOT: u16 = 5;
+    /// Asks the service to make a snapshot again.
+    pub const REFRESH: u16 = 6;
 
     pub const HELLO_OK: u16 = 100;
     pub const PONG: u16 = 101;
@@ -32,10 +36,12 @@ pub mod kind {
     pub const SCAN_START: u16 = 106;
     /// How far a scan has got.
     pub const SCAN_PROGRESS: u16 = 107;
+    pub const SNAPSHOT: u16 = 108;
+    pub const REFRESH_OK: u16 = 109;
 
     /// Frames that may be longer than `MAX_PAYLOAD`.
     pub fn is_bulk(kind: u16) -> bool {
-        kind == SCAN_BATCH
+        kind == SCAN_BATCH || kind == SNAPSHOT
     }
 }
 

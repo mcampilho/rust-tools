@@ -58,6 +58,18 @@ impl Event {
         Ok(Event(h))
     }
 
+    /// Whether the event is set.
+    pub fn is_set(&self) -> bool {
+        // SAFETY: the handle is a valid event; a zero wait only looks.
+        unsafe { windows_sys::Win32::System::Threading::WaitForSingleObject(self.0, 0) == WAIT_OBJECT_0 }
+    }
+
+    /// Waits until the event is set, or ms milliseconds have passed. Returns whether it is set.
+    pub fn wait(&self, ms: u32) -> bool {
+        // SAFETY: the handle is a valid event.
+        unsafe { windows_sys::Win32::System::Threading::WaitForSingleObject(self.0, ms) == WAIT_OBJECT_0 }
+    }
+
     pub fn set(&self) {
         // SAFETY: the handle is a valid event.
         unsafe { windows_sys::Win32::System::Threading::SetEvent(self.0) };

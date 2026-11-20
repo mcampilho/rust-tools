@@ -1,16 +1,18 @@
 //! What the service answers beyond `Hello`, `Ping` and `Status`: for now,
 //! reading the NTFS table of a volume.
 
+use crate::snapshots::{now, Miss, Store, Viewer};
 use rt_scan::model::Tree;
 use rt_scan::Progress;
 use rt_svc::frame::{kind, write_frame, Frame};
-use rt_svc::proto::{caps, code, encode_batch, encode_done, encode_error, ScanProgress, ScanRequest, ScanStart};
+use rt_svc::proto::{caps, code, encode_batch, encode_done, encode_error, ScanProgress, ScanRequest, ScanStart, SnapshotRequest};
 use rt_svc::server::{Handler, Session};
 use rt_svc::Visibility;
 use std::cell::RefCell;
 use std::io::{self, Write};
 use std::path::{Component, Path, PathBuf, Prefix};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
+use std::sync::Arc;
 
 /// The most scans at once: reading a table takes memory and the disk's time.
 const MAX_SCANS: u32 = 2;
@@ -33,6 +35,7 @@ pub struct Svc {
     scans: AtomicU64,
     running: AtomicU32,
     source: Source,
+    store: Arc<Store>,
 }
 
 /// A full path on a drive letter (`C:\...`), without `..`.
@@ -71,8 +74,28 @@ pub fn ntfs_source() -> Source {
 }
 
 impl Svc {
-    pub fn new(visibility: Visibility, source: Source) -> Svc {
-        Svc { visibility, scans: AtomicU64::new(0), running: AtomicU32::new(0), source }
+    pub fn new(visibility: Visibility, source: Source, store: Arc<Store>) -> Svc {
+        Svc { visibility, scans: AtomicU64::new(0), running: AtomicU32::new(0), source, store }
+    }
+
+    fn snapshot(&self, s: &Session, f: &Frame, out: &mut dyn Write) -> io::Result<()> {
+        let fail = |out: &mut dyn Write, c: u16, m: &str| write_frame(out, &Frame::new(kind::ERROR, f.id, encode_error(c, m)));
+        let Ok(q) = SnapshotRequest::decode(&f.payload) else { return fail(out, code::MALFORMED, "the request is malformed") };
+        if f.kind == kind::REFRESH {
+            return if self.store.refresh(&q.name) {
+                write_frame(out, &Frame::new(kind::REFRESH_OK, f.id, Vec::new()))
+            } else {
+                fail(out, code::NO_SNAPSHOT, "there is no such snapshot")
+            };
+        }
+        let viewer = Viewer { level: s.level, account: s.who.name.clone() };
+        match self.store.get(&q.name, q.max_age_secs, &viewer, now()) {
+            Ok(d) => write_frame(out, &Frame::new(kind::SNAPSHOT, f.id, d.encode())),
+            Err(Miss::Hidden) => fail(out, code::DENIED, "this snapshot is not for this client"),
+            Err(Miss::Unknown) => fail(out, code::NO_SNAPSHOT, "there is no such snapshot"),
+            Err(Miss::NotMade) => fail(out, code::NO_SNAPSHOT, "the snapshot is not made yet"),
+            Err(Miss::TooOld(age)) => fail(out, code::NO_SNAPSHOT, &format!("the snapshot is {age} s old")),
+        }
     }
 
     fn scan(&self, s: &Session, f: &Frame, out: &mut dyn Write) -> io::Result<()> {
@@ -150,9 +173,14 @@ impl Handler for Svc {
         self.scans.load(Ordering::Relaxed)
     }
 
+    fn snapshots(&self) -> Vec<(String, u64)> {
+        self.store.status(now())
+    }
+
     fn request(&self, s: &Session, f: &Frame, out: &mut dyn Write) -> io::Result<()> {
         match f.kind {
             kind::SCAN_VOLUME => self.scan(s, f, out),
+            kind::GET_SNAPSHOT | kind::REFRESH => self.snapshot(s, f, out),
             _ => write_frame(out, &Frame::new(kind::ERROR, f.id, encode_error(code::UNKNOWN, "unknown request"))),
         }
     }
@@ -185,11 +213,15 @@ mod tests {
     }
 
     fn serve(visibility: Visibility, source: Source) -> (String, Arc<Event>, std::thread::JoinHandle<()>) {
+        serve_store(visibility, source, Arc::new(Store::new(vec![], None)))
+    }
+
+    fn serve_store(visibility: Visibility, source: Source, store: Arc<Store>) -> (String, Arc<Event>, std::thread::JoinHandle<()>) {
         static N: AtomicU32 = AtomicU32::new(0);
         let name = format!(r"\\.\pipe\rtsvc-test-{}-{}", std::process::id(), N.fetch_add(1, Ordering::Relaxed));
         let stop = Arc::new(Event::new().unwrap());
         let (n, s) = (name.clone(), stop.clone());
-        let t = std::thread::spawn(move || run(&n, Arc::new(Svc::new(visibility, source)), s, Arc::new(|_| {})).unwrap());
+        let t = std::thread::spawn(move || run(&n, Arc::new(Svc::new(visibility, source, store)), s, Arc::new(|_| {})).unwrap());
         for _ in 0..100 {
             if rt_svc::pipe::connect(&name, 0).is_ok() {
                 break;
@@ -271,6 +303,32 @@ mod tests {
             stop.set();
             t.join().unwrap();
         }
+    }
+
+    #[test]
+    fn snapshots_are_asked_for_made_and_given() {
+        use crate::snapshots::Kind;
+        let kind = Kind {
+            name: "programs",
+            max_age: 1000,
+            min_gap: 0,
+            produce: Box::new(|_| vec![4, 5, 6]),
+            view: Box::new(|v, d| (v.level != Level::Denied).then(|| d.to_vec())),
+        };
+        let store = Arc::new(Store::new(vec![kind], None));
+        let (name, stop, t) = serve_store(Visibility::User, fake(sample), store.clone());
+        let mut c = connect_to(&name, Trust::Anyone, "test", "1", 1000).unwrap();
+        // Not made yet: the answer says so, and the miss asks for it.
+        assert!(c.snapshot("programs", 60).unwrap_err().to_string().contains("not made yet"));
+        assert_eq!(store.tick(now(), false, &AtomicBool::new(false)), 1);
+        let s = c.snapshot("programs", 60).unwrap();
+        assert_eq!(s.data, vec![4, 5, 6]);
+        assert!(s.age_secs < 5);
+        assert!(c.snapshot("nope", 60).unwrap_err().to_string().contains("no such snapshot"));
+        assert!(c.refresh("programs").is_ok() && c.refresh("nope").is_err());
+        assert_eq!(c.status().unwrap().snapshots.len(), 1);
+        stop.set();
+        t.join().unwrap();
     }
 
     #[test]

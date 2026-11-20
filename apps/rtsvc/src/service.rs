@@ -3,14 +3,16 @@
 use crate::config::{console_log, data_dir, file_log, Config};
 use crate::handler::Svc;
 use crate::scm::wide;
+use crate::snapshots::{now, Store};
 use rt_svc::pipe::Event;
 use rt_svc::server::{run, Log};
 use rt_svc::{DEV_PIPE_NAME, PIPE_NAME, SERVICE_NAME};
 use std::ffi::c_void;
-use std::sync::atomic::{AtomicIsize, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicU32, Ordering};
 use std::sync::{Arc, OnceLock};
 use windows_sys::Win32::Foundation::{BOOL, ERROR_ACCESS_DENIED};
 use windows_sys::Win32::System::Console::SetConsoleCtrlHandler;
+use windows_sys::Win32::System::Registry::HKEY_LOCAL_MACHINE;
 use windows_sys::Win32::System::Services::{
     RegisterServiceCtrlHandlerExW, SetServiceStatus, StartServiceCtrlDispatcherW, SERVICE_ACCEPT_SHUTDOWN, SERVICE_ACCEPT_STOP,
     SERVICE_CONTROL_INTERROGATE, SERVICE_CONTROL_SHUTDOWN, SERVICE_CONTROL_STOP, SERVICE_RUNNING, SERVICE_START_PENDING, SERVICE_STATUS,
@@ -77,11 +79,66 @@ unsafe extern "system" fn service_main(_argc: u32, _argv: *mut *mut u16) {
     let cfg = Config::load();
     log(&format!("starting {} (visibility {:?})", env!("CARGO_PKG_VERSION"), cfg.visibility));
     report(SERVICE_RUNNING, 0, 0);
-    let result = run(PIPE_NAME, Arc::new(Svc::new(cfg.visibility, crate::handler::ntfs_source())), stop, log.clone());
+    let store = start_background(&stop, &log, Some(data_dir().join("cache")));
+    let result = run(PIPE_NAME, Arc::new(Svc::new(cfg.visibility, crate::handler::ntfs_source(), store)), stop, log.clone());
     if let Err(e) = result {
         log(&format!("the pipe could not be served: {e}"));
     }
     report(SERVICE_STOPPED, 0, 0);
+}
+
+/// The snapshots and what makes them: a thread that makes them when the computer is idle (or a
+/// client asks), and the watch on the keys of the installed programs. `cache` is where they are
+/// kept: a folder only administrators may read, made here (without it nothing is kept on disk).
+fn start_background(stop: &Arc<Event>, log: &Log, cache: Option<std::path::PathBuf>) -> Arc<Store> {
+    let dir = cache.filter(|d| match crate::config::protect(d, crate::config::PRIVATE_SDDL) {
+        Ok(()) => true,
+        Err(e) => {
+            log(&format!("the snapshots are not kept on disk: {e}"));
+            false
+        }
+    });
+    let store = Arc::new(Store::new(crate::kinds::all(), dir));
+    let cancel = Arc::new(AtomicBool::new(false));
+    {
+        let (store, stop, cancel, log) = (store.clone(), stop.clone(), cancel.clone(), log.clone());
+        std::thread::spawn(move || {
+            // The wait on `stop` is what ends the thread: set the flag, wake the scheduler.
+            let watcher = {
+                let (stop, cancel, store) = (stop.clone(), cancel.clone(), store.clone());
+                std::thread::spawn(move || {
+                    stop.wait(u32::MAX);
+                    cancel.store(true, Ordering::SeqCst);
+                    store.mark_dirty("");
+                })
+            };
+            crate::idle::work_in_background();
+            let idle = crate::idle::Idle::default();
+            while !cancel.load(Ordering::SeqCst) {
+                store.wait(std::time::Duration::from_secs(30));
+                if cancel.load(Ordering::SeqCst) {
+                    break;
+                }
+                let n = store.tick(now(), idle.check(), &cancel);
+                if n > 0 {
+                    log(&format!("made {n} snapshot(s)"));
+                }
+            }
+            let _ = watcher.join();
+        });
+    }
+    // A change in the list of installed programs (both views of the registry).
+    let s = store.clone();
+    crate::watch::watch(
+        HKEY_LOCAL_MACHINE,
+        &[
+            "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+            "SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+        ],
+        stop.clone(),
+        move || s.mark_dirty(rt_svc::proto::snapshots::PROGRAMS),
+    );
+    store
 }
 
 /// What Windows starts (`rtsvc run`). Returns the exit code of the process.
@@ -111,7 +168,8 @@ pub fn console(visibility: rt_svc::Visibility, log: Log) -> std::io::Result<()> 
     let _ = STOP.set(stop.clone());
     // SAFETY: the handler is a plain function.
     unsafe { SetConsoleCtrlHandler(Some(console_ctrl), 1) };
-    run(DEV_PIPE_NAME, Arc::new(Svc::new(visibility, crate::handler::ntfs_source())), stop, log)
+    let store = start_background(&stop, &log, None);
+    run(DEV_PIPE_NAME, Arc::new(Svc::new(visibility, crate::handler::ntfs_source(), store)), stop, log)
 }
 
 pub fn console_logger() -> Log {

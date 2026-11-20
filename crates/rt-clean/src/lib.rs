@@ -6,4 +6,5 @@ pub mod clean;
 pub mod managers;
 pub mod registry;
 pub mod shortcuts;
+pub mod snapshot;
 pub mod targets;

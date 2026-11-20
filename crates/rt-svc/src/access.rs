@@ -7,8 +7,8 @@ use std::ptr::null_mut;
 use windows_sys::Win32::Foundation::{CloseHandle, GetLastError, LocalFree, HANDLE};
 use windows_sys::Win32::Security::Authorization::{ConvertSidToStringSidW, GetSecurityInfo, SE_KERNEL_OBJECT};
 use windows_sys::Win32::Security::{
-    EqualSid, GetTokenInformation, RevertToSelf, TokenElevation, TokenGroups, TokenUser, OWNER_SECURITY_INFORMATION, TOKEN_ELEVATION,
-    TOKEN_GROUPS, TOKEN_QUERY, TOKEN_USER,
+    EqualSid, GetTokenInformation, LookupAccountSidW, RevertToSelf, TokenElevation, TokenGroups, TokenUser, OWNER_SECURITY_INFORMATION,
+    TOKEN_ELEVATION, TOKEN_GROUPS, TOKEN_QUERY, TOKEN_USER,
 };
 use windows_sys::Win32::System::Pipes::ImpersonateNamedPipeClient;
 use windows_sys::Win32::System::Threading::{GetCurrentThread, OpenThreadToken};
@@ -55,6 +55,19 @@ pub unsafe fn sid_text(sid: *mut core::ffi::c_void) -> Option<String> {
     Some(text)
 }
 
+/// The name of the account of a SID, without the domain.
+///
+/// # Safety
+/// `sid` must point to a valid SID.
+pub unsafe fn account_name(sid: *mut core::ffi::c_void) -> Option<String> {
+    let (mut name, mut domain) = ([0u16; 256], [0u16; 256]);
+    let (mut n, mut d, mut kind) = (name.len() as u32, domain.len() as u32, 0);
+    if LookupAccountSidW(std::ptr::null(), sid, name.as_mut_ptr(), &mut n, domain.as_mut_ptr(), &mut d, &mut kind) == 0 {
+        return None;
+    }
+    Some(String::from_utf16_lossy(&name[..n as usize]))
+}
+
 /// A buffer of `GetTokenInformation` for one class.
 fn token_info(token: HANDLE, class: i32) -> io::Result<Vec<u64>> {
     let mut len = 0u32;
@@ -78,6 +91,8 @@ pub struct Who {
     pub facts: TokenFacts,
     /// The user's SID in text, for the log.
     pub sid: String,
+    /// The account name, without the domain (empty if it cannot be found).
+    pub name: String,
     pub level: Level,
 }
 
@@ -88,6 +103,9 @@ pub fn read_token(token: HANDLE) -> io::Result<Who> {
     let sid_ptr = unsafe { (*(user.as_ptr() as *const TOKEN_USER)).User.Sid };
     // SAFETY: the SID belongs to the buffer, alive here.
     let sid = unsafe { sid_text(sid_ptr) }.unwrap_or_default();
+
+    // SAFETY: the SID belongs to the buffer, alive here.
+    let name = unsafe { account_name(sid_ptr) }.unwrap_or_default();
 
     let elev = token_info(token, TokenElevation)?;
     // SAFETY: the buffer holds a TOKEN_ELEVATION.
@@ -108,7 +126,7 @@ pub fn read_token(token: HANDLE) -> io::Result<Who> {
     let anonymous = sid == SID_ANONYMOUS;
     let guest = sid.starts_with("S-1-5-21-") && sid.ends_with("-501");
     let facts = TokenFacts { anonymous, guest, elevated, admin };
-    Ok(Who { facts, sid, level: decide(facts) })
+    Ok(Who { facts, sid, name, level: decide(facts) })
 }
 
 /// The token of the process that is running this code.

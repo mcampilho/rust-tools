@@ -104,6 +104,8 @@ struct Shell {
     last_click: Option<(std::time::Instant, f32)>,
     cursor_icon: CursorIcon,
     generation: u64,
+    /// The next reading is the first: it may come from the privileged service.
+    first_load: bool,
     /// The icons read so far, by program index.
     icons: HashMap<usize, Pixmap>,
     /// winget's answer when it came before the list.
@@ -195,12 +197,22 @@ impl Shell {
         self.pending_tools = None;
         let p3 = proxy.clone();
         let admin = self.admin;
+        // The first reading may come from the privileged service, if it runs and is not elevated
+        // already: a user who asks again (or uninstalls something) wants what is there now.
+        let use_snapshot = std::mem::take(&mut self.first_load) && !admin;
         std::thread::spawn(move || {
             let tools = rinst::tools::read_all(&rinst::inventory::me(), admin);
             let _ = p3.send_event(UserEvent::Tools(gen, tools));
         });
         std::thread::spawn(move || {
-            let inv = rinst::inventory::read();
+            let inv = use_snapshot
+                .then(|| rt_inst::snapshot::fetch(24 * 3600))
+                .flatten()
+                .map(|(mut inv, _age)| {
+                    inv.me = rinst::inventory::me();
+                    inv
+                })
+                .unwrap_or_else(rinst::inventory::read);
             let shortcuts = rinst::shortcuts::read(&inv.me, &inv.other_users);
             let mut found = Found::new(inv, shortcuts);
             let scoop = rinst::managers::scoop_all(&found.inv.me);
@@ -1025,6 +1037,7 @@ fn main() {
         last_click: None,
         cursor_icon: CursorIcon::Default,
         generation: 0,
+        first_load: true,
         icons: HashMap::new(),
         pending_winget: None,
         pending_tools: None,

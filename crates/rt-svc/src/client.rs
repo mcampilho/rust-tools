@@ -6,7 +6,8 @@
 
 use crate::frame::{kind, read_frame, write_frame, Frame};
 use crate::proto::{
-    decode_batch, decode_done, decode_error, Hello, HelloOk, Level, ScanProgress, ScanRequest, ScanStart, Status, WireEntry,
+    decode_batch, decode_done, decode_error, Hello, HelloOk, Level, ScanProgress, ScanRequest, ScanStart, SnapshotData, SnapshotRequest,
+    Status, WireEntry,
 };
 use std::io;
 use std::time::{Duration, Instant};
@@ -118,6 +119,19 @@ impl Client {
         Status::decode(&f.payload).map_err(io::Error::other)
     }
 
+    /// The snapshot `name`, if the service has one that is at most `max_age_secs` old.
+    pub fn snapshot(&mut self, name: &str, max_age_secs: u64) -> io::Result<SnapshotData> {
+        let q = SnapshotRequest { name: name.to_string(), max_age_secs };
+        let f = self.call(kind::GET_SNAPSHOT, q.encode(), kind::SNAPSHOT)?;
+        SnapshotData::decode(&f.payload).map_err(io::Error::other)
+    }
+
+    /// Asks the service to make the snapshot `name` again, without waiting for it.
+    pub fn refresh(&mut self, name: &str) -> io::Result<()> {
+        let q = SnapshotRequest { name: name.to_string(), max_age_secs: 0 };
+        self.call(kind::REFRESH, q.encode(), kind::REFRESH_OK).map(|_| ())
+    }
+
     /// Asks the service to read the NTFS table of the volume `root` is on and
     /// sends what it finds to `sink`, folder by folder. `cancel` stops it: the
     /// connection is then useless and must be dropped. Returns the number of nodes.
@@ -201,6 +215,14 @@ impl Client {
     }
 
     pub fn scan_volume(&mut self, _root: &str, _cancel: &std::sync::atomic::AtomicBool, _sink: &mut dyn ScanSink) -> io::Result<u32> {
+        Err(io::Error::from(io::ErrorKind::Unsupported))
+    }
+
+    pub fn snapshot(&mut self, _name: &str, _max_age_secs: u64) -> io::Result<SnapshotData> {
+        Err(io::Error::from(io::ErrorKind::Unsupported))
+    }
+
+    pub fn refresh(&mut self, _name: &str) -> io::Result<()> {
         Err(io::Error::from(io::ErrorKind::Unsupported))
     }
 }

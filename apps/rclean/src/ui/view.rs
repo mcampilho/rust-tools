@@ -206,6 +206,11 @@ fn counts(it: &Item) -> (String, String) {
         State::Found(f) | State::Cleaning(f) if it.target.kind == Kind::Registry => (format::count(f.count()), String::new()),
         State::Found(f) | State::Cleaning(f) => (format::count(f.count()), format::size(f.bytes)),
         State::Analysing => ("…".into(), "…".into()),
+        // Not cleanable here, but the service has measured it.
+        State::NeedsAdmin => it
+            .known
+            .as_ref()
+            .map_or_else(Default::default, |k| (format::count(k.count), if k.unknown { "?".into() } else { format::size(k.bytes) })),
         _ => (String::new(), String::new()),
     }
 }

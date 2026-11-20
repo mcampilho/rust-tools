@@ -10,6 +10,7 @@ publish = false
 [dependencies]
 rt-core = { path = "../rt-core" }
 rt-sys = { path = "../rt-sys" }
+rt-svc = { path = "../rt-svc" }
 
 [target.'cfg(windows)'.dependencies]
 # The Recycle Bin (SHQueryRecycleBin, SHEmptyRecycleBin).

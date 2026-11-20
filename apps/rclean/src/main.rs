@@ -895,7 +895,13 @@ fn main() {
     #[cfg(not(windows))]
     let admin = std::fs::read_to_string("/proc/self/status")
         .is_ok_and(|s| s.lines().any(|l| l.starts_with("Uid:") && l.split_whitespace().nth(2) == Some("0")));
-    let app = App::new(rclean::targets::all(&rclean::targets::Env::here()), admin, &settings.ticks);
+    let mut app = App::new(rclean::targets::all(&rclean::targets::Env::here()), admin, &settings.ticks);
+    // Not as administrator: what needs it may still have been measured by the privileged service.
+    if !admin {
+        if let Some((list, _age)) = rt_clean::snapshot::fetch(6 * 3600) {
+            app.set_known(list);
+        }
+    }
     let mut shell = Shell {
         app,
         settings,

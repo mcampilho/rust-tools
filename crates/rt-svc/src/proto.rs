@@ -307,6 +307,65 @@ pub fn decode_done(b: &[u8]) -> Result<u32, DecodeError> {
     Ok(n)
 }
 
+/// The names of the snapshots the service keeps.
+pub mod snapshots {
+    /// The programs installed (what rinst reads at start).
+    pub const PROGRAMS: &str = "programs";
+    /// What the cleaner finds that needs administrator rights to clean.
+    pub const CLEAN: &str = "clean";
+}
+
+/// A request for a snapshot: its name, and the oldest it may be (seconds).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SnapshotRequest {
+    pub name: String,
+    pub max_age_secs: u64,
+}
+
+impl SnapshotRequest {
+    pub fn encode(&self) -> Vec<u8> {
+        let mut w = Writer::new();
+        w.str(&self.name).u64(self.max_age_secs);
+        w.finish()
+    }
+
+    pub fn decode(b: &[u8]) -> Result<SnapshotRequest, DecodeError> {
+        let mut r = Reader::new(b);
+        let q = SnapshotRequest { name: r.str()?.to_string(), max_age_secs: r.u64()? };
+        r.end()?;
+        Ok(q)
+    }
+}
+
+/// A snapshot, as the client receives it: when it was made, how old it is,
+/// and its contents (what only the snapshot's own reader understands).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SnapshotData {
+    pub made_at: u64,
+    pub age_secs: u64,
+    pub data: Vec<u8>,
+}
+
+impl SnapshotData {
+    pub fn encode(&self) -> Vec<u8> {
+        let mut w = Writer::new();
+        w.u64(self.made_at).u64(self.age_secs).u32(self.data.len() as u32);
+        let mut b = w.finish();
+        b.extend_from_slice(&self.data);
+        b
+    }
+
+    pub fn decode(b: &[u8]) -> Result<SnapshotData, DecodeError> {
+        let mut r = Reader::new(b);
+        let (made_at, age_secs, n) = (r.u64()?, r.u64()?, r.u32()? as usize);
+        let head = 8 + 8 + 4;
+        if b.len() != head + n {
+            return Err(DecodeError::Invalid);
+        }
+        Ok(SnapshotData { made_at, age_secs, data: b[head..].to_vec() })
+    }
+}
+
 /// Why a request was not done.
 pub mod code {
     /// The request is not known to this service.
@@ -319,6 +378,8 @@ pub mod code {
     pub const FAILED: u16 = 4;
     /// The first message was not `Hello`.
     pub const NO_HELLO: u16 = 5;
+    /// There is no such snapshot, or it is not made yet.
+    pub const NO_SNAPSHOT: u16 = 9;
     /// The service is busy: try later.
     pub const BUSY: u16 = 6;
     /// The client asked to stop it.

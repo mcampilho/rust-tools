@@ -1,24 +1,14 @@
 //! `install`, `uninstall` and `status`.
 
 use crate::config::{data_dir, Config};
-use crate::scm::{self, wide, State};
+use crate::scm::{self, State};
 use rt_cli::Texts;
 use rt_svc::client::{connect_to, Trust};
 use rt_svc::{Level, Visibility};
 use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
-use std::ptr::null_mut;
-use windows_sys::Win32::Foundation::LocalFree;
-use windows_sys::Win32::Security::Authorization::{
-    ConvertStringSecurityDescriptorToSecurityDescriptorW, SetNamedSecurityInfoW, SDDL_REVISION_1, SE_FILE_OBJECT,
-};
-use windows_sys::Win32::Security::{GetSecurityDescriptorDacl, ACL, DACL_SECURITY_INFORMATION, PROTECTED_DACL_SECURITY_INFORMATION};
 
 const EXE: &str = "rtsvc.exe";
-
-/// Who may do what in `%ProgramData%\rust-tools`: SYSTEM and Administrators everything,
-/// authenticated users read and execute. Inheritance from the parent is cut.
-const DATA_SDDL: &str = "D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;AU)";
 
 pub struct InstallOpts {
     pub dir: Option<PathBuf>,
@@ -33,44 +23,6 @@ fn step<T>(t: &Texts, what: &str, r: std::io::Result<T>) -> Result<T, String> {
 /// The default place: `%ProgramFiles%\rust-tools`.
 pub fn default_dir() -> PathBuf {
     PathBuf::from(std::env::var_os("ProgramFiles").unwrap_or_else(|| r"C:\Program Files".into())).join("rust-tools")
-}
-
-/// Gives the data folder its permissions.
-fn protect_data_dir() -> std::io::Result<()> {
-    let dir = data_dir();
-    std::fs::create_dir_all(&dir)?;
-    let sddl = wide(DATA_SDDL);
-    let mut sd = null_mut();
-    // SAFETY: valid string and out pointer.
-    if unsafe { ConvertStringSecurityDescriptorToSecurityDescriptorW(sddl.as_ptr(), SDDL_REVISION_1, &mut sd, null_mut()) } == 0 {
-        return Err(std::io::Error::last_os_error());
-    }
-    let (mut present, mut defaulted) = (0, 0);
-    let mut dacl: *mut ACL = null_mut();
-    // SAFETY: `sd` is the descriptor just made; the out pointers are valid.
-    let ok = unsafe { GetSecurityDescriptorDacl(sd, &mut present, &mut dacl, &mut defaulted) };
-    let mut result = if ok == 0 || present == 0 { Err(std::io::Error::last_os_error()) } else { Ok(()) };
-    if result.is_ok() {
-        let path = wide(&dir.to_string_lossy());
-        // SAFETY: valid path and DACL (inside `sd`, alive until the LocalFree).
-        let r = unsafe {
-            SetNamedSecurityInfoW(
-                path.as_ptr(),
-                SE_FILE_OBJECT,
-                DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION,
-                null_mut(),
-                null_mut(),
-                dacl,
-                null_mut(),
-            )
-        };
-        if r != 0 {
-            result = Err(std::io::Error::from_raw_os_error(r as i32));
-        }
-    }
-    // SAFETY: allocated by the conversion.
-    unsafe { LocalFree(sd as *mut _) };
-    result
 }
 
 fn confirm(t: &Texts, input: &mut dyn BufRead, out: &mut dyn Write) -> bool {
@@ -141,7 +93,7 @@ fn install_inner(o: &InstallOpts, t: &Texts, input: &mut dyn BufRead, out: &mut 
         let _ = std::fs::remove_file(&exe);
         return Err(format!("{}\n  - {}", t.fill("err.unsafe_folder", &[("dir", &dir.display().to_string())]), problems.join("\n  - ")));
     }
-    step(t, "protect the data folder", protect_data_dir())?;
+    step(t, "protect the data folder", crate::config::protect(&data_dir(), crate::config::DATA_SDDL))?;
     step(t, "save the settings", Config { visibility: o.visibility }.save())?;
     step(t, "register the service", scm::install(&exe))?;
     if !step(t, "start the service", scm::start())? {
