@@ -25,6 +25,12 @@ pub mod kind {
     pub const GET_SNAPSHOT: u16 = 5;
     /// Asks the service to make a snapshot again.
     pub const REFRESH: u16 = 6;
+    /// Starts a job (only an elevated client may).
+    pub const SUBMIT_JOB: u16 = 10;
+    /// How a job is going.
+    pub const JOB: u16 = 11;
+    /// Stops a job.
+    pub const CANCEL_JOB: u16 = 12;
 
     pub const HELLO_OK: u16 = 100;
     pub const PONG: u16 = 101;
@@ -38,6 +44,7 @@ pub mod kind {
     pub const SCAN_PROGRESS: u16 = 107;
     pub const SNAPSHOT: u16 = 108;
     pub const REFRESH_OK: u16 = 109;
+    pub const JOB_INFO: u16 = 110;
 
     /// Frames that may be longer than `MAX_PAYLOAD`.
     pub fn is_bulk(kind: u16) -> bool {

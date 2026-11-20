@@ -1,13 +1,16 @@
 //! What the service answers beyond `Hello`, `Ping` and `Status`: for now,
 //! reading the NTFS table of a volume.
 
+use crate::jobs::Jobs;
 use crate::snapshots::{now, Miss, Store, Viewer};
 use rt_scan::model::Tree;
 use rt_scan::Progress;
 use rt_svc::frame::{kind, write_frame, Frame};
-use rt_svc::proto::{caps, code, encode_batch, encode_done, encode_error, ScanProgress, ScanRequest, ScanStart, SnapshotRequest};
+use rt_svc::proto::{
+    caps, code, decode_job_id, encode_batch, encode_done, encode_error, JobRequest, ScanProgress, ScanRequest, ScanStart, SnapshotRequest,
+};
 use rt_svc::server::{Handler, Session};
-use rt_svc::Visibility;
+use rt_svc::{Level, Visibility};
 use std::cell::RefCell;
 use std::io::{self, Write};
 use std::path::{Component, Path, PathBuf, Prefix};
@@ -36,6 +39,7 @@ pub struct Svc {
     running: AtomicU32,
     source: Source,
     store: Arc<Store>,
+    jobs: Arc<Jobs>,
 }
 
 /// A full path on a drive letter (`C:\...`), without `..`.
@@ -74,8 +78,38 @@ pub fn ntfs_source() -> Source {
 }
 
 impl Svc {
-    pub fn new(visibility: Visibility, source: Source, store: Arc<Store>) -> Svc {
-        Svc { visibility, scans: AtomicU64::new(0), running: AtomicU32::new(0), source, store }
+    pub fn new(visibility: Visibility, source: Source, store: Arc<Store>, jobs: Arc<Jobs>) -> Svc {
+        Svc { visibility, scans: AtomicU64::new(0), running: AtomicU32::new(0), source, store, jobs }
+    }
+
+    /// Jobs change things: only a client that is an administrator with an elevated token.
+    fn job(&self, s: &Session, f: &Frame, out: &mut dyn Write) -> io::Result<()> {
+        let fail = |out: &mut dyn Write, c: u16, m: &str| write_frame(out, &Frame::new(kind::ERROR, f.id, encode_error(c, m)));
+        if s.level != Level::Elevated {
+            return fail(out, code::DENIED, "only a tool started as administrator may ask for this");
+        }
+        let info = match f.kind {
+            kind::SUBMIT_JOB => {
+                let Ok(q) = JobRequest::decode(&f.payload) else { return fail(out, code::MALFORMED, "the request is malformed") };
+                match self.jobs.submit(q) {
+                    Ok(id) => self.jobs.get(id),
+                    Err(m) => return fail(out, code::FAILED, &m),
+                }
+            }
+            kind::JOB | kind::CANCEL_JOB => {
+                let Ok(id) = decode_job_id(&f.payload) else { return fail(out, code::MALFORMED, "the request is malformed") };
+                if f.kind == kind::JOB {
+                    self.jobs.get(id)
+                } else {
+                    self.jobs.cancel(id)
+                }
+            }
+            _ => None,
+        };
+        match info {
+            Some(i) => write_frame(out, &Frame::new(kind::JOB_INFO, f.id, i.encode())),
+            None => fail(out, code::NO_JOB, "there is no such job"),
+        }
     }
 
     fn snapshot(&self, s: &Session, f: &Frame, out: &mut dyn Write) -> io::Result<()> {
@@ -181,6 +215,7 @@ impl Handler for Svc {
         match f.kind {
             kind::SCAN_VOLUME => self.scan(s, f, out),
             kind::GET_SNAPSHOT | kind::REFRESH => self.snapshot(s, f, out),
+            kind::SUBMIT_JOB | kind::JOB | kind::CANCEL_JOB => self.job(s, f, out),
             _ => write_frame(out, &Frame::new(kind::ERROR, f.id, encode_error(code::UNKNOWN, "unknown request"))),
         }
     }
@@ -221,7 +256,15 @@ mod tests {
         let name = format!(r"\\.\pipe\rtsvc-test-{}-{}", std::process::id(), N.fetch_add(1, Ordering::Relaxed));
         let stop = Arc::new(Event::new().unwrap());
         let (n, s) = (name.clone(), stop.clone());
-        let t = std::thread::spawn(move || run(&n, Arc::new(Svc::new(visibility, source, store)), s, Arc::new(|_| {})).unwrap());
+        let t = std::thread::spawn(move || {
+            run(
+                &n,
+                Arc::new(Svc::new(visibility, source, store, Arc::new(Jobs::new(Arc::new(crate::jobs::tests_support::Nothing))))),
+                s,
+                Arc::new(|_| {}),
+            )
+            .unwrap()
+        });
         for _ in 0..100 {
             if rt_svc::pipe::connect(&name, 0).is_ok() {
                 break;
@@ -327,6 +370,21 @@ mod tests {
         assert!(c.snapshot("nope", 60).unwrap_err().to_string().contains("no such snapshot"));
         assert!(c.refresh("programs").is_ok() && c.refresh("nope").is_err());
         assert_eq!(c.status().unwrap().snapshots.len(), 1);
+        stop.set();
+        t.join().unwrap();
+    }
+
+    #[test]
+    fn jobs_are_for_an_elevated_client_only() {
+        let (name, stop, t) = serve(Visibility::User, fake(sample));
+        let mut c = connect_to(&name, Trust::Anyone, "test", "1", 1000).unwrap();
+        let elevated = c.level == Level::Elevated;
+        let r = c.submit_job(rt_svc::proto::JobKind::Clean, vec!["windows.temp".into()]);
+        let e = r.unwrap_err().to_string();
+        // Not elevated: refused for that. Elevated: this service accepts nothing (a test executor).
+        assert!(if elevated { e.contains("nothing is accepted") } else { e.contains("administrator") }, "{e}");
+        assert!(c.job(1).is_err() && c.cancel_job(1).is_err());
+        assert!(c.ping().is_ok(), "the connection stays good");
         stop.set();
         t.join().unwrap();
     }

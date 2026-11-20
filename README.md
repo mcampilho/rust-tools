@@ -101,6 +101,10 @@ start the new version. A tool installed with Scoop offers `scoop update <tool>`
 instead, so that Scoop keeps track of the version. Nothing else goes to the
 network.
 
+## Service (optional, Windows)
+
+[rtsvc](apps/rtsvc/README.md) is a Windows service that, once installed from an elevated prompt (`rtsvc install`), lets rsize, rdup, rinst and rclean show what needs administrator rights (the NTFS table, the programs of every user, the size of Windows' own files) without being started as administrator, and keeps part of it ready in the background. Changing things still needs the tool started as administrator. The tools work as before without it. [Design](docs/service.md) (not yet run as an installed service).
+
 ## Linux
 
 The Linux packages need glibc 2.35 or newer (2.34 for rcalc and rpad) and run on
@@ -133,12 +137,16 @@ rust-tools/
 │  ├─ rsize-cli/
 │  ├─ rinst/
 │  ├─ rscoop-cli/
+│  ├─ rtsvc/
 │  ├─ rview/
 │  └─ rwall/
 └─ crates/         code shared by the apps
    ├─ rt-cli/      what the command-line apps share: texts in en/pt/es, sizes as `du` shows them
    ├─ rt-core/     translations, settings, menu tree
+   ├─ rt-clean/    what the cleaner cleans: the targets, measuring and removing them
    ├─ rt-dups/     finding duplicate files and folders: the search, the hash cache, the filters
+   ├─ rt-inst/     the programs installed: the registry, Windows Installer, the Store, dpkg and rpm
+   ├─ rt-svc/      the privileged service: protocol, pipe, client, the check of its folder
    ├─ rt-gfx/      drawing, text layout, drawn menus, message panel
    ├─ rt-scan/     reading drives fast: Everything, the NTFS table, folder by folder
    ├─ rt-sys/      Windows and Linux integration

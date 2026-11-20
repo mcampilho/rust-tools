@@ -80,7 +80,7 @@ unsafe extern "system" fn service_main(_argc: u32, _argv: *mut *mut u16) {
     log(&format!("starting {} (visibility {:?})", env!("CARGO_PKG_VERSION"), cfg.visibility));
     report(SERVICE_RUNNING, 0, 0);
     let store = start_background(&stop, &log, Some(data_dir().join("cache")));
-    let result = run(PIPE_NAME, Arc::new(Svc::new(cfg.visibility, crate::handler::ntfs_source(), store)), stop, log.clone());
+    let result = run(PIPE_NAME, Arc::new(Svc::new(cfg.visibility, crate::handler::ntfs_source(), store, jobs())), stop, log.clone());
     if let Err(e) = result {
         log(&format!("the pipe could not be served: {e}"));
     }
@@ -141,6 +141,11 @@ fn start_background(stop: &Arc<Event>, log: &Log, cache: Option<std::path::PathB
     store
 }
 
+/// The jobs, done by what the service really does.
+fn jobs() -> Arc<crate::jobs::Jobs> {
+    Arc::new(crate::jobs::Jobs::new(Arc::new(crate::work::Real::new(data_dir().join("backups")))))
+}
+
 /// What Windows starts (`rtsvc run`). Returns the exit code of the process.
 pub fn run_service() -> i32 {
     let name = wide(SERVICE_NAME);
@@ -169,7 +174,7 @@ pub fn console(visibility: rt_svc::Visibility, log: Log) -> std::io::Result<()> 
     // SAFETY: the handler is a plain function.
     unsafe { SetConsoleCtrlHandler(Some(console_ctrl), 1) };
     let store = start_background(&stop, &log, None);
-    run(DEV_PIPE_NAME, Arc::new(Svc::new(visibility, crate::handler::ntfs_source(), store)), stop, log)
+    run(DEV_PIPE_NAME, Arc::new(Svc::new(visibility, crate::handler::ntfs_source(), store, jobs())), stop, log)
 }
 
 pub fn console_logger() -> Log {

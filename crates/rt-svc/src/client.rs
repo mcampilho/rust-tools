@@ -6,8 +6,8 @@
 
 use crate::frame::{kind, read_frame, write_frame, Frame};
 use crate::proto::{
-    decode_batch, decode_done, decode_error, Hello, HelloOk, Level, ScanProgress, ScanRequest, ScanStart, SnapshotData, SnapshotRequest,
-    Status, WireEntry,
+    decode_batch, decode_done, decode_error, encode_job_id, Hello, HelloOk, JobInfo, JobKind, JobRequest, Level, ScanProgress, ScanRequest,
+    ScanStart, SnapshotData, SnapshotRequest, Status, WireEntry,
 };
 use std::io;
 use std::time::{Duration, Instant};
@@ -119,7 +119,25 @@ impl Client {
         Status::decode(&f.payload).map_err(io::Error::other)
     }
 
-    /// The snapshot `name`, if the service has one that is at most `max_age_secs` old.
+    /// Starts a job. Only an elevated client may. Returns its number.
+    pub fn submit_job(&mut self, kind: JobKind, items: Vec<String>) -> io::Result<u64> {
+        let f = self.call(kind::SUBMIT_JOB, JobRequest { kind, items }.encode(), kind::JOB_INFO)?;
+        Ok(JobInfo::decode(&f.payload).map_err(io::Error::other)?.id)
+    }
+
+    /// How a job is going.
+    pub fn job(&mut self, id: u64) -> io::Result<JobInfo> {
+        let f = self.call(kind::JOB, encode_job_id(id), kind::JOB_INFO)?;
+        JobInfo::decode(&f.payload).map_err(io::Error::other)
+    }
+
+    /// Stops a job (it is told, and stops at the next item).
+    pub fn cancel_job(&mut self, id: u64) -> io::Result<JobInfo> {
+        let f = self.call(kind::CANCEL_JOB, encode_job_id(id), kind::JOB_INFO)?;
+        JobInfo::decode(&f.payload).map_err(io::Error::other)
+    }
+
+    /// The snapshot ``name``, if the service has one that is at most `max_age_secs` old.
     pub fn snapshot(&mut self, name: &str, max_age_secs: u64) -> io::Result<SnapshotData> {
         let q = SnapshotRequest { name: name.to_string(), max_age_secs };
         let f = self.call(kind::GET_SNAPSHOT, q.encode(), kind::SNAPSHOT)?;
@@ -215,6 +233,18 @@ impl Client {
     }
 
     pub fn scan_volume(&mut self, _root: &str, _cancel: &std::sync::atomic::AtomicBool, _sink: &mut dyn ScanSink) -> io::Result<u32> {
+        Err(io::Error::from(io::ErrorKind::Unsupported))
+    }
+
+    pub fn submit_job(&mut self, _kind: JobKind, _items: Vec<String>) -> io::Result<u64> {
+        Err(io::Error::from(io::ErrorKind::Unsupported))
+    }
+
+    pub fn job(&mut self, _id: u64) -> io::Result<JobInfo> {
+        Err(io::Error::from(io::ErrorKind::Unsupported))
+    }
+
+    pub fn cancel_job(&mut self, _id: u64) -> io::Result<JobInfo> {
         Err(io::Error::from(io::ErrorKind::Unsupported))
     }
 

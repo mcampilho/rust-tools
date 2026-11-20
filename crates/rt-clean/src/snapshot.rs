@@ -95,7 +95,9 @@ mod tests {
     #[test]
     fn only_the_targets_that_need_administrator_rights_are_measured() {
         let targets = all(&Env::here());
-        assert!(targets.iter().any(|t| t.admin) && targets.iter().any(|t| !t.admin));
+        // Windows has folders of its own that need rights; on Linux none of the targets do.
+        assert!(targets.iter().any(|t| !t.admin));
+        assert_eq!(targets.iter().any(|t| t.admin), cfg!(windows));
         // A stop set from the start measures nothing.
         let stop = AtomicBool::new(true);
         assert!(measure(&targets, &stop).is_empty());

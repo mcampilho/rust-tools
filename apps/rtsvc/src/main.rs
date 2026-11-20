@@ -17,6 +17,8 @@ mod idle;
 #[cfg(windows)]
 mod install;
 #[cfg(windows)]
+mod jobs;
+#[cfg(windows)]
 mod kinds;
 #[cfg(windows)]
 mod scm;
@@ -26,6 +28,8 @@ mod service;
 mod snapshots;
 #[cfg(windows)]
 mod watch;
+#[cfg(windows)]
+mod work;
 
 use cli::{Command, Opts};
 use rt_cli::Texts;

@@ -102,6 +102,10 @@ lugar do programa, e escolhes quando iniciar a versão nova. Uma ferramenta
 instalada pelo Scoop propõe antes `scoop update <ferramenta>`, para o Scoop saber
 que versão está instalada. Mais nada vai à rede.
 
+## Serviço (opcional, Windows)
+
+O [rtsvc](apps/rtsvc/README.pt.md) é um serviço do Windows que, instalado numa linha de comandos elevada (`rtsvc install`), deixa o rsize, o rdup, o rinst e o rclean mostrar o que precisa de administrador (a tabela NTFS, os programas de todos os utilizadores, o tamanho dos ficheiros do próprio Windows) sem serem abertos como administrador, e mantém parte disso pronta em segundo plano. Alterar coisas continua a precisar da ferramenta aberta como administrador. As ferramentas funcionam como antes sem ele. [Desenho](docs/service.pt.md) (ainda não corrido como serviço instalado).
+
 ## Linux
 
 Os pacotes para Linux precisam da glibc 2.35 ou mais recente (2.34 no rcalc e no
@@ -133,12 +137,16 @@ rust-tools/
 │  ├─ rsize-cli/
 │  ├─ rinst/
 │  ├─ rscoop-cli/
+│  ├─ rtsvc/
 │  ├─ rview/
 │  └─ rwall/
 └─ crates/         código partilhado pelas aplicações
    ├─ rt-cli/      o que as aplicações de linha de comandos partilham: textos en/pt/es, tamanhos como o `du`
    ├─ rt-core/     traduções, definições, árvore de menus
+   ├─ rt-clean/    o que o limpador limpa: os alvos, medi-los e removê-los
    ├─ rt-dups/     procura de ficheiros e pastas duplicados: a pesquisa, a cache de hashes, os filtros
+   ├─ rt-inst/     os programas instalados: o registo, o Windows Installer, a Loja, dpkg e rpm
+   ├─ rt-svc/      o serviço com privilégios: protocolo, pipe, cliente, a verificação da pasta dele
    ├─ rt-gfx/      desenho, disposição de texto, menus desenhados, painel de mensagens
    ├─ rt-scan/     leitura rápida dos discos: Everything, tabela NTFS, pasta a pasta
    ├─ rt-sys/      integração com Windows e Linux

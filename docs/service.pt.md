@@ -1,6 +1,6 @@
 # Um serviço com privilégios para as rust-tools (desenho)
 
-Estado: desenho, ainda por construir. [English version](service.md)
+Estado: construído, mas experimentado só por partes (o pipe, os níveis, a verificação de pasta, as fotografias e as tarefas correm em testes num só processo); o `install`, o `uninstall` e o serviço como SYSTEM ainda não correram. As ferramentas ainda não usam tarefas. [English version](service.md)
 
 ## 1. Objetivo
 

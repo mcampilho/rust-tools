@@ -1,6 +1,6 @@
 # A privileged service for rust-tools (design)
 
-Status: design, not built yet. [Versão portuguesa](service.pt.md)
+Status: built, but tried only in pieces (the pipe, the levels, the folder check, the snapshots and the jobs run in tests in one process); `install`, `uninstall` and the service as SYSTEM have not been run yet. The tools do not use jobs yet. [Versão portuguesa](service.pt.md)
 
 ## 1. Goal
 

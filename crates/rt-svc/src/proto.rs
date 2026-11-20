@@ -366,6 +366,137 @@ impl SnapshotData {
     }
 }
 
+/// What a job does. The items name things the service knows (`docs/service.md`, §8): never a path or a command.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum JobKind {
+    /// Cleans targets of the cleaner's catalogue that need administrator rights (items: their ids).
+    Clean = 0,
+    /// Uninstalls programs of the machine, by Windows Installer product code (items: the codes).
+    UninstallMsi = 1,
+}
+
+impl JobKind {
+    pub fn from_u8(v: u8) -> Option<JobKind> {
+        match v {
+            0 => Some(JobKind::Clean),
+            1 => Some(JobKind::UninstallMsi),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct JobRequest {
+    pub kind: JobKind,
+    pub items: Vec<String>,
+}
+
+/// The most items of a job.
+pub const MAX_JOB_ITEMS: usize = 200;
+
+impl JobRequest {
+    pub fn encode(&self) -> Vec<u8> {
+        let mut w = Writer::new();
+        w.u8(self.kind as u8).u32(self.items.len() as u32);
+        for i in &self.items {
+            w.str(i);
+        }
+        w.finish()
+    }
+
+    pub fn decode(b: &[u8]) -> Result<JobRequest, DecodeError> {
+        let mut r = Reader::new(b);
+        let kind = JobKind::from_u8(r.u8()?).ok_or(DecodeError::Invalid)?;
+        let n = r.count(4)?;
+        if n > MAX_JOB_ITEMS {
+            return Err(DecodeError::Invalid);
+        }
+        let mut items = Vec::with_capacity(n);
+        for _ in 0..n {
+            items.push(r.str()?.to_string());
+        }
+        r.end()?;
+        Ok(JobRequest { kind, items })
+    }
+}
+
+/// Where a job is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum JobState {
+    Queued = 0,
+    Running = 1,
+    Done = 2,
+    Failed = 3,
+    Cancelled = 4,
+}
+
+impl JobState {
+    pub fn from_u8(v: u8) -> Option<JobState> {
+        match v {
+            0 => Some(JobState::Queued),
+            1 => Some(JobState::Running),
+            2 => Some(JobState::Done),
+            3 => Some(JobState::Failed),
+            4 => Some(JobState::Cancelled),
+            _ => None,
+        }
+    }
+
+    /// Nothing more will happen to it.
+    pub fn finished(self) -> bool {
+        matches!(self, JobState::Done | JobState::Failed | JobState::Cancelled)
+    }
+}
+
+/// What the service tells of a job.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct JobInfo {
+    pub id: u64,
+    pub kind: JobKind,
+    pub state: JobState,
+    pub done: u32,
+    pub total: u32,
+    /// What was done, item by item (the last lines).
+    pub log: Vec<String>,
+}
+
+impl JobInfo {
+    pub fn encode(&self) -> Vec<u8> {
+        let mut w = Writer::new();
+        w.u64(self.id).u8(self.kind as u8).u8(self.state as u8).u32(self.done).u32(self.total).u32(self.log.len() as u32);
+        for l in &self.log {
+            w.str(l);
+        }
+        w.finish()
+    }
+
+    pub fn decode(b: &[u8]) -> Result<JobInfo, DecodeError> {
+        let mut r = Reader::new(b);
+        let id = r.u64()?;
+        let kind = JobKind::from_u8(r.u8()?).ok_or(DecodeError::Invalid)?;
+        let state = JobState::from_u8(r.u8()?).ok_or(DecodeError::Invalid)?;
+        let (done, total) = (r.u32()?, r.u32()?);
+        let mut log = Vec::new();
+        for _ in 0..r.count(4)? {
+            log.push(r.str()?.to_string());
+        }
+        r.end()?;
+        Ok(JobInfo { id, kind, state, done, total, log })
+    }
+}
+
+/// The number of a job, in a request to look at it or stop it.
+pub fn encode_job_id(id: u64) -> Vec<u8> {
+    id.to_le_bytes().to_vec()
+}
+
+pub fn decode_job_id(b: &[u8]) -> Result<u64, DecodeError> {
+    let mut r = Reader::new(b);
+    let id = r.u64()?;
+    r.end()?;
+    Ok(id)
+}
+
 /// Why a request was not done.
 pub mod code {
     /// The request is not known to this service.
@@ -378,6 +509,8 @@ pub mod code {
     pub const FAILED: u16 = 4;
     /// The first message was not `Hello`.
     pub const NO_HELLO: u16 = 5;
+    /// There is no such job.
+    pub const NO_JOB: u16 = 10;
     /// There is no such snapshot, or it is not made yet.
     pub const NO_SNAPSHOT: u16 = 9;
     /// The service is busy: try later.
@@ -471,6 +604,24 @@ mod tests {
         let mut long = good;
         long.push(0);
         assert!(decode_batch(&long).is_err());
+    }
+
+    #[test]
+    fn job_messages_round_trip_and_hostile_ones_fail() {
+        let q = JobRequest { kind: JobKind::UninstallMsi, items: vec!["{AAAA}".into(), "{BBBB}".into()] };
+        assert_eq!(JobRequest::decode(&q.encode()), Ok(q));
+        let i = JobInfo { id: 7, kind: JobKind::Clean, state: JobState::Running, done: 1, total: 3, log: vec!["a".into(), "b".into()] };
+        assert_eq!(JobInfo::decode(&i.encode()), Ok(i.clone()));
+        assert_eq!(decode_job_id(&encode_job_id(99)), Ok(99));
+        // A kind or a state that does not exist, too many items, cut short.
+        assert!(JobRequest::decode(&[9, 0, 0, 0, 0]).is_err());
+        let many = JobRequest { kind: JobKind::Clean, items: (0..=MAX_JOB_ITEMS).map(|n| n.to_string()).collect() };
+        assert!(JobRequest::decode(&many.encode()).is_err());
+        let b = i.encode();
+        for cut in 0..b.len() {
+            assert!(JobInfo::decode(&b[..cut]).is_err());
+        }
+        assert!(JobState::Done.finished() && !JobState::Running.finished());
     }
 
     #[test]
