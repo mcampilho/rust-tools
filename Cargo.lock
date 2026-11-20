@@ -2670,7 +2670,7 @@ dependencies = [
  "rt-ui",
  "softbuffer",
  "tiny-skia",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
  "winit",
 ]
 
@@ -2689,7 +2689,7 @@ dependencies = [
  "rt-ui",
  "softbuffer",
  "tiny-skia",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
  "winit",
 ]
 
@@ -2708,7 +2708,7 @@ dependencies = [
  "rt-ui",
  "softbuffer",
  "tiny-skia",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
  "winit",
 ]
 
@@ -2819,7 +2819,7 @@ dependencies = [
  "softbuffer",
  "tiny-skia",
  "windows",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
  "winit",
 ]
 
@@ -2863,7 +2863,7 @@ dependencies = [
  "tar",
  "tiny-skia",
  "twox-hash",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
  "winit",
  "zip",
  "zstd",
@@ -2888,7 +2888,7 @@ dependencies = [
  "rt-ui",
  "softbuffer",
  "tiny-skia",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
  "winit",
 ]
 
@@ -2899,7 +2899,7 @@ dependencies = [
  "rt-cli",
  "rt-core",
  "rusqlite",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2917,7 +2917,7 @@ dependencies = [
  "rt-ui",
  "softbuffer",
  "tiny-skia",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
  "winit",
 ]
 
@@ -2952,7 +2952,7 @@ dependencies = [
  "rt-core",
  "rt-svc",
  "rt-sys",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2973,7 +2973,7 @@ dependencies = [
  "blake3",
  "rt-core",
  "rt-scan",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2993,7 +2993,7 @@ dependencies = [
  "rt-svc",
  "rt-sys",
  "windows",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3005,14 +3005,14 @@ dependencies = [
  "rt-core",
  "rt-svc",
  "rt-sys",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
 name = "rt-svc"
 version = "0.1.0"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3027,7 +3027,7 @@ dependencies = [
  "ksni",
  "libc",
  "rt-core",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3051,7 +3051,7 @@ dependencies = [
  "rt-inst",
  "rt-scan",
  "rt-svc",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3094,7 +3094,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.4.15",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3138,7 +3138,7 @@ dependencies = [
  "softbuffer",
  "tiny-skia",
  "windows",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
  "winit",
 ]
 
@@ -3156,7 +3156,7 @@ dependencies = [
  "tiny-skia",
  "windows",
  "windows-core",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
  "winit",
 ]
 
@@ -4185,15 +4185,6 @@ name = "windows-sys"
 version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "282be5f36a8ce781fad8c8ae18fa3f9beff57ec1b52cb3de0789201425d9a33d"
-dependencies = [
- "windows-targets",
-]
-
-[[package]]
-name = "windows-sys"
-version = "0.59.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e38bc4d79ed67fd075bcc251a1c39b32a1776bbe92e5bef1f0bf1f8c531853b"
 dependencies = [
  "windows-targets",
 ]

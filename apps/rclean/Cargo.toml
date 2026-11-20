@@ -26,7 +26,7 @@ accesskit_winit = { version = "0.34", default-features = false, features = ["rwh
 [target.'cfg(windows)'.dependencies]
 # The Recycle Bin (SHQueryRecycleBin, SHEmptyRecycleBin) and the processes
 # running (whether a browser is open).
-windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_Diagnostics_ToolHelp", "Win32_UI_Shell"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Diagnostics_ToolHelp", "Win32_UI_Shell"] }
 
 # X11 and Wayland both: the same executable runs on either.
 [target.'cfg(target_os = "linux")'.dependencies]

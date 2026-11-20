@@ -13,7 +13,7 @@ rt-scan = { path = "../rt-scan" }
 rt-svc = { path = "../rt-svc" }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_ApplicationInstallationAndServicing"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_ApplicationInstallationAndServicing"] }
 # The Store and MSIX packages, which have no Uninstall entry: the package manager of Windows.
 windows = { version = "0.62", features = [
     "ApplicationModel",

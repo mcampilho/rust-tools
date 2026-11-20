@@ -24,7 +24,7 @@ accesskit = "0.25"
 accesskit_winit = { version = "0.34", default-features = false, features = ["rwh_06"] }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_ApplicationInstallationAndServicing", "Win32_System_Diagnostics_ToolHelp", "Win32_System_Threading", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_ApplicationInstallationAndServicing", "Win32_System_Diagnostics_ToolHelp", "Win32_System_Threading", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 # The Store and MSIX packages (ChatGPT, Windows Terminal...), which have no
 # Uninstall entry: the package manager of Windows, and their icons from the
 # shell.
