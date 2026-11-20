@@ -2980,7 +2980,15 @@ dependencies = [
  "libc",
  "miniz_oxide 0.8.9",
  "rt-core",
+ "rt-svc",
  "rt-sys",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "rt-svc"
+version = "0.1.0"
+dependencies = [
  "windows-sys 0.59.0",
 ]
 
@@ -3009,6 +3017,16 @@ dependencies = [
  "softbuffer",
  "tiny-skia",
  "winit",
+]
+
+[[package]]
+name = "rtsvc"
+version = "0.1.0"
+dependencies = [
+ "rt-cli",
+ "rt-scan",
+ "rt-svc",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

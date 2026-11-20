@@ -51,20 +51,21 @@ Everything usa. Um cliente já elevado salta o serviço e lê a tabela NTFS ele 
 
 - **Pipe nomeado** `\\.\pipe\rust-tools-svc`, modo de mensagens, `PIPE_REJECT_REMOTE_CLIENTS`, criado com
   `FILE_FLAG_FIRST_PIPE_INSTANCE` (ninguém consegue criar o nome antes do serviço).
-- **DACL do pipe:** SYSTEM e Administradores com controlo total; os Utilizadores autenticados podem ligar-se
-  e ler e escrever mensagens. Anónimos e inícios de sessão de rede são recusados.
+- **DACL do pipe:** SYSTEM, Administradores e o dono (a conta com que o serviço corre) com controlo total;
+  os Utilizadores autenticados só leem e escrevem dados, leem atributos, leem o dono e sincronizam
+  (`0x120083`). Não `FILE_APPEND_DATA`: é o direito de criar uma instância do pipe, e deixaria um utilizador
+  responder no lugar do serviço. Os inícios de sessão de rede são recusados; um anónimo não é um utilizador autenticado.
 - **Tramas:** comprimento `u32` (little endian), versão do protocolo `u8`, pedido `u16`, depois os dados.
   Uma trama tem no máximo 1 MiB, exceto os lotes de entradas de uma leitura (8 MiB). Um cliente pode ter
   8 pedidos abertos; o serviço atende no máximo 32 clientes ao mesmo tempo.
-- **Dados:** um codificador binário simples, escrito à mão, para os fluxos grandes (entradas de uma leitura,
-  programas); o resto é JSON (o leitor JSON do `rt-core` chega para valores pequenos, por isso sem
-  dependência nova). Campos desconhecidos são ignorados, um pedido desconhecido dá uma resposta de erro,
-  nunca uma falha.
+- **Dados:** um só codificador binário simples, escrito à mão (números little endian, textos com comprimento),
+  estrito a descodificar: cada leitura é verificada, as contagens são comparadas com os bytes que restam e
+  bytes a mais são um erro. Um pedido desconhecido dá uma resposta de erro, nunca uma falha.
 - **Versões:** o cliente envia `Hello {protocolo, aplicação, versão}`; o serviço responde com o seu
   protocolo, versão e capacidades. Fala os protocolos N e N-1. Um cliente mais novo que o serviço usa o que
   está nas capacidades e recorre ao resto de outra forma.
 - **Tempos limite:** o cliente liga-se em ~200 ms e desiste (recorre ao que fazia); cada pedido tem um
-  prazo. O serviço larga um cliente calado durante 30 s fora de um pedido longo.
+  prazo. O serviço larga um cliente calado durante 60 s.
 - **Cancelamento:** um pedido cancela-se pelo seu número; fechar o pipe cancela todos os do cliente.
 
 ## 5. Quem chama e quem responde
@@ -180,23 +181,30 @@ por utilizador (`HKCU`) é corrido como esse utilizador pela ferramenta, não pe
 - **Uma pasta é segura quando**, verificado pelo `install` e outra vez pelo serviço em cada arranque (se
   não for, não arranca e diz porquê no registo):
   - está num volume local fixo (não numa partilha de rede, nem amovível, nem numa unidade `subst` ou mapeada);
-  - nem a pasta nem nenhuma pasta acima dela até à raiz é uma junção ou ligação simbólica, ou pode ser
-    renomeada ou substituída por quem não é administrador;
-  - na ACL da pasta e de cada pasta acima, só SYSTEM, Administradores e TrustedInstaller (e o
-    dono-criador desses) têm direitos de escrever, criar, apagar, mudar permissões ou tomar posse.
-    `Users`, `Authenticated Users`, `Everyone` e qualquer outra conta só podem ler e executar. Contam as
-    entradas herdadas;
+  - nem a pasta nem nenhuma pasta acima dela até à raiz é uma junção ou ligação simbólica (o caminho é o
+    mesmo depois de resolvido);
+  - na ACL da própria pasta, e de cada ficheiro e pasta lá dentro (quatro níveis), só SYSTEM,
+    Administradores e TrustedInstaller têm algum direito que altere coisas (escrever, acrescentar,
+    atributos, apagar, mudar permissões, tomar posse, escrita ou tudo genéricos); `Users`,
+    `Authenticated Users`, `Everyone` e qualquer outra conta só podem ler e executar. Em cada pasta
+    **acima**, mais ninguém pode apagá-la a ela ou às de baixo, nem mudar permissões ou dono (acrescentar
+    coisas ao lado é inofensivo). Não contam as entradas só para o que se cria lá dentro (herança); as
+    entradas de recusa não se leem, o que só pode tornar a verificação mais estrita; uma ACL em falta
+    (todos com controlo total) falha;
   - o dono é SYSTEM, Administradores ou TrustedInstaller;
   - os ficheiros lá dentro (o `rtsvc.exe` e o que carrega) cumprem a mesma regra de ACL.
-  Uma pasta com as mesmas permissões de `C:\Program Files` passa. O `install` diz a entrada que falha e
+  Uma pasta com as permissões de um `C:\Program Files` normal passa. A raiz do disco conta também: um PC
+  cujo `C:\` dá ao `Everyone` controlo total da própria raiz (como mostra o `icacls C:\` no PC do autor)
+  deixa qualquer um mudar o nome do que está por baixo, por isso todas as pastas desse disco, a
+  `Program Files` incluída, são recusadas até essa entrada ser removida. O `install` diz a entrada que falha e
   não tem opção para ignorar a verificação.
 - O cliente descobre onde está o serviço perguntando ao Gestor de Serviços pelo caminho registado da
   imagem (`QueryServiceConfig`), sem presumir Program Files, e compara-o com a imagem do processo
   que está no pipe (§5).
-- O serviço corre como LocalSystem, restringido com `SERVICE_CONFIG_REQUIRED_PRIVILEGES_INFO` ao que
-  precisa (`SeBackupPrivilege`, `SeManageVolumePrivilege` para o volume em bruto, `SeTcbPrivilege` só se o
-  tratamento de sessões dos desinstaladores o exigir) e com ações de recuperação para o reiniciar depois
-  de uma falha.
+- O serviço corre como LocalSystem, com ações de recuperação para o reiniciar depois de uma falha.
+  Restringir-lhe os privilégios (`SERVICE_CONFIG_REQUIRED_PRIVILEGES_INFO`) fica para o passo de
+  endurecimento, com medições numa instalação real: tirar um de que precisa pararia a leitura do volume.
+- O `install` mostra o que o serviço deixa ler (e a quem) e pede confirmação (`--yes` dispensa-a).
 - `rtsvc uninstall` pára e remove o serviço e os ficheiros, e oferece-se para apagar a cache.
 - Para atualizar o serviço, instala-se de novo numa linha de comandos elevada (parar, substituir,
   arrancar). As ferramentas avisam quando o serviço é mais antigo do que precisam.

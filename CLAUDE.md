@@ -125,12 +125,22 @@ identidade da aplicação. Uma correção num destes assuntos faz-se no crate, u
 - Linux inclui sempre X11 e Wayland.
 - Uma ferramenta nova começa pelos passos de `crates/README.md`.
 
-## Serviço com privilégios (desenho, 2026-11-20)
+## Serviço com privilégios (2026-11-20, em curso)
 
-Em estudo, ainda sem código: um serviço do Windows (`rtsvc`, crate `rt-svc`) que dá a qualquer utilizador a visão
-do sistema (NTFS, programas de todos, tamanhos do limpador) e faz em segundo plano as alterações pedidas por
-clientes elevados. O desenho, o protocolo e o modelo de ameaças estão em `docs/service.md` (e `.pt.md`). As
-atualizações continuam em cada aplicação.
+`apps/rtsvc` (serviço do Windows `RustToolsSvc`; fora da regra do sufixo `-cli`: é um serviço, com comandos
+`install`, `uninstall`, `status`, `console`, `run`) e o crate `crates/rt-svc` (protocolo, cliente, pipe, verificação
+de pastas). Qualquer utilizador lê o sistema todo através dele; só um cliente elevado altera (decidido no token que
+chega pelo pipe). O desenho, o protocolo e o modelo de ameaças estão em `docs/service.md` (e `.pt.md`); as
+atualizações continuam em cada aplicação. Feito: o esqueleto (pipe com DACL próprio, níveis User/Elevated, verificação do
+servidor pelo cliente, `install`/`uninstall`/`status`/`console`, verificação de pasta segura) e `ScanVolume` (o
+`rt_scan::scan_with` usa o serviço antes de ler o NTFS por si, se a aplicação não está elevada; `rt_scan::wire`
+leva a árvore). Por fazer: fotografias do rinst e do rclean, tarefas para clientes elevados, endurecimento.
+- Testes do pipe em `crates/rt-svc/tests/pipe.rs` (servidor e cliente no mesmo processo, pipes de nome único);
+  `rtsvc console` corre o serviço como o utilizador no pipe de desenvolvimento. `install`/`uninstall`/serviço real
+  só se experimentam elevados (não foram corridos em máquina nenhuma ainda).
+- `Everyone:(F)` na raiz `C:\` (como neste PC) faz a verificação recusar qualquer pasta em `C:`, `Program Files`
+  incluída: ver `docs/service.md` §9.
+- Neste PC compilar com `CARGO_INCREMENTAL=0` (o disco E: encheu com 36 GB de `target\debug\incremental`).
 
 ## Git
 

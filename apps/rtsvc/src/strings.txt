@@ -1,0 +1,51 @@
+# key	English	Português	Español
+help.usage	Usage	Utilização	Uso
+help.description	The rust-tools service: lets the tools read system-wide information, and does in the background what an elevated tool asks.	O serviço das rust-tools: deixa as ferramentas ler informação de todo o sistema e faz em segundo plano o que uma ferramenta elevada pede.	El servicio de rust-tools: deja que las herramientas lean información de todo el sistema y hace en segundo plano lo que pide una herramienta elevada.
+help.commands	Commands	Comandos	Comandos
+help.options	Options	Opções	Opciones
+help.install	install the service and start it (from an elevated prompt)	instalar o serviço e arrancá-lo (numa linha de comandos elevada)	instalar el servicio y arrancarlo (desde un símbolo del sistema elevado)
+help.uninstall	stop and remove the service (elevated)	parar e remover o serviço (elevado)	detener y quitar el servicio (elevado)
+help.status	show whether the service is installed and running, and what it answers	mostrar se o serviço está instalado e a correr, e o que responde	mostrar si el servicio está instalado y en marcha, y qué responde
+help.console	run in this window, as this user, for development (it does not touch the installed service)	correr nesta janela, como este utilizador, para desenvolver (não toca no serviço instalado)	ejecutar en esta ventana, como este usuario, para desarrollar (no toca el servicio instalado)
+help.run	what Windows starts; not for typing	o que o Windows arranca; não é para escrever	lo que arranca Windows; no es para escribir
+help.opt_dir	install in FOLDER if it is safe (default: Program Files\rust-tools)	instalar em PASTA se for segura (por omissão: Program Files\rust-tools)	instalar en CARPETA si es segura (por defecto: Program Files\rust-tools)
+help.opt_visibility	who may read the NTFS table: user (default) or elevated	quem pode ler a tabela NTFS: user (por omissão) ou elevated	quién puede leer la tabla NTFS: user (por defecto) o elevated
+help.opt_yes	do not ask for confirmation	não pedir confirmação	no pedir confirmación
+help.opt_purge	also delete the data of the service (cache, log, settings)	apagar também os dados do serviço (cache, registo, definições)	borrar también los datos del servicio (caché, registro, ajustes)
+help.opt_lang	language of the messages	língua das mensagens	idioma de los mensajes
+err.unknown_command	unknown command '{cmd}'	comando desconhecido '{cmd}'	comando desconocido '{cmd}'
+err.unknown_option	unknown option '{opt}'	opção desconhecida '{opt}'	opción desconocida '{opt}'
+err.missing	the option '{opt}' needs a value	a opção '{opt}' precisa de um valor	la opción '{opt}' necesita un valor
+err.bad_value	'{value}' is not a valid value for '{opt}'	'{value}' não é um valor válido para '{opt}'	'{value}' no es un valor válido para '{opt}'
+err.try	Try '{prog} --help'.	Experimente '{prog} --help'.	Pruebe '{prog} --help'.
+err.not_windows	the service exists only on Windows	o serviço só existe no Windows	el servicio solo existe en Windows
+err.not_elevated	this needs an elevated prompt (run as administrator)	isto precisa de uma linha de comandos elevada (executar como administrador)	esto necesita un símbolo del sistema elevado (ejecutar como administrador)
+err.unsafe_folder	the folder {dir} is not safe to run the service from:	a pasta {dir} não é segura para correr o serviço:	la carpeta {dir} no es segura para ejecutar el servicio:
+err.unsafe_hint	Only SYSTEM, Administrators and TrustedInstaller may change the folder, the folders above it and the files in it. Fix the permissions, or use another folder with --dir.	Só SYSTEM, Administradores e TrustedInstaller podem alterar a pasta, as pastas acima dela e os ficheiros que tem. Corrija as permissões, ou use outra pasta com --dir.	Solo SYSTEM, Administradores y TrustedInstaller pueden cambiar la carpeta, las carpetas superiores y los archivos que contiene. Corrija los permisos, o use otra carpeta con --dir.
+err.step	{what} failed: {reason}	{what} falhou: {reason}	{what} falló: {reason}
+err.refused_stop	the service did not stop in time	o serviço não parou a tempo	el servicio no se detuvo a tiempo
+err.start_unsafe	the service did not start: its folder is not safe (see the log)	o serviço não arrancou: a pasta dele não é segura (ver o registo)	el servicio no arrancó: su carpeta no es segura (vea el registro)
+msg.notice	The service lets {who} read the names and sizes of every folder on the drives (the NTFS table), as Everything does, without starting the tools as administrator. Changes are done only for tools started as administrator.	O serviço deixa {who} ler os nomes e os tamanhos de todas as pastas dos discos (a tabela NTFS), como o Everything, sem abrir as ferramentas como administrador. As alterações só se fazem para ferramentas abertas como administrador.	El servicio deja que {who} lea los nombres y tamaños de todas las carpetas de los discos (la tabla NTFS), como Everything, sin abrir las herramientas como administrador. Los cambios solo se hacen para herramientas abiertas como administrador.
+msg.who_user	every user	todos os utilizadores	todos los usuarios
+msg.who_elevated	administrators only	só os administradores	solo los administradores
+msg.confirm	Install? [y/N]	Instalar? [s/N]	¿Instalar? [s/N]
+msg.confirm_yes	y	s	s
+msg.cancelled	Cancelled.	Cancelado.	Cancelado.
+msg.installed	The service is installed in {dir} and running.	O serviço está instalado em {dir} e a correr.	El servicio está instalado en {dir} y en marcha.
+msg.uninstalled	The service was removed.	O serviço foi removido.	El servicio se quitó.
+msg.not_installed	The service is not installed.	O serviço não está instalado.	El servicio no está instalado.
+msg.state	Service {name}: {state}	Serviço {name}: {state}	Servicio {name}: {state}
+msg.image	Program: {image}	Programa: {image}	Programa: {image}
+msg.answers	It answers: version {version}, you are {level}, up {uptime} s, {clients} client(s), {scans} scan(s).	Responde: versão {version}, você é {level}, a correr há {uptime} s, {clients} cliente(s), {scans} leitura(s).	Responde: versión {version}, usted es {level}, en marcha hace {uptime} s, {clients} cliente(s), {scans} lectura(s).
+msg.no_answer	It does not answer: {reason}	Não responde: {reason}	No responde: {reason}
+msg.snapshot	  {name}: {age} s old	  {name}: com {age} s	  {name}: de hace {age} s
+msg.console	Running as this user on the pipe {pipe}. Press Ctrl+C to stop.	A correr como este utilizador no pipe {pipe}. Prima Ctrl+C para parar.	En marcha como este usuario en el pipe {pipe}. Pulse Ctrl+C para detener.
+msg.step_folder	Checked the folder.	Pasta verificada.	Carpeta verificada.
+state.stopped	stopped	parado	detenido
+state.running	running	a correr	en marcha
+state.starting	starting	a arrancar	arrancando
+state.stopping	stopping	a parar	deteniéndose
+state.other	{n}	{n}	{n}
+level.denied	denied	recusado	denegado
+level.user	a user	um utilizador	un usuario
+level.elevated	elevated	elevado	elevado

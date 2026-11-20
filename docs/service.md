@@ -52,18 +52,21 @@ A client that is already elevated skips the service and reads the NTFS table its
 
 - **Named pipe** `\\.\pipe\rust-tools-svc`, message mode, `PIPE_REJECT_REMOTE_CLIENTS`, created with
   `FILE_FLAG_FIRST_PIPE_INSTANCE` (no one can create the name before the service).
-- **DACL of the pipe:** SYSTEM and Administrators full control; Authenticated Users may connect and read
-  and write messages. Anonymous and network logons are denied.
+- **DACL of the pipe:** SYSTEM, Administrators and the owner (the account the service runs as) full
+  control; Authenticated Users only read and write data, read attributes, read the owner and synchronize
+  (`0x120083`). Not `FILE_APPEND_DATA`: it is the right to create an instance of the pipe, which would let a
+  user answer in the service's place. Network logons are denied; anonymous is not an authenticated user.
 - **Frames:** `u32` length (little endian), `u8` protocol version, `u16` request, then the payload. A frame
   is at most 1 MiB, except the batches of entries of a scan (at most 8 MiB). A client may have 8 requests
   open; the service serves at most 32 clients at once.
-- **Payloads:** a small hand-written binary codec for the big streams (entries of a scan, programs); the
-  rest is JSON (the JSON reader of `rt-core` is enough for small values, so no new dependency). Unknown fields are ignored, an unknown request is an error answer, never a crash.
+- **Payloads:** one small hand-written binary codec (little-endian numbers, strings with a length), strict
+  on decoding: every read is checked, counts are checked against the bytes left, and bytes left over are an
+  error. An unknown request is an error answer, never a crash.
 - **Handshake:** the client sends `Hello {protocol, app, app version}`; the service answers with its
   `protocol`, version and capabilities. It speaks protocol N and N-1. A client newer than the service uses
   what is in the capabilities and falls back for the rest.
 - **Timeouts:** the client connects with ~200 ms and gives up (falls back); every request has a deadline.
-  The service drops a client that is silent for 30 s outside a long request.
+  The service drops a client that is silent for 60 s.
 - **Cancellation:** a request can be cancelled by its number; closing the pipe cancels all of the client's.
 
 ## 5. Who is calling, and who is answering
@@ -177,22 +180,29 @@ user (`HKCU`) is run as that user by the tool, not by the service.
 - **A folder is secure when**, checked by `install` and again by the service at every start (it refuses to
   start otherwise, and says why in the log):
   - it is on a local fixed volume (not a network share, not removable, not a subst or mapped drive);
-  - neither the folder nor any folder above it up to the root is a junction or symbolic link, or can be
-    renamed or replaced by a non-administrator;
-  - in the ACL of the folder and of every folder above it, only SYSTEM, Administrators and TrustedInstaller
-    (and the creator-owner of those) have write, create, delete, change-permissions or take-ownership
-    rights. `Users`, `Authenticated Users`, `Everyone` and any other account may only read and execute.
-    Inherited entries count;
+  - neither the folder nor any folder above it up to the root is a junction or symbolic link (the path is
+    the same once resolved);
+  - in the ACL of the folder itself, and of every file and folder in it (four levels), only SYSTEM,
+    Administrators and TrustedInstaller have any right that changes things (write, append, attributes,
+    delete, change permissions, take ownership, generic write or all); `Users`, `Authenticated Users`,
+    `Everyone` and any other account may only read and execute. In every folder **above** it, no one else
+    may delete it or them, or change their permissions or owner (adding things next to it is harmless).
+    Entries only for what is created inside (inherit only) do not count; deny entries are not read, which
+    can only make the check stricter; a missing ACL (everyone full control) fails;
   - its owner is SYSTEM, Administrators or TrustedInstaller;
   - the files in it (`rtsvc.exe` and what it loads) satisfy the same ACL rule.
-  A folder with the same permissions as `C:\Program Files` passes. `install` names the entry that fails
+  A folder with the permissions of a stock `C:\Program Files` passes. The root of the drive counts too: a PC
+  whose `C:\` gives `Everyone` full control of the root itself (as `icacls C:\` shows on the author's PC) lets
+  anyone rename what is below it, so every folder on that drive, `Program Files` included, is refused until
+  that entry is removed. `install` names the entry that fails
   and has no option to override the check.
 - The client finds where the service is by asking the Service Control Manager for its registered image
   path (`QueryServiceConfig`), not by assuming Program Files, and compares it with the image of the
   process on the pipe (§5).
-- The service runs as LocalSystem, restricted with `SERVICE_CONFIG_REQUIRED_PRIVILEGES_INFO` to what it
-  needs (`SeBackupPrivilege`, `SeManageVolumePrivilege` for the raw volume, `SeTcbPrivilege` only if the
-  session handling of uninstallers needs it), and recovery actions to restart it after a failure.
+- The service runs as LocalSystem, with recovery actions to restart it after a failure. Restricting its
+  privileges (`SERVICE_CONFIG_REQUIRED_PRIVILEGES_INFO`) is left for the hardening step, to be done with
+  measurements on a real installation: removing one it needs would stop the volume reading.
+- `install` prints what the service lets users read (and to whom) and asks for confirmation (`--yes` skips it).
 - `rtsvc uninstall` stops and removes the service and the files, and offers to delete the cache.
 - To update the service, install again from an elevated prompt (stop, replace, start). Tools tell the
   user when the service is older than what they need.

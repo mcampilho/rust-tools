@@ -1,0 +1,28 @@
+[package]
+name = "rtsvc"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.93"
+description = "The rust-tools privileged service: lets the tools read system-wide information, and do what an elevated tool asks, in the background"
+license = "MIT"
+
+[package.metadata.rust-tools]
+# Read by dev.ps1 and release.yml. `release` unwinds (catch_unwind), `release-small` aborts.
+profile = "release-small"
+platforms = "windows"
+
+[dependencies]
+rt-cli = { path = "../../crates/rt-cli" }
+rt-svc = { path = "../../crates/rt-svc" }
+
+[target.'cfg(windows)'.dependencies]
+rt-scan = { path = "../../crates/rt-scan" }
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Authorization",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Console",
+    "Win32_System_Services",
+    "Win32_System_Threading",
+] }

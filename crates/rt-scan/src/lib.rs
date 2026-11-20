@@ -36,6 +36,7 @@ mod win;
 pub mod format;
 pub mod model;
 pub mod volumes;
+pub mod wire;
 
 use crate::model::{Entry, Id, Kind, Tree, F_HARDLINK, F_UNREADABLE};
 use rt_core::i18n;
@@ -231,6 +232,16 @@ pub fn scan_with(root: &Path, ways: Ways, cancel: &AtomicBool, progress: &dyn Fn
     }
     #[cfg(windows)]
     if ways.ntfs {
+        // Not elevated: the service, when it runs, reads the table for us.
+        if !rt_svc::access::is_elevated() {
+            match wire::scan_via_service(&root, cancel, progress) {
+                Ok(tree) => {
+                    return Ok(Scan { tree, method: Method::Ntfs, elapsed: start.elapsed(), complete: true, admin_would_help: false })
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::Interrupted => return stopped(Method::Ntfs),
+                Err(_) => {}
+            }
+        }
         let label = |pct: u64| i18n::tf("Reading the NTFS table… {}%", &[&pct.to_string()]);
         match ntfs::scan_volume(&root, cancel, progress, &label) {
             Ok(tree) => return Ok(Scan { tree, method: Method::Ntfs, elapsed: start.elapsed(), complete: true, admin_would_help: false }),
