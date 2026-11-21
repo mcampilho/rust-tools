@@ -192,9 +192,11 @@ leva segundos em vez de minutos. Também conta:
 - o espaço do índice de cada pasta;
 - os ficheiros de sistema na raiz do volume (`$MFT`, `$LogFile`...).
 
-Sem direitos de administrador o Windows não deixa um programa abrir um volume, por
-isso o rsize lê pasta a pasta (abaixo) e a barra de estado diz que seria mais rápido
-como administrador. **Ficheiro > Reiniciar como administrador** volta a abrir o rsize
+Sem direitos de administrador o Windows não deixa um programa abrir um volume. Se o
+serviço opcional [rtsvc](../rtsvc/README.pt.md) estiver instalado (Windows, uma vez, numa linha de
+comandos elevada), o rsize pede-lhe que leia a tabela, e a barra de estado diz "pela tabela
+NTFS, através do serviço". Senão o rsize lê pasta a pasta (abaixo) e a barra de estado diz que
+seria mais rápido como administrador. **Ficheiro > Reiniciar como administrador** volta a abrir o rsize
 com esses direitos (o Windows pergunta primeiro) e lê a mesma pasta. A barra de estado
 diz sempre de que forma o resultado foi lido.
 

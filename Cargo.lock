@@ -2676,7 +2676,7 @@ dependencies = [
 
 [[package]]
 name = "rclean"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "accesskit",
  "accesskit_winit",
@@ -2695,7 +2695,7 @@ dependencies = [
 
 [[package]]
 name = "rdup"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "accesskit",
  "accesskit_winit",
@@ -2714,7 +2714,7 @@ dependencies = [
 
 [[package]]
 name = "rdup-cli"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "rt-cli",
  "rt-core",
@@ -2805,7 +2805,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "rinst"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "accesskit",
  "accesskit_winit",
@@ -2904,7 +2904,7 @@ dependencies = [
 
 [[package]]
 name = "rsize"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "accesskit",
  "accesskit_winit",
@@ -2923,7 +2923,7 @@ dependencies = [
 
 [[package]]
 name = "rsize-cli"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "rt-cli",
  "rt-scan",

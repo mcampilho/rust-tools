@@ -5,7 +5,7 @@
 Which files have the same contents? The command-line twin of [rdup](../rdup/README.md), with
 the options of `fdupes`. It searches all the folders and drives you give it together,
 subfolders included, and lists the copies in groups, the ones that waste the most space first.
-It reads the disk the way rdup does (the NTFS file table as administrator, the
+It reads the disk the way rdup does (the NTFS file table as administrator or through the optional [rtsvc](../rtsvc/README.md) service, the
 [Everything](https://www.voidtools.com) index when that is running, or folder by folder) and compares
 files by size, then by their first and last bytes, then by BLAKE3 hashes of the whole contents.
 One 0.8 MB executable for Windows and Linux; messages in English, Portuguese and Spanish; no

@@ -122,6 +122,14 @@ ferramenta existe:
 Estes não deixam nada com o seu nome noutros sítios, por isso não se procuram
 restos depois deles.
 
+### O serviço opcional
+
+Com o serviço [rtsvc](../rtsvc/README.pt.md) instalado (Windows, uma vez, numa linha de comandos elevada), a
+primeira lista de programas vem de uma fotografia que o serviço mantém pronta: os programas da máquina e os seus,
+sem reiniciar como administrador. A barra de estado diz "lista do serviço (há 3 min)" ou "lista lida
+diretamente". Atualizar, ou desinstalar algo, volta a ler o registo. Desinstalar continua a correr os seus
+desinstaladores.
+
 ### Desinstalar
 
 Selecione um programa, ou vários (Ctrl+clique, Shift+clique, Ctrl+A), ou marque

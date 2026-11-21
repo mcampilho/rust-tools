@@ -218,6 +218,8 @@ As mesmas três formas do [rsize](../rsize/README.pt.md), partilhadas pelo crate
 - **A tabela do NTFS lida diretamente** (Windows, como administrador): um disco
   inteiro em segundos. **Ficheiro > Reiniciar como administrador** volta a abrir
   o rdup com esses direitos e a mesma escolha.
+- **A tabela do NTFS através do serviço opcional [rtsvc](../rtsvc/README.pt.md)** (Windows), quando está
+  instalado e o rdup não foi aberto como administrador: o mesmo, sem reiniciar.
 - **Pasta a pasta**, através do sistema: qualquer sistema de ficheiros, partilhas
   de rede, Linux.
 

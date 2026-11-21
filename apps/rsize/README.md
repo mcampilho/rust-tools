@@ -195,9 +195,11 @@ a whole drive takes seconds instead of minutes. It also counts:
 - the space a folder's own index takes;
 - the system files at the root of the volume (`$MFT`, `$LogFile`...).
 
-Without administrator rights Windows does not let a program open a volume, so
-rsize reads folder by folder (below) and the status bar says it would be
-faster as administrator. **File > Restart as Administrator** starts rsize again
+Without administrator rights Windows does not let a program open a volume. If the
+optional [rtsvc](../rtsvc/README.md) service is installed (Windows, once, from an elevated
+prompt), rsize asks it to read the table, and the status bar says "from the NTFS table,
+through the service". Otherwise rsize reads folder by folder (below) and the status bar says it
+would be faster as administrator. **File > Restart as Administrator** starts rsize again
 with those rights (Windows asks first) and reads the same folder. The status
 bar always says which way the result was read.
 

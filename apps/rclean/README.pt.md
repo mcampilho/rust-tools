@@ -130,6 +130,13 @@ Os itens marcados "administrador" precisam de direitos de administrador: sem
 eles aparecem a cinzento, com **Reiniciar como administrador** por cima da
 lista.
 
+### O serviço opcional
+
+Com o serviço [rtsvc](../rtsvc/README.pt.md) instalado (Windows, uma vez, numa linha de comandos elevada), os
+itens marcados "administrador" mostram quantos ficheiros e quanto espaço têm mesmo que o rclean não tenha sido
+aberto como administrador (a barra de estado diz "tamanhos do que precisa de direitos: do serviço"). Continuam a
+precisar de direitos de administrador para serem limpos.
+
 ### Como apaga
 
 - Os temporários e as caches são apagados de vez, não vão para a Reciclagem:

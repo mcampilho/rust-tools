@@ -213,6 +213,8 @@ The same three ways as [rsize](../rsize/README.md), shared through the
 - **The NTFS table read directly** (Windows, as administrator): a whole drive
   in seconds. **File > Restart as Administrator** starts rdup again with those
   rights and the same choice.
+- **The NTFS table through the optional [rtsvc](../rtsvc/README.md) service** (Windows), when it is
+  installed and rdup is not started as administrator: the same, without the restart.
 - **Folder by folder**, through the system: any file system, network shares,
   Linux.
 

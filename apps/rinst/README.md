@@ -121,6 +121,13 @@ their tool is there:
 These leave nothing of their own name elsewhere, so no leftovers are looked
 for after them.
 
+### The optional service
+
+With the [rtsvc](../rtsvc/README.md) service installed (Windows, once, from an elevated prompt), the first
+list of programs comes from a snapshot the service keeps ready: the machine's programs and your own, without
+restarting as administrator. The status bar says "list from the service (3 min ago)" or "list read directly".
+Refreshing, or uninstalling something, reads the registry again. Uninstalling still runs your uninstallers.
+
 ### Uninstalling
 
 Select one program, or several (Ctrl+click, Shift+click, Ctrl+A), or tick

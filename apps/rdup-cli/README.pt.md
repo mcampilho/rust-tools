@@ -5,7 +5,7 @@
 Que ficheiros têm o mesmo conteúdo? O gémeo de linha de comandos do [rdup](../rdup/README.pt.md),
 com as opções do `fdupes`. Pesquisa em conjunto todas as pastas e discos que lhe indicar, com as
 subpastas, e lista as cópias em grupos, primeiro os que desperdiçam mais espaço. Lê o disco como o
-rdup (a tabela de ficheiros do NTFS como administrador, o índice do [Everything](https://www.voidtools.com)
+rdup (a tabela de ficheiros do NTFS como administrador ou através do serviço opcional [rtsvc](../rtsvc/README.pt.md), o índice do [Everything](https://www.voidtools.com)
 quando está a correr, ou pasta a pasta) e compara os ficheiros pelo tamanho, depois pelos primeiros e
 últimos bytes e por fim por hashes BLAKE3 do conteúdo inteiro. Um único executável de 0,8 MB para
 Windows e Linux; mensagens em inglês, português e espanhol; sem rede nem telemetria. **Só lista: nunca

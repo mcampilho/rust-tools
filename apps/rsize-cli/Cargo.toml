@@ -1,6 +1,6 @@
 [package]
 name = "rsize-cli"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 rust-version = "1.93"
 description = "Shows how much disk space files and folders take, like du, reading NTFS volumes directly when it can"

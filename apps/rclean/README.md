@@ -125,6 +125,13 @@ entries back. The details list each entry and what it named.
 Items marked "administrator" need administrator rights: without them they
 are shown, dimmed, with **Restart as Administrator** above the list.
 
+### The optional service
+
+With the [rtsvc](../rtsvc/README.md) service installed (Windows, once, from an elevated prompt), the
+items marked "administrator" show how many files and how much space they hold even when rclean was not
+started as administrator (the status bar says "sizes of what needs rights: from the service"). They still
+need administrator rights to be cleaned.
+
 ### How it deletes
 
 - Temporary files and caches are deleted for good, not to the Recycle Bin:

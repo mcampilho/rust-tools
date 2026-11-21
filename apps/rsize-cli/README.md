@@ -4,7 +4,7 @@
 
 How much disk space do the files and folders under a path take? The command-line
 twin of [rsize](../rsize/README.md), with the options of `du`. It reads the disk the same
-way rsize does: the NTFS file table directly (as administrator), the
+way rsize does: the NTFS file table directly (as administrator, or through the optional [rtsvc](../rtsvc/README.md) service), the
 [Everything](https://www.voidtools.com) index when that is running, or folder by folder.
 One 0.5 MB executable for Windows and Linux; messages in English, Portuguese and
 Spanish; no network, no telemetry.

@@ -4,7 +4,7 @@
 
 Quanto espaço em disco ocupam os ficheiros e as pastas de um caminho? O gémeo de linha de
 comandos do [rsize](../rsize/README.pt.md), com as opções do `du`. Lê o disco como o rsize:
-a tabela de ficheiros do NTFS diretamente (como administrador), o índice do
+a tabela de ficheiros do NTFS diretamente (como administrador, ou através do serviço opcional [rtsvc](../rtsvc/README.pt.md)), o índice do
 [Everything](https://www.voidtools.com) quando está a correr, ou pasta a pasta. Um único
 executável de 0,5 MB para Windows e Linux; mensagens em inglês, português e espanhol; sem
 rede nem telemetria.
