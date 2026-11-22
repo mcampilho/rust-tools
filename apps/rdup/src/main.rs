@@ -2,32 +2,33 @@
 //!
 //! The window is driven by winit and drawn on the CPU (tiny-skia + ab_glyph)
 //! into a softbuffer surface. Searches run on background threads and report
-//! to the window through the event loop.
+//! to the window through the event loop. The page itself (state, searching,
+//! marks, drawing, keyboard and mouse) is `rdup::page::DupPage`, shared with
+//! rcare; this file is the window around it.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use rdup::actions::{Op, Rule};
-use rdup::app::{App, Row, Searching, View};
 use rdup::commands::{self, Command};
-use rdup::format;
 use rdup::i18n::{self, tf, tr};
-use rdup::search::{self, Event as SearchEvent, Failure, Options};
+use rdup::page::{shortcuts_text, DupPage, Out, Popup};
 use rdup::settings::Settings;
 use rdup::storage;
 use rdup::ui::gfx::{Color, Gfx, Rect};
 use rdup::ui::theme::Theme;
-use rdup::ui::view::{self, Hot, Layout, Page};
-use rdup::volumes::{self, Volume};
+use rt_ui::page::SystemDialogs;
 use rt_ui::Message;
 use std::num::NonZeroU32;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::rc::Rc;
-use std::time::{Duration, Instant};
+use std::sync::Arc;
+use std::time::Instant;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
-use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
+#[cfg(not(windows))]
+use winit::event::MouseScrollDelta;
+use winit::event::{ElementState, MouseButton, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
-use winit::keyboard::{Key as WKey, ModifiersState, NamedKey};
+use winit::keyboard::ModifiersState;
 use winit::window::{CursorIcon, Theme as WinTheme, Window, WindowId};
 
 mod input;
@@ -38,12 +39,8 @@ enum UserEvent {
     /// A step of Check for Updates.
     Update(rt_ui::update::Step),
     A11y(accesskit_winit::Event),
-    /// Moving the marked copies: how many done, of how many; then what was
-    /// moved and what was not (with the reason).
-    Acting(usize, usize),
-    Acted(Vec<PathBuf>, Vec<(PathBuf, String)>),
-    Search(u64, SearchEvent),
-    Volumes(Vec<Volume>),
+    /// What a thread of the page reports.
+    Page(rdup::page::Event),
     #[cfg(windows)]
     Win(rt_sys::win::WinMsg),
     /// A later launch, or the notification-area icon (Linux).
@@ -71,7 +68,7 @@ struct Win {
 }
 
 struct Shell {
-    app: App,
+    page: DupPage,
     settings: Settings,
     location: storage::Location,
     gfx: Gfx,
@@ -84,24 +81,9 @@ struct Shell {
     menu_dark: Option<bool>,
     menu_dirty: bool,
     menu_rebuild: bool,
-    layout: Layout,
-    hot: Hot,
-    /// Dragging the scroll bar's thumb.
-    dragging: bool,
-    /// Selecting text in a filter box with the pointer.
-    selecting: bool,
-    /// The last click in a filter box, to see a double click.
-    last_click: Option<(Instant, f32, f32)>,
     cursor_icon: CursorIcon,
-    handle: Option<search::Handle>,
-    generation: u64,
     /// An in-app message (About, Keyboard shortcuts, the help).
     dialog: Option<Message>,
-    /// Marked copies being moved: (done, of how many).
-    acting: Option<(usize, usize)>,
-    /// Running with administrator rights (NTFS can be read directly).
-    #[cfg(windows)]
-    elevated: bool,
     #[cfg(not(windows))]
     menu: rdup::ui::menu::Menu,
     /// Resident mode (`--tray`): closing the window hides it to the
@@ -148,122 +130,53 @@ impl Shell {
         if let Some(w) = &self.win {
             rt_ui::window::remember_size(&w.window, &mut self.settings.window);
         }
-        self.settings.roots = self.app.chosen.clone();
-        if self.app.volumes.is_some() {
-            self.settings.folders = self.app.folders();
-        }
-        self.settings.choice = self.app.choice.clone();
-        self.settings.share = self.app.share;
-        self.settings.compare = self.app.compare;
+        self.page.store_into(&mut self.settings);
         let store = self.settings.to_store();
         self.location.save(&store);
     }
 
-    // ------------------------------------------------------------ searches
-
-    fn load_volumes(&self) {
-        let proxy = self.proxy.clone();
-        std::thread::spawn(move || {
-            let _ = proxy.send_event(UserEvent::Volumes(volumes::list()));
-        });
+    /// The system's dialogs, over this window.
+    fn dialogs(&self) -> SystemDialogs {
+        SystemDialogs {
+            #[cfg(windows)]
+            hwnd: self.win.as_ref().map_or(std::ptr::null_mut(), |w| w.hwnd),
+        }
     }
 
-    fn start_search(&mut self) {
-        if self.app.chosen.is_empty() {
-            return;
+    /// Takes what the page asked of the window, and its pointer's shape.
+    fn after_page(&mut self) {
+        let fx = self.page.fx.take();
+        if fx.menu_dirty {
+            self.menu_dirty = true;
         }
-        let Ok(filter) = self.app.choice.filter() else { return };
-        self.app.focus = None;
-        self.app.calendar = None;
-        if let Some(h) = self.handle.take() {
-            h.cancel();
+        if fx.save {
+            self.save_settings();
         }
-        self.generation += 1;
-        let gen = self.generation;
-        let roots = search::distinct_roots(&self.app.chosen);
-        self.app.searching =
-            Some(Searching { roots: roots.clone(), progress: Default::default(), started: Instant::now(), generation: gen });
-        self.app.error = None;
-        let proxy = self.proxy.clone();
-        let lang = i18n::lang();
-        self.handle = Some(search::start(
-            roots,
-            Options {
-                filter,
-                files: self.app.compare[0],
-                folders: self.app.compare[1],
-                cache: self.location.file("hashes.bin"),
-                hard_links: false,
-            },
-            Box::new(move |e| {
-                i18n::set_lang(lang);
-                let _ = proxy.send_event(UserEvent::Search(gen, e));
-            }),
-        ));
-        self.dragging = false;
-        self.menu_dirty = true;
-        self.save_settings();
-        self.redraw();
-    }
-
-    fn on_search(&mut self, gen: u64, ev: SearchEvent) {
-        if gen != self.generation {
-            return;
+        if let Some((title, text)) = fx.info {
+            self.page.dragging = false;
+            self.dialog = Some(Message::new(&title, &text));
         }
-        match ev {
-            SearchEvent::Progress(p) => {
-                if let Some(s) = &mut self.app.searching {
-                    s.progress = p;
-                }
-            }
-            SearchEvent::Done(result) => {
-                self.app.searching = None;
-                self.handle = None;
-                match result {
-                    Ok(found) => self.app.set_found(*found),
-                    Err(Failure::Stopped) => {
-                        self.app.show_start = true;
-                        self.app.error = Some(tr("The search was stopped."));
-                    }
-                    Err(Failure::Unreadable(why)) => {
-                        self.app.show_start = true;
-                        self.app.error = Some(tf("Could not read: {}", &[&why]));
-                    }
-                }
-                self.menu_dirty = true;
+        if fx.redraw {
+            self.redraw();
+        }
+        let icon = self.page.cursor_icon;
+        if icon != self.cursor_icon {
+            self.cursor_icon = icon;
+            if let Some(w) = &self.win {
+                w.window.set_cursor(icon);
             }
         }
-        self.redraw();
     }
 
     fn update_title(&self) {
         let Some(w) = &self.win else { return };
-        let title = match view::page(&self.app) {
-            Page::Searching => format!("{} - rdup", tr("Searching")),
-            _ => "rdup".to_string(),
+        let title = match self.page.title() {
+            Some(t) => format!("{t} - rdup"),
+            None => "rdup".to_string(),
         };
         if w.window.title() != title {
             w.window.set_title(&title);
         }
-    }
-
-    fn add_folder(&mut self) {
-        let title = tr("Choose a folder to search");
-        #[cfg(windows)]
-        let chosen = self.win.as_ref().and_then(|w| rt_sys::win::dialogs::pick_folder(w.hwnd, &title));
-        #[cfg(not(windows))]
-        let chosen = rt_sys::linux::dialogs::pick_folder(&title);
-        if let Some(p) = chosen {
-            self.settings.last_dir = p.display().to_string();
-            self.add_root(&p);
-        }
-    }
-
-    /// Adds a folder to the search and shows the start page with it.
-    fn add_root(&mut self, p: &Path) {
-        self.app.add_folder(p);
-        self.app.show_start = true;
-        self.app.error = None;
     }
 
     // ------------------------------------------------------------ commands
@@ -272,27 +185,16 @@ impl Shell {
         if !self.enabled(cmd) {
             return;
         }
+        let mut dialogs = self.dialogs();
+        if self.page.command(cmd, &mut dialogs) {
+            self.after_page();
+            return;
+        }
         match cmd {
-            Command::AddFolder => self.add_folder(),
-            Command::Search => self.start_search(),
-            Command::NewSearch => {
-                self.app.show_start = true;
-                self.app.volumes = None;
-                self.load_volumes();
-            }
-            Command::Stop => {
-                if let Some(h) = &self.handle {
-                    h.cancel();
-                }
-            }
             #[cfg(windows)]
             Command::RestartAdmin => {
                 self.save_settings();
-                // The new instance searches the same drives and folders, without
-                // their last backslash, which would escape the closing quote.
-                let args: Vec<String> =
-                    self.app.chosen.iter().map(|r| format!("\"{}\"", r.display().to_string().trim_end_matches('\\'))).collect();
-                if rt_sys::win::restart_elevated(&args.join(" ")) {
+                if rt_sys::win::restart_elevated(&self.page.restart_args()) {
                     self.quit(el);
                 }
             }
@@ -304,44 +206,6 @@ impl Shell {
                     self.info("rdup", &tf("Cannot change how it starts: {}", &[&e]));
                 }
             }
-            Command::CopyPath => {
-                if let Some(p) = self.app.selected_path() {
-                    rt_sys::set_clipboard_text(&p.to_string_lossy());
-                }
-            }
-            Command::OpenItem => {
-                if let Some(p) = self.app.selected_path() {
-                    open_item(&p);
-                }
-            }
-            Command::Reveal => {
-                if let Some(p) = self.app.selected_path() {
-                    rt_sys::reveal(&p);
-                }
-            }
-            Command::ToggleMark => {
-                if let Some(i) = self.app.sel {
-                    self.toggle_mark(i);
-                }
-            }
-            Command::KeepNewest => self.apply_rule(Rule::Newest),
-            Command::KeepOldest => self.apply_rule(Rule::Oldest),
-            Command::KeepShortest => self.apply_rule(Rule::Shortest),
-            Command::KeepInFolder => {
-                if let Some(dir) = self.pick_folder(&tr("Choose the folder whose copies to keep")) {
-                    self.apply_rule(Rule::InFolder(dir));
-                }
-            }
-            Command::UnmarkAll => self.app.unmark_all(),
-            Command::Recycle => self.act(Op::Recycle),
-            Command::MoveTo => {
-                if let Some(dir) = self.pick_folder(&tr("Choose where to move the marked copies")) {
-                    self.act(Op::MoveTo(dir));
-                }
-            }
-            Command::Export => self.export(),
-            Command::ShowFiles => self.app.set_view(View::Files),
-            Command::ShowFolders => self.app.set_view(View::Folders),
             Command::Theme(t) => {
                 self.settings.theme = t;
                 self.apply_window_theme();
@@ -359,6 +223,7 @@ impl Shell {
                 );
                 self.info(&tr("About rdup"), &text);
             }
+            _ => {}
         }
         self.menu_dirty = true;
         self.redraw();
@@ -367,43 +232,22 @@ impl Shell {
     fn checked(&self, c: Command) -> bool {
         match c {
             Command::Theme(t) => self.settings.theme == t,
-            Command::ShowFiles => self.app.view == View::Files,
-            Command::ShowFolders => self.app.view == View::Folders,
             Command::UiLanguage(0) => self.settings.language.is_none(),
             Command::UiLanguage(i) => self.settings.language == i18n::Lang::ALL.get(i as usize - 1).copied(),
             #[cfg(windows)]
             Command::ExplorerMenu => self.explorer_menu,
             Command::Autostart => rt_sys::autostart::enabled("rdup"),
-            _ => false,
+            c => self.page.checked(c),
         }
     }
 
     fn enabled(&self, c: Command) -> bool {
-        let result = view::page(&self.app) == Page::Result;
-        let idle = self.app.searching.is_none();
-        match c {
-            Command::Search => idle && !self.app.chosen.is_empty() && self.app.choice.filter().is_ok() && self.app.compare.contains(&true),
-            Command::AddFolder => idle,
-            Command::NewSearch => idle && self.app.has_result() && !self.app.show_start,
-            Command::Stop => !idle,
-            #[cfg(windows)]
-            Command::RestartAdmin => !self.elevated,
-            Command::CopyPath | Command::OpenItem | Command::Reveal => result && self.app.selected_path().is_some(),
-            Command::ToggleMark => result && self.app.sel.is_some_and(|i| self.app.markable(i)) && self.acting.is_none(),
-            Command::KeepNewest | Command::KeepOldest | Command::KeepShortest | Command::KeepInFolder => {
-                result && self.acting.is_none() && (0..self.app.rows.len()).any(|i| self.app.markable(i))
-            }
-            Command::UnmarkAll | Command::Recycle | Command::MoveTo => result && self.acting.is_none() && !self.app.marked().is_empty(),
-            Command::Export => result && !self.app.rows.is_empty(),
-            Command::ShowFiles => result && self.app.found.as_ref().is_some_and(|f| !f.groups.is_empty() && f.look == [true, true]),
-            Command::ShowFolders => result && self.app.found.as_ref().is_some_and(|f| !f.groups.is_empty() && f.look[1]),
-            _ => true,
-        }
+        self.page.enabled(c)
     }
 
     fn info(&mut self, title: &str, text: &str) {
         self.dialog = Some(Message::new(title, text));
-        self.dragging = false;
+        self.page.dragging = false;
         self.redraw();
     }
 
@@ -418,9 +262,7 @@ impl Shell {
     }
 
     fn quit(&mut self, el: &ActiveEventLoop) {
-        if let Some(h) = &self.handle {
-            h.cancel();
-        }
+        self.page.cancel();
         self.save_settings();
         #[cfg(windows)]
         if let Some(w) = &self.win {
@@ -455,8 +297,8 @@ impl Shell {
             self.cursor = None;
         }
         self.hidden = true;
-        self.dragging = false;
-        self.selecting = false;
+        self.page.dragging = false;
+        self.page.selecting = false;
         // Release the frame buffer while hidden.
         self.gfx.resize(1, 1);
         self.gfx.trim_cache();
@@ -483,10 +325,8 @@ impl Shell {
     /// and searches them.
     fn open_paths(&mut self, el: &ActiveEventLoop, paths: Vec<PathBuf>) {
         self.show(el);
-        if !paths.is_empty() && self.acting.is_none() {
-            self.app.chosen = paths.iter().map(|p| rt_scan::normalize(p)).collect();
-            self.start_search();
-        }
+        self.page.open_paths(paths);
+        self.after_page();
     }
 
     /// Adds "Find duplicates with rdup" in Explorer, or takes it out, and
@@ -500,126 +340,6 @@ impl Shell {
         self.menu_dirty = true;
         self.info(&tr("Windows Integration"), &text);
     }
-
-    // ------------------------------------------------------------ marks and actions
-
-    fn toggle_mark(&mut self, row: usize) {
-        match self.app.toggle_mark(row) {
-            Ok(()) => self.app.note = None,
-            Err(why) => self.app.note = Some(why),
-        }
-        self.menu_dirty = true;
-        self.redraw();
-    }
-
-    fn apply_rule(&mut self, rule: Rule) {
-        let n = self.app.apply_rule(&rule);
-        self.app.note =
-            Some(if n == 0 { tr("No copy was marked: the rule keeps them all.") } else { tf("{} marked", &[&format::count(n as u64)]) });
-    }
-
-    fn pick_folder(&mut self, title: &str) -> Option<PathBuf> {
-        #[cfg(windows)]
-        return self.win.as_ref().and_then(|w| rt_sys::win::dialogs::pick_folder(w.hwnd, title));
-        #[cfg(not(windows))]
-        rt_sys::linux::dialogs::pick_folder(title)
-    }
-
-    /// Asks before doing something that cannot be undone from here.
-    fn confirm(&self, title: &str, question: &str) -> bool {
-        #[cfg(windows)]
-        {
-            use rt_sys::win::dialogs::{message, Answer, Buttons, Icon};
-            let hwnd = self.win.as_ref().map_or(std::ptr::null_mut(), |w| w.hwnd);
-            message(hwnd, title, question, Buttons::OkCancel, Icon::Warning) == Answer::Ok
-        }
-        #[cfg(not(windows))]
-        rt_sys::linux::dialogs::confirm(title, question)
-    }
-
-    /// Moves the marked copies of the view to the Recycle Bin or a folder,
-    /// after asking, in the background.
-    fn act(&mut self, op: Op) {
-        let marked = self.app.marked();
-        if marked.is_empty() || self.acting.is_some() {
-            return;
-        }
-        let n = format::count(marked.len() as u64);
-        let what = if self.app.view == View::Folders { tf("{} folders", &[&n]) } else { tf("{} files", &[&n]) };
-        let size = format::size(marked.iter().map(|(_, b)| b).sum());
-        let (title, question) = match &op {
-            Op::Recycle => (
-                view::recycle_label(),
-                if cfg!(windows) {
-                    tf("Move {} to the Recycle Bin?\n\n{} in all. One copy of each group stays where it is.", &[&what, &size])
-                } else {
-                    tf("Move {} to the trash?\n\n{} in all. One copy of each group stays where it is.", &[&what, &size])
-                },
-            ),
-            Op::MoveTo(dir) => (
-                rt_core::i18n::strip_mnemonic(&tr("Mo&ve To...")),
-                tf("Move {} to {}?\n\n{} in all. One copy of each group stays where it is.", &[&what, &dir.display().to_string(), &size]),
-            ),
-        };
-        if !self.confirm(&title, &question) {
-            return;
-        }
-        let paths: Vec<PathBuf> = marked.into_iter().map(|(p, _)| p).collect();
-        self.acting = Some((0, paths.len()));
-        self.dragging = false;
-        let proxy = self.proxy.clone();
-        let lang = i18n::lang();
-        std::thread::spawn(move || {
-            i18n::set_lang(lang);
-            let total = paths.len();
-            let (done, failed) = rdup::actions::run(&op, &paths, &|i, _| {
-                let _ = proxy.send_event(UserEvent::Acting(i, total));
-            });
-            let _ = proxy.send_event(UserEvent::Acted(done, failed));
-        });
-        self.menu_dirty = true;
-        self.redraw();
-    }
-
-    fn acted(&mut self, done: Vec<PathBuf>, failed: Vec<(PathBuf, String)>) {
-        self.acting = None;
-        self.app.removed(&done);
-        let moved = format::count(done.len() as u64);
-        let mut note = tf("{} moved.", &[&moved]);
-        if let Some((p, why)) = failed.first() {
-            note = format!(
-                "{note} {}",
-                tf("{} could not be moved, such as {}: {}", &[&format::count(failed.len() as u64), &p.display().to_string(), why])
-            );
-        }
-        self.app.note = Some(note);
-        self.menu_dirty = true;
-        self.redraw();
-    }
-
-    /// Writes the list shown to a CSV file the user chooses.
-    fn export(&mut self) {
-        let name = if self.app.view == View::Folders { "rdup-folders.csv" } else { "rdup-files.csv" };
-        #[cfg(windows)]
-        let chosen = self.win.as_ref().and_then(|w| {
-            let filter = rt_sys::win::dialogs::filter(&[(tr("CSV files"), "*.csv")]);
-            rt_sys::win::dialogs::save_file(w.hwnd, name, None, &filter)
-        });
-        #[cfg(not(windows))]
-        let chosen = rt_sys::linux::dialogs::save_file(name, None);
-        let Some(path) = chosen else { return };
-        self.app.note = Some(match std::fs::write(&path, self.app.csv()) {
-            Ok(()) => tf("The list was saved to {}.", &[&path.display().to_string()]),
-            Err(e) => tf("Could not save {}: {}", &[&path.display().to_string(), &e.to_string()]),
-        });
-        self.redraw();
-    }
-
-    // ------------------------------------------------------------ menus
-
-    // ------------------------------------------------------------ input
-
-    // ------------------------------------------------------------ frame
 
     fn open_window(&mut self, el: &ActiveEventLoop) -> bool {
         let (w, h, maximized) = self.settings.window.unwrap_or((1100.0, 780.0, false));
@@ -667,34 +387,6 @@ impl Shell {
     }
 }
 
-/// Opens a file with its default program (an explicit command).
-fn open_item(p: &Path) {
-    #[cfg(windows)]
-    rt_sys::win::shell_open(&p.to_string_lossy());
-    #[cfg(not(windows))]
-    rt_sys::linux::xdg_open(p.as_os_str().to_os_string());
-}
-
-fn shortcuts_text() -> String {
-    let rows = [
-        ("Ctrl+O", tr("Add a folder to the search")),
-        ("F5", tr("Find the duplicates")),
-        ("Ctrl+N", tr("Change the drives and folders")),
-        ("Esc", tr("Stop the search")),
-        ("Tab", tr("Go to the next filter box")),
-        ("Ctrl+1  Ctrl+2", tr("Show the files or the folders")),
-        ("Space", tr("Mark or unmark the selected copy")),
-        ("Delete", if cfg!(windows) { tr("Move the marked copies to the Recycle Bin") } else { tr("Move the marked copies to the trash") }),
-        ("Ctrl+M", tr("Move the marked copies to a folder")),
-        ("Ctrl+S", tr("Save the list as CSV")),
-        ("↑ ↓  PgUp PgDn  Home End", tr("Move in the list")),
-        ("Ctrl+Enter", tr("Open the selected file")),
-        ("Ctrl+E", tr("Show it in the file manager")),
-        ("Ctrl+C", tr("Copy its path")),
-    ];
-    rows.iter().map(|(k, v)| format!("{k}\t{v}")).collect::<Vec<_>>().join("\n")
-}
-
 /// Starts resident mode on Linux: without an icon, a hidden window could not
 /// be reached or closed, so rdup then runs as a normal window.
 #[cfg(not(windows))]
@@ -720,7 +412,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
         // A resident start stays in the notification area unless a search
         // was asked for; Linux has no hidden window, so it is made when first shown.
-        let start_hidden = self.tray && self.app.searching.is_none();
+        let start_hidden = self.tray && !self.page.searching();
         if !(cfg!(not(windows)) && start_hidden) && !self.open_window(el) {
             return;
         }
@@ -741,16 +433,9 @@ impl ApplicationHandler<UserEvent> for Shell {
 
     fn user_event(&mut self, el: &ActiveEventLoop, event: UserEvent) {
         match event {
-            UserEvent::Search(gen, ev) => self.on_search(gen, ev),
-            UserEvent::Acting(done, total) => {
-                self.acting = Some((done, total));
-                self.app.note = Some(tf("Moving {} of {}…", &[&format::count(done as u64 + 1), &format::count(total as u64)]));
-                self.redraw();
-            }
-            UserEvent::Acted(done, failed) => self.acted(done, failed),
-            UserEvent::Volumes(v) => {
-                self.app.volumes = Some(v);
-                self.redraw();
+            UserEvent::Page(e) => {
+                self.page.event(e);
+                self.after_page();
             }
             #[cfg(windows)]
             UserEvent::Win(rt_sys::win::WinMsg::Command(id)) => {
@@ -804,9 +489,10 @@ impl ApplicationHandler<UserEvent> for Shell {
                     if id == 6 {
                         self.dialog = None;
                     } else if let Some(i) = id.checked_sub(100) {
-                        self.app.select(i as usize);
+                        self.page.accessibility_click(i as usize);
                     }
                     let _ = el;
+                    self.after_page();
                     self.redraw();
                 }
                 accesskit_winit::WindowEvent::InitialTreeRequested => {
@@ -833,10 +519,9 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
             WindowEvent::Focused(false) => self.save_settings(),
             WindowEvent::ModifiersChanged(m) => self.mods = m.state(),
-            WindowEvent::DroppedFile(p) if self.app.searching.is_none() => {
-                let dir = if p.is_dir() { p } else { p.parent().map(Path::to_path_buf).unwrap_or(p) };
-                self.add_root(&dir);
-                self.redraw();
+            WindowEvent::DroppedFile(p) => {
+                self.page.drop_file(p);
+                self.after_page();
             }
             WindowEvent::KeyboardInput { event, is_synthetic: false, .. } => {
                 if event.state == ElementState::Pressed {
@@ -850,25 +535,14 @@ impl ApplicationHandler<UserEvent> for Shell {
                 if self.menu_pointer(el, x, y) {
                     return;
                 }
-                if self.dragging {
-                    self.drag_to(y);
-                }
-                if self.selecting {
-                    if let Some(f) = self.app.focus {
-                        let s = self.scale();
-                        let caret = view::caret_at(&mut self.gfx, &self.app, &self.layout, f, x, s);
-                        self.app.drag_caret(caret);
-                        self.redraw();
-                    }
-                }
-                self.pointer(x, y);
+                self.page.drag(&mut self.gfx, x, y);
+                self.page.pointer(x, y, self.dialog.is_some());
+                self.after_page();
             }
             WindowEvent::CursorLeft { .. } => {
                 self.cursor = None;
-                if !self.dragging && self.hot != Hot::None {
-                    self.hot = Hot::None;
-                    self.redraw();
-                }
+                self.page.pointer_left();
+                self.after_page();
             }
             WindowEvent::MouseInput { state, button: MouseButton::Left, .. } => match state {
                 ElementState::Pressed => {
@@ -876,10 +550,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                         self.press(el, x, y);
                     }
                 }
-                ElementState::Released => {
-                    self.dragging = false;
-                    self.selecting = false;
-                }
+                ElementState::Released => self.page.release(),
             },
             #[cfg(not(windows))]
             WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Right, .. } if self.menu.is_open() => {
@@ -887,13 +558,10 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.redraw();
             }
             WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Right, .. } if self.dialog.is_none() => {
-                if let Hot::Row(i) = self.hot {
-                    self.app.select(i);
-                    self.menu_dirty = true;
-                    self.redraw();
-                    if self.app.selected_path().is_some() {
-                        self.context_menu(el);
-                    }
+                let popup = self.page.right_click();
+                self.after_page();
+                if let Some(p) = popup {
+                    self.popup(el, p);
                 }
             }
             WindowEvent::MouseWheel { delta, .. } if self.dialog.is_none() => {
@@ -908,32 +576,8 @@ impl ApplicationHandler<UserEvent> for Shell {
                         return;
                     }
                 }
-                let Some((x, y)) = self.cursor else { return };
-                let rows = match delta {
-                    MouseScrollDelta::LineDelta(_, l) => (-l * 3.0).round() as isize,
-                    MouseScrollDelta::PixelDelta(p) => (-p.y as f32 / self.layout.row_h.max(20.0)).round() as isize,
-                };
-                let l = &self.layout;
-                if let Some(c) = &mut self.app.calendar {
-                    // Over the calendar the wheel turns the months; elsewhere it closes it.
-                    if l.cal.as_ref().is_some_and(|cl| cl.panel.contains(x, y)) {
-                        c.shift(rows.signum() as i32);
-                    } else {
-                        self.app.calendar = None;
-                    }
-                    self.redraw();
-                    return;
-                }
-                match view::page(&self.app) {
-                    Page::Result => self.app.scroll_by(rows),
-                    Page::Start if l.start_max > 0.0 => {
-                        let step = 40.0 * self.scale();
-                        self.app.start_scroll = (self.app.start_scroll + rows as f32 * step / 3.0).clamp(0.0, l.start_max);
-                    }
-                    _ => return,
-                }
-                self.redraw();
-                self.pointer(x, y);
+                self.page.wheel(delta, self.cursor);
+                self.after_page();
             }
             WindowEvent::RedrawRequested if !self.hidden => self.render(),
             _ => {}
@@ -942,11 +586,51 @@ impl ApplicationHandler<UserEvent> for Shell {
 
     fn about_to_wait(&mut self, el: &ActiveEventLoop) {
         // The elapsed time on the search page moves even between reports.
-        if self.app.searching.is_some() {
-            el.set_control_flow(ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(500)));
-            self.redraw();
+        if let Some(d) = self.page.animate() {
+            el.set_control_flow(ControlFlow::WaitUntil(Instant::now() + d));
+            self.after_page();
         } else {
             el.set_control_flow(ControlFlow::Wait);
+        }
+    }
+}
+
+impl Shell {
+    /// A menu at the pointer, asked for by the page.
+    pub(crate) fn popup(&mut self, el: &ActiveEventLoop, which: Popup) {
+        let items = match which {
+            Popup::Rules => commands::rule_menu(),
+            Popup::Item => commands::item_menu(),
+        };
+        #[cfg(windows)]
+        {
+            let _ = &items;
+            let Some(hwnd) = self.win.as_ref().map(|w| w.hwnd) else { return };
+            let items: Vec<_> = items
+                .into_iter()
+                .map(|m| match m {
+                    rt_core::menu::M::Item(c) => Some((c, self.enabled(c))),
+                    _ => None,
+                })
+                .collect();
+            if let Some(c) = rt_sys::win::menu::popup_at_cursor(hwnd, &items) {
+                self.command(el, c);
+            }
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = el;
+            let me = &*self;
+            let built = rdup::ui::menu::build(items, &|c| me.checked(c), &|c| me.enabled(c));
+            let at = match which {
+                Popup::Rules => {
+                    let r = self.page.layout.rules;
+                    (r.x, r.bottom() + 2.0)
+                }
+                Popup::Item => self.cursor.unwrap_or((0.0, 0.0)),
+            };
+            self.menu.open(None, built, at, false);
+            self.redraw();
         }
     }
 }
@@ -1063,14 +747,21 @@ fn main() {
             std::process::exit(1);
         }
     };
-    let mut app = App::new();
-    app.choice = settings.choice.clone();
-    app.share = settings.share;
-    app.compare = settings.compare;
-    app.chosen = if args.is_empty() { settings.roots.clone() } else { args.iter().map(|a| rt_scan::normalize(a)).collect() };
-    app.saved = settings.folders.clone();
+    let sender = {
+        let proxy = std::sync::Mutex::new(event_loop.create_proxy());
+        Arc::new(move |e| {
+            if let Ok(p) = proxy.lock() {
+                let _ = p.send_event(UserEvent::Page(e));
+            }
+        })
+    };
+    #[cfg(windows)]
+    let elevated = rt_sys::win::elevated();
+    #[cfg(not(windows))]
+    let elevated = false;
+    let page = DupPage::new(&settings, &args, location.file("hashes.bin"), elevated, sender);
     let mut shell = Shell {
-        app,
+        page,
         settings,
         location,
         gfx,
@@ -1083,18 +774,8 @@ fn main() {
         menu_dark: None,
         menu_dirty: true,
         menu_rebuild: true,
-        layout: Layout::default(),
-        hot: Hot::None,
-        dragging: false,
-        selecting: false,
-        last_click: None,
         cursor_icon: CursorIcon::Default,
-        acting: None,
-        handle: None,
-        generation: 0,
         dialog: help.then(|| Message::new("rdup", USAGE)),
-        #[cfg(windows)]
-        elevated: rt_sys::win::elevated(),
         #[cfg(not(windows))]
         menu: rdup::ui::menu::Menu::default(),
         tray,
@@ -1106,9 +787,10 @@ fn main() {
         explorer_menu: integrated_here(),
     };
     shell.apply_language();
-    shell.load_volumes();
+    shell.page.load_volumes();
     if !args.is_empty() {
-        shell.start_search();
+        shell.page.start_search();
+        shell.after_page();
     }
     if let Err(e) = event_loop.run_app(&mut shell) {
         eprintln!("rdup: {e}");

@@ -1,34 +1,9 @@
 //! Menus: the native menu bar (Windows) or the menus drawn in the window
-//! (Linux, through `rt_ui::menus`), the context menu, and their theme.
+//! (Linux, through `rt_ui::menus`), and their theme.
 
 use super::*;
 
 impl Shell {
-    /// The context menu of the selection, at the pointer.
-    #[cfg(windows)]
-    pub(super) fn context_menu(&mut self, el: &ActiveEventLoop) {
-        let Some(hwnd) = self.win.as_ref().map(|w| w.hwnd) else { return };
-        let mut items = Vec::new();
-        for m in commands::item_menu() {
-            items.push(match m {
-                rt_core::menu::M::Item(c) => Some((c, self.enabled(c))),
-                _ => None,
-            });
-        }
-        if let Some(c) = rt_sys::win::menu::popup_at_cursor(hwnd, &items) {
-            self.command(el, c);
-        }
-    }
-
-    #[cfg(not(windows))]
-    pub(super) fn context_menu(&mut self, _el: &ActiveEventLoop) {
-        let me = &*self;
-        let items = rsize::ui::menu::build(commands::item_menu(), &|c| me.checked(c), &|c| me.enabled(c));
-        let at = self.cursor.unwrap_or((0.0, 0.0));
-        self.menu.open(None, items, at, false);
-        self.redraw();
-    }
-
     /// Does what the drawn menus asked; true when they took the input.
     #[cfg(not(windows))]
     pub(super) fn menu_step(&mut self, el: &ActiveEventLoop, step: rt_ui::menus::Step<Command>) -> bool {

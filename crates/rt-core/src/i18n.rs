@@ -265,12 +265,33 @@ pub fn has_key(key: &str) -> bool {
 /// Translation in a specific language, with fallbacks
 /// (en-GB → en-US, pt-PT → pt-BR, anything → en-US).
 pub fn tr_in(l: Lang, s: &str) -> &str {
-    let Some(row) = row(s) else {
+    tr_in_from(None, l, s)
+}
+
+/// Like [`tr_in`], but `first` is searched before the others. A program that
+/// holds several apps' pages (rcare) has one English text translated by
+/// each app with its own access keys; a page asks its own table first, so its
+/// menus keep keys that do not clash.
+pub fn tr_in_from<'a>(first: Option<&'static Catalog>, l: Lang, s: &'a str) -> &'a str {
+    let Some(row) = first.and_then(|t| t.row(s)).or_else(|| row(s)) else {
         record_miss(s);
         return s;
     };
     let pick = |l: Lang| Some(row[l.column()]).filter(|v| !v.is_empty());
     pick(l).or_else(|| if l == Lang::PtPT { pick(Lang::PtBR) } else { None }).unwrap_or(s)
+}
+
+/// Translates `s` into the current language, searching `table` first.
+pub fn tr_from<'a>(table: &'static Catalog, s: &'a str) -> &'a str {
+    match lang() {
+        Lang::EnUS => s,
+        l => tr_in_from(Some(table), l, s),
+    }
+}
+
+/// Translates a template, searching `table` first, and fills `{}` placeholders in order.
+pub fn tf_from(table: &'static Catalog, template: &str, args: &[&str]) -> String {
+    fill(tr_from(table, template), args)
 }
 
 /// Translates `s` into the current language (unknown strings pass through).

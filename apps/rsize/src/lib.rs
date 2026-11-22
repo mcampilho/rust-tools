@@ -6,6 +6,7 @@ pub mod chart;
 pub mod commands;
 pub mod export;
 pub mod i18n;
+pub mod page;
 pub mod settings;
 pub mod storage;
 pub mod treemap;

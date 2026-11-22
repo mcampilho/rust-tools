@@ -13,6 +13,8 @@ static TABLE: Catalog = Catalog::new(include_str!("strings.txt"), '\t');
 pub fn install() {
     core::install(&TABLE);
     rclean::i18n::add_table();
+    rdup::i18n::add_table();
+    rsize::i18n::add_table();
 }
 
 pub fn set_lang(l: Lang) {

@@ -13,6 +13,12 @@ fn install() {
     core::install(&TABLE);
 }
 
+/// Adds rdup's table to the translations of a program that holds the page
+/// among others (rcare).
+pub fn add_table() {
+    core::add(&TABLE);
+}
+
 pub fn set_lang(l: Lang) {
     install();
     core::set_lang(l);
@@ -28,13 +34,13 @@ pub fn tr_in(l: Lang, s: &str) -> String {
 /// Translates `s` into the current language (unknown strings pass through).
 pub fn tr(s: &str) -> String {
     install();
-    core::tr(s).to_string()
+    core::tr_from(&TABLE, s).to_string()
 }
 
 /// Translates a template and fills `{}` placeholders in order.
 pub fn tf(template: &str, args: &[&str]) -> String {
     install();
-    core::tf(template, args)
+    core::tf_from(&TABLE, template, args)
 }
 
 /// The system display language, mapped to a supported locale.

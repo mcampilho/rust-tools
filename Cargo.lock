@@ -2681,6 +2681,8 @@ dependencies = [
  "accesskit",
  "accesskit_winit",
  "rclean",
+ "rdup",
+ "rsize",
  "rt-build",
  "rt-clean",
  "rt-core",
@@ -2689,6 +2691,7 @@ dependencies = [
  "rt-ui",
  "softbuffer",
  "tiny-skia",
+ "windows-sys 0.59.0",
  "winit",
 ]
 

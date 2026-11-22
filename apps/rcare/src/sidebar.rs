@@ -125,6 +125,20 @@ fn draw_glyph(g: &mut Gfx, glyph: Glyph, r: Rect, c: rt_gfx::gfx::Color) {
             ];
             g.fill_polygon(&pts, c);
         }
+        Glyph::Copies => {
+            let w = r.w * 0.62;
+            let back = Rect::new(r.x + r.w - w, r.y, w, w * 1.15);
+            let front = Rect::new(r.x, r.y + r.h - w * 1.15, w, w * 1.15);
+            g.stroke_rrect(back, 2.0, 1.6, c);
+            g.fill_rrect(front, 2.0, c);
+        }
+        Glyph::Bars => {
+            let bw = r.w * 0.22;
+            for (i, h) in [0.55, 1.0, 0.75].iter().enumerate() {
+                let bh = r.h * h;
+                g.fill_rrect(Rect::new(r.x + i as f32 * (bw + r.w * 0.085), r.y + r.h - bh, bw, bh), 1.5, c);
+            }
+        }
     }
 }
 

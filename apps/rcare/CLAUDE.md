@@ -9,7 +9,7 @@ decisões e o que fica de fora de propósito (antivírus próprio, defrag do reg
 
 ```powershell
 ./dev.ps1 build --release -p rcare
-./dev.ps1 test -p rcare                                     # 13 testes
+./dev.ps1 test -p rcare                                     # 14 testes
 ./dev.ps1 clippy -p rcare --all-targets
 ./dev.ps1 test -p rcare --test screens '--' --ignored       # apps/rcare/target/screens/*.png
 ./dev.ps1 test -p rcare --lib picture '--' --ignored        # o ícone
@@ -52,12 +52,12 @@ decisões e o que fica de fora de propósito (antivírus próprio, defrag do reg
 
 ## Estado
 
-Fase 0 (em curso, 2026-11-22): `Effects` no `rt-ui`, `add` no `rt-core::i18n`, `M::map`, página do rclean extraída,
-rcare com barra lateral e o Limpador. Verificado: clippy limpo, testes, capturas (`tests/screens.rs`) vistas.
-**Não verificado**: a janela a correr (o `.exe` não foi aberto), a compilação em Linux (não há WSL a responder),
-a ligação ao `rtsvc`. Por fazer na Fase 0: páginas do rdup, rsize e rinst; ligar ao serviço; `--tray`, "Integração com
-o Windows" e atualizações; entrada no `release.yml` e no bucket do Scoop (só quando houver release).
-
+Fase 0 (2026-11-22): páginas do rclean, rdup e rsize (`rclean::page::CleanPage`, `rdup::page::DupPage`,
+`rsize::page::SizePage`), `Effects`/`Dialogs`/`Mods` no `rt-ui`, `add`/`tr_from` no `rt-core::i18n`, `M::map`; rcare com
+barra lateral, menus combinados dos três e as três páginas. **A passagem de testemunho completa está em
+`docs/rcare.pt.md`** (padrão de página, como o rcare funciona, verificado e não, próximos passos): ler primeiro.
+Falta a página do rinst, ligar ao `rtsvc`, `--tray`, "Integração com o Windows", atualizações, `release.yml` e bucket.
+**Não verificado**: a janela a correr, a compilação em Linux das apps pequenas religadas.
 ## Regras
 
 - Visível só pelo `strings.txt` (da app ou da página); teclas de acesso diferentes em cada menu em todas as línguas.

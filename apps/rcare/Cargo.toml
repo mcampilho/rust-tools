@@ -19,11 +19,17 @@ rt-ui = { path = "../../crates/rt-ui" }
 rt-clean = { path = "../../crates/rt-clean" }
 # The pages: each app's library holds its page (state, drawing, work).
 rclean = { path = "../rclean" }
+rdup = { path = "../rdup" }
+rsize = { path = "../rsize" }
 winit = { version = "0.30", default-features = false, features = ["rwh_06"] }
 softbuffer = { version = "0.4", default-features = false }
 tiny-skia = { version = "0.11", default-features = false, features = ["std", "simd"] }
 accesskit = "0.25"
 accesskit_winit = { version = "0.34", default-features = false, features = ["rwh_06"] }
+
+[target.'cfg(windows)'.dependencies]
+# SetErrorMode: a missing disc or card is an error code, not a dialog (as in rdup and rsize).
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_Diagnostics_Debug"] }
 
 # X11 and Wayland: rcare only runs on Windows, but the workspace builds everywhere.
 [target.'cfg(target_os = "linux")'.dependencies]

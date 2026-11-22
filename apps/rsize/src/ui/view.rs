@@ -359,7 +359,8 @@ pub struct Frame<'a> {
 
 /// Draws the current page.
 pub fn draw(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, f: &Frame) {
-    g.clear(th.bg);
+    // Only the page's own area: in a suite the sidebar is beside it.
+    g.fill_rect(l.full, th.bg);
     match page(app) {
         Page::Start => draw_start(g, app, l, th, s, f.hot),
         Page::Scanning => draw_scanning(g, app, l, th, s, f.hot),

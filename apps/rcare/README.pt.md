@@ -19,16 +19,18 @@ rcare
 Uma barra lateral à esquerda escolhe a página; o botão **Barra lateral** (ou
 Ctrl+B, ou Ver › Recolher a barra lateral) mostra só os ícones. À direita está
 a página como a ferramenta pequena a mostra, e os menus são os da janela
-(Ficheiro, Ver, Ajuda) mais os da página (Limpeza, Editar).
+(Ficheiro, Ver, Ajuda) mais os da página (Editar, Marcar…): cada página traz os menus da sua ferramenta pequena, menos o que a janela tem uma vez
+(Sair, tema, língua, ajuda).
 
 Páginas até agora:
 
 | Página | A ferramenta pequena | O que faz |
 | --- | --- | --- |
 | Limpeza de disco | [rclean](../rclean/README.pt.md) | Temporários, caches dos browsers e dos gestores de pacotes, atalhos inválidos, entradas inválidas do registo |
+| Ficheiros duplicados | [rdup](../rdup/README.pt.md) | Ficheiros e pastas com o mesmo conteúdo em vários discos e pastas ao mesmo tempo |
+| Ficheiros grandes | [rsize](../rsize/README.pt.md) | O que ocupa espaço num disco ou numa pasta: lista, tipos de ficheiro, treemap, tarte, anéis |
 
-A seguir: ficheiros duplicados (rdup), ficheiros grandes (rsize), desinstalador
-(rinst), e depois as ferramentas de velocidade, registo, rede e proteção (ver o
+A seguir: o desinstalador (rinst), e depois as ferramentas de velocidade, registo, rede e proteção (ver o
 plano). As ferramentas pequenas ficam como estão: as páginas são código
 partilhado, por isso uma correção faz-se uma vez.
 

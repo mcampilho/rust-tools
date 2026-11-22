@@ -1,26 +1,148 @@
-# rcare — suite de manutenção do Windows (plano)
+# rcare — suite de manutenção do Windows (plano e passagem de testemunho)
 
-Estado: planeado (2026-11-22). Só Windows, sem limite de tamanho, perfil `release` (não `release-small`).
+Estado (2026-11-22): **a fase 0 está quase feita** — as páginas do rclean, do rdup e do rsize estão atrás de uma barra
+lateral recolhível; a do rinst é a seguinte. Só Windows, sem limite de tamanho, perfil `release` (não `release-small`).
 
 O `rcare` junta numa só janela o que várias ferramentas pequenas fazem, para não ser preciso abrir várias com
 administração. Modelos: BleachBit, CCleaner, Glary Utilities, IObit Advanced SystemCare e Uninstaller, Auslogics
-BoostSpeed, Ashampoo WinOptimizer, AVG TuneUp, Wise Care 365, Wintoys, as ferramentas Sysinternals.
+BoostSpeed, Ashampoo WinOptimizer, AVG TuneUp, Avast Cleanup, Wise Care 365, Norton Utilities, Outbyte, Fortect,
+System Mechanic, Wintoys, Kudu, as ferramentas Sysinternals. O utilizador pediu-o em português em 2026-11-22 (o nome,
+`rcare`, é escolha dele) e quer Rust, uma barra lateral recolhível como a do Claude, o ecrã habitual de cada
+ferramenta pequena à direita, e os menus repensados para juntar os das ferramentas. Tudo o que vem depois de "Windows
+System Information" na lista abaixo fica de propósito para mais tarde.
+
+## Ler primeiro (para quem continuar)
+
+- Falar com o utilizador em português europeu (CLAUDE.md global). `python3`, não `python`. **Nunca fazer commit nem
+  push sem aprovação explícita.** Verificar imagens e documentos à vista. As regras do projeto estão no `CLAUDE.md`
+  (raiz) e no `apps/rcare/CLAUDE.md`: "pronto" = sem avisos, `clippy -D warnings` limpo, testes a passar; `cargo fmt
+  --all` antes de um commit, com `E:\Portable\scoop\apps\rust\current\bin` à frente no `PATH`; compilar com
+  `CARGO_INCREMENTAL=0`; todo o texto visível no `strings.txt` (10 línguas, separado por tabs, teclas de acesso
+  diferentes dentro de cada menu em todas as línguas); `README.md` e `README.pt.md` atualizados em conjunto;
+  `./dev.ps1 …` carrega o ambiente do MSVC.
+- Commit anterior deste trabalho: `dedf452` (esqueleto do rcare, página do rclean) no `master`. As páginas do rdup e do
+  rsize, o rcare com três páginas, o `Dialogs`, o `tr_from` e este documento **ainda não estão commitados** (pedir).
+- O utilizador disse que pode mudar para um modelo maior nas páginas mais difíceis (rinst). Este documento tem o que é
+  preciso para não ter de reler o código todo.
+
+## O que existe
+
+| Onde | O quê |
+| --- | --- |
+| `apps/rcare` | a suite: `src/{lib,main,shell,commands,pages,sidebar,settings,storage,appicon}.rs`, `src/i18n/`, `tests/screens.rs`; só Windows (o `main` diz isso fora dele; a biblioteca compila em todo o lado) |
+| `apps/rclean/src/page.rs` | `CleanPage` (+ `Event`, `Sender`, `Confirm`, `shortcuts_text`) |
+| `apps/rdup/src/page.rs` | `DupPage` (+ `Event`, `Sender`, `Popup`, `Out`, `shortcuts_text`) |
+| `apps/rsize/src/page.rs` | `SizePage` (+ `Event`, `Sender`, `Popup`, `shortcuts_text`); é dona das suas `Settings` |
+| `crates/rt-ui/src/page.rs` | `Effects`, `Dialogs` (+ `SystemDialogs`), `Mods` |
+| `crates/rt-core/src/i18n.rs` | `add` (tabelas extra), `tr_in_from`/`tr_from`/`tf_from` (uma tabela procurada primeiro) |
+| `crates/rt-core/src/menu.rs` | `M::map` (converter os comandos de um menu noutro tipo) |
+| `docs/rcare(.pt).md` | este plano |
+
+As apps pequenas (rclean, rdup, rsize) foram religadas para usarem as mesmas páginas: continuam a funcionar como
+antes e uma correção faz-se uma vez. O rinst **ainda não** foi feito.
+
+## O padrão de página (o contrato que toda a página segue)
+
+Uma página é dona do seu estado, dos seus fios de trabalho, do seu desenho num retângulo da janela, do rato e do
+teclado. **Não** é dona da janela. Ler `apps/rclean/src/page.rs` (a mais simples), depois `apps/rdup/src/page.rs`
+(diálogos, menus que saltam, caixas de texto) e `apps/rsize/src/page.rs` (definições, horas de despertar, caches do
+treemap).
+
+- `XPage::new(…, send: Sender)`; `Sender = Arc<dyn Fn(Event) + Send + Sync>`: os fios mandam aí os `Event` e a janela
+  transforma-os no seu `UserEvent` (rcare: `UserEvent::Clean/Dups/Size`). `page.event(e)` trata um.
+- `page.fx: rt_ui::page::Effects` — o que a página pede à janela: `redraw`, `menu_dirty` (mudou o que os menus mostram
+  como ativo/marcado), `info` (uma mensagem), `save` (mudaram definições). A janela chama `after_page()` depois de
+  cada chamada à página: `let fx = page.fx.take(); …`. As páginas chamam `self.fx.redraw()`, `.menus()`, `.info(t, x)`,
+  `.save()`.
+- Perguntar ao utilizador (síncrono): `rt_ui::page::Dialogs` (`confirm`, `pick_folder`, `save_file(nome, (tipo,
+  padrão), pasta)`, `recycle`), passado a `page.command(cmd, &mut dialogs)`; a janela faz `SystemDialogs { hwnd }`. O
+  rclean é anterior e leva um fecho `Confirm`; unificar quando der jeito.
+- `page.command(cmd, …) -> bool`: faz os comandos que são da página e devolve true; false para os da janela (Sair,
+  tema, língua, ajuda, menu do Explorador, arranque, reiniciar como administrador).
+- `page.enabled(cmd)`, `page.checked(cmd)` para menus e botões.
+- `page.render(gfx, área, tema, escala, menu_bar)` só desenha dentro de `área` (`view::draw` preenche `l.full`, já não
+  limpa a tela toda).
+- Entrada: `key(…) -> Option<Command>` (o comando de um atalho, ou a página usou a tecla), `pointer(x, y, blocked)`,
+  `pointer_left()`, `press(…) -> Option<Command | Out>` (um botão pediu um comando, ou um menu que salta),
+  `release()`, `drag…`, `wheel(delta, at)`, `right_click(…)`. A posição do rato e os modificadores vêm como argumentos
+  (`Mods { ctrl, shift, alt }`); a página guarda a última escala vinda do `render`.
+- Menus que saltam (`Popup`): a página só diz qual; a janela constrói-o e mostra-o
+  (`rt_sys::win::menu::popup_at_cursor`) e corre o comando escolhido.
+- Despertar: `animate()` — rclean `bool` (um arco roda), rdup `Option<Duration>`, rsize `Option<Instant>`; a janela
+  põe `ControlFlow::WaitUntil`.
+- Leitores de ecrã: `accessibility(&mut nodes, &mut children) -> Option<foco>` (as linhas são `NodeId(100 + índice)`;
+  1 e 3 são a lista e a linha de estado) e `accessibility_click(i)`. A janela acrescenta os seus nós (diálogo 4–6,
+  barra lateral do rcare 10–99).
+- Definições: rclean/rdup guardam-nas nas `Settings` da janela e a página copia para dentro/fora (`store_into`); a
+  página do rsize **é dona** das suas `Settings` (tema, língua e tamanho da janela também lá estão). O rcare guarda as
+  do rdup e do rsize em ficheiros próprios, `rdup.ini` e `rsize.ini`, ao lado do `settings.ini` (as marcas do rclean
+  estão nas definições do próprio rcare).
+- O `i18n::add_table()` de cada app e o seu `tr`/`tf` procuram **primeiro a tabela da própria app**
+  (`rt_core::i18n::tr_from`). É preciso porque as apps traduzem a mesma chave inglesa com teclas de acesso diferentes
+  (cada uma afinada para os seus menus); o `Cmd::label` do rcare entrega ao `label()` da página pela mesma razão.
+  Qualquer página nova tem de fazer o mesmo.
+
+## Como o rcare funciona
+
+- `pages.rs`: `PAGES` (id guardado nas definições, `Kind`, chave do rótulo, ícone). Acrescentar uma página = um `Kind`,
+  uma entrada, um ícone em `sidebar::draw_glyph`, um campo e um braço no `shell.rs` para cada operação.
+- `commands.rs`: `Cmd::{Clean(c), Dups(c), Size(c), Sidebar, RestartAdmin, Exit, Theme, UiLanguage, Shortcuts,
+  CheckUpdates, About}`; `from_clean/from_dups/from_size` convertem em comandos da janela os comandos da página que
+  são dela. **Os menus saem do `menu_tree()` de cada app pequena** (`own_menus`): o que é da janela (Sair, reiniciar,
+  menu do Explorador, arranque, tema, língua, ajuda) cai, os itens de Ficheiro da app vão primeiro no Ficheiro do rcare
+  (depois Reiniciar como administrador e Sair), os de Ver primeiro no Ver (depois Recolher barra lateral, Tema,
+  Língua), os outros menus (Editar, Marcar…) ficam entre eles, e a Ajuda é da janela. Uma página nova ganha portanto
+  menus sem esforço; se duas etiquetas colidirem numa língua, o teste `access_keys_differ_within_each_menu` diz qual
+  (corrigir a string na tabela do rcare ou da app).
+- `sidebar.rs`: disposição/clique/desenho sem janela (testável); 224 px aberta, 52 px recolhida (os ícones não se
+  mexem); estado no `settings.ini` (`sidebar=`, `page=`).
+- `shell.rs` (só Windows): a macro `page!(self, p => …)` corre uma expressão na página mostrada; as operações cujas
+  assinaturas diferem por página (`key`, `press`, `command`, `enabled`, `render`, `wheel`…) são `match` explícitos de
+  três braços. `take_fx` junta os efeitos de todas as páginas (uma página que não se vê ainda pode avisar: uma
+  pesquisa acaba). `ensure_started(i)` faz o primeiro trabalho de uma página da primeira vez que se mostra (limpador:
+  primeira análise; as outras: ler os discos). Com uma quarta página, trocar os três campos e braços por um trait
+  pequeno ou um `enum` de páginas.
+- Ficheiros de dados: a pasta do rcare (`%APPDATA%\rcare`, ou portátil) — `settings.ini`, `rdup.ini`, `rsize.ini`,
+  `hashes.bin` (cache de hashes dos duplicados: separada da do rdup), `backups\registry …` (as cópias `.reg` do
+  limpador).
+
+## Verificado, e não
+
+Verificado (2026-11-22, Windows 10): `cargo fmt --check`, `clippy --workspace --all-targets -D warnings`, `test
+--workspace` (os dois testes de pipe do `rt-svc` falharam uma vez com carga e passam sozinhos: corrida que já
+existia, não mexi); as imagens das três páginas, claro/escuro, barra aberta/recolhida (`tests/screens.rs`, vistas).
+
+**Não verificado**: a janela a sério (o `.exe` nunca foi aberto: rato, teclado, menus nativos, menus que saltam,
+diálogos, ícone), a compilação em Linux das apps pequenas depois de religadas (o código `#[cfg(not(windows))]` do
+`main.rs`, `menus.rs` e `page.rs` delas: não há WSL a responder nem alvo Linux instalado — o CI em Linux será a
+primeira verificação), a ligação do rcare ao serviço `rtsvc` (as páginas usam-no como as apps pequenas), leitores de
+ecrã.
+
+## Próximos passos, por ordem
+
+1. **Página do rinst** (`apps/rinst`: `main.rs` ~1070 linhas, `ui/view.rs` ~1270, `app.rs` ~880, `leftovers*.rs`,
+   `uninstall*.rs`, separadores do Scoop, Chocolatey, DISM, npm, pip, Cargo, vcpkg; diálogos próprios, desinstalar
+   corre processos e lê a saída). Mesmo padrão; o trait `Dialogs` provavelmente precisa de crescer; os motores estão em
+   `crates/rt-inst`. Entra na barra lateral como "Uninstall Apps".
+2. Unificar as três cópias de `Theme` (`ui/theme.rs` em cada app) no `rt-ui` quando todas as páginas estiverem lá;
+   unificar o `Confirm` do rclean com o `Dialogs`.
+3. Ligar o rcare ao `rtsvc` para tarefas elevadas (existem as tarefas `Clean` e `UninstallMsi`:
+   `rt_svc::client::Client::submit_job`); modo residente (`--tray`), "Integração com o Windows" (menus do Explorador:
+   um por página? decidir), arranque, "Procurar atualizações…" (precisa de um release), `release.yml` e bucket do Scoop
+   (só quando houver release).
+4. Depois, as fases abaixo.
 
 ## Decisões
 
-1. **Fundir não é copiar.** Os motores já estão em crates (`rt-clean`, `rt-inst`, `rt-dups`, `rt-scan`). Os ecrãs
-   saem do `main.rs` de cada app para páginas que a app pequena e o `rcare` usam. O rclean, o rinst, o rdup e o
+1. **Fundir não é copiar.** Os motores já estavam em crates (`rt-clean`, `rt-inst`, `rt-dups`, `rt-scan`). Os ecrãs
+   saíram do `main.rs` de cada app para páginas que a app pequena e o `rcare` usam. O rclean, o rinst, o rdup e o
    rsize ficam como estão (portáteis, pequenos); uma correção faz-se uma vez.
-2. **Trait `Page` no `rt-ui`.** Cada página desenha-se, trata o rato e o teclado, corre os seus fios de trabalho e
-   dá as suas entradas de menu. O `rcare` só tem a moldura: janela, sidebar, menu, barra de estado.
-3. **Sidebar recolhível** desenhada com o `rt-gfx` (sem biblioteca de interface): ícones e texto, ou só ícones. O
-   estado guarda-se.
-4. **Menus.** Ficheiro e Ajuda são comuns. Entre eles vai o menu da página ativa, reconstruído a cada mudança de
-   página. O teste das teclas de acesso corre para cada página.
-5. **Administração** pelo serviço `rtsvc` que já existe (nível de utilizador por omissão, elevado nas ações que
-   precisam).
-6. **Ferramentas nativas do Windows primeiro** (Defender, Firewall, DISM, SFC, `netsh`, `powercfg`, `pnputil`,
-   Windows Update); nada de motor próprio de antivírus ou firewall.
+2. **Ferramentas nativas do Windows primeiro** (Defender, Firewall, DISM, `sfc /scannow`, `netsh`, `powercfg`,
+   `pnputil`, Windows Update): nada de motor próprio de antivírus ou firewall. Uma página de Reparação oferece `sfc
+   /scannow`, `DISM /Online /Cleanup-Image /RestoreHealth` e `chkdsk` (o utilizador pediu-os).
+3. **Administração** pelo serviço `rtsvc` que já existe (nível de utilizador por omissão, elevado nas ações que
+   precisam), ou reiniciando o rcare elevado (o que as apps pequenas fazem).
+4. O utilizador aprovou: o nome `rcare`; as apps pequenas ficam; Defender/Firewall em vez de motor próprio.
 
 ## Limites honestos
 
@@ -29,17 +151,40 @@ BoostSpeed, Ashampoo WinOptimizer, AVG TuneUp, Wise Care 365, Wintoys, as ferram
 - Registry Defrag: o Windows não compacta hives em uso. Só análise, por agora.
 - "Limpar" a RAM: esvaziar working sets costuma piorar. Mostrar a memória como está e libertar só o que é seguro.
 - "Otimizar" o TCP: o Windows ajusta-se sozinho. Mostrar os valores, perfis seguros e "repor predefinições".
-- Update Drivers e Software Updater usam a rede: vão pelas APIs do próprio Windows e precisam de uma exceção
-  aprovada à regra "sem rede".
+- Update Drivers e Software Updater usam a rede: vão pelas APIs do próprio Windows e precisam de uma exceção aprovada
+  à regra "sem rede" (perguntar ao utilizador).
 - Reparar a Cortana: fora (já não existe).
+
+## A lista do utilizador (até System Information), como pedida
+
+Windows System Maintenance: Privacy Sweep, System Optimization, Antivirus Protection, Spyware Removal, Junk File
+Clean, Internet Boost, Firewall, Security Reinforce, Shortcut Fix, Registry Defrag, Hardware Health, Vulnerability
+Fix, Registry Clean, Disk Optimization, Software Health, Disk Check. **Custom Clean**: Junk Files, Duplicate Files,
+Large Files. **Speed Up System**: Game Mode (programas parados, RAM libertada), Startup Optimizer, App/Extension
+Cleaner, Real-Time TuneUp (AutoCare, Auto RAM Clean, Performance Monitor). **Protect System**: System Protection
+(malware, firewall, anti-spyware), Privacy Protection (pasta segura, proteção de acesso, impressão digital,
+anti-tracking), Browser Protection (email, remoção de anúncios, navegação, aconselhador de página inicial), Security
+& Repair (DNS protect, undelete). **Smart RAM**: Smart Clean, Deep Clean. **Internet Booster**: TCP Optimize (max
+duplicate ACKs, optimum route, TCP 1323 options, MTU discovery, black hole router detection, TTL 64), Browser
+Optimize. **Registry Cleaner**: ActiveX and Component, Registry Integrity, Application Paths, Fonts, Help Files,
+History Files, Shared Files, Shortcut, Software, Sounds, Start Menu, Startup Items, MUI Cache, Virtual Device, File
+Extensions, System Extensions, Windows Services, Firewall Settings, Deep Scan. **Registry Defrag**: reduzir
+fragmentos, reparar erros estruturais, recuperar memória não usada. **Other options**: Fast Startup, Repair Start Menu,
+Update Drivers, Set Default Program, Uninstall Apps. **Program Deactivator**: programas ativos que se podem
+desativar. **System Information**.
+
+Mais tarde (decisão do utilizador): Auto Shutdown, Fix problems (geral, avançado, browser), Context Menu Manager,
+Disk Doctor, System Control, DNS Protector, Disk Cleaner (= rclean: temporários, cópias, caches, registos, outros),
+File Shredder, Empty Folder Scanner, Shortcut Fixer, Duplicate File Finder (= rdup), Large File Finder (= rsize),
+Process Manager, Software Updater, Default Program.
 
 ## Fases
 
-**0. Fundações** — extrair as páginas do rclean, rinst, rdup e rsize; criar `apps/rcare` (janela, sidebar, menu,
-barra de estado, textos em 10 línguas, README en/pt, perfil, workflow de release, bucket do Scoop); ligar ao `rtsvc`.
+**0. Fundações** — páginas do rclean ✔, rdup ✔, rsize ✔, rinst (a seguir); rcare com barra lateral e menus ✔;
+`rtsvc`, residência, atualizações, release (ver "Próximos passos").
 
-**1. Páginas existentes** — Disk Cleaner (rclean), Duplicate Files (rdup), Large Files (rsize), Uninstall Apps
-(rinst), Custom Clean (lixo, duplicados e grandes numa só análise).
+**1. Páginas existentes na barra lateral** — Disk Cleaner (rclean) ✔, Duplicate Files (rdup) ✔, Large Files (rsize)
+✔, Uninstall Apps (rinst), e **Custom Clean** (lixo, duplicados e grandes numa só análise).
 
 **2. Manutenção num clique** — corre em sequência os módulos disponíveis (privacidade, lixo, registo, atalhos,
 verificação de disco, saúde do software) e faz um relatório.
@@ -47,21 +192,19 @@ verificação de disco, saúde do software) e faz um relatório.
 **3. Velocidade** — Startup Optimizer; App/Extension Cleaner e Program Deactivator; Game Mode e Real-Time TuneUp
 (monitor de desempenho); Smart RAM.
 
-**4. Registo** — Registry Cleaner (20 categorias, Deep Scan, cópia `.reg` antes de cada limpeza, restauro);
+**4. Registo** — Registry Cleaner (as categorias acima, Deep Scan, cópia `.reg` antes de cada limpeza, restauro);
 Registry Defrag (análise).
 
 **5. Rede e proteção** — Internet Booster (TCP, DNS Protector, otimizar browsers); Protect System (Defender,
 Firewall, anti-tracking, proteção do browser, pasta segura, undelete a avaliar).
 
-**6. Sistema** — Fast Startup, reparar o Menu Iniciar, Update Drivers, Set Default Program, System Information,
-saúde do hardware e do software, e uma página de Reparação (SFC `/scannow`, DISM `/RestoreHealth`, `chkdsk`).
-
-**Mais tarde** — Auto Shutdown, Fix problems, Context Menu Manager, Disk Doctor, System Control, File Shredder,
-Empty Folders, Shortcut Fixer, Process Manager, Software Updater, Default Program.
+**6. Sistema** — Fast Startup, reparar o Menu Iniciar, Update Drivers, Set Default Program, System Information, saúde
+do hardware e do software, e uma página de Reparação (SFC, DISM, chkdsk).
 
 ## Regras
 
 - Toda a ação destrutiva mostra o que vai fazer, pergunta e guarda uma cópia para desfazer (registo, serviços,
   arranque).
-- Os módulos testam-se com dados falsos; as ações reais só numa máquina elevada.
+- Os módulos testam-se com dados falsos; as ações reais só numa máquina elevada (o serviço nunca correu como serviço
+  a sério: `install`/`uninstall` só numa máquina elevada).
 - Textos visíveis no `strings.txt`; README.md e README.pt.md atualizados em conjunto.

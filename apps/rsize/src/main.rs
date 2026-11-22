@@ -2,34 +2,32 @@
 //!
 //! The window is driven by winit and drawn on the CPU (tiny-skia + ab_glyph)
 //! into a softbuffer surface. Scans run on background threads and report to
-//! the window through the event loop.
+//! the window through the event loop. The page itself (state, scanning, the
+//! treemap and charts, drawing, keyboard and mouse) is `rsize::page::SizePage`,
+//! shared with rcare; this file is the window around it.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use rsize::app::{App, Scanning};
-use rsize::chart::{Chart, Hit};
 use rsize::commands::{self, Command};
 use rsize::i18n::{self, tf, tr};
-use rsize::model::{Id, SizeMode};
-use rsize::scan::{self, Event as ScanEvent};
-use rsize::settings::{ChartType, ViewMode};
-use rsize::settings::{Settings, SPLIT_MAX, SPLIT_MIN, SPLIT_X_MAX, SPLIT_X_MIN};
+use rsize::page::{shortcuts_text, Popup, SizePage};
+use rsize::settings::Settings;
 use rsize::storage;
-use rsize::treemap::Map;
 use rsize::ui::gfx::{Color, Gfx, Rect};
 use rsize::ui::theme::Theme;
-use rsize::ui::view::{self, Hot, Layout, Page};
-use rsize::volumes::{self, Volume};
+use rt_ui::page::SystemDialogs;
 use rt_ui::Message;
 use std::num::NonZeroU32;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::rc::Rc;
-use std::time::{Duration, Instant};
+use std::sync::Arc;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
-use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
+#[cfg(not(windows))]
+use winit::event::MouseScrollDelta;
+use winit::event::{ElementState, MouseButton, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
-use winit::keyboard::{Key as WKey, ModifiersState, NamedKey};
+use winit::keyboard::ModifiersState;
 use winit::window::{CursorIcon, Theme as WinTheme, Window, WindowId};
 
 mod input;
@@ -40,12 +38,8 @@ enum UserEvent {
     /// A step of Check for Updates.
     Update(rt_ui::update::Step),
     A11y(accesskit_winit::Event),
-    Scan(u64, ScanEvent),
-    Volumes(Vec<Volume>),
-    /// The space of the scanned folder's volume (for the scan of that generation).
-    Space(u64, Option<volumes::Space>),
-    /// The system's names of the scanned file types, by extension.
-    TypeNames(u64, std::collections::HashMap<String, String>),
+    /// What a thread of the page reports.
+    Page(rsize::page::Event),
     #[cfg(windows)]
     Win(rt_sys::win::WinMsg),
     /// A later launch, or the notification-area icon (Linux).
@@ -72,28 +66,9 @@ struct Win {
     menu: Option<rt_sys::win::menu::MenuBar<Command>>,
 }
 
-#[derive(Clone, Copy)]
-enum Drag {
-    Splitter,
-    VSplitter,
-    Thumb,
-    ExtThumb,
-}
-
-const DOUBLE_CLICK: Duration = Duration::from_millis(500);
-const DOUBLE_CLICK_SLOP: f32 = 4.0;
-/// How long the window size must stay the same before the treemap is made again.
-const RESIZE_PAUSE: Duration = Duration::from_millis(150);
-
-/// What the cached treemap was drawn for: zoom, size, order, tree.
-type MapKey = (Id, u32, u32, SizeMode, u64);
-/// What the cached pie or rings were drawn for: the same, plus the chart,
-/// the background and the scale.
-type ChartKey = (ChartType, MapKey, u32, u32);
-
 struct Shell {
-    app: App,
-    settings: Settings,
+    /// The page; its `settings` also hold the theme, the language and the window's size.
+    page: SizePage,
     location: storage::Location,
     gfx: Gfx,
     win: Option<Win>,
@@ -105,39 +80,10 @@ struct Shell {
     menu_dark: Option<bool>,
     menu_dirty: bool,
     menu_rebuild: bool,
-    layout: Layout,
-    map: Option<Map>,
-    map_key: Option<MapKey>,
-    /// When to make the treemap again at the new window size.
-    map_due: Option<Instant>,
-    /// The pie or the rings, and what they were drawn for.
-    chart: Option<Chart>,
-    chart_key: Option<ChartKey>,
-    /// What the pointer is on in the pie or the rings.
-    hover_seg: Option<Hit>,
-    /// The treemap with the files of the picked type standing out, and
-    /// what it was made for: the treemap and the type.
-    lit: Option<((MapKey, u32), tiny_skia::Pixmap)>,
-    /// What the table of file types was made for: folder, order, tree.
-    exts_key: Option<(Id, SizeMode, u64)>,
-    /// The last change of the window size.
-    resized: Instant,
-    hot: Hot,
-    /// The node under the pointer (list or treemap).
-    hover: Option<Id>,
-    drag: Option<Drag>,
     cursor_icon: CursorIcon,
-    handle: Option<scan::Handle>,
-    generation: u64,
-    /// Which tree the treemap was made from (changes with each scan).
-    tree_gen: u64,
     /// An in-app message (About, Keyboard shortcuts, the help).
     dialog: Option<Message>,
-    last_click: Option<(Instant, f32, f32, u32)>,
     args: Vec<PathBuf>,
-    /// Running with administrator rights (NTFS can be read directly).
-    #[cfg(windows)]
-    elevated: bool,
     #[cfg(not(windows))]
     menu: rsize::ui::menu::Menu,
     /// Resident mode (`--tray`): closing the window hides it to the
@@ -160,7 +106,7 @@ impl Shell {
     }
 
     fn dark(&self) -> bool {
-        match self.settings.theme {
+        match self.page.settings.theme {
             1 => false,
             2 => true,
             _ => self.system_dark,
@@ -174,7 +120,7 @@ impl Shell {
     }
 
     fn apply_language(&mut self) {
-        i18n::set_lang(self.settings.language.unwrap_or_else(i18n::system_lang));
+        i18n::set_lang(self.page.settings.language.unwrap_or_else(i18n::system_lang));
         self.gfx.clear_cache();
         self.menu_rebuild = true;
         self.menu_dirty = true;
@@ -182,128 +128,52 @@ impl Shell {
 
     fn save_settings(&mut self) {
         if let Some(w) = &self.win {
-            rt_ui::window::remember_size(&w.window, &mut self.settings.window);
+            rt_ui::window::remember_size(&w.window, &mut self.page.settings.window);
         }
-        let store = self.settings.to_store();
+        let store = self.page.settings.to_store();
         self.location.save(&store);
     }
 
-    // ------------------------------------------------------------ scans
-
-    fn load_volumes(&self) {
-        let proxy = self.proxy.clone();
-        std::thread::spawn(move || {
-            let _ = proxy.send_event(UserEvent::Volumes(volumes::list()));
-        });
-    }
-
-    /// Asks for the space of the volume `root` is on, in the background (a
-    /// network drive can be slow to answer).
-    fn load_space(&self, root: &Path) {
-        let (proxy, gen, root) = (self.proxy.clone(), self.generation, root.to_path_buf());
-        std::thread::spawn(move || {
-            let _ = proxy.send_event(UserEvent::Space(gen, volumes::space_of(&root)));
-        });
-    }
-
-    /// Asks the system what the scanned file types are called, in the
-    /// background: thousands of them take a moment.
-    fn load_type_names(&self) {
-        let Some(t) = self.app.scan.as_ref().map(|s| &s.tree) else { return };
-        let exts: Vec<String> = t.ext_ranking().iter().map(|&e| t.ext_name(e).to_string()).collect();
-        let (proxy, gen) = (self.proxy.clone(), self.generation);
-        std::thread::spawn(move || {
+    /// The system's dialogs, over this window.
+    fn dialogs(&self) -> SystemDialogs {
+        SystemDialogs {
             #[cfg(windows)]
-            let names = exts.into_iter().filter_map(|e| Some((e.clone(), rt_sys::win::file_type_name(&e)?))).collect();
-            #[cfg(not(windows))]
-            let names = {
-                let _ = exts;
-                std::collections::HashMap::new()
-            };
-            let _ = proxy.send_event(UserEvent::TypeNames(gen, names));
-        });
+            hwnd: self.win.as_ref().map_or(std::ptr::null_mut(), |w| w.hwnd),
+        }
     }
 
-    fn start_scan(&mut self, path: &Path) {
-        if let Some(h) = self.handle.take() {
-            h.cancel();
+    /// Takes what the page asked of the window, and its pointer's shape.
+    fn after_page(&mut self) {
+        let fx = self.page.fx.take();
+        if fx.menu_dirty {
+            self.menu_dirty = true;
         }
-        self.generation += 1;
-        let gen = self.generation;
-        let root = scan::normalize(path);
-        self.app.scanning = Some(Scanning { root: root.clone(), progress: Default::default(), started: Instant::now(), generation: gen });
-        self.app.error = None;
-        let proxy = self.proxy.clone();
-        let lang = i18n::lang();
-        self.handle = Some(scan::start(
-            root,
-            Box::new(move |e| {
-                i18n::set_lang(lang);
-                let _ = proxy.send_event(UserEvent::Scan(gen, e));
-            }),
-        ));
-        self.drag = None;
-        self.menu_dirty = true;
-        self.update_title();
-        self.redraw();
-    }
-
-    fn on_scan(&mut self, gen: u64, ev: ScanEvent) {
-        if gen != self.generation {
-            return;
+        if fx.save {
+            self.save_settings();
         }
-        match ev {
-            ScanEvent::Progress(p) => {
-                if let Some(s) = &mut self.app.scanning {
-                    s.progress = p;
-                }
-            }
-            ScanEvent::Done(result) => {
-                let root = self.app.scanning.take().map(|s| s.root).unwrap_or_default();
-                self.handle = None;
-                match result {
-                    Ok(scan) => {
-                        self.app.set_scan(*scan, self.settings.size_mode);
-                        self.tree_gen += 1;
-                        self.app.space = None;
-                        self.load_space(&root);
-                        self.load_type_names();
-                        self.map = None;
-                        self.hover = None;
-                    }
-                    Err(e) => {
-                        self.app.error = Some(tf("Could not read {}: {}", &[&root.to_string_lossy(), &e]));
-                        self.app.show_drives = true;
-                    }
-                }
-                self.menu_dirty = true;
-                self.update_title();
+        if let Some((title, text)) = fx.info {
+            self.dialog = Some(Message::new(&title, &text));
+        }
+        if fx.redraw {
+            self.redraw();
+        }
+        let icon = self.page.cursor_icon;
+        if icon != self.cursor_icon {
+            self.cursor_icon = icon;
+            if let Some(w) = &self.win {
+                w.window.set_cursor(icon);
             }
         }
-        self.redraw();
     }
 
     fn update_title(&self) {
         let Some(w) = &self.win else { return };
-        let title = match (&self.app.scanning, &self.app.scan) {
-            (Some(s), _) => format!("{} - rsize", s.root.display()),
-            (None, Some(s)) if !self.app.show_drives => format!("{} - rsize", s.tree.name(s.tree.root())),
-            _ => "rsize".to_string(),
+        let title = match self.page.title() {
+            Some(t) => format!("{t} - rsize"),
+            None => "rsize".to_string(),
         };
         if w.window.title() != title {
             w.window.set_title(&title);
-        }
-    }
-
-    fn choose_folder(&mut self) {
-        let title = tr("Choose a folder to analyze");
-        #[cfg(windows)]
-        let chosen = self.win.as_ref().and_then(|w| rt_sys::win::dialogs::pick_folder(w.hwnd, &title));
-        #[cfg(not(windows))]
-        let chosen = rt_sys::linux::dialogs::pick_folder(&title);
-        if let Some(p) = chosen {
-            self.settings.last_dir = p.display().to_string();
-            self.start_scan(&p);
         }
     }
 
@@ -313,37 +183,15 @@ impl Shell {
         if !self.enabled(cmd) {
             return;
         }
+        let mut dialogs = self.dialogs();
+        if self.page.command(cmd, &mut dialogs) {
+            self.after_page();
+            return;
+        }
         match cmd {
-            Command::ChooseFolder => self.choose_folder(),
-            Command::Drives => {
-                self.app.show_drives = true;
-                self.app.volumes = None;
-                self.load_volumes();
-                self.update_title();
-            }
-            Command::Rescan => {
-                if let Some(root) = self.app.scan.as_ref().map(|s| PathBuf::from(s.tree.name(s.tree.root()))) {
-                    self.start_scan(&root);
-                }
-            }
-            Command::Stop => {
-                if let Some(h) = &self.handle {
-                    h.cancel();
-                }
-            }
             #[cfg(windows)]
             Command::RestartAdmin => {
-                // The new instance reads the same folder, now directly.
-                let root = self
-                    .app
-                    .scanning
-                    .as_ref()
-                    .map(|s| s.root.clone())
-                    .or_else(|| self.app.scan.as_ref().map(|s| PathBuf::from(s.tree.name(s.tree.root()))));
-                // Without its last backslash, which would escape the closing quote:
-                // "C:" is read as C:\ again (see `scan::normalize`).
-                let args = root.map_or(String::new(), |r| format!("\"{}\"", r.display().to_string().trim_end_matches('\\')));
-                if rt_sys::win::restart_elevated(&args) {
+                if rt_sys::win::restart_elevated(&self.page.restart_args()) {
                     self.quit(el);
                 }
             }
@@ -355,51 +203,12 @@ impl Shell {
                     self.info("rsize", &tf("Cannot change how it starts: {}", &[&e]));
                 }
             }
-            Command::ExportCsv => self.export_csv(),
-            Command::Delete => self.delete(),
-            Command::CopyPath => {
-                if let Some(p) = self.app.selected_path() {
-                    rt_sys::set_clipboard_text(&p.to_string_lossy());
-                }
-            }
-            Command::OpenItem => {
-                if let Some(p) = self.app.selected_path() {
-                    open_item(&p);
-                }
-            }
-            Command::Reveal => {
-                if let Some(p) = self.app.selected_path() {
-                    rt_sys::reveal(&p);
-                }
-            }
-            Command::ZoomIn => self.app.zoom_in(),
-            Command::ZoomOut => self.app.zoom_out(),
-            Command::ZoomTop => self.app.zoom_top(),
-            Command::Chart(kind) => {
-                self.settings.chart = kind;
-                // The pie and the rings need the larger area of the map layout.
-                if kind != ChartType::Treemap {
-                    self.settings.view = ViewMode::Map;
-                }
-                self.hover = None;
-                self.hover_seg = None;
-            }
-            Command::View(mode) => {
-                self.settings.view = mode;
-                self.hover = None;
-                self.hover_seg = None;
-            }
-            Command::SizeLogical | Command::SizeAllocated => {
-                let mode = if cmd == Command::SizeLogical { SizeMode::Logical } else { SizeMode::Allocated };
-                self.settings.size_mode = mode;
-                self.app.set_mode(mode);
-            }
             Command::Theme(t) => {
-                self.settings.theme = t;
+                self.page.settings.theme = t;
                 self.apply_window_theme();
             }
             Command::UiLanguage(i) => {
-                self.settings.language = (i as usize).checked_sub(1).and_then(|k| i18n::Lang::ALL.get(k)).copied();
+                self.page.settings.language = (i as usize).checked_sub(1).and_then(|k| i18n::Lang::ALL.get(k)).copied();
                 self.apply_language();
             }
             Command::Shortcuts => self.info(&tr("Keyboard shortcuts"), &shortcuts_text()),
@@ -411,123 +220,30 @@ impl Shell {
                 );
                 self.info(&tr("About rsize"), &text);
             }
+            _ => {}
         }
         self.menu_dirty = true;
         self.redraw();
     }
 
-    /// Writes the folder shown, with all it holds, to a CSV file.
-    fn export_csv(&mut self) {
-        let Some(scan) = &self.app.scan else { return };
-        let name = rsize::export::suggested_name(&scan.tree, self.app.zoom);
-        let dir = (!self.settings.last_dir.is_empty()).then(|| PathBuf::from(&self.settings.last_dir));
-        #[cfg(windows)]
-        let chosen = self.win.as_ref().and_then(|w| {
-            let filter = rt_sys::win::dialogs::filter(&[(tr("CSV files"), "*.csv")]);
-            rt_sys::win::dialogs::save_file(w.hwnd, &name, dir.as_deref(), &filter)
-        });
-        #[cfg(not(windows))]
-        let chosen = rt_sys::linux::dialogs::save_file(&name, dir.as_deref());
-        let Some(path) = chosen else { return };
-        let result = std::fs::File::create(&path).and_then(|f| rsize::export::write_csv(&scan.tree, self.app.zoom, f));
-        let shown = path.display().to_string();
-        self.app.note = Some(match result {
-            Ok(rows) => tf("{} rows written to {}", &[&rsize::format::count(rows), &shown]),
-            Err(e) => tf("Could not write {}: {}", &[&shown, &e.to_string()]),
-        });
-        if let Some(d) = path.parent() {
-            self.settings.last_dir = d.display().to_string();
-        }
-    }
-
-    /// Moves the selection to the Recycle Bin (the trash on Linux), after
-    /// asking, and takes it out of the tree.
-    fn delete(&mut self) {
-        let Some(scan) = &self.app.scan else { return };
-        let Some(id) = self.app.sel.filter(|&s| s != scan.tree.root()) else { return };
-        let t = &scan.tree;
-        let path = t.path(id);
-        let name = t.name(id).to_string();
-        let n = t.node(id);
-        let what = if n.is_dir() {
-            tf("{} in {} files", &[&rsize::format::size(n.size), &rsize::format::count(n.files)])
-        } else {
-            rsize::format::size(n.size)
-        };
-        let question = if cfg!(windows) {
-            tf("Move “{}” to the Recycle Bin?\n\n{}\n{}", &[&name, &path.display().to_string(), &what])
-        } else {
-            tf("Move “{}” to the trash?\n\n{}\n{}", &[&name, &path.display().to_string(), &what])
-        };
-        let title = tr("Delete");
-        #[cfg(windows)]
-        let (yes, result) = {
-            use rt_sys::win::dialogs::{message, Answer, Buttons, Icon};
-            let hwnd = self.win.as_ref().map_or(std::ptr::null_mut(), |w| w.hwnd);
-            let yes = message(hwnd, &title, &question, Buttons::OkCancel, Icon::Warning) == Answer::Ok;
-            (yes, if yes { rt_sys::win::recycle(hwnd, &path) } else { Err(String::new()) })
-        };
-        #[cfg(not(windows))]
-        let (yes, result) = {
-            let yes = rt_sys::linux::dialogs::confirm(&title, &question);
-            (yes, if yes { rt_sys::recycle(&path) } else { Err(String::new()) })
-        };
-        if !yes {
-            return;
-        }
-        match result {
-            Ok(()) => {
-                self.app.removed(id);
-                self.tree_gen += 1;
-                self.hover = None;
-                self.hover_seg = None;
-                self.app.note = Some(if cfg!(windows) {
-                    tf("“{}” was moved to the Recycle Bin.", &[&name])
-                } else {
-                    tf("“{}” was moved to the trash.", &[&name])
-                });
-            }
-            Err(e) if e.is_empty() => {}
-            Err(e) => self.app.note = Some(tf("Could not delete “{}”: {}", &[&name, &e])),
-        }
-    }
-
     fn checked(&self, c: Command) -> bool {
         match c {
-            Command::Chart(kind) => self.settings.chart_shown() == kind,
-            Command::View(mode) => self.settings.view == mode,
-            Command::SizeLogical => self.settings.size_mode == SizeMode::Logical,
-            Command::SizeAllocated => self.settings.size_mode == SizeMode::Allocated,
-            Command::Theme(t) => self.settings.theme == t,
-            Command::UiLanguage(0) => self.settings.language.is_none(),
-            Command::UiLanguage(i) => self.settings.language == i18n::Lang::ALL.get(i as usize - 1).copied(),
+            Command::Theme(t) => self.page.settings.theme == t,
+            Command::UiLanguage(0) => self.page.settings.language.is_none(),
+            Command::UiLanguage(i) => self.page.settings.language == i18n::Lang::ALL.get(i as usize - 1).copied(),
             #[cfg(windows)]
             Command::ExplorerMenu => self.explorer_menu,
             Command::Autostart => rt_sys::autostart::enabled("rsize"),
-            _ => false,
+            c => self.page.checked(c),
         }
     }
 
     fn enabled(&self, c: Command) -> bool {
-        let result = view::page(&self.app) == Page::Result;
-        match c {
-            Command::Rescan => self.app.has_tree() && self.app.scanning.is_none(),
-            Command::Stop => self.app.scanning.is_some(),
-            #[cfg(windows)]
-            Command::RestartAdmin => !self.elevated,
-            Command::CopyPath | Command::OpenItem | Command::Reveal => result && self.app.sel.is_some(),
-            Command::ExportCsv => result,
-            // Anything but the folder that was read.
-            Command::Delete => result && self.app.sel.is_some_and(|s| s != 0),
-            Command::ZoomIn => result && self.app.sel.is_some(),
-            Command::ZoomOut | Command::ZoomTop => result && self.app.scan.as_ref().is_some_and(|s| s.tree.parent(self.app.zoom).is_some()),
-            _ => true,
-        }
+        self.page.enabled(c)
     }
 
     fn info(&mut self, title: &str, text: &str) {
         self.dialog = Some(Message::new(title, text));
-        self.drag = None;
         self.redraw();
     }
 
@@ -542,9 +258,7 @@ impl Shell {
     }
 
     fn quit(&mut self, el: &ActiveEventLoop) {
-        if let Some(h) = &self.handle {
-            h.cancel();
-        }
+        self.page.cancel();
         self.save_settings();
         #[cfg(windows)]
         if let Some(w) = &self.win {
@@ -579,14 +293,10 @@ impl Shell {
             self.cursor = None;
         }
         self.hidden = true;
-        self.drag = None;
         // Release the frame buffer and the drawings while hidden.
         self.gfx.resize(1, 1);
         self.gfx.trim_cache();
-        self.map = None;
-        self.map_key = None;
-        self.chart = None;
-        self.chart_key = None;
+        self.page.release_drawings();
     }
 
     fn show(&mut self, el: &ActiveEventLoop) {
@@ -610,9 +320,8 @@ impl Shell {
     /// and reads the first one.
     fn open_paths(&mut self, el: &ActiveEventLoop, paths: Vec<PathBuf>) {
         self.show(el);
-        if let Some(p) = paths.first() {
-            self.start_scan(p);
-        }
+        self.page.open_paths(&paths);
+        self.after_page();
     }
 
     /// Adds or removes "Analyze with rsize" in Explorer and says how it went.
@@ -626,14 +335,8 @@ impl Shell {
         self.info(&tr("Windows Integration"), &text);
     }
 
-    // ------------------------------------------------------------ menus
-
-    // ------------------------------------------------------------ input
-
-    // ------------------------------------------------------------ frame
-
     fn open_window(&mut self, el: &ActiveEventLoop) -> bool {
-        let (w, h, maximized) = self.settings.window.unwrap_or((1100.0, 780.0, false));
+        let (w, h, maximized) = self.page.settings.window.unwrap_or((1100.0, 780.0, false));
         let attrs = Window::default_attributes()
             .with_title("rsize")
             .with_inner_size(LogicalSize::new(w.max(480.0), h.max(360.0)))
@@ -676,39 +379,36 @@ impl Shell {
         });
         true
     }
-}
 
-/// Opens a file or folder with its default program (an explicit command).
-fn open_item(p: &Path) {
-    #[cfg(windows)]
-    rt_sys::win::shell_open(&p.to_string_lossy());
-    #[cfg(not(windows))]
-    rt_sys::linux::xdg_open(p.as_os_str().to_os_string());
-}
-
-fn shortcuts_text() -> String {
-    let rows = [
-        ("Ctrl+O", tr("Choose a folder to analyze")),
-        ("Ctrl+D", tr("Show the drives")),
-        ("F5", tr("Read the same folder again")),
-        ("Esc", tr("Stop reading")),
-        ("↑ ↓  PgUp PgDn  Home End", tr("Move in the list")),
-        ("← →  Space", tr("Close or open a folder")),
-        ("Enter", tr("Show the selected folder in the treemap")),
-        ("Backspace", tr("Treemap: one folder up")),
-        ("Ctrl+Backspace", tr("Treemap: the whole scan")),
-        ("Double click", tr("Treemap: one folder down")),
-        ("Right click", tr("Treemap: one folder up")),
-        ("F3 / F4", tr("Folder view / map view")),
-        ("F6 / F7 / F8", tr("Treemap / pie / rings")),
-        ("Ctrl+Enter", tr("Open the selected file or folder")),
-        ("Ctrl+E", tr("Show it in the file manager")),
-        ("Ctrl+C", tr("Copy its path")),
-        ("Ctrl+1 / Ctrl+2", tr("Show file sizes / sizes on disk")),
-        ("Ctrl+S", tr("Export the folder shown to CSV")),
-        ("Delete", tr("Move it to the Recycle Bin or trash, after asking")),
-    ];
-    rows.iter().map(|(k, v)| format!("{k}\t{v}")).collect::<Vec<_>>().join("\n")
+    /// A menu at the pointer, asked for by the page.
+    fn popup(&mut self, el: &ActiveEventLoop, which: Popup) {
+        let items = match which {
+            Popup::Item => commands::item_menu(),
+        };
+        #[cfg(windows)]
+        {
+            let Some(hwnd) = self.win.as_ref().map(|w| w.hwnd) else { return };
+            let items: Vec<_> = items
+                .into_iter()
+                .map(|m| match m {
+                    rt_core::menu::M::Item(c) => Some((c, self.enabled(c))),
+                    _ => None,
+                })
+                .collect();
+            if let Some(c) = rt_sys::win::menu::popup_at_cursor(hwnd, &items) {
+                self.command(el, c);
+            }
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = el;
+            let me = &*self;
+            let built = rsize::ui::menu::build(items, &|c| me.checked(c), &|c| me.enabled(c));
+            let at = self.cursor.unwrap_or((0.0, 0.0));
+            self.menu.open(None, built, at, false);
+            self.redraw();
+        }
+    }
 }
 
 /// Starts resident mode on Linux: without an icon, a hidden window could not
@@ -741,7 +441,8 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
         self.sync_menu();
         if let Some(p) = self.args.first().cloned() {
-            self.start_scan(&p);
+            self.page.start_scan(&p);
+            self.after_page();
         }
         // Resident mode starts in the notification area unless a folder was given.
         if self.tray && self.args.is_empty() {
@@ -760,21 +461,10 @@ impl ApplicationHandler<UserEvent> for Shell {
 
     fn user_event(&mut self, el: &ActiveEventLoop, event: UserEvent) {
         match event {
-            UserEvent::Scan(gen, ev) => self.on_scan(gen, ev),
-            UserEvent::Volumes(v) => {
-                self.app.volumes = Some(v);
-                self.redraw();
+            UserEvent::Page(e) => {
+                self.page.event(e);
+                self.after_page();
             }
-            UserEvent::Space(gen, space) if gen == self.generation => {
-                self.app.space = space;
-                self.redraw();
-            }
-            UserEvent::TypeNames(gen, names) if gen == self.generation => {
-                self.app.type_names = names;
-                self.app.sort_exts();
-                self.redraw();
-            }
-            UserEvent::Space(..) | UserEvent::TypeNames(..) => {}
             #[cfg(windows)]
             UserEvent::Win(rt_sys::win::WinMsg::Command(id)) => {
                 let cmd = self.win.as_ref().and_then(|w| w.menu.as_ref()).and_then(|m| m.command(id));
@@ -826,10 +516,11 @@ impl ApplicationHandler<UserEvent> for Shell {
                     let id = req.target_node.0;
                     if id == 6 {
                         self.dialog = None;
-                    } else if let Some(&(node, _)) = id.checked_sub(100).and_then(|i| self.app.rows.get(i as usize)) {
-                        self.app.select(node);
+                    } else if let Some(i) = id.checked_sub(100) {
+                        self.page.accessibility_click(i as usize);
                     }
                     let _ = el;
+                    self.after_page();
                     self.redraw();
                 }
                 accesskit_winit::WindowEvent::InitialTreeRequested => {
@@ -850,7 +541,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         match event {
             WindowEvent::CloseRequested => self.close(el),
             WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
-                self.resized = Instant::now();
+                self.page.resized();
                 self.redraw();
             }
             WindowEvent::ThemeChanged(t) => {
@@ -860,8 +551,8 @@ impl ApplicationHandler<UserEvent> for Shell {
             WindowEvent::Focused(false) => self.save_settings(),
             WindowEvent::ModifiersChanged(m) => self.mods = m.state(),
             WindowEvent::DroppedFile(p) => {
-                let dir = if p.is_dir() { p } else { p.parent().map(Path::to_path_buf).unwrap_or(p) };
-                self.start_scan(&dir);
+                self.page.drop_file(p);
+                self.after_page();
             }
             WindowEvent::KeyboardInput { event, is_synthetic: false, .. } => {
                 if event.state == ElementState::Pressed {
@@ -875,18 +566,14 @@ impl ApplicationHandler<UserEvent> for Shell {
                 if self.menu_pointer(el, x, y) {
                     return;
                 }
-                if self.drag.is_some() {
-                    self.drag_to(x, y);
-                }
-                self.pointer(x, y);
+                self.page.drag(x, y);
+                self.page.pointer(x, y, self.dialog.is_some());
+                self.after_page();
             }
             WindowEvent::CursorLeft { .. } => {
                 self.cursor = None;
-                if self.drag.is_none() && (self.hot != Hot::None || self.hover.is_some()) {
-                    self.hot = Hot::None;
-                    self.hover = None;
-                    self.redraw();
-                }
+                self.page.pointer_left();
+                self.after_page();
             }
             WindowEvent::MouseInput { state, button: MouseButton::Left, .. } => match state {
                 ElementState::Pressed => {
@@ -895,9 +582,8 @@ impl ApplicationHandler<UserEvent> for Shell {
                     }
                 }
                 ElementState::Released => {
-                    if self.drag.take().is_some() {
-                        self.save_settings();
-                    }
+                    self.page.release();
+                    self.after_page();
                 }
             },
             #[cfg(not(windows))]
@@ -906,23 +592,10 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.redraw();
             }
             WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Right, .. } if self.dialog.is_none() => {
-                let in_chart = self.cursor.is_some_and(|(x, y)| self.layout.map.contains(x, y));
-                if view::page(&self.app) == Page::Result && in_chart && !self.mods.shift_key() {
-                    // In the chart a right click goes one folder up, as Backspace
-                    // (a double click goes down, as Enter); Shift+right click
-                    // opens the item's menu there.
-                    self.app.zoom_out();
-                    self.hover = None;
-                    self.hover_seg = None;
-                    self.menu_dirty = true;
-                    self.redraw();
-                } else if view::page(&self.app) == Page::Result && self.hover.is_some() {
-                    if let Some(id) = self.hover {
-                        self.app.select(id);
-                    }
-                    self.menu_dirty = true;
-                    self.redraw();
-                    self.context_menu(el);
+                let popup = self.page.right_click(self.cursor, self.mods.into());
+                self.after_page();
+                if let Some(p) = popup {
+                    self.popup(el, p);
                 }
             }
             WindowEvent::MouseWheel { delta, .. } if self.dialog.is_none() => {
@@ -937,25 +610,8 @@ impl ApplicationHandler<UserEvent> for Shell {
                         return;
                     }
                 }
-                let Some((x, y)) = self.cursor else { return };
-                let rows = match delta {
-                    MouseScrollDelta::LineDelta(_, l) => (-l * 3.0).round() as isize,
-                    MouseScrollDelta::PixelDelta(p) => (-p.y as f32 / self.layout.row_h.max(1.0)).round() as isize,
-                };
-                let l = &self.layout;
-                match view::page(&self.app) {
-                    Page::Result if l.list.contains(x, y) || l.track.contains(x, y) || l.header.contains(x, y) => self.app.scroll_by(rows),
-                    Page::Result if l.ext_list.contains(x, y) || l.ext_track.contains(x, y) || l.ext_header.contains(x, y) => {
-                        self.app.scroll_types_by(rows)
-                    }
-                    Page::Start if l.start_max > 0.0 => {
-                        let step = 40.0 * self.scale();
-                        self.app.start_scroll = (self.app.start_scroll + rows as f32 * step / 3.0).clamp(0.0, l.start_max);
-                    }
-                    _ => return,
-                }
-                self.redraw();
-                self.pointer(x, y);
+                self.page.wheel(delta, self.cursor);
+                self.after_page();
             }
             WindowEvent::RedrawRequested if !self.hidden => self.render(),
             _ => {}
@@ -963,20 +619,11 @@ impl ApplicationHandler<UserEvent> for Shell {
     }
 
     fn about_to_wait(&mut self, el: &ActiveEventLoop) {
-        // The elapsed time on the scan page moves even between reports.
-        if self.app.scanning.is_some() {
-            el.set_control_flow(ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(500)));
-            self.redraw();
-        } else if let Some(due) = self.map_due {
-            // A stretched treemap is made again once the resizing pauses.
-            if Instant::now() >= due {
-                self.redraw();
-                el.set_control_flow(ControlFlow::Wait);
-            } else {
-                el.set_control_flow(ControlFlow::WaitUntil(due));
-            }
-        } else {
-            el.set_control_flow(ControlFlow::Wait);
+        let wake = self.page.animate();
+        self.after_page();
+        match wake {
+            Some(at) => el.set_control_flow(ControlFlow::WaitUntil(at)),
+            None => el.set_control_flow(ControlFlow::Wait),
         }
     }
 }
@@ -1102,9 +749,20 @@ fn main() {
             std::process::exit(1);
         }
     };
+    let sender = {
+        let proxy = std::sync::Mutex::new(event_loop.create_proxy());
+        Arc::new(move |e| {
+            if let Ok(p) = proxy.lock() {
+                let _ = p.send_event(UserEvent::Page(e));
+            }
+        })
+    };
+    #[cfg(windows)]
+    let elevated = rt_sys::win::elevated();
+    #[cfg(not(windows))]
+    let elevated = false;
     let mut shell = Shell {
-        app: App::new(),
-        settings,
+        page: SizePage::new(settings, elevated, sender),
         location,
         gfx,
         win: None,
@@ -1116,28 +774,9 @@ fn main() {
         menu_dark: None,
         menu_dirty: true,
         menu_rebuild: true,
-        layout: Layout::default(),
-        map: None,
-        map_key: None,
-        map_due: None,
-        chart: None,
-        chart_key: None,
-        hover_seg: None,
-        exts_key: None,
-        lit: None,
-        resized: Instant::now(),
-        hot: Hot::None,
-        hover: None,
-        drag: None,
         cursor_icon: CursorIcon::Default,
-        handle: None,
-        generation: 0,
-        tree_gen: 0,
         dialog: help.then(|| Message::new("rsize", USAGE)),
-        last_click: None,
         args,
-        #[cfg(windows)]
-        elevated: rt_sys::win::elevated(),
         #[cfg(not(windows))]
         menu: rsize::ui::menu::Menu::default(),
         tray,
@@ -1149,7 +788,7 @@ fn main() {
         explorer_menu: integrated_here(),
     };
     shell.apply_language();
-    shell.load_volumes();
+    shell.page.load_volumes();
     if let Err(e) = event_loop.run_app(&mut shell) {
         eprintln!("rsize: {e}");
     }

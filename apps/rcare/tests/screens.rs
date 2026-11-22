@@ -32,6 +32,33 @@ fn frame(dark: bool, collapsed: bool, hot: Option<Hit>, w: u32, h: u32) -> tiny_
     pm
 }
 
+/// The duplicates page (selected = 1) or the disk space page (selected = 2) at its start.
+fn other_frame(selected: usize, dark: bool, w: u32, h: u32) -> tiny_skia::Pixmap {
+    rcare::i18n::set_lang(rcare::i18n::Lang::EnUS);
+    let mut g = Gfx::new().expect("fonts");
+    g.resize(w, h);
+    let th = Theme::new(dark, None);
+    let s = 1.0;
+    let mut rest = Rect::new(0.0, 0.0, w as f32, h as f32);
+    let side = rest.take_left(sidebar::width(false, s));
+    let l = sidebar::layout(side, PAGES.len(), s);
+    if selected == 1 {
+        let mut page = rdup::page::DupPage::new(&rdup::settings::Settings::default(), &[], None, false, Arc::new(|_| {}));
+        page.render(&mut g, rest, &rdup::ui::theme::Theme::new(dark, None), s, false);
+    } else {
+        let mut page = rsize::page::SizePage::new(rsize::settings::Settings::default(), false, Arc::new(|_| {}));
+        page.render(&mut g, rest, &rsize::ui::theme::Theme::new(dark, None), s, false);
+    }
+    sidebar::draw(&mut g, &l, &th, s, State { collapsed: false, selected, hot: None }, PAGES);
+    let mut buf = vec![0u32; (w * h) as usize];
+    g.copy_to(&mut buf);
+    let mut pm = tiny_skia::Pixmap::new(w, h).unwrap();
+    for (d, p) in pm.data_mut().chunks_mut(4).zip(buf) {
+        d.copy_from_slice(&[(p >> 16) as u8, (p >> 8) as u8, p as u8, 255]);
+    }
+    pm
+}
+
 #[test]
 #[ignore]
 fn screenshots() {
@@ -40,4 +67,6 @@ fn screenshots() {
     frame(false, false, Some(Hit::Page(0)), 1180, 720).save_png(dir.join("open-light.png")).unwrap();
     frame(true, false, None, 1180, 720).save_png(dir.join("open-dark.png")).unwrap();
     frame(true, true, Some(Hit::Toggle), 1180, 720).save_png(dir.join("collapsed-dark.png")).unwrap();
+    other_frame(1, false, 1180, 720).save_png(dir.join("dups-light.png")).unwrap();
+    other_frame(2, true, 1180, 720).save_png(dir.join("size-dark.png")).unwrap();
 }

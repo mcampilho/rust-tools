@@ -1,60 +1,9 @@
 //! Menus: the native menu bar (Windows) or the menus drawn in the window
-//! (Linux, through `rt_ui::menus`), the context and rule menus, and their
-//! theme.
+//! (Linux, through `rt_ui::menus`), and their theme.
 
 use super::*;
 
 impl Shell {
-    /// The rules to mark copies, under their button.
-    #[cfg(windows)]
-    pub(super) fn rule_menu(&mut self, el: &ActiveEventLoop) {
-        let Some(hwnd) = self.win.as_ref().map(|w| w.hwnd) else { return };
-        let items: Vec<_> = commands::rule_menu()
-            .into_iter()
-            .map(|m| match m {
-                rt_core::menu::M::Item(c) => Some((c, self.enabled(c))),
-                _ => None,
-            })
-            .collect();
-        if let Some(c) = rt_sys::win::menu::popup_at_cursor(hwnd, &items) {
-            self.command(el, c);
-        }
-    }
-
-    #[cfg(not(windows))]
-    pub(super) fn rule_menu(&mut self, _el: &ActiveEventLoop) {
-        let me = &*self;
-        let items = rdup::ui::menu::build(commands::rule_menu(), &|c| me.checked(c), &|c| me.enabled(c));
-        let r = self.layout.rules;
-        self.menu.open(None, items, (r.x, r.bottom() + 2.0), false);
-        self.redraw();
-    }
-
-    /// The context menu of the selected file, at the pointer.
-    #[cfg(windows)]
-    pub(super) fn context_menu(&mut self, el: &ActiveEventLoop) {
-        let Some(hwnd) = self.win.as_ref().map(|w| w.hwnd) else { return };
-        let items: Vec<_> = commands::item_menu()
-            .into_iter()
-            .map(|m| match m {
-                rt_core::menu::M::Item(c) => Some((c, self.enabled(c))),
-                _ => None,
-            })
-            .collect();
-        if let Some(c) = rt_sys::win::menu::popup_at_cursor(hwnd, &items) {
-            self.command(el, c);
-        }
-    }
-
-    #[cfg(not(windows))]
-    pub(super) fn context_menu(&mut self, _el: &ActiveEventLoop) {
-        let me = &*self;
-        let items = rdup::ui::menu::build(commands::item_menu(), &|c| me.checked(c), &|c| me.enabled(c));
-        let at = self.cursor.unwrap_or((0.0, 0.0));
-        self.menu.open(None, items, at, false);
-        self.redraw();
-    }
-
     /// Does what the drawn menus asked; true when they took the input.
     #[cfg(not(windows))]
     pub(super) fn menu_step(&mut self, el: &ActiveEventLoop, step: rt_ui::menus::Step<Command>) -> bool {

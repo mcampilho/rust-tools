@@ -525,7 +525,8 @@ impl Layout {
 
 /// Draws the current page.
 pub fn draw(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, hot: Hot) {
-    g.clear(th.bg);
+    // Only the page's own area: in a suite the sidebar is beside it.
+    g.fill_rect(l.full, th.bg);
     match page(app) {
         Page::Start => draw_start(g, app, l, th, s, hot),
         Page::Searching => draw_searching(g, app, l, th, s, hot),

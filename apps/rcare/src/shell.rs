@@ -1,22 +1,24 @@
 //! The window of rcare: winit, drawn on the CPU (tiny-skia + ab_glyph) into
 //! a softbuffer surface. The sidebar and the menus are the window's; what is
-//! to the right of the sidebar is the page the sidebar chose.
+//! to the right of the sidebar is the page the sidebar chose: the cleaner,
+//! the duplicates or the disk space, each the page of a small app.
 
 use rcare::commands::{self, Cmd};
 use rcare::i18n::{self, tf, tr};
-use rcare::pages::{self, PAGES};
+use rcare::pages::{self, Kind, PAGES};
 use rcare::settings::Settings;
 use rcare::sidebar::{self, Hit};
 use rcare::storage;
 use rclean::app::App;
 use rclean::commands::Command as CleanCmd;
-use rclean::page::{shortcuts_text, CleanPage};
+use rclean::page::CleanPage;
 use rclean::ui::gfx::{Color, Gfx, Rect};
-use rclean::ui::theme::Theme;
+use rt_ui::page::{Dialogs, Effects, Mods, SystemDialogs};
 use rt_ui::Message;
 use std::num::NonZeroU32;
 use std::rc::Rc;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, MouseButton, WindowEvent};
@@ -28,8 +30,10 @@ enum UserEvent {
     /// A step of Check for Updates.
     Update(rt_ui::update::Step),
     A11y(accesskit_winit::Event),
-    /// What a thread of the cleaning page reports.
+    /// What a thread of a page reports.
     Clean(rclean::page::Event),
+    Dups(rdup::page::Event),
+    Size(rsize::page::Event),
     Win(rt_sys::win::WinMsg),
 }
 
@@ -41,6 +45,26 @@ impl From<accesskit_winit::Event> for UserEvent {
 
 const IDENT: rt_sys::win::Ident = rt_sys::win::Ident { name: "rcare", copydata: 0x5243_4152 }; // "RCAR"
 
+/// Runs `$e` with `$p` the page now shown (each is the page of a small app).
+macro_rules! page {
+    ($s:expr, $p:ident => $e:expr) => {
+        match PAGES[$s.selected].kind {
+            Kind::Clean => {
+                let $p = &mut $s.clean;
+                $e
+            }
+            Kind::Dups => {
+                let $p = &mut $s.dups;
+                $e
+            }
+            Kind::Size => {
+                let $p = &mut $s.size;
+                $e
+            }
+        }
+    };
+}
+
 struct Win {
     window: Rc<Window>,
     surface: softbuffer::Surface<Rc<Window>, Rc<Window>>,
@@ -50,8 +74,13 @@ struct Win {
 }
 
 struct Shell {
-    /// The cleaning page (the first of the sidebar).
     clean: CleanPage,
+    dups: rdup::page::DupPage,
+    size: rsize::page::SizePage,
+    /// The settings the duplicates page keeps (its own file, `rdup.ini`).
+    dups_settings: rdup::settings::Settings,
+    /// Which pages did their first work (reading the drives, the first look).
+    started: [bool; 3],
     /// The index of the page shown.
     selected: usize,
     settings: Settings,
@@ -106,16 +135,38 @@ impl Shell {
         self.settings.page = PAGES[self.selected].id.to_string();
         let store = self.settings.to_store();
         self.location.save(&store);
+        // The pages of rdup and rsize keep their own settings, each in its file.
+        self.dups.store_into(&mut self.dups_settings);
+        let _ = self.location.write_text("rdup.ini", &self.dups_settings.to_store().serialize("rdup"));
+        let _ = self.location.write_text("rsize.ini", &self.size.settings.to_store().serialize("rsize"));
     }
 
-    /// Takes what the page asked of the window, and the pointer's shape.
+    /// What the pages asked of the window, all together.
+    fn take_fx(&mut self) -> Effects {
+        let mut fx = Effects::default();
+        for e in [self.clean.fx.take(), self.dups.fx.take(), self.size.fx.take()] {
+            fx.redraw |= e.redraw;
+            fx.menu_dirty |= e.menu_dirty;
+            fx.save |= e.save;
+            if fx.info.is_none() {
+                fx.info = e.info;
+            }
+        }
+        fx
+    }
+
+    /// Takes what the pages asked of the window, and the pointer's shape.
     fn after_page(&mut self) {
-        let fx = self.clean.fx.take();
+        let fx = self.take_fx();
         if fx.menu_dirty {
             self.menu_dirty = true;
         }
+        if fx.save {
+            self.save_settings();
+        }
         if let Some((title, text)) = fx.info {
             self.clean.dragging = false;
+            self.dups.dragging = false;
             self.dialog = Some(Message::new(&title, &text));
         }
         if fx.redraw {
@@ -125,7 +176,7 @@ impl Shell {
     }
 
     fn sync_cursor(&mut self) {
-        let icon = if self.side_hot.is_some() { CursorIcon::Pointer } else { self.clean.cursor_icon };
+        let icon = if self.side_hot.is_some() { CursorIcon::Pointer } else { page!(self, p => p.cursor_icon) };
         if icon != self.cursor_icon {
             self.cursor_icon = icon;
             if let Some(w) = &self.win {
@@ -134,22 +185,25 @@ impl Shell {
         }
     }
 
-    /// Asks before doing something, through the Windows dialog.
-    fn confirm_with(win: &Option<Win>, title: &str, text: &str) -> bool {
-        use rt_sys::win::dialogs::{message, Answer, Buttons, Icon};
-        let hwnd = win.as_ref().map_or(std::ptr::null_mut(), |w| w.hwnd);
-        message(hwnd, title, text, Buttons::OkCancel, Icon::Warning) == Answer::Ok
+    /// The system's dialogs, over this window.
+    fn dialogs(&self) -> SystemDialogs {
+        SystemDialogs { hwnd: self.win.as_ref().map_or(std::ptr::null_mut(), |w| w.hwnd) }
     }
 
     fn info(&mut self, title: &str, text: &str) {
         self.dialog = Some(Message::new(title, text));
         self.clean.dragging = false;
+        self.dups.dragging = false;
         self.redraw();
+    }
+
+    fn admin(&self) -> bool {
+        self.clean.admin
     }
 
     fn update_title(&self) {
         let Some(w) = &self.win else { return };
-        let title = if self.clean.admin { format!("rcare ({})", tr("Administrator")) } else { "rcare".to_string() };
+        let title = if self.admin() { format!("rcare ({})", tr("Administrator")) } else { "rcare".to_string() };
         if w.window.title() != title {
             w.window.set_title(&title);
         }
@@ -157,11 +211,27 @@ impl Shell {
 
     // ------------------------------------------------------------ pages
 
+    /// The first work of a page, the first time it is shown: the cleaner
+    /// looks at what there is to clean, the others read the drives.
+    fn ensure_started(&mut self, i: usize) {
+        if std::mem::replace(&mut self.started[i], true) {
+            return;
+        }
+        match PAGES[i].kind {
+            Kind::Clean => self.clean.analyse(),
+            Kind::Dups => self.dups.load_volumes(),
+            Kind::Size => self.size.load_volumes(),
+        }
+        self.after_page();
+    }
+
     fn select_page(&mut self, i: usize) {
         if i < PAGES.len() && i != self.selected {
             self.selected = i;
             self.menu_rebuild = true;
             self.menu_dirty = true;
+            self.ensure_started(i);
+            self.size.resized();
             self.redraw();
         }
     }
@@ -174,14 +244,32 @@ impl Shell {
         }
         match cmd {
             Cmd::Clean(c) => {
-                let win = &self.win;
-                self.clean.command(c, &mut |t, x| Shell::confirm_with(win, t, x));
+                let mut d = self.dialogs();
+                self.clean.command(c, &mut |t, x| d.confirm(t, x));
                 self.after_page();
             }
-            Cmd::Sidebar => self.settings.sidebar_collapsed = !self.settings.sidebar_collapsed,
+            Cmd::Dups(c) => {
+                let mut d = self.dialogs();
+                self.dups.command(c, &mut d);
+                self.after_page();
+            }
+            Cmd::Size(c) => {
+                let mut d = self.dialogs();
+                self.size.command(c, &mut d);
+                self.after_page();
+            }
+            Cmd::Sidebar => {
+                self.settings.sidebar_collapsed = !self.settings.sidebar_collapsed;
+                self.size.resized();
+            }
             Cmd::RestartAdmin => {
                 self.save_settings();
-                if rt_sys::win::restart_elevated("") {
+                let args = match PAGES[self.selected].kind {
+                    Kind::Clean => String::new(),
+                    Kind::Dups => self.dups.restart_args(),
+                    Kind::Size => self.size.restart_args(),
+                };
+                if rt_sys::win::restart_elevated(&args) {
                     self.quit(el);
                 }
             }
@@ -195,7 +283,12 @@ impl Shell {
                 self.apply_language();
             }
             Cmd::Shortcuts => {
-                let text = format!("Ctrl+B\t{}\n{}", tr("Sidebar"), shortcuts_text());
+                let keys = match PAGES[self.selected].kind {
+                    Kind::Clean => rclean::page::shortcuts_text(),
+                    Kind::Dups => rdup::page::shortcuts_text(),
+                    Kind::Size => rsize::page::shortcuts_text(),
+                };
+                let text = format!("Ctrl+B\t{}\n{keys}", tr("Sidebar"));
                 self.info(&tr("Keyboard shortcuts"), &text);
             }
             Cmd::CheckUpdates => rt_ui::update::check("rcare", env!("CARGO_PKG_VERSION"), self.update_sender()),
@@ -213,6 +306,8 @@ impl Shell {
 
     fn checked(&self, c: Cmd) -> bool {
         match c {
+            Cmd::Dups(c) => self.dups.checked(c),
+            Cmd::Size(c) => self.size.checked(c),
             Cmd::Sidebar => self.settings.sidebar_collapsed,
             Cmd::Theme(t) => self.settings.theme == t,
             Cmd::UiLanguage(0) => self.settings.language.is_none(),
@@ -224,7 +319,13 @@ impl Shell {
     fn enabled(&self, c: Cmd) -> bool {
         match c {
             Cmd::Clean(c) => self.clean.enabled(c),
-            Cmd::RestartAdmin => self.clean.enabled(CleanCmd::RestartAdmin),
+            Cmd::Dups(c) => self.dups.enabled(c),
+            Cmd::Size(c) => self.size.enabled(c),
+            Cmd::RestartAdmin => match PAGES[self.selected].kind {
+                Kind::Clean => self.clean.enabled(CleanCmd::RestartAdmin),
+                Kind::Dups => self.dups.enabled(rdup::commands::Command::RestartAdmin),
+                Kind::Size => self.size.enabled(rsize::commands::Command::RestartAdmin),
+            },
             _ => true,
         }
     }
@@ -241,6 +342,8 @@ impl Shell {
 
     fn quit(&mut self, el: &ActiveEventLoop) {
         self.clean.shutdown();
+        self.dups.cancel();
+        self.size.cancel();
         self.save_settings();
         el.exit();
     }
@@ -269,6 +372,42 @@ impl Shell {
         );
         self.win = Some(Win { window, surface, adapter, hwnd, menu: None });
         true
+    }
+
+    /// A menu at the pointer, asked for by the duplicates page.
+    fn dups_popup(&mut self, el: &ActiveEventLoop, which: rdup::page::Popup) {
+        use rdup::page::Popup;
+        let items = match which {
+            Popup::Rules => rdup::commands::rule_menu(),
+            Popup::Item => rdup::commands::item_menu(),
+        };
+        let Some(hwnd) = self.win.as_ref().map(|w| w.hwnd) else { return };
+        let items: Vec<_> = items
+            .into_iter()
+            .map(|m| match m {
+                rt_core::menu::M::Item(c) => Some((c, self.dups.enabled(c))),
+                _ => None,
+            })
+            .collect();
+        if let Some(c) = rt_sys::win::menu::popup_at_cursor(hwnd, &items) {
+            self.command(el, Cmd::Dups(c));
+        }
+    }
+
+    /// A menu at the pointer, asked for by the disk space page.
+    fn size_popup(&mut self, el: &ActiveEventLoop, which: rsize::page::Popup) {
+        let rsize::page::Popup::Item = which;
+        let Some(hwnd) = self.win.as_ref().map(|w| w.hwnd) else { return };
+        let items: Vec<_> = rsize::commands::item_menu()
+            .into_iter()
+            .map(|m| match m {
+                rt_core::menu::M::Item(c) => Some((c, self.size.enabled(c))),
+                _ => None,
+            })
+            .collect();
+        if let Some(c) = rt_sys::win::menu::popup_at_cursor(hwnd, &items) {
+            self.command(el, Cmd::Size(c));
+        }
     }
 
     // ------------------------------------------------------------ menus
@@ -311,7 +450,7 @@ impl Shell {
 
     fn render(&mut self) {
         let dark = self.dark();
-        let theme = Theme::new(dark, self.accent);
+        let theme = rclean::ui::theme::Theme::new(dark, self.accent);
         let s = self.scale();
         let Some(win) = &mut self.win else { return };
         let size = win.window.inner_size();
@@ -324,7 +463,11 @@ impl Shell {
         let mut rest = full;
         let side = rest.take_left(sidebar::width(self.settings.sidebar_collapsed, s));
         self.side = sidebar::layout(side, PAGES.len(), s);
-        self.clean.render(&mut self.gfx, rest, &theme, s, false);
+        match PAGES[self.selected].kind {
+            Kind::Clean => self.clean.render(&mut self.gfx, rest, &theme, s, false),
+            Kind::Dups => self.dups.render(&mut self.gfx, rest, &rdup::ui::theme::Theme::new(dark, self.accent), s, false),
+            Kind::Size => self.size.render(&mut self.gfx, rest, &rsize::ui::theme::Theme::new(dark, self.accent), s, false),
+        }
         let state = sidebar::State { collapsed: self.settings.sidebar_collapsed, selected: self.selected, hot: self.side_hot };
         sidebar::draw(&mut self.gfx, &self.side, &theme, s, state, PAGES);
         if let Some(d) = &mut self.dialog {
@@ -361,7 +504,12 @@ impl Shell {
             nodes.push((NodeId(11 + i as u64), n));
             children.push(NodeId(11 + i as u64));
         }
-        let mut focus = self.clean.accessibility(&mut nodes, &mut children).unwrap_or(root);
+        let focus = match PAGES[self.selected].kind {
+            Kind::Clean => self.clean.accessibility(&mut nodes, &mut children),
+            Kind::Dups => self.dups.accessibility(&mut nodes, &mut children),
+            Kind::Size => self.size.accessibility(&mut nodes, &mut children),
+        };
+        let mut focus = focus.unwrap_or(root);
         if let Some(dl) = &self.dialog {
             let mut dn = Node::new(Role::Dialog);
             dn.set_label(dl.title.clone());
@@ -392,9 +540,8 @@ impl Shell {
             }
             return;
         }
-        let ctrl = self.mods.control_key();
-        let shift = self.mods.shift_key();
-        let alt = self.mods.alt_key();
+        let mods: Mods = self.mods.into();
+        let Mods { ctrl, shift, alt } = mods;
         let logical = if ctrl || alt {
             use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
             event.key_without_modifiers()
@@ -412,20 +559,25 @@ impl Shell {
                 return self.command(el, cmd);
             }
         }
-        let cmd = self.clean.key(ctrl, shift, alt, logical);
+        let cmd = match PAGES[self.selected].kind {
+            Kind::Clean => self.clean.key(ctrl, shift, alt, logical).map(Cmd::from_clean),
+            Kind::Dups => self.dups.key(event, mods).map(Cmd::from_dups),
+            Kind::Size => self.size.key(event, mods).map(Cmd::from_size),
+        };
         self.after_page();
         if let Some(c) = cmd {
-            self.command(el, Cmd::from_clean(c));
+            self.command(el, c);
         }
     }
 
     fn pointer(&mut self, x: f32, y: f32) {
-        let hot = if self.dialog.is_some() { None } else { sidebar::hit(&self.side, x, y) };
+        let blocked = self.dialog.is_some();
+        let hot = if blocked { None } else { sidebar::hit(&self.side, x, y) };
         if hot != self.side_hot {
             self.side_hot = hot;
             self.redraw();
         }
-        self.clean.pointer(x, y, self.dialog.is_some());
+        page!(self, p => p.pointer(x, y, blocked));
         self.after_page();
     }
 
@@ -442,11 +594,87 @@ impl Shell {
             Some(Hit::Page(i)) => return self.select_page(i),
             None => {}
         }
-        let cmd = self.clean.press(x, y);
-        self.after_page();
-        if let Some(c) = cmd {
-            self.command(el, Cmd::from_clean(c));
+        let mods: Mods = self.mods.into();
+        match PAGES[self.selected].kind {
+            Kind::Clean => {
+                let c = self.clean.press(x, y);
+                self.after_page();
+                if let Some(c) = c {
+                    self.command(el, Cmd::from_clean(c));
+                }
+            }
+            Kind::Dups => {
+                let out = self.dups.press(&mut self.gfx, x, y, mods);
+                self.after_page();
+                match out {
+                    Some(rdup::page::Out::Command(c)) => self.command(el, Cmd::from_dups(c)),
+                    Some(rdup::page::Out::Popup(p)) => self.dups_popup(el, p),
+                    None => {}
+                }
+            }
+            Kind::Size => {
+                let c = self.size.press(x, y);
+                self.after_page();
+                if let Some(c) = c {
+                    self.command(el, Cmd::from_size(c));
+                }
+            }
         }
+    }
+
+    /// The pointer moved with the left button down.
+    fn drag(&mut self, x: f32, y: f32) {
+        match PAGES[self.selected].kind {
+            Kind::Clean => {
+                if self.clean.dragging {
+                    self.clean.drag_to(y);
+                }
+            }
+            Kind::Dups => self.dups.drag(&mut self.gfx, x, y),
+            Kind::Size => self.size.drag(x, y),
+        }
+    }
+
+    fn right_click(&mut self, el: &ActiveEventLoop) {
+        let mods: Mods = self.mods.into();
+        match PAGES[self.selected].kind {
+            Kind::Clean => {}
+            Kind::Dups => {
+                let popup = self.dups.right_click();
+                self.after_page();
+                if let Some(p) = popup {
+                    self.dups_popup(el, p);
+                }
+            }
+            Kind::Size => {
+                let popup = self.size.right_click(self.cursor, mods);
+                self.after_page();
+                if let Some(p) = popup {
+                    self.size_popup(el, p);
+                }
+            }
+        }
+    }
+
+    fn wheel(&mut self, delta: winit::event::MouseScrollDelta) {
+        let s = self.scale();
+        match PAGES[self.selected].kind {
+            Kind::Clean => self.clean.wheel(&mut self.gfx, s, delta, self.cursor),
+            Kind::Dups => self.dups.wheel(delta, self.cursor),
+            Kind::Size => self.size.wheel(delta, self.cursor),
+        }
+        self.after_page();
+    }
+
+    /// When the window should wake up for the page shown, if it should.
+    fn animate(&mut self) -> Option<Instant> {
+        let wake = match PAGES[self.selected].kind {
+            Kind::Clean => self.clean.animate().then(|| Instant::now() + Duration::from_millis(40)),
+            Kind::Dups => self.dups.animate().map(|d| Instant::now() + d),
+            Kind::Size => self.size.animate(),
+        };
+        self.after_page();
+        wake
     }
 }
 
@@ -456,6 +684,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             return;
         }
         self.sync_menu();
+        self.ensure_started(self.selected);
         if let Some(w) = &self.win {
             if self.settings.window.is_some_and(|(_, _, max)| max) {
                 w.window.set_maximized(true);
@@ -470,6 +699,14 @@ impl ApplicationHandler<UserEvent> for Shell {
         match event {
             UserEvent::Clean(e) => {
                 self.clean.event(e);
+                self.after_page();
+            }
+            UserEvent::Dups(e) => {
+                self.dups.event(e);
+                self.after_page();
+            }
+            UserEvent::Size(e) => {
+                self.size.event(e);
                 self.after_page();
             }
             UserEvent::Win(rt_sys::win::WinMsg::Command(id)) => {
@@ -506,7 +743,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                         id @ 11..=99 => self.select_page(id as usize - 11),
                         id => {
                             if let Some(i) = id.checked_sub(100) {
-                                self.clean.accessibility_click(i as usize);
+                                page!(self, p => p.accessibility_click(i as usize));
                                 self.after_page();
                             }
                         }
@@ -530,13 +767,24 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
         match event {
             WindowEvent::CloseRequested => self.quit(el),
-            WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => self.redraw(),
+            WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
+                self.size.resized();
+                self.redraw();
+            }
             WindowEvent::ThemeChanged(t) => {
                 self.system_dark = t == WinTheme::Dark;
                 self.redraw();
             }
             WindowEvent::Focused(false) => self.save_settings(),
             WindowEvent::ModifiersChanged(m) => self.mods = m.state(),
+            WindowEvent::DroppedFile(p) => {
+                match PAGES[self.selected].kind {
+                    Kind::Dups => self.dups.drop_file(p),
+                    Kind::Size => self.size.drop_file(p),
+                    Kind::Clean => {}
+                }
+                self.after_page();
+            }
             WindowEvent::KeyboardInput { event, is_synthetic: false, .. } => {
                 if event.state == ElementState::Pressed {
                     self.key(el, &event);
@@ -545,9 +793,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             WindowEvent::CursorMoved { position, .. } => {
                 let (x, y) = (position.x as f32, position.y as f32);
                 self.cursor = Some((x, y));
-                if self.clean.dragging {
-                    self.clean.drag_to(y);
-                }
+                self.drag(x, y);
                 self.pointer(x, y);
             }
             WindowEvent::CursorLeft { .. } => {
@@ -555,7 +801,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 if self.side_hot.take().is_some() {
                     self.redraw();
                 }
-                self.clean.pointer_left();
+                page!(self, p => p.pointer_left());
                 self.after_page();
             }
             WindowEvent::MouseInput { state, button: MouseButton::Left, .. } => match state {
@@ -564,26 +810,24 @@ impl ApplicationHandler<UserEvent> for Shell {
                         self.press(el, x, y);
                     }
                 }
-                ElementState::Released => self.clean.release(),
+                ElementState::Released => {
+                    page!(self, p => p.release());
+                    self.after_page();
+                }
             },
-            WindowEvent::MouseWheel { delta, .. } if self.dialog.is_none() => {
-                let s = self.scale();
-                self.clean.wheel(&mut self.gfx, s, delta, self.cursor);
-                self.after_page();
+            WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Right, .. } if self.dialog.is_none() => {
+                self.right_click(el)
             }
+            WindowEvent::MouseWheel { delta, .. } if self.dialog.is_none() => self.wheel(delta),
             WindowEvent::RedrawRequested => self.render(),
             _ => {}
         }
     }
 
     fn about_to_wait(&mut self, el: &ActiveEventLoop) {
-        // While working, the arc turns, so it shows it is busy.
-        if self.clean.animate() {
-            const FRAME: std::time::Duration = std::time::Duration::from_millis(40);
-            self.after_page();
-            el.set_control_flow(ControlFlow::WaitUntil(std::time::Instant::now() + FRAME));
-        } else {
-            el.set_control_flow(ControlFlow::Wait);
+        match self.animate() {
+            Some(at) => el.set_control_flow(ControlFlow::WaitUntil(at)),
+            None => el.set_control_flow(ControlFlow::Wait),
         }
     }
 }
@@ -591,7 +835,8 @@ impl ApplicationHandler<UserEvent> for Shell {
 const USAGE: &str = "rcare
 
   Windows maintenance in one window. The sidebar chooses the page: the
-  cleaner of rclean, and more as the other tools join it.
+  cleaner of rclean, the duplicates of rdup and the disk space of rsize,
+  and more as the other tools join them.
 
 Settings are stored in %APPDATA%\\rcare, or next to the program when a file
 named rcare.portable exists there (portable mode).";
@@ -603,6 +848,12 @@ pub fn run() {
     let help = raw.iter().any(|a| a == "--help" || a == "-h" || a == "/?");
     if help && rt_sys::win::print_to_console(USAGE) {
         return;
+    }
+    // SAFETY: only changes how this process reports a missing disc or card:
+    // with an error code instead of a dialog.
+    unsafe {
+        use windows_sys::Win32::System::Diagnostics::Debug::{SetErrorMode, SEM_FAILCRITICALERRORS};
+        SetErrorMode(SEM_FAILCRITICALERRORS);
     }
     let mut location = storage::detect();
     let store = location.load();
@@ -635,17 +886,29 @@ pub fn run() {
         .clone()
         .or_else(|| std::env::current_exe().ok().and_then(|e| e.parent().map(|p| p.to_path_buf())))
         .unwrap_or_else(std::env::temp_dir);
-    let sender = {
-        let proxy = std::sync::Mutex::new(event_loop.create_proxy());
-        Arc::new(move |e| {
-            if let Ok(p) = proxy.lock() {
-                let _ = p.send_event(UserEvent::Clean(e));
-            }
-        })
-    };
+    // One sender for each page: what its threads say comes back as a `UserEvent`.
+    macro_rules! sender {
+        ($variant:ident) => {{
+            let proxy = std::sync::Mutex::new(event_loop.create_proxy());
+            Arc::new(move |e| {
+                if let Ok(p) = proxy.lock() {
+                    let _ = p.send_event(UserEvent::$variant(e));
+                }
+            })
+        }};
+    }
+    let (clean_send, dups_send, size_send) = (sender!(Clean), sender!(Dups), sender!(Size));
+    // The settings of the pages of rdup and rsize are in their own files.
+    let load = |name: &str| rt_core::store::Store::parse(&location.read_text(name).unwrap_or_default());
+    let dups_settings = rdup::settings::Settings::load(&load("rdup.ini"));
+    let size_settings = rsize::settings::Settings::load(&load("rsize.ini"));
     let selected = pages::index_of(&settings.page);
     let mut shell = Shell {
-        clean: CleanPage::new(app, admin, data_dir, sender),
+        clean: CleanPage::new(app, admin, data_dir, clean_send),
+        dups: rdup::page::DupPage::new(&dups_settings, &[], location.file("hashes.bin"), admin, dups_send),
+        size: rsize::page::SizePage::new(size_settings, admin, size_send),
+        dups_settings,
+        started: [false; 3],
         selected,
         settings,
         location,
@@ -665,9 +928,6 @@ pub fn run() {
         dialog: help.then(|| Message::new("rcare", USAGE)),
     };
     shell.apply_language();
-    // A first look at once: how much each holds.
-    shell.clean.analyse();
-    shell.after_page();
     if let Err(e) = event_loop.run_app(&mut shell) {
         eprintln!("rcare: {e}");
     }
