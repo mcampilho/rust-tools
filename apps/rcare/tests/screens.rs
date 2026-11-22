@@ -8,7 +8,7 @@ use rclean::app::App;
 use rclean::page::CleanPage;
 use rclean::targets::{all, Env};
 use rclean::ui::gfx::{Gfx, Rect};
-use rclean::ui::theme::Theme;
+use rt_ui::theme::Theme;
 use std::sync::Arc;
 
 fn frame(dark: bool, collapsed: bool, hot: Option<Hit>, w: u32, h: u32) -> tiny_skia::Pixmap {
@@ -45,15 +45,15 @@ fn other_frame(selected: usize, dark: bool, w: u32, h: u32) -> tiny_skia::Pixmap
     match selected {
         2 => {
             let mut page = rdup::page::DupPage::new(&rdup::settings::Settings::default(), &[], None, false, Arc::new(|_| {}));
-            page.render(&mut g, rest, &rdup::ui::theme::Theme::new(dark, None), s, false);
+            page.render(&mut g, rest, &Theme::new(dark, None), s, false);
         }
         3 => {
             let mut page = rsize::page::SizePage::new(rsize::settings::Settings::default(), false, Arc::new(|_| {}));
-            page.render(&mut g, rest, &rsize::ui::theme::Theme::new(dark, None), s, false);
+            page.render(&mut g, rest, &Theme::new(dark, None), s, false);
         }
         _ => {
             let mut page = rinst::page::InstPage::new(&rinst::settings::Settings::default(), false, std::env::temp_dir(), Arc::new(|_| {}));
-            page.render(&mut g, rest, &rinst::ui::theme::Theme::new(dark, None), s, false);
+            page.render(&mut g, rest, &Theme::new(dark, None), s, false);
         }
     }
     sidebar::draw(&mut g, &l, &th, s, State { collapsed: false, selected, hot: None }, PAGES);

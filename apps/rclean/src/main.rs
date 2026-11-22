@@ -152,20 +152,14 @@ impl Shell {
         }
     }
 
-    /// Asks before doing something, through the Windows or Linux dialog.
-    fn confirm_with(win: &Option<Win>, title: &str, text: &str) -> bool {
-        #[cfg(windows)]
-        {
-            use rt_sys::win::dialogs::{message, Answer, Buttons, Icon};
-            let hwnd = win.as_ref().map_or(std::ptr::null_mut(), |w| w.hwnd);
-            message(hwnd, title, text, Buttons::OkCancel, Icon::Warning) == Answer::Ok
-        }
-        #[cfg(not(windows))]
-        {
-            let _ = win;
-            rt_sys::linux::dialogs::confirm(title, text)
+    /// The system's dialogs, over this window.
+    fn dialogs(&self) -> rt_ui::page::SystemDialogs {
+        rt_ui::page::SystemDialogs {
+            #[cfg(windows)]
+            hwnd: self.win.as_ref().map_or(std::ptr::null_mut(), |w| w.hwnd),
         }
     }
+
     fn update_title(&self) {
         let Some(w) = &self.win else { return };
         let title = if self.page.admin { format!("rclean ({})", tr("Administrator")) } else { "rclean".to_string() };
@@ -180,8 +174,8 @@ impl Shell {
         if !self.enabled(cmd) {
             return;
         }
-        let win = &self.win;
-        if self.page.command(cmd, &mut |t, x| Shell::confirm_with(win, t, x)) {
+        let mut dialogs = self.dialogs();
+        if self.page.command(cmd, &mut dialogs) {
             self.after_page();
             return;
         }

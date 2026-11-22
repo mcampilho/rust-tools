@@ -8,9 +8,9 @@
 //! window (`shell.rs`) reads the other pages and fills a [`View`].
 
 use crate::i18n::{tf, tr};
-use rclean::ui::theme::Theme;
 use rt_gfx::gfx::{Align, Color, FontId, Gfx, Rect};
 use rt_ui::page::Effects;
+use rt_ui::theme::Theme;
 use winit::window::CursorIcon;
 
 /// A file this large or larger is a large file.

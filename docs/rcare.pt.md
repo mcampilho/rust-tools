@@ -32,11 +32,12 @@ System Information" na lista abaixo fica de propósito para mais tarde.
 | Onde | O quê |
 | --- | --- |
 | `apps/rcare` | a suite: `src/{lib,main,shell,commands,pages,sidebar,settings,storage,appicon}.rs`, `src/i18n/`, `tests/screens.rs`; só Windows (o `main` diz isso fora dele; a biblioteca compila em todo o lado) |
-| `apps/rclean/src/page.rs` | `CleanPage` (+ `Event`, `Sender`, `Confirm`, `shortcuts_text`) |
+| `apps/rclean/src/page.rs` | `CleanPage` (+ `Event`, `Sender`, `shortcuts_text`) |
 | `apps/rdup/src/page.rs` | `DupPage` (+ `Event`, `Sender`, `Popup`, `Out`, `shortcuts_text`) |
 | `apps/rsize/src/page.rs` | `SizePage` (+ `Event`, `Sender`, `Popup`, `shortcuts_text`); é dona das suas `Settings` |
 | `apps/rinst/src/page/` | `InstPage` (`mod.rs`: estado, leitura, comandos, desenho; `input.rs`: teclas, caixa de pesquisa, rato; `uninstalling.rs`: a fila, o relatório, os restos) (+ `Event`, `JobMsg`, `Sender`, `Popup`, `shortcuts_text`) |
 | `crates/rt-ui/src/page.rs` | `Effects`, `Dialogs` (+ `SystemDialogs`), `Mods` |
+| `crates/rt-ui/src/theme.rs` | `Theme`: as cores que as quatro apps e o rcare partilham (o `ui::theme` de cada app reexporta-o) |
 | `crates/rt-core/src/i18n.rs` | `add` (tabelas extra), `tr_in_from`/`tr_from`/`tf_from` (uma tabela procurada primeiro) |
 | `crates/rt-core/src/menu.rs` | `M::map` (converter os comandos de um menu noutro tipo) |
 | `apps/rcare/src/custom.rs` | Custom Clean: `CustomPage` (disposição, clique, desenho, acessibilidade), `Part`, `Status`, `View`, `large_files` |
@@ -59,8 +60,8 @@ treemap).
   cada chamada à página: `let fx = page.fx.take(); …`. As páginas chamam `self.fx.redraw()`, `.menus()`, `.info(t, x)`,
   `.save()`.
 - Perguntar ao utilizador (síncrono): `rt_ui::page::Dialogs` (`confirm`, `pick_folder`, `save_file(nome, (tipo,
-  padrão), pasta)`, `recycle`), passado a `page.command(cmd, &mut dialogs)`; a janela faz `SystemDialogs { hwnd }`. O
-  rclean é anterior e leva um fecho `Confirm`; unificar quando der jeito.
+  padrão), pasta)`, `recycle`), passado a `page.command(cmd, &mut dialogs)`; a janela faz `SystemDialogs { hwnd }`. As
+  quatro páginas usam-no.
 - `page.command(cmd, …) -> bool`: faz os comandos que são da página e devolve true; false para os da janela (Sair,
   tema, língua, ajuda, menu do Explorador, arranque, reiniciar como administrador).
 - `page.enabled(cmd)`, `page.checked(cmd)` para menus e botões.
@@ -142,8 +143,8 @@ ecrã.
 
 1. ~~Página do rinst~~ feita (2026-11-22): "Uninstall Apps" na barra lateral.
 2. ~~Custom Clean~~ feita (2026-11-22): ver a secção acima.
-3. Pedir ao utilizador para experimentar a janela a sério (só foi aberta e fechada). Unificar as quatro cópias de
-   `Theme` (`ui/theme.rs` em cada app, iguais) no `rt-ui`, e o `Confirm` do rclean com o `Dialogs`.
+3. ~~Unificar as cópias de `Theme` e o `Confirm` do rclean~~ feito (2026-11-22): `rt_ui::theme::Theme`, `Dialogs` em
+   todas. Falta o utilizador experimentar a janela a sério (só foi aberta e fechada).
 4. Ligar o rcare ao `rtsvc` para tarefas elevadas (existem as tarefas `Clean` e `UninstallMsi`:
    `rt_svc::client::Client::submit_job`); modo residente (`--tray`), "Integração com o Windows" (menus do Explorador:
    um por página? decidir), arranque, "Procurar atualizações…" (precisa de um release), `release.yml` e bucket do Scoop

@@ -4,8 +4,8 @@
 //! work is the same in both.
 //!
 //! The page does not own the window. What it needs from it (draw again,
-//! show a message, rebuild the menus) it notes in `fx`; asking the user is a
-//! function the window passes in; what the threads report comes back as an
+//! show a message, rebuild the menus) it notes in `fx`; asking the user goes
+//! through the `Dialogs` the window passes in; what the threads report comes back as an
 //! [`Event`] through the [`Sender`] the page was made with.
 
 use crate::app::{App, Busy, Row, State};
@@ -16,7 +16,7 @@ use crate::i18n::{tf, tr};
 use crate::ui::gfx::{Gfx, Rect};
 use crate::ui::theme::Theme;
 use crate::ui::view::{self, Hot, Layout};
-use rt_ui::page::Effects;
+use rt_ui::page::{Dialogs, Effects};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -40,9 +40,6 @@ pub enum Event {
 
 /// Where the threads send their events (to the window's event loop).
 pub type Sender = Arc<dyn Fn(Event) + Send + Sync>;
-
-/// Asks before doing something; true for yes.
-pub type Confirm<'a> = &'a mut dyn FnMut(&str, &str) -> bool;
 
 pub struct CleanPage {
     pub app: App,
@@ -135,7 +132,7 @@ impl CleanPage {
     }
 
     /// Asks, then deletes what the ticked targets hold, on a thread.
-    pub fn clean(&mut self, confirm: Confirm) {
+    pub fn clean(&mut self, dialogs: &mut dyn Dialogs) {
         if self.app.busy.is_some() {
             return;
         }
@@ -179,7 +176,7 @@ impl CleanPage {
             text += "\n\n";
             text += &tr("Registry entries are saved to a .reg file first, to put them back if need be.");
         }
-        if !confirm(&tr("Clean"), &text) {
+        if !dialogs.confirm(&tr("Clean"), &text) {
             return;
         }
         self.generation += 1;
@@ -348,7 +345,7 @@ impl CleanPage {
 
     /// Does the commands that are the page's own; false for the others
     /// (Exit, theme, language, help… belong to the window).
-    pub fn command(&mut self, cmd: Command, confirm: Confirm) -> bool {
+    pub fn command(&mut self, cmd: Command, dialogs: &mut dyn Dialogs) -> bool {
         if !matches!(
             cmd,
             Command::Analyse
@@ -367,7 +364,7 @@ impl CleanPage {
         }
         match cmd {
             Command::Analyse => self.analyse(),
-            Command::Clean => self.clean(confirm),
+            Command::Clean => self.clean(dialogs),
             Command::Stop => self.stop_work(),
             Command::TickAll => self.app.tick_all(true),
             Command::UntickAll => self.app.tick_all(false),

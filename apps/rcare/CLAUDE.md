@@ -37,8 +37,7 @@ decisões e o que fica de fora de propósito (antivírus próprio, defrag do reg
 - `shell.rs` (só Windows): janela, eventos, menus nativos, árvore para leitores de ecrã (botão da barra = 10,
   páginas = 11…, linhas do limpador = 100 + índice). `main.rs` só chama `shell::run()`; fora do Windows diz que é só
   para Windows (o crate compila no CI em Linux, onde só a biblioteca se testa).
-- O tema é o de `rclean::ui::theme::Theme` (cada app tem a sua cópia igual); passa para o `rt-ui` quando houver uma
-  segunda página.
+- O tema é o `rt_ui::theme::Theme`, o mesmo das quatro apps (desde 2026-11-22; antes cada uma tinha uma cópia).
 
 ## Acrescentar uma página
 

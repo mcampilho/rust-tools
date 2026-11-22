@@ -5,8 +5,8 @@
 
 use crate::i18n::tr;
 use crate::pages::{Glyph, PageInfo};
-use rclean::ui::theme::Theme;
 use rt_gfx::gfx::{Align, FontId, Gfx, Rect};
+use rt_ui::theme::Theme;
 
 /// What the pointer can be on.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -356,7 +356,7 @@ impl Shell {
         match cmd {
             Cmd::Clean(c) => {
                 let mut d = self.dialogs();
-                self.clean.command(c, &mut |t, x| d.confirm(t, x));
+                self.clean.command(c, &mut d);
                 self.after_page();
             }
             Cmd::Dups(c) => {
@@ -590,7 +590,7 @@ impl Shell {
 
     fn render(&mut self) {
         let dark = self.dark();
-        let theme = rclean::ui::theme::Theme::new(dark, self.accent);
+        let theme = rt_ui::theme::Theme::new(dark, self.accent);
         let s = self.scale();
         let Some(win) = &mut self.win else { return };
         let size = win.window.inner_size();
@@ -611,9 +611,9 @@ impl Shell {
         match PAGES[self.selected].kind {
             Kind::Custom => self.custom.render(&mut self.gfx, rest, &theme, s),
             Kind::Clean => self.clean.render(&mut self.gfx, rest, &theme, s, false),
-            Kind::Dups => self.dups.render(&mut self.gfx, rest, &rdup::ui::theme::Theme::new(dark, self.accent), s, false),
-            Kind::Size => self.size.render(&mut self.gfx, rest, &rsize::ui::theme::Theme::new(dark, self.accent), s, false),
-            Kind::Inst => self.inst.render(&mut self.gfx, rest, &rinst::ui::theme::Theme::new(dark, self.accent), s, false),
+            Kind::Dups => self.dups.render(&mut self.gfx, rest, &theme, s, false),
+            Kind::Size => self.size.render(&mut self.gfx, rest, &theme, s, false),
+            Kind::Inst => self.inst.render(&mut self.gfx, rest, &theme, s, false),
         }
         let state = sidebar::State { collapsed: self.settings.sidebar_collapsed, selected: self.selected, hot: self.side_hot };
         sidebar::draw(&mut self.gfx, &self.side, &theme, s, state, PAGES);

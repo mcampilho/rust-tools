@@ -29,11 +29,12 @@ the list below is deliberately left for later.
 | Where | What |
 | --- | --- |
 | `apps/rcare` | the suite: `src/{lib,main,shell,commands,pages,sidebar,settings,storage,appicon}.rs`, `src/i18n/`, `tests/screens.rs`; Windows only (`main` says so elsewhere; the library compiles everywhere) |
-| `apps/rclean/src/page.rs` | `CleanPage` (+ `Event`, `Sender`, `Confirm`, `shortcuts_text`) |
+| `apps/rclean/src/page.rs` | `CleanPage` (+ `Event`, `Sender`, `shortcuts_text`) |
 | `apps/rdup/src/page.rs` | `DupPage` (+ `Event`, `Sender`, `Popup`, `Out`, `shortcuts_text`) |
 | `apps/rsize/src/page.rs` | `SizePage` (+ `Event`, `Sender`, `Popup`, `shortcuts_text`); owns its `Settings` |
 | `apps/rinst/src/page/` | `InstPage` (`mod.rs`: state, reading, commands, drawing; `input.rs`: keys, search box, mouse; `uninstalling.rs`: the queue, the report, the leftovers) (+ `Event`, `JobMsg`, `Sender`, `Popup`, `shortcuts_text`) |
 | `crates/rt-ui/src/page.rs` | `Effects`, `Dialogs` (+ `SystemDialogs`), `Mods` |
+| `crates/rt-ui/src/theme.rs` | `Theme`: the colours the four apps and rcare share (each app's `ui::theme` re-exports it) |
 | `crates/rt-core/src/i18n.rs` | `add` (extra tables), `tr_in_from`/`tr_from`/`tf_from` (a table searched first) |
 | `crates/rt-core/src/menu.rs` | `M::map` (turn the commands of a menu into another type) |
 | `apps/rcare/src/custom.rs` | Custom Clean: `CustomPage` (layout, hit, draw, accessibility), `Part`, `Status`, `View`, `large_files` |
@@ -54,8 +55,8 @@ does **not** own the window. Read `apps/rclean/src/page.rs` (the simplest) and t
   state changed), `info` (a message to show), `save` (settings changed). The window calls `after_page()` after every
   call into the page: `let fx = page.fx.take(); …`. Pages call `self.fx.redraw()`, `.menus()`, `.info(t, x)`, `.save()`.
 - Asking the user (synchronous): `rt_ui::page::Dialogs` (`confirm`, `pick_folder`, `save_file(name, (kind, pattern),
-  dir)`, `recycle`), passed to `page.command(cmd, &mut dialogs)`; the window builds `SystemDialogs { hwnd }`.
-  rclean predates it and takes a `Confirm` closure; unify when convenient.
+  dir)`, `recycle`), passed to `page.command(cmd, &mut dialogs)`; the window builds `SystemDialogs { hwnd }`. All four
+  pages take it.
 - `page.command(cmd, …) -> bool`: does the commands that are the page's and returns true; false for the window's
   (Exit, theme, language, help, Explorer menu, autostart, restart as administrator).
 - `page.enabled(cmd)`, `page.checked(cmd)` for menus and buttons.
@@ -135,8 +136,8 @@ connection to the privileged service `rtsvc` from rcare (the pages use it as the
 
 1. ~~rinst page~~ done (2026-11-22): "Uninstall Apps" in the sidebar.
 2. ~~Custom Clean~~ done (2026-11-22): see its section above.
-3. Ask the user to try the real window (it was only started and closed). Unify the four `Theme` copies (`ui/theme.rs`
-   in each app, identical) into `rt-ui`, and rclean's `Confirm` with `Dialogs`.
+3. ~~Unify the `Theme` copies and rclean's `Confirm`~~ done (2026-11-22): `rt_ui::theme::Theme`, `Dialogs` everywhere.
+   The user should still try the real window (it was only started and closed).
 4. Connect rcare to `rtsvc` for elevated jobs (jobs `Clean`, `UninstallMsi` exist: `rt_svc::client::Client::submit_job`);
    resident mode (`--tray`), "Windows Integration" (Explorer menus: one per page? decide), autostart, "Check for
    updates" (needs a release), `release.yml` and the Scoop bucket (only once there is a release).
