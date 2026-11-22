@@ -37,6 +37,7 @@ the list below is deliberately left for later.
 | `crates/rt-ui/src/theme.rs` | `Theme`: the colours the four apps and rcare share (each app's `ui::theme` re-exports it) |
 | `crates/rt-core/src/i18n.rs` | `add` (extra tables), `tr_in_from`/`tr_from`/`tf_from` (a table searched first) |
 | `crates/rt-core/src/menu.rs` | `M::map` (turn the commands of a menu into another type) |
+| `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; drive health from `Get-Volume` |
 | `apps/rcare/src/custom.rs` | Custom Clean: `CustomPage` (layout, hit, draw, accessibility), `Part`, `Status`, `View`, `large_files` |
 | `docs/rcare(.pt).md` | this plan |
 
@@ -81,7 +82,19 @@ does **not** own the window. Read `apps/rclean/src/page.rs` (the simplest) and t
   needed because the apps translate the same English key with different access keys (each tuned to its own menus);
   rcare's `Cmd::label` delegates to the page's `label()` for the same reason. Any new page must do the same.
 
-## Custom Clean (rcare's own page, first in the sidebar)
+## System Maintenance (phase 2, rcare's own page, first in the sidebar)
+
+The checks that exist, in one go ("Scan", F5), one row each with what it found and a button: **Junk Files**, **Broken
+Shortcuts** and **Invalid Registry Entries** (the cleaner's analysis, split by `Group`: junk counts the ticked targets,
+shortcuts and registry all that were found), **Software Health** (programs of every list of the uninstaller with a
+`Problem`: uninstaller gone, install failed, manifest removed), **Drive Health** (Windows' own `Get-Volume` in a hidden
+PowerShell, no administrator needed: `HealthStatus` and `OperationalStatus`; Details shows each drive and how to repair
+one with `chkdsk X: /f` or the drive's Properties › Tools › Check — on this PC the S: drive says "Warning / Full Repair
+Needed"). "Review" opens the cleaner or the uninstaller; nothing is changed on this page. More checks join with the
+later phases (privacy sweep in phase 5 — deleting history or cookies is the user's decision, since rclean never does —,
+startup, Windows integrity in phase 6).
+
+## Custom Clean (rcare's own page, second in the sidebar)
 
 An overview, not a cleaner: three cards (Junk Files, Duplicate Files, Large Files) with the space and the count, and
 "Review", which opens the page that shows the part in full, where it is cleaned. Nothing is deleted on this page.
@@ -138,7 +151,8 @@ connection to the privileged service `rtsvc` from rcare (the pages use it as the
 2. ~~Custom Clean~~ done (2026-11-22): see its section above.
 3. ~~Unify the `Theme` copies and rclean's `Confirm`~~ done (2026-11-22): `rt_ui::theme::Theme`, `Dialogs` everywhere.
    The user should still try the real window (it was only started and closed).
-4. ~~Residency and integration~~ done (2026-11-22): `--tray` (hidden start, the icon or another launch shows it, closing
+4. ~~System Maintenance (phase 2)~~ done (2026-11-22): see its section.
+5. ~~Residency and integration~~ done (2026-11-22): `--tray` (hidden start, the icon or another launch shows it, closing
    hides it; tested with the real `.exe`), one instance (`hand_off`, `--new-window`), File › Windows Integration ›
    Explorer Context Menu (**one** verb on folders and drives, "Analyze with rcare": the folder opens in Custom Clean,
    analysed, for that time only — `custom_once`; `--register`/`--unregister`) and Start with Windows; `rcare [folder]`
@@ -148,7 +162,7 @@ connection to the privileged service `rtsvc` from rcare (the pages use it as the
    "Check for
    updates" works once there is a release; the first release (tag `rcare-v0.1.0`, a push: **ask the user**) and then
    the Scoop bucket manifest (`bucket/rcare.json`, then `checkver.ps1 -Dir bucket -Update`).
-5. Then the phases below.
+6. Then phase 3 (speed: Startup Optimizer first) and the phases below.
 
 ## Decisions
 
@@ -203,7 +217,7 @@ Manager, Software Updater, Default Program.
 **1. Existing pages in the sidebar** — Disk Cleaner (rclean) ✔, Duplicate Files (rdup) ✔, Large Files (rsize) ✔,
 Uninstall Apps (rinst) ✔, and **Custom Clean** ✔ (junk, duplicates and large files in one analysis).
 
-**2. One-click maintenance** — runs the available modules in sequence (privacy sweep, junk, registry, shortcuts, disk
+**2. One-click maintenance** ✔ (System Maintenance, with the checks that exist so far) — runs the available modules in sequence (privacy sweep, junk, registry, shortcuts, disk
 check, software health) and reports.
 
 **3. Speed** — Startup Optimizer; App/Extension Cleaner and Program Deactivator; Game Mode and Real-Time TuneUp

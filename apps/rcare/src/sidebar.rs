@@ -144,6 +144,11 @@ fn draw_glyph(g: &mut Gfx, glyph: Glyph, r: Rect, c: rt_gfx::gfx::Color) {
             let a = r.w * 0.22;
             g.fill_polygon(&[(cx, r.y), (cx + a, r.y + a), (cx - a, r.y + a)], c);
         }
+        Glyph::Pulse => {
+            let (x, y, w, h) = (r.x, r.y + r.h / 2.0, r.w, r.h);
+            let pts = [(x, y), (x + w * 0.28, y), (x + w * 0.4, y - h * 0.38), (x + w * 0.55, y + h * 0.4), (x + w * 0.68, y), (x + w, y)];
+            g.polyline(&pts, 2.0, c, false);
+        }
         Glyph::Grid => {
             let q = (r.w - 3.0) / 2.0;
             for (dx, dy) in [(0.0, 0.0), (1.0, 0.0), (0.0, 1.0), (1.0, 1.0)] {

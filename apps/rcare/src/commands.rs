@@ -22,6 +22,8 @@ pub enum Cmd {
     Size(SizeCmd),
     /// A command of the uninstaller page.
     Inst(InstCmd),
+    /// System Maintenance: every check, in one go.
+    MaintScan,
     /// Custom Clean: the junk, duplicates and large files analysed together.
     CustomAnalyze,
     /// Custom Clean: the folder where duplicates and large files are looked for.
@@ -132,6 +134,7 @@ impl Cmd {
             Dups(c) => return c.label_key(),
             Size(c) => return c.label_key(),
             Inst(c) => return c.label_key(),
+            MaintScan => "&Scan",
             CustomAnalyze => "&Analyze",
             CustomFolder => "Change &Folder...",
             Sidebar => "Collapse Side&bar",
@@ -176,7 +179,7 @@ pub fn shortcut(cmd: Cmd) -> Option<&'static str> {
         Size(c) => rsize::commands::shortcut(c),
         Inst(c) => rinst::commands::shortcut(c),
         // F5 belongs to the page shown; on Custom Clean it analyses.
-        CustomAnalyze => Some("F5"),
+        CustomAnalyze | MaintScan => Some("F5"),
         c => BINDINGS.iter().find(|(_, x)| *x == c).map(|(k, _)| *k),
     }
 }
@@ -264,6 +267,7 @@ fn page_menus(page: usize) -> Own {
         Some(Kind::Clean) => own_menus(rclean::commands::menu_tree(), clean_is_window, Cmd::from_clean),
         Some(Kind::Dups) => own_menus(rdup::commands::menu_tree(), dups_is_window, Cmd::from_dups),
         Some(Kind::Size) => own_menus(rsize::commands::menu_tree(), size_is_window, Cmd::from_size),
+        Some(Kind::Maint) => Own { file: vec![Item::Item(MaintScan)], view: Vec::new(), rest: Vec::new() },
         Some(Kind::Custom) => Own { file: vec![Item::Item(CustomAnalyze), Item::Item(CustomFolder)], view: Vec::new(), rest: Vec::new() },
         Some(Kind::Inst) => own_menus(rinst::commands::menu_tree(), inst_is_window, Cmd::from_inst),
         None => Own { file: Vec::new(), view: Vec::new(), rest: Vec::new() },
@@ -355,6 +359,7 @@ mod tests {
         };
         let at = |id: &str| crate::pages::index_of(id);
         assert!(all(at("custom")).contains(&CustomAnalyze));
+        assert!(all(at("maint")).contains(&MaintScan));
         assert!(all(at("clean")).contains(&Clean(CleanCmd::Analyse)));
         assert!(all(at("dups")).contains(&Dups(DupCmd::Search)));
         assert!(all(at("size")).contains(&Size(SizeCmd::Rescan)));

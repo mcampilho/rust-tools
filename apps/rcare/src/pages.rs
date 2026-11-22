@@ -6,6 +6,8 @@
 pub enum Kind {
     /// rcare's own overview: junk, duplicates and large files in one look.
     Custom,
+    /// rcare's own checks in one go: System Maintenance.
+    Maint,
     /// The cleaner of rclean.
     Clean,
     /// The duplicate finder of rdup.
@@ -32,6 +34,8 @@ pub struct PageInfo {
 pub enum Glyph {
     /// Four squares: an overview.
     Grid,
+    /// A heartbeat: the computer's health.
+    Pulse,
     /// A sparkle: cleaning.
     Sparkle,
     /// Two sheets, one over the other: copies.
@@ -43,6 +47,7 @@ pub enum Glyph {
 }
 
 pub const PAGES: &[PageInfo] = &[
+    PageInfo { id: "maint", kind: Kind::Maint, label: "System Maintenance", glyph: Glyph::Pulse },
     PageInfo { id: "custom", kind: Kind::Custom, label: "Custom Clean", glyph: Glyph::Grid },
     PageInfo { id: "clean", kind: Kind::Clean, label: "Disk Cleaner", glyph: Glyph::Sparkle },
     PageInfo { id: "dups", kind: Kind::Dups, label: "Duplicate Files", glyph: Glyph::Copies },

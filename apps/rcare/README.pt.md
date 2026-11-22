@@ -26,6 +26,7 @@ Páginas até agora:
 
 | Página | A ferramenta pequena | O que faz |
 | --- | --- | --- |
+| System Maintenance | – (do próprio rcare) | As verificações de uma vez (F5): lixo, atalhos inválidos, entradas inválidas do registo, programas com problemas, e o que o Windows diz de cada disco; cada linha abre a página que corrige. Ali não se muda nada |
 | Custom Clean | – (do próprio rcare) | Lixo, duplicados e ficheiros grandes (100 MB ou mais) de uma pasta de uma vez, com um botão para rever cada um na sua página; F5 analisa. Ali não se apaga nada |
 | Limpeza de disco | [rclean](../rclean/README.pt.md) | Temporários, caches dos browsers e dos gestores de pacotes, atalhos inválidos, entradas inválidas do registo |
 | Ficheiros duplicados | [rdup](../rdup/README.pt.md) | Ficheiros e pastas com o mesmo conteúdo em vários discos e pastas ao mesmo tempo |

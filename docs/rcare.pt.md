@@ -40,6 +40,7 @@ System Information" na lista abaixo fica de propósito para mais tarde.
 | `crates/rt-ui/src/theme.rs` | `Theme`: as cores que as quatro apps e o rcare partilham (o `ui::theme` de cada app reexporta-o) |
 | `crates/rt-core/src/i18n.rs` | `add` (tabelas extra), `tr_in_from`/`tr_from`/`tf_from` (uma tabela procurada primeiro) |
 | `crates/rt-core/src/menu.rs` | `M::map` (converter os comandos de um menu noutro tipo) |
+| `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; estado dos discos pelo `Get-Volume` |
 | `apps/rcare/src/custom.rs` | Custom Clean: `CustomPage` (disposição, clique, desenho, acessibilidade), `Part`, `Status`, `View`, `large_files` |
 | `docs/rcare(.pt).md` | este plano |
 
@@ -87,7 +88,19 @@ treemap).
   (cada uma afinada para os seus menus); o `Cmd::label` do rcare entrega ao `label()` da página pela mesma razão.
   Qualquer página nova tem de fazer o mesmo.
 
-## Custom Clean (página do próprio rcare, a primeira da barra lateral)
+## System Maintenance (fase 2, página do próprio rcare, a primeira da barra lateral)
+
+As verificações que existem, de uma vez ("Verificar", F5), uma linha cada com o que encontrou e um botão: **Junk Files**,
+**Broken Shortcuts** e **Invalid Registry Entries** (a análise do limpador, separada por `Group`: o lixo conta os alvos
+marcados, atalhos e registo tudo o que foi encontrado), **Software Health** (programas de todas as listas do
+desinstalador com um `Problem`: desinstalador desaparecido, instalação falhada, manifesto removido), **Drive Health** (o
+`Get-Volume` do próprio Windows num PowerShell escondido, sem administrador: `HealthStatus` e `OperationalStatus`; os
+Detalhes mostram cada disco e como reparar um com `chkdsk X: /f` ou Propriedades do disco › Ferramentas › Verificar —
+neste PC o disco S: diz "Warning / Full Repair Needed"). "Rever" abre o limpador ou o desinstalador; nesta página não se
+muda nada. Mais verificações entram com as fases seguintes (limpeza de privacidade na fase 5 — apagar histórico ou
+cookies é decisão do utilizador, porque o rclean nunca o faz —, arranque, integridade do Windows na fase 6).
+
+## Custom Clean (página do próprio rcare, a segunda da barra lateral)
 
 Uma vista de conjunto, não um limpador: três cartões (Junk Files, Duplicate Files, Large Files) com o espaço e a
 contagem, e "Rever", que abre a página que mostra essa parte por inteiro, onde se limpa. Nesta página não se apaga
@@ -145,7 +158,8 @@ ecrã.
 2. ~~Custom Clean~~ feita (2026-11-22): ver a secção acima.
 3. ~~Unificar as cópias de `Theme` e o `Confirm` do rclean~~ feito (2026-11-22): `rt_ui::theme::Theme`, `Dialogs` em
    todas. Falta o utilizador experimentar a janela a sério (só foi aberta e fechada).
-4. ~~Residência e integração~~ feitas (2026-11-22): `--tray` (arranca escondido, o ícone ou outro arranque mostra-o,
+4. ~~System Maintenance (fase 2)~~ feita (2026-11-22): ver a secção.
+5. ~~Residência e integração~~ feitas (2026-11-22): `--tray` (arranca escondido, o ícone ou outro arranque mostra-o,
    fechar esconde; experimentado com o `.exe` a sério), uma só instância (`hand_off`, `--new-window`), Ficheiro ›
    Integração com o Windows › Menu do Explorador (**um** verbo nas pastas e discos, "Analisar com o rcare": a pasta abre
    na Custom Clean, analisada, só dessa vez — `custom_once`; `--register`/`--unregister`) e Iniciar com o Windows;
@@ -155,7 +169,7 @@ ecrã.
    Falta: "Procurar atualizações…" funciona quando houver release; o primeiro release (etiqueta `rcare-v0.1.0`, um
    push: **perguntar ao utilizador**) e depois o manifesto do bucket do Scoop (`bucket/rcare.json`, depois
    `checkver.ps1 -Dir bucket -Update`).
-5. Depois, as fases abaixo.
+6. Depois, a fase 3 (velocidade: primeiro o Startup Optimizer) e as fases abaixo.
 
 ## Decisões
 
@@ -211,7 +225,7 @@ Process Manager, Software Updater, Default Program.
 **1. Páginas existentes na barra lateral** — Disk Cleaner (rclean) ✔, Duplicate Files (rdup) ✔, Large Files (rsize)
 ✔, Uninstall Apps (rinst) ✔, e **Custom Clean** ✔ (lixo, duplicados e grandes numa só análise).
 
-**2. Manutenção num clique** — corre em sequência os módulos disponíveis (privacidade, lixo, registo, atalhos,
+**2. Manutenção num clique** ✔ (System Maintenance, com as verificações que já existem) — corre em sequência os módulos disponíveis (privacidade, lixo, registo, atalhos,
 verificação de disco, saúde do software) e faz um relatório.
 
 **3. Velocidade** — Startup Optimizer; App/Extension Cleaner e Program Deactivator; Game Mode e Real-Time TuneUp
