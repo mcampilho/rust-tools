@@ -144,6 +144,18 @@ fn draw_glyph(g: &mut Gfx, glyph: Glyph, r: Rect, c: rt_gfx::gfx::Color) {
             let a = r.w * 0.22;
             g.fill_polygon(&[(cx, r.y), (cx + a, r.y + a), (cx - a, r.y + a)], c);
         }
+        Glyph::Power => {
+            // A ring open at the top, and a stroke down into it.
+            let (cx, cy, rad) = (r.x + r.w / 2.0, r.y + r.h * 0.56, r.w * 0.4);
+            let pts: Vec<(f32, f32)> = (0..=24)
+                .map(|k| {
+                    let a = (-60.0 + 300.0 * k as f32 / 24.0 - 90.0).to_radians();
+                    (cx + rad * a.cos(), cy + rad * a.sin())
+                })
+                .collect();
+            g.polyline(&pts, 2.0, c, false);
+            g.fill_rrect(Rect::new(cx - 1.0, r.y, 2.0, r.h * 0.5), 1.0, c);
+        }
         Glyph::Pulse => {
             let (x, y, w, h) = (r.x, r.y + r.h / 2.0, r.w, r.h);
             let pts = [(x, y), (x + w * 0.28, y), (x + w * 0.4, y - h * 0.38), (x + w * 0.55, y + h * 0.4), (x + w * 0.68, y), (x + w, y)];

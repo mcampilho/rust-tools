@@ -91,6 +91,36 @@ fn maint(g: &mut Gfx, r: Rect, th: &Theme) {
     page.render(g, r, th, 1.0);
 }
 
+/// The Startup Optimizer with a few items, one off, one gone, one of every user.
+fn startup(g: &mut Gfx, r: Rect, th: &Theme) {
+    use rcare::startup::{Entry, Place};
+    use rcare::startup_page::StartupPage;
+    let e = |name: &str, place: Place, enabled: bool, missing: bool, cmd: &str| Entry {
+        name: name.into(),
+        command: cmd.into(),
+        file: Some(std::path::PathBuf::from(cmd)),
+        place,
+        enabled,
+        missing,
+    };
+    let mut page = StartupPage::new(false);
+    page.entries = vec![
+        e("Bdagent", Place::MachineRun, true, false, "C:\\Program Files\\Bitdefender\\Bitdefender Security App\\bdagent.exe"),
+        e(
+            "BraveSoftware Update",
+            Place::UserRun,
+            false,
+            false,
+            "C:\\Users\\Miguel\\AppData\\Local\\BraveSoftware\\Update\\BraveUpdateCore.exe",
+        ),
+        e("OneDrive", Place::UserRun, true, false, "\"C:\\Program Files\\Microsoft OneDrive\\OneDrive.exe\" /background"),
+        e("Old Tool.lnk", Place::UserFolder, true, true, "D:\\Tools\\old\\tool.exe"),
+        e("rwall", Place::UserRun, true, false, "\"C:\\Users\\Miguel\\AppData\\Local\\Programs\\rust-tools\\rwall.exe\" --tray"),
+    ];
+    page.sel = Some(2);
+    page.render(g, r, th, 1.0);
+}
+
 #[test]
 #[ignore]
 fn screenshots() {
@@ -108,4 +138,6 @@ fn screenshots() {
     save("custom-smallest.png", shot("custom", false, false, None, 760, 480, &mut custom));
     save("maint-light.png", shot("maint", false, false, None, 1280, 720, &mut maint));
     save("maint-dark-smallest.png", shot("maint", true, false, None, 760, 480, &mut maint));
+    save("startup-light.png", shot("startup", false, false, None, 1280, 720, &mut startup));
+    save("startup-dark-smallest.png", shot("startup", true, false, None, 760, 480, &mut startup));
 }

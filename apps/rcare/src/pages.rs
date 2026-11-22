@@ -16,6 +16,8 @@ pub enum Kind {
     Size,
     /// The uninstaller of rinst.
     Inst,
+    /// rcare's own: what starts with Windows.
+    Startup,
 }
 
 /// A page in the sidebar.
@@ -44,6 +46,8 @@ pub enum Glyph {
     Bars,
     /// A box with an arrow out of it: taking a program away.
     Remove,
+    /// A power sign: what starts with the computer.
+    Power,
 }
 
 pub const PAGES: &[PageInfo] = &[
@@ -53,6 +57,7 @@ pub const PAGES: &[PageInfo] = &[
     PageInfo { id: "dups", kind: Kind::Dups, label: "Duplicate Files", glyph: Glyph::Copies },
     PageInfo { id: "size", kind: Kind::Size, label: "Large Files", glyph: Glyph::Bars },
     PageInfo { id: "inst", kind: Kind::Inst, label: "Uninstall Apps", glyph: Glyph::Remove },
+    PageInfo { id: "startup", kind: Kind::Startup, label: "Startup Optimizer", glyph: Glyph::Power },
 ];
 
 /// The index of the page saved as `id`; the first one when it is unknown.

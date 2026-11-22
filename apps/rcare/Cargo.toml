@@ -29,8 +29,9 @@ accesskit = "0.25"
 accesskit_winit = { version = "0.34", default-features = false, features = ["rwh_06"] }
 
 [target.'cfg(windows)'.dependencies]
-# SetErrorMode: a missing disc or card is an error code, not a dialog (as in rdup and rsize).
-windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_Diagnostics_Debug"] }
+# SetErrorMode: a missing disc or card is an error code, not a dialog (as in rdup and rsize);
+# the registry: turning startup items on and off as Task Manager does.
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_Diagnostics_Debug", "Win32_System_Registry"] }
 
 # X11 and Wayland: rcare only runs on Windows, but the workspace builds everywhere.
 [target.'cfg(target_os = "linux")'.dependencies]

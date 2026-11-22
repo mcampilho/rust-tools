@@ -41,6 +41,7 @@ System Information" na lista abaixo fica de propósito para mais tarde.
 | `crates/rt-core/src/i18n.rs` | `add` (tabelas extra), `tr_in_from`/`tr_from`/`tf_from` (uma tabela procurada primeiro) |
 | `crates/rt-core/src/menu.rs` | `M::map` (converter os comandos de um menu noutro tipo) |
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; estado dos discos pelo `Get-Volume` |
+| `apps/rcare/src/startup.rs`, `startup_page.rs` | Startup Optimizer: o que arranca com o Windows (chaves `Run` do utilizador e da máquina, 64/32 bits, as duas pastas Arranque) e desligar/ligar itens por `Explorer\StartupApproved`, como o Gestor de Tarefas |
 | `apps/rcare/src/custom.rs` | Custom Clean: `CustomPage` (disposição, clique, desenho, acessibilidade), `Part`, `Status`, `View`, `large_files` |
 | `docs/rcare(.pt).md` | este plano |
 
@@ -99,6 +100,17 @@ Detalhes mostram cada disco e como reparar um com `chkdsk X: /f` ou Propriedades
 neste PC o disco S: diz "Warning / Full Repair Needed"). "Rever" abre o limpador ou o desinstalador; nesta página não se
 muda nada. Mais verificações entram com as fases seguintes (limpeza de privacidade na fase 5 — apagar histórico ou
 cookies é decisão do utilizador, porque o rclean nunca o faz —, arranque, integridade do Windows na fase 6).
+
+## Startup Optimizer (fase 3, página do próprio rcare, a última da barra lateral)
+
+A lista que o separador Arranque do Gestor de Tarefas mostra: `HKCU\…\Run`, `HKLM\…\Run` (64 e 32 bits), as pastas
+Arranque do utilizador e de todos (atalhos lidos com `rt_sys::lnk`). Uma linha cada com um interruptor, de onde arranca e
+o que corre (a laranja quando o programa não existe; "Precisa de direitos de administrador" nos itens de todos quando o
+rcare não está elevado — não se podem mudar e a página diz porquê). Desligar escreve os 12 bytes que o Gestor de Tarefas
+escreve em `Explorer\StartupApproved\{Run,Run32,StartupFolder}` (03 + FILETIME; ligar: 02): nada é apagado e o separador
+do próprio Windows concorda; verificado a sério com um item próprio (`startup::tests::toggles_an_item_of_its_own`,
+ignorado: escreve no `Run` do utilizador e depois tira). Botões e menu Editar: Desligar, Ligar, Abrir localização,
+Atualizar (F5); Espaço liga ou desliga o item selecionado.
 
 ## Custom Clean (página do próprio rcare, a segunda da barra lateral)
 
@@ -169,7 +181,22 @@ ecrã.
    Falta: "Procurar atualizações…" funciona quando houver release; o primeiro release (etiqueta `rcare-v0.1.0`, um
    push: **perguntar ao utilizador**) e depois o manifesto do bucket do Scoop (`bucket/rcare.json`, depois
    `checkver.ps1 -Dir bucket -Update`).
-6. Depois, a fase 3 (velocidade: primeiro o Startup Optimizer) e as fases abaixo.
+6. ~~Startup Optimizer~~ feito (2026-11-22): ver a secção.
+7. O resto da fase 3 precisa primeiro das escolhas do utilizador (ver "Decisões a pedir" abaixo), depois as fases 4–6.
+
+## Decisões a pedir antes do resto da fase 3
+
+- **App/Extension Cleaner**: remover extensões dos browsers obriga a mexer no perfil de cada um (`Preferences` do
+  Chrome/Edge, `extensions.json` do Firefox) com o browser fechado — ou só listá-las e abrir a página de extensões do
+  próprio browser. Recomendado: listá-las (nome, browser, perfil, ativa) e abrir a página do browser.
+- **Game Mode / "programas parados, RAM libertada"**: parar programas termina processos do utilizador (pode perder-se
+  trabalho não guardado). Recomendado: o interruptor do Modo de Jogo do próprio Windows
+  (`HKCU\Software\Microsoft\GameBar\AutoGameModeEnabled`) e uma lista do que corre, fechando só o que o utilizador
+  marcar, com delicadeza (`WM_CLOSE`), nunca à força.
+- **Smart RAM**: recomendado como está em "Limites honestos": mostrar a memória e libertar só a lista de espera a pedido
+  (precisa de administrador: `NtSetSystemInformation` com `MemoryPurgeStandbyList`).
+- **Program Deactivator**: além dos itens de arranque, também serviços em arranque automático? Mexer em serviços precisa
+  de administrador e pode estragar o Windows: recomendado só serviços de terceiros, com cópia do valor para desfazer.
 
 ## Decisões
 
@@ -228,7 +255,7 @@ Process Manager, Software Updater, Default Program.
 **2. Manutenção num clique** ✔ (System Maintenance, com as verificações que já existem) — corre em sequência os módulos disponíveis (privacidade, lixo, registo, atalhos,
 verificação de disco, saúde do software) e faz um relatório.
 
-**3. Velocidade** — Startup Optimizer; App/Extension Cleaner e Program Deactivator; Game Mode e Real-Time TuneUp
+**3. Velocidade** — Startup Optimizer ✔; App/Extension Cleaner e Program Deactivator; Game Mode e Real-Time TuneUp
 (monitor de desempenho); Smart RAM.
 
 **4. Registo** — Registry Cleaner (as categorias acima, Deep Scan, cópia `.reg` antes de cada limpeza, restauro);

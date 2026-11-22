@@ -55,7 +55,7 @@ Fase 0 (2026-11-22): páginas do rclean, rdup, rsize e rinst (`rclean::page::Cle
 `rsize::page::SizePage`, `rinst::page::InstPage`), `Effects`/`Dialogs`/`Mods` no `rt-ui`, `add`/`tr_from` no `rt-core::i18n`, `M::map`; rcare com
 barra lateral, menus combinados dos quatro e as quatro páginas. **A passagem de testemunho completa está em
 `docs/rcare.pt.md`** (padrão de página, como o rcare funciona, verificado e não, próximos passos): ler primeiro.
-Custom Clean (`custom.rs`) e System Maintenance (`maint.rs`, `disks.rs`; fase 2), páginas do próprio rcare, feitas. Feito também: `--tray`, uma só instância, "Integração com o Windows" (um verbo "Analisar com o rcare" → Custom Clean), `rcare-v*` no `release.yml`. Falta: o primeiro release (push: perguntar) e o bucket.
+Custom Clean (`custom.rs`) e System Maintenance (`maint.rs`, `disks.rs`; fase 2) e Startup Optimizer (`startup.rs`, `startup_page.rs`; fase 3), páginas do próprio rcare, feitas. O resto da fase 3 espera por decisões do utilizador (ver `docs/rcare.pt.md`). Feito também: `--tray`, uma só instância, "Integração com o Windows" (um verbo "Analisar com o rcare" → Custom Clean), `rcare-v*` no `release.yml`. Falta: o primeiro release (push: perguntar) e o bucket.
 Arranque verificado (abre, fecha com código 0). **Não verificado**: usar a janela. A compilação das apps pequenas religadas em Linux passou no CI
 (2026-11-22).
 ## Regras

@@ -38,6 +38,7 @@ the list below is deliberately left for later.
 | `crates/rt-core/src/i18n.rs` | `add` (extra tables), `tr_in_from`/`tr_from`/`tf_from` (a table searched first) |
 | `crates/rt-core/src/menu.rs` | `M::map` (turn the commands of a menu into another type) |
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; drive health from `Get-Volume` |
+| `apps/rcare/src/startup.rs`, `startup_page.rs` | Startup Optimizer: what starts with Windows (`Run` keys of the user and the machine, 64/32 bits, both Startup folders) and turning items off/on through `Explorer\StartupApproved` as Task Manager does |
 | `apps/rcare/src/custom.rs` | Custom Clean: `CustomPage` (layout, hit, draw, accessibility), `Part`, `Status`, `View`, `large_files` |
 | `docs/rcare(.pt).md` | this plan |
 
@@ -93,6 +94,17 @@ one with `chkdsk X: /f` or the drive's Properties › Tools › Check — on thi
 Needed"). "Review" opens the cleaner or the uninstaller; nothing is changed on this page. More checks join with the
 later phases (privacy sweep in phase 5 — deleting history or cookies is the user's decision, since rclean never does —,
 startup, Windows integrity in phase 6).
+
+## Startup Optimizer (phase 3, rcare's own page, last in the sidebar)
+
+The list Task Manager's Startup tab shows: `HKCU\…\Run`, `HKLM\…\Run` (64 and 32 bits), the user's and every user's
+Startup folders (shortcuts read with `rt_sys::lnk`). One row each with a switch, where it starts from and what it runs
+(in orange when the program is not there; "Needs administrator rights" for items of every user when rcare is not
+elevated — they cannot be switched then, and saying so is the page's answer). Turning off writes the 12 bytes Task
+Manager writes under `Explorer\StartupApproved\{Run,Run32,StartupFolder}` (03 + FILETIME; on: 02), so nothing is deleted
+and Windows' own tab agrees; checked for real with an item of its own (`startup::tests::toggles_an_item_of_its_own`,
+ignored: it writes the user's `Run`, then removes it). Buttons and Edit menu: Turn Off, Turn On, Open File Location,
+Refresh (F5); Space turns the selected item on or off.
 
 ## Custom Clean (rcare's own page, second in the sidebar)
 
@@ -162,7 +174,22 @@ connection to the privileged service `rtsvc` from rcare (the pages use it as the
    "Check for
    updates" works once there is a release; the first release (tag `rcare-v0.1.0`, a push: **ask the user**) and then
    the Scoop bucket manifest (`bucket/rcare.json`, then `checkver.ps1 -Dir bucket -Update`).
-6. Then phase 3 (speed: Startup Optimizer first) and the phases below.
+6. ~~Startup Optimizer~~ done (2026-11-22): see its section.
+7. The rest of phase 3 needs the user's choices first (see "Decisions to ask" below), then phases 4–6.
+
+## Decisions to ask before the rest of phase 3
+
+- **App/Extension Cleaner**: removing browser extensions means editing each browser's profile (Chrome/Edge
+  `Preferences`, Firefox `extensions.json`) while the browser is closed — or only listing them and opening the
+  browser's own extensions page. Recommended: list them (name, browser, profile, enabled) and open the browser's page.
+- **Game Mode / "programs stopped, RAM released"**: stopping programs ends the user's processes (unsaved work can be
+  lost). Recommended: Windows' own Game Mode switch (`HKCU\Software\Microsoft\GameBar\AutoGameModeEnabled`) plus a
+  list of what runs, closing only what the user ticks, politely (`WM_CLOSE`), never forcing.
+- **Smart RAM**: recommended as written in "Honest limits": show the memory, free only the standby list on request
+  (needs administrator rights: `NtSetSystemInformation` with `MemoryPurgeStandbyList`).
+- **Program Deactivator**: services set to start automatically, besides the startup items? Changing services needs
+  administrator rights and can break Windows: recommended only third-party services, with a copy of the setting to
+  undo.
 
 ## Decisions
 
@@ -220,7 +247,7 @@ Uninstall Apps (rinst) ✔, and **Custom Clean** ✔ (junk, duplicates and large
 **2. One-click maintenance** ✔ (System Maintenance, with the checks that exist so far) — runs the available modules in sequence (privacy sweep, junk, registry, shortcuts, disk
 check, software health) and reports.
 
-**3. Speed** — Startup Optimizer; App/Extension Cleaner and Program Deactivator; Game Mode and Real-Time TuneUp
+**3. Speed** — Startup Optimizer ✔; App/Extension Cleaner and Program Deactivator; Game Mode and Real-Time TuneUp
 (performance monitor); Smart RAM.
 
 **4. Registry** — Registry Cleaner (the categories above, Deep Scan, `.reg` copy before each cleaning, restore);
