@@ -182,21 +182,22 @@ ecrã.
    push: **perguntar ao utilizador**) e depois o manifesto do bucket do Scoop (`bucket/rcare.json`, depois
    `checkver.ps1 -Dir bucket -Update`).
 6. ~~Startup Optimizer~~ feito (2026-11-22): ver a secção.
-7. O resto da fase 3 precisa primeiro das escolhas do utilizador (ver "Decisões a pedir" abaixo), depois as fases 4–6.
+7. O resto da fase 3, como o utilizador decidiu em 2026-11-22 (abaixo), depois as fases 4–6.
 
-## Decisões a pedir antes do resto da fase 3
+## Decisões para o resto da fase 3 (o utilizador escolheu a opção recomendada de cada, 2026-11-22)
 
 - **App/Extension Cleaner**: remover extensões dos browsers obriga a mexer no perfil de cada um (`Preferences` do
   Chrome/Edge, `extensions.json` do Firefox) com o browser fechado — ou só listá-las e abrir a página de extensões do
-  próprio browser. Recomendado: listá-las (nome, browser, perfil, ativa) e abrir a página do browser.
+  próprio browser. Recomendado: listá-las (nome, browser, perfil, ativa) e abrir a página do browser. **Escolhido.**
 - **Game Mode / "programas parados, RAM libertada"**: parar programas termina processos do utilizador (pode perder-se
   trabalho não guardado). Recomendado: o interruptor do Modo de Jogo do próprio Windows
   (`HKCU\Software\Microsoft\GameBar\AutoGameModeEnabled`) e uma lista do que corre, fechando só o que o utilizador
-  marcar, com delicadeza (`WM_CLOSE`), nunca à força.
+  marcar, com delicadeza (`WM_CLOSE`), nunca à força. **Escolhido.**
 - **Smart RAM**: recomendado como está em "Limites honestos": mostrar a memória e libertar só a lista de espera a pedido
-  (precisa de administrador: `NtSetSystemInformation` com `MemoryPurgeStandbyList`).
+  (precisa de administrador: `NtSetSystemInformation` com `MemoryPurgeStandbyList`). **Escolhido.**
 - **Program Deactivator**: além dos itens de arranque, também serviços em arranque automático? Mexer em serviços precisa
   de administrador e pode estragar o Windows: recomendado só serviços de terceiros, com cópia do valor para desfazer.
+  **Escolhido.**
 
 ## Decisões
 

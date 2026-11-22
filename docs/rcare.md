@@ -175,21 +175,21 @@ connection to the privileged service `rtsvc` from rcare (the pages use it as the
    updates" works once there is a release; the first release (tag `rcare-v0.1.0`, a push: **ask the user**) and then
    the Scoop bucket manifest (`bucket/rcare.json`, then `checkver.ps1 -Dir bucket -Update`).
 6. ~~Startup Optimizer~~ done (2026-11-22): see its section.
-7. The rest of phase 3 needs the user's choices first (see "Decisions to ask" below), then phases 4–6.
+7. The rest of phase 3, as the user decided on 2026-11-22 (below), then phases 4–6.
 
-## Decisions to ask before the rest of phase 3
+## Decisions for the rest of phase 3 (the user chose the recommended option of each, 2026-11-22)
 
 - **App/Extension Cleaner**: removing browser extensions means editing each browser's profile (Chrome/Edge
   `Preferences`, Firefox `extensions.json`) while the browser is closed — or only listing them and opening the
-  browser's own extensions page. Recommended: list them (name, browser, profile, enabled) and open the browser's page.
+  browser's own extensions page. Recommended: list them (name, browser, profile, enabled) and open the browser's page. **Chosen.**
 - **Game Mode / "programs stopped, RAM released"**: stopping programs ends the user's processes (unsaved work can be
   lost). Recommended: Windows' own Game Mode switch (`HKCU\Software\Microsoft\GameBar\AutoGameModeEnabled`) plus a
-  list of what runs, closing only what the user ticks, politely (`WM_CLOSE`), never forcing.
+  list of what runs, closing only what the user ticks, politely (`WM_CLOSE`), never forcing. **Chosen.**
 - **Smart RAM**: recommended as written in "Honest limits": show the memory, free only the standby list on request
-  (needs administrator rights: `NtSetSystemInformation` with `MemoryPurgeStandbyList`).
+  (needs administrator rights: `NtSetSystemInformation` with `MemoryPurgeStandbyList`). **Chosen.**
 - **Program Deactivator**: services set to start automatically, besides the startup items? Changing services needs
   administrator rights and can break Windows: recommended only third-party services, with a copy of the setting to
-  undo.
+  undo. **Chosen.**
 
 ## Decisions
 
