@@ -4,6 +4,7 @@
 //! the duplicates or the disk space, each the page of a small app.
 
 use rcare::commands::{self, Cmd};
+use rcare::custom::{self, CustomPage, Part, Status};
 use rcare::i18n::{self, tf, tr};
 use rcare::pages::{self, Kind, PAGES};
 use rcare::settings::Settings;
@@ -50,6 +51,10 @@ const IDENT: rt_sys::win::Ident = rt_sys::win::Ident { name: "rcare", copydata: 
 macro_rules! page {
     ($s:expr, $p:ident => $e:expr) => {
         match PAGES[$s.selected].kind {
+            Kind::Custom => {
+                let $p = &mut $s.custom;
+                $e
+            }
             Kind::Clean => {
                 let $p = &mut $s.clean;
                 $e
@@ -79,6 +84,10 @@ struct Win {
 }
 
 struct Shell {
+    /// Custom Clean: rcare's own page, an overview of three of the others.
+    custom: CustomPage,
+    /// The large files of the last tree read by the disk space page: for which tree, and (bytes, count).
+    large_cache: Option<((usize, u64), (u64, u64))>,
     clean: CleanPage,
     dups: rdup::page::DupPage,
     size: rsize::page::SizePage,
@@ -88,7 +97,7 @@ struct Shell {
     /// The settings the uninstaller page keeps (its own file, `rinst.ini`).
     inst_settings: rinst::settings::Settings,
     /// Which pages did their first work (reading the drives, the first look).
-    started: [bool; 4],
+    started: [bool; 5],
     /// The index of the page shown.
     selected: usize,
     settings: Settings,
@@ -154,7 +163,7 @@ impl Shell {
     /// What the pages asked of the window, all together.
     fn take_fx(&mut self) -> Effects {
         let mut fx = Effects::default();
-        for e in [self.clean.fx.take(), self.dups.fx.take(), self.size.fx.take(), self.inst.fx.take()] {
+        for e in [self.custom.fx.take(), self.clean.fx.take(), self.dups.fx.take(), self.size.fx.take(), self.inst.fx.take()] {
             fx.redraw |= e.redraw;
             fx.menu_dirty |= e.menu_dirty;
             fx.save |= e.save;
@@ -230,6 +239,8 @@ impl Shell {
             return;
         }
         match PAGES[i].kind {
+            // Custom Clean does nothing before it is asked: the three analyses take a while.
+            Kind::Custom => {}
             Kind::Clean => self.clean.analyse(),
             Kind::Dups => self.dups.load_volumes(),
             Kind::Size => self.size.load_volumes(),
@@ -246,6 +257,93 @@ impl Shell {
             self.ensure_started(i);
             self.size.resized();
             self.redraw();
+        }
+    }
+
+    // ------------------------------------------------------------ Custom Clean
+
+    /// Where Custom Clean looks for duplicates and large files: the folder chosen, or the user's.
+    fn custom_folder(&self) -> std::path::PathBuf {
+        if !self.settings.custom_folder.is_empty() {
+            return std::path::PathBuf::from(&self.settings.custom_folder);
+        }
+        std::env::var_os("USERPROFILE").map(std::path::PathBuf::from).unwrap_or_else(|| std::path::PathBuf::from("C:\\"))
+    }
+
+    /// Nothing that Custom Clean starts is running.
+    fn custom_idle(&self) -> bool {
+        self.clean.app.busy.is_none() && !self.dups.searching() && !self.size.scanning()
+    }
+
+    /// How far each part got, read from the pages that do the work.
+    fn custom_status(&mut self) -> [Status; 3] {
+        let junk = if self.clean.app.busy.is_some() {
+            Status::Working
+        } else if self.started[pages::index_of("clean")] {
+            let (count, bytes) = self.clean.app.ticked_total();
+            Status::Done { bytes, count }
+        } else {
+            Status::NotYet
+        };
+        let dups = if self.dups.searching() {
+            Status::Working
+        } else if let Some(f) = &self.dups.app.found {
+            Status::Done { bytes: f.wasted(), count: f.groups.len() as u64 }
+        } else if let Some(e) = &self.dups.app.error {
+            Status::Failed(e.clone())
+        } else {
+            Status::NotYet
+        };
+        let large = if self.size.scanning() {
+            Status::Working
+        } else if let Some(scan) = &self.size.app.scan {
+            // The tree can hold millions of nodes: counted once per tree, not each frame.
+            let t = &scan.tree;
+            let key = (t.len(), t.size(t.root()));
+            let (bytes, count) = match self.large_cache {
+                Some((k, v)) if k == key => v,
+                _ => {
+                    let v = custom::large_files(t);
+                    self.large_cache = Some((key, v));
+                    v
+                }
+            };
+            Status::Done { bytes, count }
+        } else if let Some(e) = &self.size.app.error {
+            Status::Failed(e.clone())
+        } else {
+            Status::NotYet
+        };
+        [junk, dups, large]
+    }
+
+    /// Starts the three analyses: the cleaner's, a search for duplicates in
+    /// the folder, and a reading of the folder for its large files.
+    fn custom_analyze(&mut self) {
+        if !self.custom_idle() {
+            return;
+        }
+        let folder = self.custom_folder();
+        let (c, d, z) = (pages::index_of("clean"), pages::index_of("dups"), pages::index_of("size"));
+        self.started[c] = true;
+        self.clean.analyse();
+        if !std::mem::replace(&mut self.started[d], true) {
+            self.dups.load_volumes();
+        }
+        self.dups.open_paths(vec![folder.clone()]);
+        if !std::mem::replace(&mut self.started[z], true) {
+            self.size.load_volumes();
+        }
+        self.size.start_scan(&folder);
+        self.after_page();
+        self.menu_dirty = true;
+        self.redraw();
+    }
+
+    /// Opens the page that shows one part in full.
+    fn custom_review(&mut self, i: usize) {
+        if let Some(part) = Part::ALL.get(i) {
+            self.select_page(pages::index_of(part.page_id()));
         }
     }
 
@@ -276,6 +374,14 @@ impl Shell {
                 self.inst.command(c, &mut d);
                 self.after_page();
             }
+            Cmd::CustomAnalyze => self.custom_analyze(),
+            Cmd::CustomFolder => {
+                let mut d = self.dialogs();
+                if let Some(p) = d.pick_folder(&tr("Choose the folder to look in")) {
+                    self.settings.custom_folder = p.display().to_string();
+                    self.save_settings();
+                }
+            }
             Cmd::Sidebar => {
                 self.settings.sidebar_collapsed = !self.settings.sidebar_collapsed;
                 self.size.resized();
@@ -283,7 +389,7 @@ impl Shell {
             Cmd::RestartAdmin => {
                 self.save_settings();
                 let args = match PAGES[self.selected].kind {
-                    Kind::Clean => String::new(),
+                    Kind::Clean | Kind::Custom => String::new(),
                     Kind::Dups => self.dups.restart_args(),
                     Kind::Size => self.size.restart_args(),
                     Kind::Inst => String::new(),
@@ -303,6 +409,7 @@ impl Shell {
             }
             Cmd::Shortcuts => {
                 let keys = match PAGES[self.selected].kind {
+                    Kind::Custom => format!("F5\t{}", rt_core::i18n::strip_mnemonic(&tr("&Analyze"))),
                     Kind::Clean => rclean::page::shortcuts_text(),
                     Kind::Dups => rdup::page::shortcuts_text(),
                     Kind::Size => rsize::page::shortcuts_text(),
@@ -343,8 +450,9 @@ impl Shell {
             Cmd::Dups(c) => self.dups.enabled(c),
             Cmd::Size(c) => self.size.enabled(c),
             Cmd::Inst(c) => self.inst.enabled(c),
+            Cmd::CustomAnalyze | Cmd::CustomFolder => self.custom_idle(),
             Cmd::RestartAdmin => match PAGES[self.selected].kind {
-                Kind::Clean => self.clean.enabled(CleanCmd::RestartAdmin),
+                Kind::Clean | Kind::Custom => self.clean.enabled(CleanCmd::RestartAdmin),
                 Kind::Dups => self.dups.enabled(rdup::commands::Command::RestartAdmin),
                 Kind::Size => self.size.enabled(rsize::commands::Command::RestartAdmin),
                 Kind::Inst => self.inst.enabled(rinst::commands::Command::RestartAdmin),
@@ -495,7 +603,13 @@ impl Shell {
         let mut rest = full;
         let side = rest.take_left(sidebar::width(self.settings.sidebar_collapsed, s));
         self.side = sidebar::layout(side, PAGES.len(), s);
+        if PAGES[self.selected].kind == Kind::Custom {
+            self.custom.view.status = self.custom_status();
+            self.custom.view.folder = self.custom_folder().display().to_string();
+            self.custom.view.can_analyze = self.custom_idle();
+        }
         match PAGES[self.selected].kind {
+            Kind::Custom => self.custom.render(&mut self.gfx, rest, &theme, s),
             Kind::Clean => self.clean.render(&mut self.gfx, rest, &theme, s, false),
             Kind::Dups => self.dups.render(&mut self.gfx, rest, &rdup::ui::theme::Theme::new(dark, self.accent), s, false),
             Kind::Size => self.size.render(&mut self.gfx, rest, &rsize::ui::theme::Theme::new(dark, self.accent), s, false),
@@ -538,6 +652,7 @@ impl Shell {
             children.push(NodeId(11 + i as u64));
         }
         let focus = match PAGES[self.selected].kind {
+            Kind::Custom => self.custom.accessibility(&mut nodes, &mut children),
             Kind::Clean => self.clean.accessibility(&mut nodes, &mut children),
             Kind::Dups => self.dups.accessibility(&mut nodes, &mut children),
             Kind::Size => self.size.accessibility(&mut nodes, &mut children),
@@ -594,6 +709,8 @@ impl Shell {
             }
         }
         let cmd = match PAGES[self.selected].kind {
+            // Custom Clean has one key of its own: F5 analyses.
+            Kind::Custom => matches!(logical, WKey::Named(NamedKey::F5)).then_some(Cmd::CustomAnalyze),
             Kind::Clean => self.clean.key(ctrl, shift, alt, logical).map(Cmd::from_clean),
             Kind::Dups => self.dups.key(event, mods).map(Cmd::from_dups),
             Kind::Size => self.size.key(event, mods).map(Cmd::from_size),
@@ -631,6 +748,12 @@ impl Shell {
         }
         let mods: Mods = self.mods.into();
         match PAGES[self.selected].kind {
+            Kind::Custom => match self.custom.press() {
+                Some(custom::Hit::Analyze) => self.command(el, Cmd::CustomAnalyze),
+                Some(custom::Hit::Change) => self.command(el, Cmd::CustomFolder),
+                Some(custom::Hit::Review(i)) => self.custom_review(i),
+                None => {}
+            },
             Kind::Clean => {
                 let c = self.clean.press(x, y);
                 self.after_page();
@@ -667,6 +790,7 @@ impl Shell {
     /// The pointer moved with the left button down.
     fn drag(&mut self, x: f32, y: f32) {
         match PAGES[self.selected].kind {
+            Kind::Custom => {}
             Kind::Clean => {
                 if self.clean.dragging {
                     self.clean.drag_to(y);
@@ -681,7 +805,7 @@ impl Shell {
     fn right_click(&mut self, el: &ActiveEventLoop) {
         let mods: Mods = self.mods.into();
         match PAGES[self.selected].kind {
-            Kind::Clean => {}
+            Kind::Custom | Kind::Clean => {}
             Kind::Dups => {
                 let popup = self.dups.right_click();
                 self.after_page();
@@ -709,6 +833,7 @@ impl Shell {
     fn wheel(&mut self, delta: winit::event::MouseScrollDelta) {
         let s = self.scale();
         match PAGES[self.selected].kind {
+            Kind::Custom => {}
             Kind::Clean => self.clean.wheel(&mut self.gfx, s, delta, self.cursor),
             Kind::Dups => self.dups.wheel(delta, self.cursor),
             Kind::Size => self.size.wheel(delta, self.cursor),
@@ -720,6 +845,8 @@ impl Shell {
     /// When the window should wake up for the page shown, if it should.
     fn animate(&mut self) -> Option<Instant> {
         let wake = match PAGES[self.selected].kind {
+            // What the other pages report redraws it: nothing turns here.
+            Kind::Custom => None,
             Kind::Clean => self.clean.animate().then(|| Instant::now() + Duration::from_millis(40)),
             Kind::Dups => self.dups.animate().map(|d| Instant::now() + d),
             Kind::Size => self.size.animate(),
@@ -796,6 +923,9 @@ impl ApplicationHandler<UserEvent> for Shell {
                     match req.target_node.0 {
                         6 => self.dialog = None,
                         10 => self.command(el, Cmd::Sidebar),
+                        30 if PAGES[self.selected].kind == Kind::Custom => self.command(el, Cmd::CustomAnalyze),
+                        31 if PAGES[self.selected].kind == Kind::Custom => self.command(el, Cmd::CustomFolder),
+                        id @ 32..=34 if PAGES[self.selected].kind == Kind::Custom => self.custom_review(id as usize - 32),
                         id @ 11..=99 => self.select_page(id as usize - 11),
                         id => {
                             if let Some(i) = id.checked_sub(100) {
@@ -837,7 +967,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 match PAGES[self.selected].kind {
                     Kind::Dups => self.dups.drop_file(p),
                     Kind::Size => self.size.drop_file(p),
-                    Kind::Clean | Kind::Inst => {}
+                    Kind::Custom | Kind::Clean | Kind::Inst => {}
                 }
                 self.after_page();
             }
@@ -890,8 +1020,8 @@ impl ApplicationHandler<UserEvent> for Shell {
 
 const USAGE: &str = "rcare
 
-  Windows maintenance in one window. The sidebar chooses the page: the
-  cleaner of rclean, the duplicates of rdup, the disk space of rsize and
+  Windows maintenance in one window. The sidebar chooses the page: Custom
+  Clean (junk, duplicates and large files in one look), the cleaner of rclean, the duplicates of rdup, the disk space of rsize and
   the uninstaller of rinst, and more as the other tools join them.
 
 Settings are stored in %APPDATA%\\rcare, or next to the program when a file
@@ -961,13 +1091,15 @@ pub fn run() {
     let inst_settings = rinst::settings::Settings::load(&load("rinst.ini"));
     let selected = pages::index_of(&settings.page);
     let mut shell = Shell {
+        custom: CustomPage::default(),
+        large_cache: None,
         clean: CleanPage::new(app, admin, data_dir.clone(), clean_send),
         dups: rdup::page::DupPage::new(&dups_settings, &[], location.file("hashes.bin"), admin, dups_send),
         size: rsize::page::SizePage::new(size_settings, admin, size_send),
         inst: rinst::page::InstPage::new(&inst_settings, admin, data_dir, inst_send),
         dups_settings,
         inst_settings,
-        started: [false; 4],
+        started: [false; 5],
         selected,
         settings,
         location,

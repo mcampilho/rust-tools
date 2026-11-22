@@ -4,6 +4,8 @@
 /// Which page it is (what the window holds).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
+    /// rcare's own overview: junk, duplicates and large files in one look.
+    Custom,
     /// The cleaner of rclean.
     Clean,
     /// The duplicate finder of rdup.
@@ -28,6 +30,8 @@ pub struct PageInfo {
 /// The small picture before a page's name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Glyph {
+    /// Four squares: an overview.
+    Grid,
     /// A sparkle: cleaning.
     Sparkle,
     /// Two sheets, one over the other: copies.
@@ -39,6 +43,7 @@ pub enum Glyph {
 }
 
 pub const PAGES: &[PageInfo] = &[
+    PageInfo { id: "custom", kind: Kind::Custom, label: "Custom Clean", glyph: Glyph::Grid },
     PageInfo { id: "clean", kind: Kind::Clean, label: "Disk Cleaner", glyph: Glyph::Sparkle },
     PageInfo { id: "dups", kind: Kind::Dups, label: "Duplicate Files", glyph: Glyph::Copies },
     PageInfo { id: "size", kind: Kind::Size, label: "Large Files", glyph: Glyph::Bars },

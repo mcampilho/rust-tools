@@ -22,6 +22,10 @@ pub enum Cmd {
     Size(SizeCmd),
     /// A command of the uninstaller page.
     Inst(InstCmd),
+    /// Custom Clean: the junk, duplicates and large files analysed together.
+    CustomAnalyze,
+    /// Custom Clean: the folder where duplicates and large files are looked for.
+    CustomFolder,
     /// Shows the sidebar's names, or only its icons.
     Sidebar,
     /// Starts rcare again with administrator rights.
@@ -124,6 +128,8 @@ impl Cmd {
             Dups(c) => return c.label_key(),
             Size(c) => return c.label_key(),
             Inst(c) => return c.label_key(),
+            CustomAnalyze => "&Analyze",
+            CustomFolder => "Change &Folder...",
             Sidebar => "Collapse Side&bar",
             RestartAdmin => "Restart as Ad&ministrator",
             Exit => "E&xit",
@@ -163,6 +169,8 @@ pub fn shortcut(cmd: Cmd) -> Option<&'static str> {
         Dups(c) => rdup::commands::shortcut(c),
         Size(c) => rsize::commands::shortcut(c),
         Inst(c) => rinst::commands::shortcut(c),
+        // F5 belongs to the page shown; on Custom Clean it analyses.
+        CustomAnalyze => Some("F5"),
         c => BINDINGS.iter().find(|(_, x)| *x == c).map(|(k, _)| *k),
     }
 }
@@ -250,6 +258,7 @@ fn page_menus(page: usize) -> Own {
         Some(Kind::Clean) => own_menus(rclean::commands::menu_tree(), clean_is_window, Cmd::from_clean),
         Some(Kind::Dups) => own_menus(rdup::commands::menu_tree(), dups_is_window, Cmd::from_dups),
         Some(Kind::Size) => own_menus(rsize::commands::menu_tree(), size_is_window, Cmd::from_size),
+        Some(Kind::Custom) => Own { file: vec![Item::Item(CustomAnalyze), Item::Item(CustomFolder)], view: Vec::new(), rest: Vec::new() },
         Some(Kind::Inst) => own_menus(rinst::commands::menu_tree(), inst_is_window, Cmd::from_inst),
         None => Own { file: Vec::new(), view: Vec::new(), rest: Vec::new() },
     }
@@ -337,9 +346,11 @@ mod tests {
             }
             v
         };
-        assert!(all(0).contains(&Clean(CleanCmd::Analyse)));
-        assert!(all(1).contains(&Dups(DupCmd::Search)));
-        assert!(all(2).contains(&Size(SizeCmd::Rescan)));
-        assert!(all(3).contains(&Inst(InstCmd::Uninstall)));
+        let at = |id: &str| crate::pages::index_of(id);
+        assert!(all(at("custom")).contains(&CustomAnalyze));
+        assert!(all(at("clean")).contains(&Clean(CleanCmd::Analyse)));
+        assert!(all(at("dups")).contains(&Dups(DupCmd::Search)));
+        assert!(all(at("size")).contains(&Size(SizeCmd::Rescan)));
+        assert!(all(at("inst")).contains(&Inst(InstCmd::Uninstall)));
     }
 }

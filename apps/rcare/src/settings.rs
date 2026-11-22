@@ -18,6 +18,8 @@ pub struct Settings {
     pub page: String,
     /// The boxes ticked or not unlike their default in the cleaner: (target id, ticked).
     pub ticks: Vec<(String, bool)>,
+    /// Where Custom Clean looks for duplicates and large files (empty: the user's folder).
+    pub custom_folder: String,
 }
 
 impl Settings {
@@ -38,6 +40,7 @@ impl Settings {
             }),
             sidebar_collapsed: s.get("sidebar") == Some("collapsed"),
             page: s.get("page").unwrap_or("").to_string(),
+            custom_folder: s.get("custom_folder").unwrap_or("").to_string(),
             // `ticks=chrome.cache:0,win.thumbs:1`
             ticks: s
                 .get("ticks")
@@ -65,6 +68,7 @@ impl Settings {
         }
         s.set("sidebar", if self.sidebar_collapsed { "collapsed" } else { "open" });
         s.set("page", self.page.as_str());
+        s.set("custom_folder", self.custom_folder.as_str());
         s.set("ticks", self.ticks.iter().map(|(id, on)| format!("{id}:{}", u8::from(*on))).collect::<Vec<_>>().join(","));
         s
     }
@@ -83,6 +87,7 @@ mod tests {
             sidebar_collapsed: true,
             page: "clean".into(),
             ticks: vec![("chrome.cache".into(), false), ("win.thumbs".into(), true)],
+            custom_folder: "D:\\Fotos".into(),
         };
         assert_eq!(Settings::load(&Store::parse(&s.to_store().serialize("rcare"))), s);
         let bad = Settings::load(&Store::parse("theme=??\nwindow=abc\nlanguage=xx-YY\nticks=a:2,:1,b\nsidebar=wide\n"));

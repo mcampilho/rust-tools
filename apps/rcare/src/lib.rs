@@ -5,6 +5,7 @@
 
 pub mod appicon;
 pub mod commands;
+pub mod custom;
 pub mod i18n;
 pub mod pages;
 pub mod settings;

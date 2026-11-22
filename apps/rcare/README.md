@@ -26,12 +26,13 @@ Pages so far:
 
 | Page | The small tool | What it does |
 | --- | --- | --- |
+| Custom Clean | – (rcare's own) | Junk, duplicate and large files (100 MB or more) of a folder in one look, with a button to review each in its page; F5 analyses. Nothing is deleted there |
 | Disk Cleaner | [rclean](../rclean/README.md) | Temporary files, browser and package manager caches, broken shortcuts, invalid registry entries |
 | Duplicate Files | [rdup](../rdup/README.md) | Files and folders with the same contents on several drives and folders at once |
 | Large Files | [rsize](../rsize/README.md) | What takes the space on a drive or in a folder: list, file types, treemap, pie, rings |
 | Uninstall Apps | [rinst](../rinst/README.md) | The programs of every user and source, uninstalled one after another, and their leftovers |
 
-Next: Custom Clean (junk, duplicates and large files in one analysis), then
+Next:
 speed, registry, network and protection tools (see the plan). The small tools
 stay as they are: the pages are shared code, so a fix is made once.
 

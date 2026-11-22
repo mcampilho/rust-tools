@@ -144,6 +144,12 @@ fn draw_glyph(g: &mut Gfx, glyph: Glyph, r: Rect, c: rt_gfx::gfx::Color) {
             let a = r.w * 0.22;
             g.fill_polygon(&[(cx, r.y), (cx + a, r.y + a), (cx - a, r.y + a)], c);
         }
+        Glyph::Grid => {
+            let q = (r.w - 3.0) / 2.0;
+            for (dx, dy) in [(0.0, 0.0), (1.0, 0.0), (0.0, 1.0), (1.0, 1.0)] {
+                g.fill_rrect(Rect::new(r.x + dx * (q + 3.0), r.y + dy * (q + 3.0), q, q), 2.0, c);
+            }
+        }
         Glyph::Bars => {
             let bw = r.w * 0.22;
             for (i, h) in [0.55, 1.0, 0.75].iter().enumerate() {

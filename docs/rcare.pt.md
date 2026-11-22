@@ -1,7 +1,7 @@
 # rcare — suite de manutenção do Windows (plano e passagem de testemunho)
 
 Estado (2026-11-22): **as páginas da fase 0 estão feitas** — as páginas do rclean, do rdup, do rsize e do rinst estão
-atrás de uma barra lateral recolhível. Da fase 0 falta o serviço, a residência, as atualizações e o release (ver
+atrás de uma barra lateral recolhível, depois da **Custom Clean** do próprio rcare (fase 1 feita). Da fase 0 falta o serviço, a residência, as atualizações e o release (ver
 "Próximos passos"). Só Windows, sem limite de tamanho, perfil `release` (não `release-small`).
 
 O `rcare` junta numa só janela o que várias ferramentas pequenas fazem, para não ser preciso abrir várias com
@@ -22,7 +22,9 @@ System Information" na lista abaixo fica de propósito para mais tarde.
   diferentes dentro de cada menu em todas as línguas); `README.md` e `README.pt.md` atualizados em conjunto;
   `./dev.ps1 …` carrega o ambiente do MSVC.
 - Commits deste trabalho no `master`: `dedf452` (esqueleto do rcare, página do rclean), `a31480b` (páginas do rdup e do
-  rsize, `Dialogs`, `tr_from`). A página do rinst e o rcare com quatro páginas **ainda não estão commitados** (pedir).
+  rsize, `Dialogs`, `tr_from`), `2f8c234` (página do rinst), e depois a Custom Clean. **Desde 2026-11-22 o utilizador
+  deixa fazer commits sem perguntar** neste plano; os pushes, e o que fugir ao plano ou for decisão dele, continuam a
+  precisar dele.
 - Este documento tem o que é preciso para não ter de reler o código todo.
 
 ## O que existe
@@ -37,6 +39,7 @@ System Information" na lista abaixo fica de propósito para mais tarde.
 | `crates/rt-ui/src/page.rs` | `Effects`, `Dialogs` (+ `SystemDialogs`), `Mods` |
 | `crates/rt-core/src/i18n.rs` | `add` (tabelas extra), `tr_in_from`/`tr_from`/`tf_from` (uma tabela procurada primeiro) |
 | `crates/rt-core/src/menu.rs` | `M::map` (converter os comandos de um menu noutro tipo) |
+| `apps/rcare/src/custom.rs` | Custom Clean: `CustomPage` (disposição, clique, desenho, acessibilidade), `Part`, `Status`, `View`, `large_files` |
 | `docs/rcare(.pt).md` | este plano |
 
 As apps pequenas (rclean, rdup, rsize, rinst) foram religadas para usarem as mesmas páginas: continuam a funcionar
@@ -83,11 +86,24 @@ treemap).
   (cada uma afinada para os seus menus); o `Cmd::label` do rcare entrega ao `label()` da página pela mesma razão.
   Qualquer página nova tem de fazer o mesmo.
 
+## Custom Clean (página do próprio rcare, a primeira da barra lateral)
+
+Uma vista de conjunto, não um limpador: três cartões (Junk Files, Duplicate Files, Large Files) com o espaço e a
+contagem, e "Rever", que abre a página que mostra essa parte por inteiro, onde se limpa. Nesta página não se apaga
+nada. "Analisar" (F5, Ficheiro › Analisar) põe o trabalho **nas outras páginas**: o limpador analisa (o sistema todo),
+o rdup procura na pasta (`DupPage::open_paths`: as raízes escolhidas da página de duplicados passam a ser essa pasta, e
+valem os filtros dela), o rsize lê-a (`SizePage::start_scan`). A pasta é a do utilizador (`USERPROFILE`), salvo se
+"Mudar de pasta…" escolheu outra (`custom_folder=` no `settings.ini`). Ficheiros grandes são os de 100 MB ou mais
+(`custom::LARGE`), contados na árvore do rsize uma vez por árvore (`large_cache`). O shell lê o estado das páginas para
+o `View` antes de desenhar (`custom_status`); o que as páginas comunicam redesenha-a. Cartões lado a lado quando há
+largura, uns por baixo dos outros quando é estreita e alta, colunas estreitas com o botão em baixo numa janela pequena
+(imagens `custom-*.png`).
+
 ## Como o rcare funciona
 
 - `pages.rs`: `PAGES` (id guardado nas definições, `Kind`, chave do rótulo, ícone). Acrescentar uma página = um `Kind`,
   uma entrada, um ícone em `sidebar::draw_glyph`, um campo e um braço no `shell.rs` para cada operação.
-- `commands.rs`: `Cmd::{Clean(c), Dups(c), Size(c), Inst(c), Sidebar, RestartAdmin, Exit, Theme, UiLanguage,
+- `commands.rs`: `Cmd::{Clean(c), Dups(c), Size(c), Inst(c), CustomAnalyze, CustomFolder, Sidebar, RestartAdmin, Exit, Theme, UiLanguage,
   Shortcuts, CheckUpdates, About}`; `from_clean/from_dups/from_size/from_inst` convertem em comandos da janela os comandos da página que
   são dela. **Os menus saem do `menu_tree()` de cada app pequena** (`own_menus`): o que é da janela (Sair, reiniciar,
   menu do Explorador, arranque, tema, língua, ajuda) cai, os itens de Ficheiro da app vão primeiro no Ficheiro do rcare
@@ -125,9 +141,7 @@ ecrã.
 ## Próximos passos, por ordem
 
 1. ~~Página do rinst~~ feita (2026-11-22): "Uninstall Apps" na barra lateral.
-2. **Custom Clean** (fase 1): lixo, duplicados e ficheiros grandes numa só análise — uma página do próprio rcare que
-   comanda os três motores (`rt-clean`, `rt-dups`, `rt-scan`) e mostra um resumo; a primeira página que não é de uma app
-   pequena.
+2. ~~Custom Clean~~ feita (2026-11-22): ver a secção acima.
 3. Pedir ao utilizador para experimentar a janela a sério (só foi aberta e fechada). Unificar as quatro cópias de
    `Theme` (`ui/theme.rs` em cada app, iguais) no `rt-ui`, e o `Confirm` do rclean com o `Dialogs`.
 4. Ligar o rcare ao `rtsvc` para tarefas elevadas (existem as tarefas `Clean` e `UninstallMsi`:
@@ -188,7 +202,7 @@ Process Manager, Software Updater, Default Program.
 `rtsvc`, residência, atualizações, release (ver "Próximos passos").
 
 **1. Páginas existentes na barra lateral** — Disk Cleaner (rclean) ✔, Duplicate Files (rdup) ✔, Large Files (rsize)
-✔, Uninstall Apps (rinst) ✔, e **Custom Clean** (lixo, duplicados e grandes numa só análise).
+✔, Uninstall Apps (rinst) ✔, e **Custom Clean** ✔ (lixo, duplicados e grandes numa só análise).
 
 **2. Manutenção num clique** — corre em sequência os módulos disponíveis (privacidade, lixo, registo, atalhos,
 verificação de disco, saúde do software) e faz um relatório.

@@ -1,7 +1,7 @@
 # rcare — Windows maintenance suite (plan and hand-over)
 
 Status (2026-11-22): **the pages of phase 0 are done** — the pages of rclean, rdup, rsize and rinst sit behind a
-collapsible sidebar. What is left of phase 0 is the service, residency, updates and the release (see "Next steps"). Windows only, no size limit, profile `release` (not `release-small`).
+collapsible sidebar, after rcare's own **Custom Clean** (phase 1 done). What is left of phase 0 is the service, residency, updates and the release (see "Next steps"). Windows only, no size limit, profile `release` (not `release-small`).
 
 `rcare` gathers what several tiny tools do in one window, so that nothing has to be opened several times with
 administrator rights. Models: BleachBit, CCleaner, Glary Utilities, IObit Advanced SystemCare and Uninstaller,
@@ -20,7 +20,8 @@ the list below is deliberately left for later.
   visible text in `strings.txt` (10 languages, tab separated, access keys differing inside each menu in all
   languages); `README.md` and `README.pt.md` updated together; `./dev.ps1 …` loads the MSVC environment.
 - The commits of this work on `master`: `dedf452` (rcare skeleton, rclean page), `a31480b` (rdup and rsize pages,
-  `Dialogs`, `tr_from`). The rinst page and the four-page rcare are **not committed yet** (ask the user).
+  `Dialogs`, `tr_from`), `2f8c234` (rinst page), then Custom Clean. **Since 2026-11-22 the user lets commits be made
+  without asking** for this plan; pushes, and anything that leaves the plan or is their decision, still need them.
 - This document carries what is needed so that the code does not have to be re-read from scratch.
 
 ## What exists
@@ -35,6 +36,7 @@ the list below is deliberately left for later.
 | `crates/rt-ui/src/page.rs` | `Effects`, `Dialogs` (+ `SystemDialogs`), `Mods` |
 | `crates/rt-core/src/i18n.rs` | `add` (extra tables), `tr_in_from`/`tr_from`/`tf_from` (a table searched first) |
 | `crates/rt-core/src/menu.rs` | `M::map` (turn the commands of a menu into another type) |
+| `apps/rcare/src/custom.rs` | Custom Clean: `CustomPage` (layout, hit, draw, accessibility), `Part`, `Status`, `View`, `large_files` |
 | `docs/rcare(.pt).md` | this plan |
 
 The small apps (rclean, rdup, rsize, rinst) were rewired to hold the same pages, so they keep working as before and a
@@ -78,11 +80,23 @@ does **not** own the window. Read `apps/rclean/src/page.rs` (the simplest) and t
   needed because the apps translate the same English key with different access keys (each tuned to its own menus);
   rcare's `Cmd::label` delegates to the page's `label()` for the same reason. Any new page must do the same.
 
+## Custom Clean (rcare's own page, first in the sidebar)
+
+An overview, not a cleaner: three cards (Junk Files, Duplicate Files, Large Files) with the space and the count, and
+"Review", which opens the page that shows the part in full, where it is cleaned. Nothing is deleted on this page.
+"Analyze" (F5, File › Analyze) starts the work **in the other pages**: the cleaner analyses (system-wide), rdup searches
+the folder (`DupPage::open_paths`, so the duplicates page's chosen roots become that folder, and its own filters
+apply), rsize reads it (`SizePage::start_scan`). The folder is the user's (`USERPROFILE`) unless "Change Folder…"
+chose another (`custom_folder=` in `settings.ini`). Large files are files of 100 MB or more (`custom::LARGE`), counted
+from rsize's tree once per tree (`large_cache`). The shell reads the pages' state into `View` before drawing
+(`custom_status`); what the pages report redraws it. Cards side by side when wide, one under the other when narrow and
+tall, narrow columns with the button along the bottom on a small window (pictures `custom-*.png`).
+
 ## How rcare works
 
 - `pages.rs`: `PAGES` (id saved in settings, `Kind`, label key, sidebar glyph). Adding a page = a `Kind`, an entry,
   a glyph in `sidebar::draw_glyph`, a field and an arm in `shell.rs` for each operation.
-- `commands.rs`: `Cmd::{Clean(c), Dups(c), Size(c), Inst(c), Sidebar, RestartAdmin, Exit, Theme, UiLanguage,
+- `commands.rs`: `Cmd::{Clean(c), Dups(c), Size(c), Inst(c), CustomAnalyze, CustomFolder, Sidebar, RestartAdmin, Exit, Theme, UiLanguage,
   Shortcuts, CheckUpdates, About}`; `from_clean/from_dups/from_size/from_inst` turn a page command that is the
   window's into the window's.
   **Menus are built from each small app's own `menu_tree()`** (`own_menus`): what is the window's (Exit, restart,
@@ -120,8 +134,7 @@ connection to the privileged service `rtsvc` from rcare (the pages use it as the
 ## Next steps, in order
 
 1. ~~rinst page~~ done (2026-11-22): "Uninstall Apps" in the sidebar.
-2. **Custom Clean** (phase 1): junk, duplicates and large files in one analysis — a page of rcare's own that drives the
-   three engines (`rt-clean`, `rt-dups`, `rt-scan`) and shows one summary; the first page that is not a small app's.
+2. ~~Custom Clean~~ done (2026-11-22): see its section above.
 3. Ask the user to try the real window (it was only started and closed). Unify the four `Theme` copies (`ui/theme.rs`
    in each app, identical) into `rt-ui`, and rclean's `Confirm` with `Dialogs`.
 4. Connect rcare to `rtsvc` for elevated jobs (jobs `Clean`, `UninstallMsi` exist: `rt_svc::client::Client::submit_job`);
@@ -180,7 +193,7 @@ Manager, Software Updater, Default Program.
 `rtsvc`, residency, updates, release (see "Next steps").
 
 **1. Existing pages in the sidebar** — Disk Cleaner (rclean) ✔, Duplicate Files (rdup) ✔, Large Files (rsize) ✔,
-Uninstall Apps (rinst) ✔, and **Custom Clean** (junk, duplicates and large files in one analysis).
+Uninstall Apps (rinst) ✔, and **Custom Clean** ✔ (junk, duplicates and large files in one analysis).
 
 **2. One-click maintenance** — runs the available modules in sequence (privacy sweep, junk, registry, shortcuts, disk
 check, software health) and reports.
