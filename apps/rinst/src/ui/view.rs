@@ -556,7 +556,8 @@ pub fn draw(
     icons: &HashMap<usize, Pixmap>,
     enabled: &dyn Fn(crate::commands::Command) -> bool,
 ) {
-    g.clear(th.bg);
+    // Only the page's own area: in a suite the sidebar is beside it.
+    g.fill_rect(l.full, th.bg);
     draw_actions(g, app, l, th, s, hot, enabled);
     let p = px(s);
     let pad = 8.0 * s;

@@ -6,6 +6,7 @@ pub mod commands;
 pub mod i18n;
 pub mod leftovers;
 pub mod managers;
+pub mod page;
 pub mod settings;
 pub mod shortcuts;
 pub mod storage;

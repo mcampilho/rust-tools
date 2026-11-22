@@ -34,6 +34,7 @@ enum UserEvent {
     Clean(rclean::page::Event),
     Dups(rdup::page::Event),
     Size(rsize::page::Event),
+    Inst(rinst::page::Event),
     Win(rt_sys::win::WinMsg),
 }
 
@@ -61,6 +62,10 @@ macro_rules! page {
                 let $p = &mut $s.size;
                 $e
             }
+            Kind::Inst => {
+                let $p = &mut $s.inst;
+                $e
+            }
         }
     };
 }
@@ -77,10 +82,13 @@ struct Shell {
     clean: CleanPage,
     dups: rdup::page::DupPage,
     size: rsize::page::SizePage,
+    inst: rinst::page::InstPage,
     /// The settings the duplicates page keeps (its own file, `rdup.ini`).
     dups_settings: rdup::settings::Settings,
+    /// The settings the uninstaller page keeps (its own file, `rinst.ini`).
+    inst_settings: rinst::settings::Settings,
     /// Which pages did their first work (reading the drives, the first look).
-    started: [bool; 3],
+    started: [bool; 4],
     /// The index of the page shown.
     selected: usize,
     settings: Settings,
@@ -135,8 +143,10 @@ impl Shell {
         self.settings.page = PAGES[self.selected].id.to_string();
         let store = self.settings.to_store();
         self.location.save(&store);
-        // The pages of rdup and rsize keep their own settings, each in its file.
+        // The pages of rdup, rsize and rinst keep their own settings, each in its file.
         self.dups.store_into(&mut self.dups_settings);
+        self.inst.store_into(&mut self.inst_settings);
+        let _ = self.location.write_text("rinst.ini", &self.inst_settings.to_store().serialize("rinst"));
         let _ = self.location.write_text("rdup.ini", &self.dups_settings.to_store().serialize("rdup"));
         let _ = self.location.write_text("rsize.ini", &self.size.settings.to_store().serialize("rsize"));
     }
@@ -144,7 +154,7 @@ impl Shell {
     /// What the pages asked of the window, all together.
     fn take_fx(&mut self) -> Effects {
         let mut fx = Effects::default();
-        for e in [self.clean.fx.take(), self.dups.fx.take(), self.size.fx.take()] {
+        for e in [self.clean.fx.take(), self.dups.fx.take(), self.size.fx.take(), self.inst.fx.take()] {
             fx.redraw |= e.redraw;
             fx.menu_dirty |= e.menu_dirty;
             fx.save |= e.save;
@@ -167,6 +177,7 @@ impl Shell {
         if let Some((title, text)) = fx.info {
             self.clean.dragging = false;
             self.dups.dragging = false;
+            self.inst.dragging = false;
             self.dialog = Some(Message::new(&title, &text));
         }
         if fx.redraw {
@@ -194,6 +205,7 @@ impl Shell {
         self.dialog = Some(Message::new(title, text));
         self.clean.dragging = false;
         self.dups.dragging = false;
+        self.inst.dragging = false;
         self.redraw();
     }
 
@@ -221,6 +233,7 @@ impl Shell {
             Kind::Clean => self.clean.analyse(),
             Kind::Dups => self.dups.load_volumes(),
             Kind::Size => self.size.load_volumes(),
+            Kind::Inst => self.inst.refresh(),
         }
         self.after_page();
     }
@@ -258,6 +271,11 @@ impl Shell {
                 self.size.command(c, &mut d);
                 self.after_page();
             }
+            Cmd::Inst(c) => {
+                let mut d = self.dialogs();
+                self.inst.command(c, &mut d);
+                self.after_page();
+            }
             Cmd::Sidebar => {
                 self.settings.sidebar_collapsed = !self.settings.sidebar_collapsed;
                 self.size.resized();
@@ -268,6 +286,7 @@ impl Shell {
                     Kind::Clean => String::new(),
                     Kind::Dups => self.dups.restart_args(),
                     Kind::Size => self.size.restart_args(),
+                    Kind::Inst => String::new(),
                 };
                 if rt_sys::win::restart_elevated(&args) {
                     self.quit(el);
@@ -287,6 +306,7 @@ impl Shell {
                     Kind::Clean => rclean::page::shortcuts_text(),
                     Kind::Dups => rdup::page::shortcuts_text(),
                     Kind::Size => rsize::page::shortcuts_text(),
+                    Kind::Inst => rinst::page::shortcuts_text(),
                 };
                 let text = format!("Ctrl+B\t{}\n{keys}", tr("Sidebar"));
                 self.info(&tr("Keyboard shortcuts"), &text);
@@ -308,6 +328,7 @@ impl Shell {
         match c {
             Cmd::Dups(c) => self.dups.checked(c),
             Cmd::Size(c) => self.size.checked(c),
+            Cmd::Inst(c) => self.inst.checked(c),
             Cmd::Sidebar => self.settings.sidebar_collapsed,
             Cmd::Theme(t) => self.settings.theme == t,
             Cmd::UiLanguage(0) => self.settings.language.is_none(),
@@ -321,10 +342,12 @@ impl Shell {
             Cmd::Clean(c) => self.clean.enabled(c),
             Cmd::Dups(c) => self.dups.enabled(c),
             Cmd::Size(c) => self.size.enabled(c),
+            Cmd::Inst(c) => self.inst.enabled(c),
             Cmd::RestartAdmin => match PAGES[self.selected].kind {
                 Kind::Clean => self.clean.enabled(CleanCmd::RestartAdmin),
                 Kind::Dups => self.dups.enabled(rdup::commands::Command::RestartAdmin),
                 Kind::Size => self.size.enabled(rsize::commands::Command::RestartAdmin),
+                Kind::Inst => self.inst.enabled(rinst::commands::Command::RestartAdmin),
             },
             _ => true,
         }
@@ -391,6 +414,15 @@ impl Shell {
             .collect();
         if let Some(c) = rt_sys::win::menu::popup_at_cursor(hwnd, &items) {
             self.command(el, Cmd::Dups(c));
+        }
+    }
+
+    /// A menu at the pointer, asked for by the uninstaller page.
+    fn inst_popup(&mut self, el: &ActiveEventLoop, which: rinst::page::Popup) {
+        let Some(hwnd) = self.win.as_ref().map(|w| w.hwnd) else { return };
+        let page = &self.inst;
+        if let Some(c) = rt_sys::win::menu::popup_at_pointer(hwnd, which.items(), |c| page.checked(c), |c| page.enabled(c)) {
+            self.command(el, Cmd::from_inst(c));
         }
     }
 
@@ -467,6 +499,7 @@ impl Shell {
             Kind::Clean => self.clean.render(&mut self.gfx, rest, &theme, s, false),
             Kind::Dups => self.dups.render(&mut self.gfx, rest, &rdup::ui::theme::Theme::new(dark, self.accent), s, false),
             Kind::Size => self.size.render(&mut self.gfx, rest, &rsize::ui::theme::Theme::new(dark, self.accent), s, false),
+            Kind::Inst => self.inst.render(&mut self.gfx, rest, &rinst::ui::theme::Theme::new(dark, self.accent), s, false),
         }
         let state = sidebar::State { collapsed: self.settings.sidebar_collapsed, selected: self.selected, hot: self.side_hot };
         sidebar::draw(&mut self.gfx, &self.side, &theme, s, state, PAGES);
@@ -508,6 +541,7 @@ impl Shell {
             Kind::Clean => self.clean.accessibility(&mut nodes, &mut children),
             Kind::Dups => self.dups.accessibility(&mut nodes, &mut children),
             Kind::Size => self.size.accessibility(&mut nodes, &mut children),
+            Kind::Inst => self.inst.accessibility(&mut nodes, &mut children),
         };
         let mut focus = focus.unwrap_or(root);
         if let Some(dl) = &self.dialog {
@@ -563,6 +597,7 @@ impl Shell {
             Kind::Clean => self.clean.key(ctrl, shift, alt, logical).map(Cmd::from_clean),
             Kind::Dups => self.dups.key(event, mods).map(Cmd::from_dups),
             Kind::Size => self.size.key(event, mods).map(Cmd::from_size),
+            Kind::Inst => self.inst.key(event, mods).map(Cmd::from_inst),
         };
         self.after_page();
         if let Some(c) = cmd {
@@ -619,6 +654,13 @@ impl Shell {
                     self.command(el, Cmd::from_size(c));
                 }
             }
+            Kind::Inst => {
+                let c = self.inst.press(&mut self.gfx, x, y, mods);
+                self.after_page();
+                if let Some(c) = c {
+                    self.command(el, Cmd::from_inst(c));
+                }
+            }
         }
     }
 
@@ -632,6 +674,7 @@ impl Shell {
             }
             Kind::Dups => self.dups.drag(&mut self.gfx, x, y),
             Kind::Size => self.size.drag(x, y),
+            Kind::Inst => self.inst.drag(&mut self.gfx, x, y),
         }
     }
 
@@ -653,6 +696,13 @@ impl Shell {
                     self.size_popup(el, p);
                 }
             }
+            Kind::Inst => {
+                let popup = self.inst.right_click();
+                self.after_page();
+                if let Some(p) = popup {
+                    self.inst_popup(el, p);
+                }
+            }
         }
     }
 
@@ -662,6 +712,7 @@ impl Shell {
             Kind::Clean => self.clean.wheel(&mut self.gfx, s, delta, self.cursor),
             Kind::Dups => self.dups.wheel(delta, self.cursor),
             Kind::Size => self.size.wheel(delta, self.cursor),
+            Kind::Inst => self.inst.wheel(delta, self.cursor),
         }
         self.after_page();
     }
@@ -672,6 +723,7 @@ impl Shell {
             Kind::Clean => self.clean.animate().then(|| Instant::now() + Duration::from_millis(40)),
             Kind::Dups => self.dups.animate().map(|d| Instant::now() + d),
             Kind::Size => self.size.animate(),
+            Kind::Inst => self.inst.animate().then(|| Instant::now() + Duration::from_millis(40)),
         };
         self.after_page();
         wake
@@ -707,6 +759,10 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
             UserEvent::Size(e) => {
                 self.size.event(e);
+                self.after_page();
+            }
+            UserEvent::Inst(e) => {
+                self.inst.event(e);
                 self.after_page();
             }
             UserEvent::Win(rt_sys::win::WinMsg::Command(id)) => {
@@ -781,7 +837,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 match PAGES[self.selected].kind {
                     Kind::Dups => self.dups.drop_file(p),
                     Kind::Size => self.size.drop_file(p),
-                    Kind::Clean => {}
+                    Kind::Clean | Kind::Inst => {}
                 }
                 self.after_page();
             }
@@ -835,8 +891,8 @@ impl ApplicationHandler<UserEvent> for Shell {
 const USAGE: &str = "rcare
 
   Windows maintenance in one window. The sidebar chooses the page: the
-  cleaner of rclean, the duplicates of rdup and the disk space of rsize,
-  and more as the other tools join them.
+  cleaner of rclean, the duplicates of rdup, the disk space of rsize and
+  the uninstaller of rinst, and more as the other tools join them.
 
 Settings are stored in %APPDATA%\\rcare, or next to the program when a file
 named rcare.portable exists there (portable mode).";
@@ -897,18 +953,21 @@ pub fn run() {
             })
         }};
     }
-    let (clean_send, dups_send, size_send) = (sender!(Clean), sender!(Dups), sender!(Size));
-    // The settings of the pages of rdup and rsize are in their own files.
+    let (clean_send, dups_send, size_send, inst_send) = (sender!(Clean), sender!(Dups), sender!(Size), sender!(Inst));
+    // The settings of the pages of rdup, rsize and rinst are in their own files.
     let load = |name: &str| rt_core::store::Store::parse(&location.read_text(name).unwrap_or_default());
     let dups_settings = rdup::settings::Settings::load(&load("rdup.ini"));
     let size_settings = rsize::settings::Settings::load(&load("rsize.ini"));
+    let inst_settings = rinst::settings::Settings::load(&load("rinst.ini"));
     let selected = pages::index_of(&settings.page);
     let mut shell = Shell {
-        clean: CleanPage::new(app, admin, data_dir, clean_send),
+        clean: CleanPage::new(app, admin, data_dir.clone(), clean_send),
         dups: rdup::page::DupPage::new(&dups_settings, &[], location.file("hashes.bin"), admin, dups_send),
         size: rsize::page::SizePage::new(size_settings, admin, size_send),
+        inst: rinst::page::InstPage::new(&inst_settings, admin, data_dir, inst_send),
         dups_settings,
-        started: [false; 3],
+        inst_settings,
+        started: [false; 4],
         selected,
         settings,
         location,

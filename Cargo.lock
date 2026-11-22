@@ -2682,6 +2682,7 @@ dependencies = [
  "accesskit_winit",
  "rclean",
  "rdup",
+ "rinst",
  "rsize",
  "rt-build",
  "rt-clean",

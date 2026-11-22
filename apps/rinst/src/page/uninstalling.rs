@@ -1,17 +1,17 @@
-//! Uninstalling the programs selected: asking first, a queue on a thread
+//! Uninstalling the programs selected (part of the page): asking first, a queue on a thread
 //! of its own (one uninstaller at a time, each waited for with what it
 //! starts), the line above the list while it runs, reading the programs
 //! again, and a report of what is gone and what is still there.
 
 use super::*;
-use rinst::app::Mark;
-use rinst::leftovers;
-use rinst::uninstall::{self, How, Outcome, Plan};
+use crate::app::Mark;
+use crate::leftovers;
+use crate::uninstall::{self, How, Outcome, Plan};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 /// What the queue's thread says.
-pub(super) enum JobMsg {
+pub enum JobMsg {
     /// It starts the `i`th (0-based).
     Start(usize),
     Done(usize, Outcome),
@@ -25,7 +25,7 @@ pub(super) struct Job {
     /// there), and how it went.
     pub items: Vec<(String, String, Option<Outcome>)>,
     /// The programs, in the same order (to look for their leftovers).
-    pub programs: Vec<rinst::inventory::Program>,
+    pub programs: Vec<crate::inventory::Program>,
     pub modify: bool,
 }
 
@@ -56,13 +56,13 @@ fn outcome_text(o: &Outcome) -> String {
     }
 }
 
-impl Shell {
+impl InstPage {
     pub(super) fn busy(&self) -> bool {
         self.job.is_some()
     }
 
     /// Asks, then uninstalls (or changes) the programs selected.
-    pub(super) fn uninstall(&mut self, how: How) {
+    pub(super) fn uninstall(&mut self, how: How, dialogs: &mut dyn Dialogs) {
         let Some(found) = &self.app.found else { return };
         let me = &found.inv.me;
         let mut chosen = self.app.chosen_programs();
@@ -74,9 +74,9 @@ impl Shell {
         if plans.is_empty() {
             return;
         }
-        let progs: Vec<rinst::inventory::Program> = chosen.iter().map(|p| (*p).clone()).collect();
+        let progs: Vec<crate::inventory::Program> = chosen.iter().map(|p| (*p).clone()).collect();
         let (can, cannot): (Vec<_>, Vec<_>) = plans.into_iter().zip(progs).partition(|((_, _, p), _)| !matches!(p, Plan::Cannot(_)));
-        let programs: Vec<rinst::inventory::Program> = can.iter().chain(cannot.iter()).map(|(_, p)| p.clone()).collect();
+        let programs: Vec<crate::inventory::Program> = can.iter().chain(cannot.iter()).map(|(_, p)| p.clone()).collect();
         let can: Vec<(String, String, Plan)> = can.into_iter().map(|(x, _)| x).collect();
         let cannot: Vec<(String, String, Plan)> = cannot.into_iter().map(|(x, _)| x).collect();
         let cannot_text: Vec<String> = cannot
@@ -92,7 +92,7 @@ impl Shell {
             } else {
                 tr("None of these programs can be uninstalled from here:")
             };
-            self.info(&tr("Uninstall"), &format!("{head}\n\n{}", cannot_text.join("\n")));
+            self.fx.info(&tr("Uninstall"), &format!("{head}\n\n{}", cannot_text.join("\n")));
             return;
         }
         if how != How::Modify {
@@ -109,7 +109,7 @@ impl Shell {
                 text += "\n";
                 text += &cannot_text.join("\n");
             }
-            if !self.confirm(&tr("Uninstall"), &text) {
+            if !dialogs.confirm(&tr("Uninstall"), &text) {
                 return;
             }
         }
@@ -123,7 +123,7 @@ impl Shell {
             (n.clone(), k.clone(), Some(Outcome::Cannot(why)))
         }));
         let queue = can.iter().map(|(n, k, _)| (k.clone(), n.clone(), Mark::Waiting)).collect();
-        self.app.busy = Some(rinst::app::Busy {
+        self.app.busy = Some(crate::app::Busy {
             items: queue,
             phase: 0.0,
             name: can[0].0.clone(),
@@ -134,21 +134,21 @@ impl Shell {
         });
         self.job_started = Some(std::time::Instant::now());
         self.job = Some(Job { stop: stop.clone(), items, programs, modify: how == How::Modify });
-        let proxy = self.proxy.clone();
+        let send = self.send.clone();
         let plans: Vec<Plan> = can.into_iter().map(|(_, _, p)| p).collect();
         std::thread::spawn(move || {
             for (i, plan) in plans.iter().enumerate() {
                 if stop.load(Ordering::Relaxed) {
                     break;
                 }
-                let _ = proxy.send_event(UserEvent::Job(JobMsg::Start(i)));
+                send(Event::Job(JobMsg::Start(i)));
                 let out = uninstall::carry_out(plan);
-                let _ = proxy.send_event(UserEvent::Job(JobMsg::Done(i, out)));
+                send(Event::Job(JobMsg::Done(i, out)));
             }
-            let _ = proxy.send_event(UserEvent::Job(JobMsg::Finished));
+            send(Event::Job(JobMsg::Finished));
         });
-        self.menu_dirty = true;
-        self.redraw();
+        self.fx.menus();
+        self.fx.redraw();
         self.update_pointer();
     }
 
@@ -157,7 +157,7 @@ impl Shell {
         if let (Some(job), Some(b)) = (&self.job, &mut self.app.busy) {
             job.stop.store(true, Ordering::Relaxed);
             b.stopping = true;
-            self.redraw();
+            self.fx.redraw();
         }
     }
 
@@ -191,16 +191,9 @@ impl Shell {
                 self.refresh();
             }
         }
-        self.menu_dirty = true;
-        self.redraw();
+        self.fx.menus();
+        self.fx.redraw();
         self.update_pointer();
-    }
-
-    /// The pointer's shape follows whether it is working.
-    fn update_pointer(&mut self) {
-        if let Some((x, y)) = self.cursor {
-            self.pointer(x, y);
-        }
     }
 
     /// After reading again: what is gone, what is still there.
@@ -209,8 +202,8 @@ impl Shell {
         let Some(found) = &self.app.found else { return };
         // A dpkg package whose settings are all that is left is gone.
         let still = |key: &str, name: &str| {
-            rinst::app::Tab::LISTS.iter().any(|&t| {
-                found.list(t).iter().any(|p| p.key == key && p.name == name && !p.problems.contains(&rinst::inventory::Problem::ConfigOnly))
+            crate::app::Tab::LISTS.iter().any(|&t| {
+                found.list(t).iter().any(|p| p.key == key && p.name == name && !p.problems.contains(&crate::inventory::Problem::ConfigOnly))
             })
         };
         let (mut gone, mut there, mut failed, mut skipped) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
@@ -229,7 +222,7 @@ impl Shell {
                     } else {
                         gone.push(format!("  {name}"));
                         // Features and the tools' packages leave nothing of their own name.
-                        use rinst::inventory::Source;
+                        use crate::inventory::Source;
                         if !matches!(prog.sources.first(), Some(Source::Dism | Source::Npm | Source::Pip | Source::Cargo | Source::Vcpkg)) {
                             removed.push(prog.clone());
                         }
@@ -260,11 +253,11 @@ impl Shell {
             parts.push(tr("rinst is now looking for what they left behind: see the Leftovers tab."));
             self.look_for_leftovers(removed);
         }
-        self.info(&tr("Uninstall"), &parts.join("\n\n"));
+        self.fx.info(&tr("Uninstall"), &parts.join("\n\n"));
     }
 
     /// Looks, on a thread, for what the programs uninstalled left behind.
-    fn look_for_leftovers(&mut self, gone: Vec<rinst::inventory::Program>) {
+    fn look_for_leftovers(&mut self, gone: Vec<crate::inventory::Program>) {
         self.search_leftovers(Some(gone));
     }
 
@@ -276,16 +269,16 @@ impl Shell {
 
     /// Looks on a thread: for the leftovers of `gone`, or (None) of programs
     /// removed before.
-    fn search_leftovers(&mut self, gone: Option<Vec<rinst::inventory::Program>>) {
+    fn search_leftovers(&mut self, gone: Option<Vec<crate::inventory::Program>>) {
         let Some(found) = &self.app.found else { return };
         let me = found.inv.me.clone();
-        let installed: Vec<rinst::inventory::Program> =
-            rinst::app::Tab::LISTS.iter().flat_map(|&t| found.list(t).iter().cloned()).collect();
+        let installed: Vec<crate::inventory::Program> =
+            crate::app::Tab::LISTS.iter().flat_map(|&t| found.list(t).iter().cloned()).collect();
         let shortcuts = found.shortcuts.clone();
         let admin = self.admin;
-        let proxy = self.proxy.clone();
+        let send = self.send.clone();
         let asked = gone.is_none();
-        self.app.set_leftovers(Some(rinst::app::Leftovers { searching: true, ..Default::default() }), asked);
+        self.app.set_leftovers(Some(crate::app::Leftovers { searching: true, ..Default::default() }), asked);
         std::thread::spawn(move || {
             let stop = AtomicBool::new(false);
             let cx = leftovers::Context { me: &me, admin, installed: &installed, shortcuts: &shortcuts };
@@ -293,29 +286,29 @@ impl Shell {
                 Some(g) => leftovers::find(g, &cx, &stop),
                 None => leftovers::find_orphans(&cx, &stop),
             };
-            let _ = proxy.send_event(UserEvent::Leftovers(items));
+            send(Event::Leftovers(items));
         });
-        self.menu_dirty = true;
-        self.redraw();
+        self.fx.menus();
+        self.fx.redraw();
     }
 
     pub(super) fn leftovers_found(&mut self, items: Vec<leftovers::Leftover>) {
         if items.is_empty() {
             // Asked for and looked at: say so.
-            let watching = self.app.tab == rinst::app::Tab::Leftovers;
+            let watching = self.app.tab == crate::app::Tab::Leftovers;
             self.app.set_leftovers(None, false);
             self.app.note = Some(tr("Nothing was left behind."));
             if watching {
-                self.info(&tr("Find Leftovers"), &tr("Nothing was left behind."));
+                self.fx.info(&tr("Find Leftovers"), &tr("Nothing was left behind."));
             }
         } else {
             let keep_tab = self.app.tab;
-            self.app.leftovers = Some(rinst::app::Leftovers::new(items));
+            self.app.leftovers = Some(crate::app::Leftovers::new(items));
             self.app.tab = keep_tab;
             self.app.rebuild();
         }
-        self.menu_dirty = true;
-        self.redraw();
+        self.fx.menus();
+        self.fx.redraw();
     }
 
     /// The folder of the leftover selected (a file's: the one holding it).
@@ -330,7 +323,7 @@ impl Shell {
     }
 
     /// Asks, then removes the leftovers ticked on a thread.
-    pub(super) fn remove_leftovers(&mut self) {
+    pub(super) fn remove_leftovers(&mut self, dialogs: &mut dyn Dialogs) {
         let Some(lo) = &self.app.leftovers else { return };
         let chosen = lo.chosen();
         if chosen.is_empty() {
@@ -343,17 +336,11 @@ impl Shell {
             let t = rt_sys::local_time();
             format!("{:04}-{:02}-{:02} {:02}{:02}{:02}", t.year, t.month, t.day, t.hour, t.minute, t.second)
         };
-        let dir = self
-            .location
-            .dir
-            .clone()
-            .or_else(|| std::env::current_exe().ok().and_then(|e| e.parent().map(|p| p.to_path_buf())))
-            .unwrap_or_else(std::env::temp_dir)
-            .join("backups");
+        let dir = self.data_dir.join("backups");
         let backup = dir.join(format!("leftovers {stamp}.reg"));
         let mut text = tf("{} leftovers will be removed:", &[&items.len().to_string()]);
         text += "\n\n";
-        let list: Vec<String> = items.iter().take(12).map(|l| format!("  {}", rinst::ui::leftovers_view::what(l))).collect();
+        let list: Vec<String> = items.iter().take(12).map(|l| format!("  {}", crate::ui::leftovers_view::what(l))).collect();
         text += &list.join("\n");
         if items.len() > 12 {
             text += &format!("\n  {}", tf("and {} more", &[&(items.len() - 12).to_string()]));
@@ -366,20 +353,20 @@ impl Shell {
             text += "\n\n";
             text += &tf("{} registry keys and values are saved first to {}.", &[&keys.to_string(), &backup.display().to_string()]);
         }
-        if !self.confirm(&tr("Remove the leftovers"), &text) {
+        if !dialogs.confirm(&tr("Remove the leftovers"), &text) {
             return;
         }
         if let Some(lo) = &mut self.app.leftovers {
             lo.removing = true;
         }
         self.app.note = Some(tr("Removing the leftovers…"));
-        let proxy = self.proxy.clone();
+        let send = self.send.clone();
         std::thread::spawn(move || {
             let results = leftovers::remove(&items, &backup);
-            let _ = proxy.send_event(UserEvent::Removed(chosen.into_iter().zip(results).collect(), backup));
+            send(Event::Removed(chosen.into_iter().zip(results).collect(), backup));
         });
-        self.menu_dirty = true;
-        self.redraw();
+        self.fx.menus();
+        self.fx.redraw();
     }
 
     pub(super) fn leftovers_removed(&mut self, results: Vec<(usize, leftovers::Removed)>, backup: &std::path::Path) {
@@ -395,7 +382,7 @@ impl Shell {
                     keys |= matches!(lo.items[i].kind, leftovers::Kind::Key | leftovers::Kind::Value);
                 }
                 Err(e) => {
-                    failed.push(format!("  {}: {e}", rinst::ui::leftovers_view::what(&lo.items[i])));
+                    failed.push(format!("  {}: {e}", crate::ui::leftovers_view::what(&lo.items[i])));
                     lo.failed[i] = Some(e);
                     lo.ticked[i] = false;
                 }
@@ -433,21 +420,7 @@ impl Shell {
         if !failed.is_empty() {
             parts.push(format!("{}\n{}", tf("Did not work ({}):", &[&failed.len().to_string()]), failed.join("\n")));
         }
-        self.info(&tr("Remove the leftovers"), &parts.join("\n\n"));
-        self.menu_dirty = true;
-    }
-
-    /// Asks before doing something; true for yes.
-    fn confirm(&mut self, title: &str, text: &str) -> bool {
-        #[cfg(windows)]
-        {
-            use rt_sys::win::dialogs::{message, Answer, Buttons, Icon};
-            let hwnd = self.win.as_ref().map_or(std::ptr::null_mut(), |w| w.hwnd);
-            message(hwnd, title, text, Buttons::OkCancel, Icon::Warning) == Answer::Ok
-        }
-        #[cfg(not(windows))]
-        {
-            rt_sys::linux::dialogs::confirm(title, text)
-        }
+        self.fx.info(&tr("Remove the leftovers"), &parts.join("\n\n"));
+        self.fx.menus();
     }
 }

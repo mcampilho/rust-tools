@@ -1,60 +1,43 @@
 //! rinst: a portable uninstaller.
 //!
 //! The window is driven by winit and drawn on the CPU (tiny-skia + ab_glyph)
-//! into a softbuffer surface. The programs and their shortcuts are read on a
-//! background thread, then their icons, one batch at a time.
+//! into a softbuffer surface. The page itself (the programs read on threads,
+//! their icons, uninstalling, the leftovers, drawing, keyboard and mouse) is
+//! `rinst::page::InstPage`, shared with rcare; this file is the window around it.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use rinst::app::{App, Col, Found, Whose};
 use rinst::commands::{self, Command};
 use rinst::i18n::{self, tf, tr};
+use rinst::page::{shortcuts_text, InstPage, Popup};
 use rinst::settings::Settings;
 use rinst::storage;
 use rinst::ui::gfx::{Color, Gfx, Rect};
 use rinst::ui::theme::Theme;
-use rinst::ui::view::{self, Hot, Layout};
+use rt_ui::page::SystemDialogs;
 use rt_ui::Message;
-use std::collections::HashMap;
 use std::num::NonZeroU32;
-use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use tiny_skia::Pixmap;
+use std::sync::Arc;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
-use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
+#[cfg(not(windows))]
+use winit::event::MouseScrollDelta;
+use winit::event::{ElementState, MouseButton, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
-use winit::keyboard::{Key as WKey, ModifiersState, NamedKey};
+use winit::keyboard::ModifiersState;
 use winit::window::{CursorIcon, Theme as WinTheme, Window, WindowId};
 
 mod input;
 mod menus;
 mod render;
-mod uninstalling;
-
-/// An icon read: the program's index, and its pixels (width, height, RGBA).
-type Icon = (usize, u32, u32, Vec<u8>);
 
 enum UserEvent {
     /// A step of Check for Updates.
     Update(rt_ui::update::Step),
     A11y(accesskit_winit::Event),
-    /// The programs read, for the reading of this generation.
-    Read(u64, Box<Found>),
-    /// Icons read (only Windows reads them yet).
-    #[cfg_attr(not(windows), allow(dead_code))]
-    Icons(u64, Vec<Icon>),
-    /// The uninstalling queue.
-    Job(uninstalling::JobMsg),
-    /// What the programs uninstalled left behind.
-    Leftovers(Vec<rinst::leftovers::Leftover>),
-    /// How removing the leftovers ticked went (their indexes), and the
-    /// `.reg` file with the keys.
-    Removed(Vec<(usize, rinst::leftovers::Removed)>, std::path::PathBuf),
-    /// What `winget list` said (None: winget is not there, or failed).
-    Winget(u64, Option<Vec<rinst::winget::Row>>),
-    /// The tabs of DISM and the development tools that are there.
-    Tools(u64, Vec<(rinst::app::Tab, Vec<rinst::inventory::Program>)>),
+    /// What a thread of the page reports.
+    Page(rinst::page::Event),
     #[cfg(windows)]
     Win(rt_sys::win::WinMsg),
     /// The tray icon and other launches (Linux).
@@ -82,7 +65,7 @@ struct Win {
 }
 
 struct Shell {
-    app: App,
+    page: InstPage,
     settings: Settings,
     location: storage::Location,
     gfx: Gfx,
@@ -95,32 +78,8 @@ struct Shell {
     menu_dark: Option<bool>,
     menu_dirty: bool,
     menu_rebuild: bool,
-    layout: Layout,
-    hot: Hot,
-    dragging: bool,
-    /// Selecting the search's text with the pointer held down.
-    selecting: bool,
-    /// The last left click in the search (when, where), to see a double click.
-    last_click: Option<(std::time::Instant, f32)>,
     cursor_icon: CursorIcon,
-    generation: u64,
-    /// The next reading is the first: it may come from the privileged service.
-    first_load: bool,
-    /// The icons read so far, by program index.
-    icons: HashMap<usize, Pixmap>,
-    /// winget's answer when it came before the list.
-    pending_winget: Option<Option<Vec<rinst::winget::Row>>>,
-    /// The tools' tabs when they came before the list.
-    pending_tools: Option<Vec<(rinst::app::Tab, Vec<rinst::inventory::Program>)>>,
-    /// Running with administrator rights: every user can be read.
-    admin: bool,
     dialog: Option<Message>,
-    /// Uninstalling now, and, once it is done, the report waiting for the
-    /// list read again.
-    job: Option<uninstalling::Job>,
-    report: Option<uninstalling::Job>,
-    /// When the queue started, for what turns while it runs.
-    job_started: Option<std::time::Instant>,
     #[cfg(not(windows))]
     menu: rinst::ui::menu::Menu,
     /// Resident mode (`--tray`): closing the window hides it to the
@@ -135,15 +94,6 @@ struct Shell {
     explorer_menu: bool,
     #[cfg(not(windows))]
     resident: Option<rt_sys::linux::shell::Shell>,
-}
-
-/// Straight RGBA to a pixmap (premultiplied).
-fn pixmap(w: u32, h: u32, rgba: &[u8]) -> Option<Pixmap> {
-    let mut pm = Pixmap::new(w, h)?;
-    for (d, s) in pm.pixels_mut().iter_mut().zip(rgba.as_chunks::<4>().0) {
-        *d = tiny_skia::ColorU8::from_rgba(s[0], s[1], s[2], s[3]).premultiply();
-    }
-    Some(pm)
 }
 
 impl Shell {
@@ -176,77 +126,47 @@ impl Shell {
         if let Some(w) = &self.win {
             rt_ui::window::remember_size(&w.window, &mut self.settings.window);
         }
-        self.settings.whose = self.app.whose;
-        self.settings.show_system = self.app.show_system;
-        self.settings.show_updates = self.app.show_updates;
+        self.page.store_into(&mut self.settings);
         let store = self.settings.to_store();
         self.location.save(&store);
     }
 
-    /// Reads the programs and their shortcuts on a thread, then their icons.
-    fn refresh(&mut self) {
-        self.generation += 1;
-        let gen = self.generation;
-        self.app.loading = true;
-        self.pending_winget = None;
-        let proxy = self.proxy.clone();
-        // winget takes seconds: on a thread of its own, joined when it answers.
-        let p2 = proxy.clone();
-        std::thread::spawn(move || {
-            let rows = rinst::winget::run().map(|t| rinst::winget::parse(&t));
-            let _ = p2.send_event(UserEvent::Winget(gen, rows));
-        });
-        // DISM, npm and pip take a second or more too.
-        self.pending_tools = None;
-        let p3 = proxy.clone();
-        let admin = self.admin;
-        // The first reading may come from the privileged service, if it runs and is not elevated
-        // already: a user who asks again (or uninstalls something) wants what is there now.
-        let use_snapshot = std::mem::take(&mut self.first_load) && !admin;
-        std::thread::spawn(move || {
-            let tools = rinst::tools::read_all(&rinst::inventory::me(), admin);
-            let _ = p3.send_event(UserEvent::Tools(gen, tools));
-        });
-        std::thread::spawn(move || {
-            let (inv, service_age) = match use_snapshot.then(|| rt_inst::snapshot::fetch(24 * 3600)).flatten() {
-                Some((mut inv, age)) => {
-                    inv.me = rinst::inventory::me();
-                    (inv, Some(age))
-                }
-                None => (rinst::inventory::read(), None),
-            };
-            let shortcuts = rinst::shortcuts::read(&inv.me, &inv.other_users);
-            let mut found = Found::new(inv, shortcuts);
-            found.service_age = service_age;
-            let scoop = rinst::managers::scoop_all(&found.inv.me);
-            found.scoop = (!scoop.is_empty()).then_some(scoop);
-            found.chocolatey = rinst::managers::choco_root().map(|r| rinst::managers::choco_packages(&r));
-            #[cfg(not(windows))]
-            {
-                found.flatpak = rinst::linux_pkgs::flatpak(&found.inv.me.name);
-                found.snap = rinst::linux_pkgs::snap();
+    /// The system's dialogs, over this window.
+    fn dialogs(&self) -> SystemDialogs {
+        SystemDialogs {
+            #[cfg(windows)]
+            hwnd: self.win.as_ref().map_or(std::ptr::null_mut(), |w| w.hwnd),
+        }
+    }
+
+    /// Takes what the page asked of the window, and its pointer's shape.
+    fn after_page(&mut self) {
+        let fx = self.page.fx.take();
+        if fx.menu_dirty {
+            self.menu_dirty = true;
+        }
+        if fx.save {
+            self.save_settings();
+        }
+        if let Some((title, text)) = fx.info {
+            self.page.dragging = false;
+            self.dialog = Some(Message::new(&title, &text));
+        }
+        if fx.redraw {
+            self.redraw();
+        }
+        let icon = self.page.cursor_icon;
+        if icon != self.cursor_icon {
+            self.cursor_icon = icon;
+            if let Some(w) = &self.win {
+                w.window.set_cursor(icon);
             }
-            let wanted: Vec<IconOf> = found
-                .inv
-                .programs
-                .iter()
-                .enumerate()
-                .filter_map(|(i, p)| match (&p.icon, &p.app_id) {
-                    (Some((f, n)), _) => Some((i, IconFrom::File(f.clone(), *n))),
-                    (None, Some(a)) => Some((i, IconFrom::App(a.clone()))),
-                    _ => None,
-                })
-                .collect();
-            let _ = proxy.send_event(UserEvent::Read(gen, Box::new(found)));
-            read_icons(gen, wanted, &proxy);
-        });
-        self.menu_dirty = true;
-        self.redraw();
+        }
     }
 
     fn update_title(&self) {
         let Some(w) = &self.win else { return };
-        let title = if self.admin { format!("rinst ({})", tr("Administrator")) } else { "rinst".to_string() };
+        let title = if self.page.admin { format!("rinst ({})", tr("Administrator")) } else { "rinst".to_string() };
         if w.window.title() != title {
             w.window.set_title(&title);
         }
@@ -255,24 +175,15 @@ impl Shell {
     // ------------------------------------------------------------ commands
 
     fn command(&mut self, el: &ActiveEventLoop, cmd: Command) {
-        // Delete on the leftovers removes them.
-        let leftovers_tab = self.app.tab == rinst::app::Tab::Leftovers;
-        let cmd = match cmd {
-            Command::Uninstall | Command::UninstallQuiet if leftovers_tab => Command::RemoveLeftovers,
-            Command::OpenFolder if leftovers_tab => Command::OpenLeftover,
-            c => c,
-        };
+        let mut dialogs = self.dialogs();
+        if self.page.command(cmd, &mut dialogs) {
+            self.after_page();
+            return;
+        }
         if !self.enabled(cmd) {
             return;
         }
-        let copy = |text: String, app: &mut App| {
-            if !text.is_empty() {
-                rt_sys::set_clipboard_text(&text);
-                app.note = Some(tr("Copied to the clipboard."));
-            }
-        };
         match cmd {
-            Command::Refresh => self.refresh(),
             #[cfg(windows)]
             Command::RestartAdmin => {
                 self.save_settings();
@@ -280,11 +191,6 @@ impl Shell {
                     self.quit(el);
                 }
             }
-            Command::Export => self.export(),
-            Command::Uninstall => self.uninstall(rinst::uninstall::How::Normal),
-            Command::UninstallQuiet => self.uninstall(rinst::uninstall::How::Quiet),
-            Command::Modify => self.uninstall(rinst::uninstall::How::Modify),
-            Command::SelectAll => self.app.select_all(),
             Command::Exit => self.quit(el),
             #[cfg(windows)]
             Command::ExplorerMenu => {
@@ -298,59 +204,6 @@ impl Shell {
                 Ok(()) => self.autostart = rt_sys::autostart::enabled("rinst"),
                 Err(e) => self.info("rinst", &tf("Cannot change how it starts: {}", &[&e])),
             },
-            Command::OpenLeftover => {
-                if let Some(dir) = self.leftover_folder() {
-                    open_path(&dir);
-                }
-            }
-            Command::OpenFolder => {
-                if let Some(dir) = self.app.selected().and_then(folder_of) {
-                    open_path(&dir);
-                }
-            }
-            Command::TextCut => {
-                let mut cut = String::new();
-                self.app.edit_search(|t| cut = t.cut());
-                rt_sys::set_clipboard_text(&cut);
-            }
-            Command::TextCopy => {
-                rt_sys::set_clipboard_text(self.app.search.selected_text());
-            }
-            Command::TextPaste => self.paste(),
-            Command::TextDelete => self.app.edit_search(|t| t.delete(false, false)),
-            Command::TextSelectAll => self.app.edit_search(|t| t.select_all()),
-            Command::FindLeftovers => self.look_for_orphans(),
-            Command::RemoveLeftovers => self.remove_leftovers(),
-            Command::CloseLeftovers => self.app.set_leftovers(None, false),
-            Command::CopyName => {
-                let t = self.app.selected().map(|p| p.name.clone()).unwrap_or_default();
-                copy(t, &mut self.app);
-            }
-            Command::CopyCommand => {
-                let t = self.app.selected().and_then(|p| p.uninstall.clone()).unwrap_or_default();
-                copy(t, &mut self.app);
-            }
-            Command::CopyKey => {
-                let t = self.app.selected().map(|p| p.key.clone()).unwrap_or_default();
-                copy(t, &mut self.app);
-            }
-            Command::CopyDetails => {
-                let t = view::details_text(&self.app);
-                copy(t, &mut self.app);
-            }
-            Command::ClearSearch => self.app.clear_search(),
-            Command::Whose(i) => {
-                self.app.whose = Whose::ALL[(i as usize).min(3)];
-                self.app.rebuild();
-            }
-            Command::ShowSystem => {
-                self.app.show_system = !self.app.show_system;
-                self.app.rebuild();
-            }
-            Command::ShowUpdates => {
-                self.app.show_updates = !self.app.show_updates;
-                self.app.rebuild();
-            }
             Command::Theme(t) => {
                 self.settings.theme = t;
                 self.apply_window_theme();
@@ -368,6 +221,7 @@ impl Shell {
                 );
                 self.info(&tr("About rinst"), &text);
             }
+            _ => {}
         }
         self.menu_dirty = true;
         self.redraw();
@@ -378,54 +232,20 @@ impl Shell {
             Command::Theme(t) => self.settings.theme == t,
             Command::UiLanguage(0) => self.settings.language.is_none(),
             Command::UiLanguage(i) => self.settings.language == i18n::Lang::ALL.get(i as usize - 1).copied(),
-            Command::Whose(i) => Whose::ALL.get(i as usize) == Some(&self.app.whose),
-            Command::ShowSystem => self.app.show_system,
-            Command::ShowUpdates => self.app.show_updates,
             Command::Autostart => self.autostart,
             #[cfg(windows)]
             Command::ExplorerMenu => self.explorer_menu,
-            _ => false,
+            c => self.page.checked(c),
         }
     }
 
     fn enabled(&self, c: Command) -> bool {
-        let sel = self.app.selected();
-        let leftovers_tab = self.app.tab == rinst::app::Tab::Leftovers;
-        let lo_idle = self.app.leftovers.as_ref().is_some_and(|l| !l.searching && !l.removing);
-        match c {
-            #[cfg(windows)]
-            Command::RestartAdmin => !self.admin,
-            Command::Refresh => !self.app.loading && !self.busy(),
-            Command::RemoveLeftovers => leftovers_tab && lo_idle && !self.app.chosen().is_empty(),
-            Command::FindLeftovers => {
-                !self.busy() && self.app.found.is_some() && self.app.leftovers.as_ref().is_none_or(|l| !l.searching && !l.removing)
-            }
-            Command::CloseLeftovers => lo_idle,
-            Command::OpenLeftover | Command::OpenFolder if leftovers_tab => self.leftover_folder().is_some(),
-            Command::OpenLeftover => false,
-            Command::CopyDetails if leftovers_tab => !self.app.rows.is_empty(),
-            Command::Uninstall | Command::UninstallQuiet if leftovers_tab => lo_idle && !self.app.chosen().is_empty(),
-            Command::Modify | Command::CopyName | Command::CopyKey | Command::CopyCommand | Command::Export if leftovers_tab => false,
-            Command::Uninstall | Command::UninstallQuiet => !self.busy() && !self.app.chosen().is_empty(),
-            // On for one program: when it has nothing to change with, a click
-            // says why (a button always off says nothing).
-            Command::Modify => !self.busy() && self.app.chosen_programs().len() == 1,
-            Command::TextCut | Command::TextCopy | Command::TextDelete => self.app.search.selection().is_some(),
-            Command::TextPaste => rt_sys::clipboard_text().is_some_and(|t| !t.is_empty()),
-            Command::TextSelectAll => !self.app.search.text.is_empty(),
-            Command::SelectAll => !self.app.rows.is_empty(),
-            Command::Export => !self.app.rows.is_empty(),
-            Command::OpenFolder => sel.and_then(folder_of).is_some(),
-            Command::CopyName | Command::CopyKey | Command::CopyDetails => sel.is_some(),
-            Command::CopyCommand => sel.is_some_and(|p| p.uninstall.is_some()),
-            Command::ClearSearch => !self.app.search.text.is_empty(),
-            _ => true,
-        }
+        self.page.enabled(c)
     }
 
     fn info(&mut self, title: &str, text: &str) {
         self.dialog = Some(Message::new(title, text));
-        self.dragging = false;
+        self.page.dragging = false;
         self.redraw();
     }
 
@@ -474,8 +294,7 @@ impl Shell {
             self.cursor = None;
         }
         self.hidden = true;
-        self.dragging = false;
-        self.selecting = false;
+        self.page.release();
         // Release the frame buffer while hidden.
         self.gfx.resize(1, 1);
         self.gfx.trim_cache();
@@ -498,47 +317,33 @@ impl Shell {
         let was_hidden = std::mem::take(&mut self.hidden);
         self.autostart = rt_sys::autostart::enabled("rinst");
         self.menu_dirty = true;
-        let leftovers_busy = self.app.leftovers.as_ref().is_some_and(|l| l.searching || l.removing);
-        if was_hidden && self.job.is_none() && self.app.busy.is_none() && !leftovers_busy {
-            self.refresh();
+        if was_hidden && self.page.idle() {
+            self.page.refresh();
+            self.after_page();
         }
         self.redraw();
     }
 
-    /// Writes the list shown to a CSV file the user chooses.
-    fn export(&mut self) {
-        let name = "rinst-programs.csv";
+    /// A menu at the pointer, asked for by the page.
+    fn popup(&mut self, el: &ActiveEventLoop, which: Popup) {
+        let tree = which.items();
         #[cfg(windows)]
-        let chosen = self.win.as_ref().and_then(|w| {
-            let filter = rt_sys::win::dialogs::filter(&[(tr("CSV files"), "*.csv")]);
-            rt_sys::win::dialogs::save_file(w.hwnd, name, None, &filter)
-        });
+        {
+            let Some(hwnd) = self.win.as_ref().map(|w| w.hwnd) else { return };
+            let me = &*self;
+            if let Some(c) = rt_sys::win::menu::popup_at_pointer(hwnd, tree, |c| me.checked(c), |c| me.enabled(c)) {
+                self.command(el, c);
+            }
+        }
         #[cfg(not(windows))]
-        let chosen = rt_sys::linux::dialogs::save_file(name, None);
-        let Some(path) = chosen else { return };
-        let header: Vec<String> = [
-            "Name",
-            "Publisher",
-            "Version",
-            "Size",
-            "Installed",
-            "For",
-            "Source",
-            "winget id",
-            "Newer version (winget)",
-            "Install folder",
-            "Uninstall command",
-            "Registry key",
-        ]
-        .iter()
-        .map(|h| tr(h))
-        .collect();
-        let csv = self.app.csv(&header, &view::scope_text, &view::sources_text);
-        self.app.note = Some(match std::fs::write(&path, csv) {
-            Ok(()) => tf("The list was saved to {}.", &[&path.display().to_string()]),
-            Err(e) => tf("Could not save {}: {}", &[&path.display().to_string(), &e.to_string()]),
-        });
-        self.redraw();
+        {
+            let _ = el;
+            let me = &*self;
+            let items = rinst::ui::menu::build(tree, &|c| me.checked(c), &|c| me.enabled(c));
+            let at = self.cursor.unwrap_or((0.0, 0.0));
+            self.menu.open(None, items, at, false);
+            self.redraw();
+        }
     }
 
     fn open_window(&mut self, el: &ActiveEventLoop) -> bool {
@@ -587,85 +392,6 @@ impl Shell {
     }
 }
 
-/// Where a program's icon comes from: a file and an index, or an app of a package.
-#[derive(Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(not(windows), allow(dead_code))]
-enum IconFrom {
-    File(PathBuf, i32),
-    App(String),
-}
-
-type IconOf = (usize, IconFrom);
-
-/// Reads the icons on this thread and sends them in batches.
-fn read_icons(gen: u64, wanted: Vec<IconOf>, proxy: &EventLoopProxy<UserEvent>) {
-    #[cfg(windows)]
-    {
-        type Pixels = Option<(u32, u32, Vec<u8>)>;
-        let mut cache: HashMap<IconFrom, Pixels> = HashMap::new();
-        let mut batch = Vec::new();
-        for (i, from) in wanted {
-            let got = cache
-                .entry(from.clone())
-                .or_insert_with(|| match &from {
-                    IconFrom::File(f, n) => rt_sys::win::icon::extract(f, *n),
-                    IconFrom::App(a) => rinst::appx::icon(a, 32),
-                })
-                .clone();
-            if let Some((w, h, px)) = got {
-                batch.push((i, w, h, px));
-            }
-            if batch.len() >= 16 {
-                let _ = proxy.send_event(UserEvent::Icons(gen, std::mem::take(&mut batch)));
-            }
-        }
-        if !batch.is_empty() {
-            let _ = proxy.send_event(UserEvent::Icons(gen, batch));
-        }
-    }
-    #[cfg(not(windows))]
-    let _ = (gen, wanted, proxy);
-}
-
-/// The folder of a program: its install folder, or its uninstaller's.
-fn folder_of(p: &rinst::inventory::Program) -> Option<PathBuf> {
-    p.location.clone().filter(|l| l.is_dir()).or_else(|| {
-        p.uninstall
-            .as_deref()
-            .and_then(rinst::inventory::command_file)
-            .and_then(|f| f.parent().map(Path::to_path_buf))
-            .filter(|d| d.is_absolute() && d.is_dir())
-    })
-}
-
-/// Opens a folder in the file manager.
-fn open_path(p: &Path) {
-    #[cfg(windows)]
-    rt_sys::win::shell_open(&p.to_string_lossy());
-    #[cfg(not(windows))]
-    rt_sys::linux::xdg_open(p.as_os_str().to_os_string());
-}
-
-fn shortcuts_text() -> String {
-    let rows = [
-        (tr("Letters"), tr("Find a program by its name, publisher or folder")),
-        ("Esc".to_string(), tr("Clear the search")),
-        ("↑ ↓  PgUp PgDn  Home End".to_string(), tr("Move in the list")),
-        ("Delete".to_string(), tr("Uninstall the programs selected")),
-        ("Shift+Delete".to_string(), tr("Uninstall them quietly")),
-        ("Ctrl+A".to_string(), tr("Select every program shown")),
-        (tr("Ctrl+click, Shift+click"), tr("Select several programs")),
-        (tr("Ctrl+V"), tr("Paste into the search")),
-        (tr("Space"), tr("Tick the programs selected: the buttons act on those ticked, whatever the search shows")),
-        ("F5".to_string(), tr("Read the programs again")),
-        ("Ctrl+E".to_string(), tr("Open the install folder")),
-        ("Ctrl+C".to_string(), tr("Copy the name")),
-        ("Ctrl+Shift+C".to_string(), tr("Copy all the details")),
-        ("Ctrl+S".to_string(), tr("Save the list as CSV")),
-    ];
-    rows.iter().map(|(k, v)| format!("{k}\t{v}")).collect::<Vec<_>>().join("\n")
-}
-
 /// Starts resident mode on Linux: without an icon, a hidden window could not
 /// be reached or closed, so rinst then runs as a normal window.
 #[cfg(not(windows))]
@@ -712,56 +438,10 @@ impl ApplicationHandler<UserEvent> for Shell {
 
     fn user_event(&mut self, el: &ActiveEventLoop, event: UserEvent) {
         match event {
-            UserEvent::Read(gen, found) if gen == self.generation => {
-                self.icons.clear();
-                self.app.set_found(*found);
-                if let Some(rows) = self.pending_winget.take() {
-                    self.app.set_winget(rows);
-                }
-                if let Some(tools) = self.pending_tools.take() {
-                    self.app.set_tools(tools);
-                }
-                // The report waits for every list (an npm package may be gone).
-                if self.app.found.as_ref().is_some_and(|f| f.tools_done) {
-                    self.show_report();
-                }
-                self.menu_dirty = true;
-                self.redraw();
+            UserEvent::Page(e) => {
+                self.page.event(e);
+                self.after_page();
             }
-            UserEvent::Read(..) => {}
-            UserEvent::Icons(gen, icons) if gen == self.generation => {
-                for (i, w, h, px) in icons {
-                    if let Some(pm) = pixmap(w, h, &px) {
-                        self.icons.insert(i, pm);
-                    }
-                }
-                self.redraw();
-            }
-            UserEvent::Icons(..) => {}
-            UserEvent::Winget(gen, rows) if gen == self.generation => {
-                // The list may not be there yet: then it waits for it.
-                if self.app.found.is_some() {
-                    self.app.set_winget(rows);
-                } else {
-                    self.pending_winget = Some(rows);
-                }
-                self.redraw();
-            }
-            UserEvent::Winget(..) => {}
-            UserEvent::Tools(gen, tools) if gen == self.generation => {
-                if self.app.found.as_ref().is_some_and(|f| !f.tools_done) && !self.app.loading {
-                    self.app.set_tools(tools);
-                    self.show_report();
-                } else {
-                    self.pending_tools = Some(tools);
-                }
-                self.menu_dirty = true;
-                self.redraw();
-            }
-            UserEvent::Tools(..) => {}
-            UserEvent::Job(m) => self.job_event(m),
-            UserEvent::Leftovers(items) => self.leftovers_found(items),
-            UserEvent::Removed(results, backup) => self.leftovers_removed(results, &backup),
             #[cfg(windows)]
             UserEvent::Win(rt_sys::win::WinMsg::Command(id)) => {
                 let cmd = self.win.as_ref().and_then(|w| w.menu.as_ref()).and_then(|m| m.command(id));
@@ -815,9 +495,10 @@ impl ApplicationHandler<UserEvent> for Shell {
                     if id == 6 {
                         self.dialog = None;
                     } else if let Some(i) = id.checked_sub(100) {
-                        self.app.select(i as usize);
+                        self.page.accessibility_click(i as usize);
                     }
                     let _ = el;
+                    self.after_page();
                     self.redraw();
                 }
                 accesskit_winit::WindowEvent::InitialTreeRequested => {
@@ -856,24 +537,14 @@ impl ApplicationHandler<UserEvent> for Shell {
                 if self.menu_pointer(el, x, y) {
                     return;
                 }
-                if self.dragging {
-                    self.drag_to(y);
-                }
-                if self.selecting {
-                    // Dragging over the search's text selects it.
-                    let s = self.scale();
-                    let at = view::search_offset(&mut self.gfx, &self.app, &self.layout, x, s);
-                    self.app.search.set_caret(at, true);
-                    self.redraw();
-                }
-                self.pointer(x, y);
+                self.page.drag(&mut self.gfx, x, y);
+                self.page.pointer(x, y, self.dialog.is_some());
+                self.after_page();
             }
             WindowEvent::CursorLeft { .. } => {
                 self.cursor = None;
-                if !self.dragging && self.hot != Hot::None {
-                    self.hot = Hot::None;
-                    self.redraw();
-                }
+                self.page.pointer_left();
+                self.after_page();
             }
             WindowEvent::MouseInput { state, button: MouseButton::Left, .. } => match state {
                 ElementState::Pressed => {
@@ -881,10 +552,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                         self.press(el, x, y);
                     }
                 }
-                ElementState::Released => {
-                    self.dragging = false;
-                    self.selecting = false;
-                }
+                ElementState::Released => self.page.release(),
             },
             #[cfg(not(windows))]
             WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Right, .. } if self.menu.is_open() => {
@@ -892,21 +560,10 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.redraw();
             }
             WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Right, .. } if self.dialog.is_none() => {
-                if let Hot::Row(i) = self.hot {
-                    if self.app.tab == rinst::app::Tab::Leftovers {
-                        return;
-                    }
-                    // A row outside the selection: it alone; inside: the selection stays.
-                    if !self.app.is_marked(i) {
-                        self.app.select(i);
-                    }
-                    self.menu_dirty = true;
-                    self.redraw();
-                    self.context_menu(el, commands::program_menu());
-                } else if self.hot == Hot::Search {
-                    self.app.search_focus = true;
-                    self.redraw();
-                    self.context_menu(el, commands::search_menu());
+                let popup = self.page.right_click();
+                self.after_page();
+                if let Some(p) = popup {
+                    self.popup(el, p);
                 }
             }
             WindowEvent::MouseWheel { delta, .. } if self.dialog.is_none() => {
@@ -921,22 +578,8 @@ impl ApplicationHandler<UserEvent> for Shell {
                         return;
                     }
                 }
-                let lines = match delta {
-                    MouseScrollDelta::LineDelta(_, l) => -l * 3.0,
-                    MouseScrollDelta::PixelDelta(p) => -p.y as f32 / self.layout.row_h.max(20.0),
-                };
-                let s = self.scale();
-                let over_details = self.cursor.is_some_and(|(x, y)| self.layout.details.contains(x, y));
-                if over_details {
-                    let max = (view::details_height(&self.app, s) - self.layout.details.h).max(0.0);
-                    self.app.details_scroll = (self.app.details_scroll + lines * 18.0 * s).clamp(0.0, max);
-                } else {
-                    self.app.scroll_by(lines.round() as isize);
-                }
-                self.redraw();
-                if let Some((x, y)) = self.cursor {
-                    self.pointer(x, y);
-                }
+                self.page.wheel(delta, self.cursor);
+                self.after_page();
             }
             WindowEvent::RedrawRequested if !self.hidden => self.render(),
             _ => {}
@@ -946,15 +589,9 @@ impl ApplicationHandler<UserEvent> for Shell {
     fn about_to_wait(&mut self, el: &ActiveEventLoop) {
         // While uninstalling, the bar and the marks move, so it shows it is
         // working even when the uninstaller shows nothing.
-        if let (Some(t0), Some(b)) = (self.job_started, &mut self.app.busy) {
+        if self.page.animate() {
             const FRAME: std::time::Duration = std::time::Duration::from_millis(40);
-            let phase = (t0.elapsed().as_secs_f32() / 1.6).fract();
-            if (phase - b.phase).abs() > 0.01 {
-                b.phase = phase;
-                if let Some(w) = &self.win {
-                    w.window.request_redraw();
-                }
-            }
+            self.after_page();
             el.set_control_flow(ControlFlow::WaitUntil(std::time::Instant::now() + FRAME));
         } else {
             el.set_control_flow(ControlFlow::Wait);
@@ -1061,13 +698,26 @@ fn main() {
             std::process::exit(1);
         }
     };
-    let mut app = App::new();
-    app.whose = settings.whose;
-    app.show_system = settings.show_system;
-    app.show_updates = settings.show_updates;
-    app.sort = Col::Name;
+    #[cfg(windows)]
+    let admin = rt_sys::win::elevated();
+    #[cfg(not(windows))]
+    let admin = rinst::linux_pkgs::is_root();
+    let data_dir = location
+        .dir
+        .clone()
+        .or_else(|| std::env::current_exe().ok().and_then(|e| e.parent().map(|p| p.to_path_buf())))
+        .unwrap_or_else(std::env::temp_dir);
+    let sender = {
+        let proxy = std::sync::Mutex::new(event_loop.create_proxy());
+        Arc::new(move |e| {
+            if let Ok(p) = proxy.lock() {
+                let _ = p.send_event(UserEvent::Page(e));
+            }
+        })
+    };
+    let page = InstPage::new(&settings, admin, data_dir, sender);
     let mut shell = Shell {
-        app,
+        page,
         settings,
         location,
         gfx,
@@ -1080,25 +730,8 @@ fn main() {
         menu_dark: None,
         menu_dirty: true,
         menu_rebuild: true,
-        layout: Layout::default(),
-        hot: Hot::None,
-        dragging: false,
-        selecting: false,
-        last_click: None,
         cursor_icon: CursorIcon::Default,
-        generation: 0,
-        first_load: true,
-        icons: HashMap::new(),
-        pending_winget: None,
-        pending_tools: None,
-        #[cfg(windows)]
-        admin: rt_sys::win::elevated(),
-        #[cfg(not(windows))]
-        admin: rinst::linux_pkgs::is_root(),
         dialog: help.then(|| Message::new("rinst", USAGE)),
-        job: None,
-        report: None,
-        job_started: None,
         #[cfg(not(windows))]
         menu: rinst::ui::menu::Menu::default(),
         tray,
@@ -1113,7 +746,8 @@ fn main() {
     shell.apply_language();
     // A first reading at once, unless it starts hidden (it reads when shown).
     if !tray {
-        shell.refresh();
+        shell.page.refresh();
+        shell.after_page();
     }
     if let Err(e) = event_loop.run_app(&mut shell) {
         eprintln!("rinst: {e}");

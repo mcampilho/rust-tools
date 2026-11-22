@@ -52,12 +52,13 @@ decisões e o que fica de fora de propósito (antivírus próprio, defrag do reg
 
 ## Estado
 
-Fase 0 (2026-11-22): páginas do rclean, rdup e rsize (`rclean::page::CleanPage`, `rdup::page::DupPage`,
-`rsize::page::SizePage`), `Effects`/`Dialogs`/`Mods` no `rt-ui`, `add`/`tr_from` no `rt-core::i18n`, `M::map`; rcare com
-barra lateral, menus combinados dos três e as três páginas. **A passagem de testemunho completa está em
+Fase 0 (2026-11-22): páginas do rclean, rdup, rsize e rinst (`rclean::page::CleanPage`, `rdup::page::DupPage`,
+`rsize::page::SizePage`, `rinst::page::InstPage`), `Effects`/`Dialogs`/`Mods` no `rt-ui`, `add`/`tr_from` no `rt-core::i18n`, `M::map`; rcare com
+barra lateral, menus combinados dos quatro e as quatro páginas. **A passagem de testemunho completa está em
 `docs/rcare.pt.md`** (padrão de página, como o rcare funciona, verificado e não, próximos passos): ler primeiro.
-Falta a página do rinst, ligar ao `rtsvc`, `--tray`, "Integração com o Windows", atualizações, `release.yml` e bucket.
-**Não verificado**: a janela a correr, a compilação em Linux das apps pequenas religadas.
+Falta: Custom Clean, ligar ao `rtsvc`, `--tray`, "Integração com o Windows", atualizações, `release.yml` e bucket.
+Arranque verificado (abre, fecha com código 0). **Não verificado**: usar a janela, a compilação em Linux das apps
+pequenas religadas.
 ## Regras
 
 - Visível só pelo `strings.txt` (da app ou da página); teclas de acesso diferentes em cada menu em todas as línguas.

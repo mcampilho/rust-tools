@@ -10,6 +10,8 @@ pub enum Kind {
     Dups,
     /// The disk space analyzer of rsize.
     Size,
+    /// The uninstaller of rinst.
+    Inst,
 }
 
 /// A page in the sidebar.
@@ -32,12 +34,15 @@ pub enum Glyph {
     Copies,
     /// Bars of different lengths: sizes.
     Bars,
+    /// A box with an arrow out of it: taking a program away.
+    Remove,
 }
 
 pub const PAGES: &[PageInfo] = &[
     PageInfo { id: "clean", kind: Kind::Clean, label: "Disk Cleaner", glyph: Glyph::Sparkle },
     PageInfo { id: "dups", kind: Kind::Dups, label: "Duplicate Files", glyph: Glyph::Copies },
     PageInfo { id: "size", kind: Kind::Size, label: "Large Files", glyph: Glyph::Bars },
+    PageInfo { id: "inst", kind: Kind::Inst, label: "Uninstall Apps", glyph: Glyph::Remove },
 ];
 
 /// The index of the page saved as `id`; the first one when it is unknown.

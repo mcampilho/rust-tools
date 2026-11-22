@@ -16,16 +16,11 @@ impl Shell {
         }
         self.gfx.resize(w.get(), h.get());
         let full = Rect::new(0.0, 0.0, w.get() as f32, h.get() as f32);
-        self.layout = view::layout(&mut self.gfx, &self.app, full, s, cfg!(not(windows)), self.admin);
-        self.app.page = self.layout.page_rows();
-        // Which buttons work, asked before drawing borrows the canvas.
-        let on: Vec<(Command, bool)> = commands::actions(self.app.tab).iter().map(|&c| (c, self.enabled(c))).collect();
-        let enabled = |c: Command| on.iter().any(|&(x, e)| x == c && e);
-        view::draw(&mut self.gfx, &self.app, &self.layout, &theme, s, self.hot, &self.icons, &enabled);
+        self.page.render(&mut self.gfx, full, &theme, s, cfg!(not(windows)));
         #[cfg(not(windows))]
         {
             let g = &mut self.gfx;
-            self.menu.draw_bar(g, self.layout.bar, &theme.menu_style(), s);
+            self.menu.draw_bar(g, self.page.layout.bar, &theme.menu_style(), s);
             self.menu.draw_popups(g, full, &theme.menu_style(), s);
         }
         if let Some(d) = &mut self.dialog {
@@ -48,34 +43,7 @@ impl Shell {
         let root = NodeId(0);
         let mut nodes = Vec::new();
         let mut children = Vec::new();
-        let mut focus = root;
-        {
-            let mut list = Node::new(Role::List);
-            list.set_label(tr("Programs"));
-            let mut rows = Vec::new();
-            let end = (self.app.scroll + self.layout.page_rows()).min(self.app.rows.len());
-            for i in self.app.scroll..end {
-                let nid = NodeId(100 + i as u64);
-                let mut n = Node::new(Role::ListItem);
-                let p = self.app.program(self.app.rows[i]);
-                n.set_label(p.map_or(String::new(), |p| format!("{} {} {}", p.name, p.version, p.publisher)));
-                n.set_selected(self.app.sel == Some(i));
-                n.add_action(accesskit::Action::Click);
-                if self.app.sel == Some(i) {
-                    focus = nid;
-                }
-                rows.push(nid);
-                nodes.push((nid, n));
-            }
-            list.set_children(rows);
-            nodes.push((NodeId(1), list));
-            children.push(NodeId(1));
-        }
-        let (left, right) = view::status_text(&self.app, None);
-        let mut st = Node::new(Role::Label);
-        st.set_value(format!("{left} {right}"));
-        nodes.push((NodeId(3), st));
-        children.push(NodeId(3));
+        let mut focus = self.page.accessibility(&mut nodes, &mut children).unwrap_or(root);
         if let Some(dl) = &self.dialog {
             let mut dn = Node::new(Role::Dialog);
             dn.set_label(dl.title.clone());

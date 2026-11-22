@@ -1,7 +1,7 @@
 # rcare — Windows maintenance suite (plan and hand-over)
 
-Status (2026-11-22): **phase 0 is mostly done** — the pages of rclean, rdup and rsize sit behind a collapsible
-sidebar; the page of rinst is next. Windows only, no size limit, profile `release` (not `release-small`).
+Status (2026-11-22): **the pages of phase 0 are done** — the pages of rclean, rdup, rsize and rinst sit behind a
+collapsible sidebar. What is left of phase 0 is the service, residency, updates and the release (see "Next steps"). Windows only, no size limit, profile `release` (not `release-small`).
 
 `rcare` gathers what several tiny tools do in one window, so that nothing has to be opened several times with
 administrator rights. Models: BleachBit, CCleaner, Glary Utilities, IObit Advanced SystemCare and Uninstaller,
@@ -19,10 +19,9 @@ the list below is deliberately left for later.
   a commit with `E:\Portable\scoop\apps\rust\current\bin` first on `PATH`; compile with `CARGO_INCREMENTAL=0`; every
   visible text in `strings.txt` (10 languages, tab separated, access keys differing inside each menu in all
   languages); `README.md` and `README.pt.md` updated together; `./dev.ps1 …` loads the MSVC environment.
-- The previous commits of this work: `dedf452` (rcare skeleton, rclean page) on `master`. The rdup and rsize pages,
-  the three-page rcare, `Dialogs`, `tr_from` and this document are **not committed yet** (ask the user).
-- The user said they may switch to a bigger model for the harder pages (rinst). This document is meant to carry
-  everything needed so that the code does not have to be re-read from scratch.
+- The commits of this work on `master`: `dedf452` (rcare skeleton, rclean page), `a31480b` (rdup and rsize pages,
+  `Dialogs`, `tr_from`). The rinst page and the four-page rcare are **not committed yet** (ask the user).
+- This document carries what is needed so that the code does not have to be re-read from scratch.
 
 ## What exists
 
@@ -32,13 +31,14 @@ the list below is deliberately left for later.
 | `apps/rclean/src/page.rs` | `CleanPage` (+ `Event`, `Sender`, `Confirm`, `shortcuts_text`) |
 | `apps/rdup/src/page.rs` | `DupPage` (+ `Event`, `Sender`, `Popup`, `Out`, `shortcuts_text`) |
 | `apps/rsize/src/page.rs` | `SizePage` (+ `Event`, `Sender`, `Popup`, `shortcuts_text`); owns its `Settings` |
+| `apps/rinst/src/page/` | `InstPage` (`mod.rs`: state, reading, commands, drawing; `input.rs`: keys, search box, mouse; `uninstalling.rs`: the queue, the report, the leftovers) (+ `Event`, `JobMsg`, `Sender`, `Popup`, `shortcuts_text`) |
 | `crates/rt-ui/src/page.rs` | `Effects`, `Dialogs` (+ `SystemDialogs`), `Mods` |
 | `crates/rt-core/src/i18n.rs` | `add` (extra tables), `tr_in_from`/`tr_from`/`tf_from` (a table searched first) |
 | `crates/rt-core/src/menu.rs` | `M::map` (turn the commands of a menu into another type) |
 | `docs/rcare(.pt).md` | this plan |
 
-The small apps (rclean, rdup, rsize) were rewired to hold the same pages, so they keep working as before and a fix
-is made once. rinst is **not** done yet.
+The small apps (rclean, rdup, rsize, rinst) were rewired to hold the same pages, so they keep working as before and a
+fix is made once.
 
 ## The page pattern (the contract every page follows)
 
@@ -47,7 +47,7 @@ does **not** own the window. Read `apps/rclean/src/page.rs` (the simplest) and t
 (dialogs, popup menus, text boxes) and `apps/rsize/src/page.rs` (settings, wake-up times, treemap caches).
 
 - `XPage::new(…, send: Sender)`; `Sender = Arc<dyn Fn(Event) + Send + Sync>`: the threads send their `Event`s there
-  and the window turns them into its own `UserEvent` (rcare: `UserEvent::Clean/Dups/Size`). `page.event(e)` handles one.
+  and the window turns them into its own `UserEvent` (rcare: `UserEvent::Clean/Dups/Size/Inst`). `page.event(e)` handles one.
 - `page.fx: rt_ui::page::Effects` — what the page asks of the window: `redraw`, `menu_dirty` (menus' enabled/ticked
   state changed), `info` (a message to show), `save` (settings changed). The window calls `after_page()` after every
   call into the page: `let fx = page.fx.take(); …`. Pages call `self.fx.redraw()`, `.menus()`, `.info(t, x)`, `.save()`.
@@ -65,14 +65,15 @@ does **not** own the window. Read `apps/rclean/src/page.rs` (the simplest) and t
   (`Mods { ctrl, shift, alt }`); the page remembers the last scale from `render`.
 - Menus that pop up (`Popup`): the page only says which; the window builds and shows it
   (`rt_sys::win::menu::popup_at_cursor`) and runs the command chosen.
-- Wake-ups: `animate()` — rclean `bool` (an arc turns), rdup `Option<Duration>`, rsize `Option<Instant>`; the window
-  sets `ControlFlow::WaitUntil`.
+- Wake-ups: `animate()` — rclean and rinst `bool` (an arc turns), rdup `Option<Duration>`, rsize `Option<Instant>`; the
+  window sets `ControlFlow::WaitUntil`.
 - Screen readers: `accessibility(&mut nodes, &mut children) -> Option<focus>` (rows are `NodeId(100 + index)`; 1, 3
   are the list and the status line) and `accessibility_click(i)`. The window adds its own nodes (dialog 4–6, rcare's
   sidebar 10–99).
-- Settings: rclean/rdup keep them in the window's `Settings` and the page copies in/out (`store_into`); rsize's page
-  **owns** its `Settings` (theme, language and window size are in it too). rcare keeps rdup's and rsize's in their own
-  files, `rdup.ini` and `rsize.ini`, next to its `settings.ini` (rclean's ticks are in rcare's own settings).
+- Settings: rclean/rdup/rinst keep them in the window's `Settings` and the page copies in/out (`store_into`); rsize's
+  page **owns** its `Settings` (theme, language and window size are in it too). rcare keeps rdup's, rsize's and
+  rinst's in their own files, `rdup.ini`, `rsize.ini` and `rinst.ini`, next to its `settings.ini` (rclean's ticks are in
+  rcare's own settings).
 - Each app's `i18n::add_table()` and its `tr`/`tf` search **its own table first** (`rt_core::i18n::tr_from`). This is
   needed because the apps translate the same English key with different access keys (each tuned to its own menus);
   rcare's `Cmd::label` delegates to the page's `label()` for the same reason. Any new page must do the same.
@@ -81,47 +82,52 @@ does **not** own the window. Read `apps/rclean/src/page.rs` (the simplest) and t
 
 - `pages.rs`: `PAGES` (id saved in settings, `Kind`, label key, sidebar glyph). Adding a page = a `Kind`, an entry,
   a glyph in `sidebar::draw_glyph`, a field and an arm in `shell.rs` for each operation.
-- `commands.rs`: `Cmd::{Clean(c), Dups(c), Size(c), Sidebar, RestartAdmin, Exit, Theme, UiLanguage, Shortcuts,
-  CheckUpdates, About}`; `from_clean/from_dups/from_size` turn a page command that is the window's into the window's.
+- `commands.rs`: `Cmd::{Clean(c), Dups(c), Size(c), Inst(c), Sidebar, RestartAdmin, Exit, Theme, UiLanguage,
+  Shortcuts, CheckUpdates, About}`; `from_clean/from_dups/from_size/from_inst` turn a page command that is the
+  window's into the window's.
   **Menus are built from each small app's own `menu_tree()`** (`own_menus`): what is the window's (Exit, restart,
   Explorer menu, autostart, theme, language, help) is dropped, the app's File items go first in rcare's File (then
   Restart as administrator, Exit), its View items first in View (then Collapse sidebar, Theme, Language), its other
-  menus (Edit, Mark…) sit between them, Help is the window's. A new page therefore gets menus for free; if two
+  menus (Edit, Mark, Program…) sit between them, Help is the window's. A new page therefore gets menus for free; if two
   labels clash in some language the test `access_keys_differ_within_each_menu` says which (fix the string in
-  rcare's table or the app's).
+  rcare's table or the app's). With four pages the View menu is crowded: "Collapse Side&bar" needed a letter free in
+  all of them (German says "Seitenleiste: nur S&ymbole", Spanish "Contra&er barra lateral").
 - `sidebar.rs`: layout/hit/draw without a window (testable); 224 px open, 52 px collapsed (icons do not move); state
   in `settings.ini` (`sidebar=`, `page=`).
 - `shell.rs` (Windows only): the `page!(self, p => …)` macro runs an expression on the page shown; operations whose
   signatures differ per page (`key`, `press`, `command`, `enabled`, `render`, `wheel`…) are explicit three-arm
   matches. `take_fx` merges the effects of all pages (a page not shown can still report: a search ends).
-  `ensure_started(i)` does a page's first work the first time it is shown (cleaner: first analysis; others: read the
-  drives). With a fourth page, replace the three fields + arms by a small trait or an enum of pages.
-- Data files: rcare's folder (`%APPDATA%\rcare`, or portable) — `settings.ini`, `rdup.ini`, `rsize.ini`, `hashes.bin`
-  (duplicates' hash cache: separate from rdup's own), `backups\registry …` (the cleaner's `.reg` copies).
+  `ensure_started(i)` does a page's first work the first time it is shown (cleaner: first analysis; uninstaller: read
+  the programs; the others: read the drives). Four fields and four-arm matches now: with a fifth page, replace them
+  by a small trait or an enum of pages.
+- Data files: rcare's folder (`%APPDATA%\rcare`, or portable) — `settings.ini`, `rdup.ini`, `rsize.ini`, `rinst.ini`,
+  `hashes.bin` (duplicates' hash cache: separate from rdup's own), `backups\registry …` (the cleaner's `.reg` copies),
+  `backups\leftovers ….reg` (the uninstaller's).
 
 ## Verified, and not
 
 Verified (2026-11-22, Windows 10): `cargo fmt --check`, `clippy --workspace --all-targets -D warnings`,
 `test --workspace` (the two `rt-svc` pipe tests failed once under load and pass alone: a pre-existing race, not
-touched); the pictures of the three pages, light/dark, open/collapsed sidebar (`tests/screens.rs`, read by eye).
+touched); the pictures of the four pages, light/dark, open/collapsed sidebar (`tests/screens.rs`, read by eye); a
+start-up test of the real `rcare.exe` (debug build, portable mode in `target\debug`): the window opened, stayed up 8 s,
+closed by its close message with code 0 and wrote its four settings files (removed afterwards).
 
-**Not verified**: the real window (the `.exe` was never run: mouse, keyboard, native menus, popups, dialogs, tray),
+**Not verified**: using the real window (mouse, keyboard, native menus, popups, dialogs, switching pages, uninstalling),
 the Linux build of the small apps after the rewiring (`#[cfg(not(windows))]` code in their `main.rs`, `menus.rs`
 and `page.rs`: there is no WSL answering and no Linux target installed — CI on Linux will be the first check), the
 connection to the privileged service `rtsvc` from rcare (the pages use it as the small apps do), screen readers.
 
 ## Next steps, in order
 
-1. **rinst page** (`apps/rinst`: `main.rs` ~1070 lines, `ui/view.rs` ~1270, `app.rs` ~880, `leftovers*.rs`,
-   `uninstall*.rs`, tabs for Scoop, Chocolatey, DISM, npm, pip, Cargo, vcpkg; its own dialogs, uninstalling runs
-   processes and reads their output). Same pattern; needs the `Dialogs` trait probably extended; engines are in
-   `crates/rt-inst`. Add it to the sidebar as "Uninstall Apps".
-2. Unify the three `Theme` copies (`ui/theme.rs` in each app) into `rt-ui` once all pages are in; unify rclean's
-   `Confirm` with `Dialogs`.
-3. Connect rcare to `rtsvc` for elevated jobs (jobs `Clean`, `UninstallMsi` exist: `rt_svc::client::Client::submit_job`);
+1. ~~rinst page~~ done (2026-11-22): "Uninstall Apps" in the sidebar.
+2. **Custom Clean** (phase 1): junk, duplicates and large files in one analysis — a page of rcare's own that drives the
+   three engines (`rt-clean`, `rt-dups`, `rt-scan`) and shows one summary; the first page that is not a small app's.
+3. Ask the user to try the real window (it was only started and closed). Unify the four `Theme` copies (`ui/theme.rs`
+   in each app, identical) into `rt-ui`, and rclean's `Confirm` with `Dialogs`.
+4. Connect rcare to `rtsvc` for elevated jobs (jobs `Clean`, `UninstallMsi` exist: `rt_svc::client::Client::submit_job`);
    resident mode (`--tray`), "Windows Integration" (Explorer menus: one per page? decide), autostart, "Check for
    updates" (needs a release), `release.yml` and the Scoop bucket (only once there is a release).
-4. Then the phases below.
+5. Then the phases below.
 
 ## Decisions
 
@@ -170,11 +176,11 @@ Manager, Software Updater, Default Program.
 
 ## Phases
 
-**0. Foundations** — pages of rclean ✔, rdup ✔, rsize ✔, rinst (next); rcare with sidebar and menus ✔;
+**0. Foundations** — pages of rclean ✔, rdup ✔, rsize ✔, rinst ✔; rcare with sidebar and menus ✔;
 `rtsvc`, residency, updates, release (see "Next steps").
 
 **1. Existing pages in the sidebar** — Disk Cleaner (rclean) ✔, Duplicate Files (rdup) ✔, Large Files (rsize) ✔,
-Uninstall Apps (rinst), and **Custom Clean** (junk, duplicates and large files in one analysis).
+Uninstall Apps (rinst) ✔, and **Custom Clean** (junk, duplicates and large files in one analysis).
 
 **2. One-click maintenance** — runs the available modules in sequence (privacy sweep, junk, registry, shortcuts, disk
 check, software health) and reports.

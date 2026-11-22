@@ -15,6 +15,7 @@ pub fn install() {
     rclean::i18n::add_table();
     rdup::i18n::add_table();
     rsize::i18n::add_table();
+    rinst::i18n::add_table();
 }
 
 pub fn set_lang(l: Lang) {

@@ -20,7 +20,7 @@ Monorepo (workspace Cargo) com nove aplicações, cada uma um único `.exe`, e o
   depois de confirmar; atalhos inválidos (para a Reciclagem); entradas inválidas do registo (cópia `.reg` antes).
 - `apps/rcare` — manutenção do Windows numa só janela, só Windows (desde 2026-11-22, em curso): barra lateral
   recolhível que escolhe a página, e as páginas são as das apps pequenas (rclean, rdup, rsize, rinst), partilhadas por
-  código (`rclean::page::CleanPage`, `rt_ui::page::Effects`). Plano em `docs/rcare.pt.md`; perfil `release`; ver o
+  código (`rclean::page::CleanPage`, `rdup::page::DupPage`, `rsize::page::SizePage`, `rinst::page::InstPage`, `rt_ui::page::Effects`). Plano e passagem de testemunho em `docs/rcare.pt.md`; perfil `release`; ver o
   `apps/rcare/CLAUDE.md`. As apps pequenas ficam.
 - `apps/rscoop-cli` — linha de comandos, só Windows (desde 2026-11-17): verifica uma instalação do Scoop e corrige o que
   aponta para uma raiz antiga (`--fix`); port do `scoop-check` em Python, com cache SQLite (`rusqlite` bundled).

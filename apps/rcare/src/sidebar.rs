@@ -132,6 +132,18 @@ fn draw_glyph(g: &mut Gfx, glyph: Glyph, r: Rect, c: rt_gfx::gfx::Color) {
             g.stroke_rrect(back, 2.0, 1.6, c);
             g.fill_rrect(front, 2.0, c);
         }
+        Glyph::Remove => {
+            // An open box, and an arrow leaving it upwards.
+            let (bx, by, bw, bh) = (r.x + r.w * 0.1, r.y + r.h * 0.5, r.w * 0.8, r.h * 0.5);
+            g.fill_rrect(Rect::new(bx, by, bw, 2.0), 1.0, c);
+            g.fill_rrect(Rect::new(bx, by, 2.0, bh), 1.0, c);
+            g.fill_rrect(Rect::new(bx + bw - 2.0, by, 2.0, bh), 1.0, c);
+            g.fill_rrect(Rect::new(bx, by + bh - 2.0, bw, 2.0), 1.0, c);
+            let cx = r.x + r.w / 2.0;
+            g.fill_rrect(Rect::new(cx - 1.0, r.y + r.h * 0.12, 2.0, r.h * 0.6), 1.0, c);
+            let a = r.w * 0.22;
+            g.fill_polygon(&[(cx, r.y), (cx + a, r.y + a), (cx - a, r.y + a)], c);
+        }
         Glyph::Bars => {
             let bw = r.w * 0.22;
             for (i, h) in [0.55, 1.0, 0.75].iter().enumerate() {

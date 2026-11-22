@@ -1,27 +1,9 @@
 //! Menus: the native menu bar (Windows) or the menus drawn in the window
-//! (Linux, through `rt_ui::menus`), the context menu, and their theme.
+//! (Linux, through `rt_ui::menus`), and their theme.
 
 use super::*;
 
 impl Shell {
-    /// A right-click menu: the program selected's, or the search box's.
-    #[cfg(windows)]
-    pub(super) fn context_menu(&mut self, el: &ActiveEventLoop, tree: Vec<commands::M>) {
-        let Some(hwnd) = self.win.as_ref().map(|w| w.hwnd) else { return };
-        let me = &*self;
-        if let Some(c) = rt_sys::win::menu::popup_at_pointer(hwnd, tree, |c| me.checked(c), |c| me.enabled(c)) {
-            self.command(el, c);
-        }
-    }
-
-    #[cfg(not(windows))]
-    pub(super) fn context_menu(&mut self, _el: &ActiveEventLoop, tree: Vec<commands::M>) {
-        let me = &*self;
-        let items = rinst::ui::menu::build(tree, &|c| me.checked(c), &|c| me.enabled(c));
-        let at = self.cursor.unwrap_or((0.0, 0.0));
-        self.menu.open(None, items, at, false);
-        self.redraw();
-    }
     /// Does what the drawn menus asked; true when they took the input.
     #[cfg(not(windows))]
     pub(super) fn menu_step(&mut self, el: &ActiveEventLoop, step: rt_ui::menus::Step<Command>) -> bool {

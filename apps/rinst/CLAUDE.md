@@ -90,7 +90,10 @@ apps (`D:\Portable\scoop`, ficheiros `scoop-manifest.json`); 102 atalhos; "Admin
   comando, `NoRemove`) e `carry_out` (`ShellExecuteExW`, `runas` quando precisa; espera pelo processo e pelos
   descendentes por `CreateToolhelp32Snapshot`, porque muitos desinstaladores se copiam para o TEMP e saem; as linhas de
   comando escondidas guardam o fim da saída). Códigos 0, 1605, 1641 e 3010 contam como bem.
-- `uninstalling.rs` (no `main`) — confirmar (`MessageBox`), fila num fio com `Stop` depois do atual, `App::busy`
+- `page/` (desde 2026-11-22) — `InstPage`, a página partilhada com o rcare (ver `docs/rcare.pt.md`): `mod.rs` (estado,
+  leitura em fios, comandos, desenho), `input.rs` (teclas, caixa de pesquisa, rato), `uninstalling.rs`. O `main.rs` só
+  tem a janela; a página pede-lhe o que precisa por `fx` (`rt_ui::page::Effects`), `Dialogs` e `Popup`.
+- `page/uninstalling.rs` — confirmar (`MessageBox`), fila num fio com `Stop` depois do atual, `App::busy`
   (linha por cima da lista com arco a rodar e barra de avanço; `Mark` de cada programa pintado na lista; o
   `about_to_wait` redesenha a cada 40 ms enquanto corre; cursor de "a trabalhar"), ler de novo e relatório (desinstalados, ainda instalados pela chave e nome, falharam, não
   começados, reiniciar). Os desinstalados de facto vão para `look_for_leftovers` (num fio, `UserEvent::Leftovers`);

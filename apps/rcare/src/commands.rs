@@ -8,6 +8,7 @@ use crate::i18n::{tr, Lang};
 use crate::pages::{Kind, PAGES};
 use rclean::commands::Command as CleanCmd;
 use rdup::commands::Command as DupCmd;
+use rinst::commands::Command as InstCmd;
 use rsize::commands::Command as SizeCmd;
 use rt_core::menu::{MenuCommand, M as Item};
 
@@ -19,6 +20,8 @@ pub enum Cmd {
     Dups(DupCmd),
     /// A command of the disk space page.
     Size(SizeCmd),
+    /// A command of the uninstaller page.
+    Inst(InstCmd),
     /// Shows the sidebar's names, or only its icons.
     Sidebar,
     /// Starts rcare again with administrator rights.
@@ -52,6 +55,7 @@ macro_rules! window_level {
 window_level!(clean_is_window, CleanCmd);
 window_level!(dups_is_window, DupCmd);
 window_level!(size_is_window, SizeCmd);
+window_level!(inst_is_window, InstCmd);
 
 impl Cmd {
     /// What a command of a page means for the window: the ones that are the
@@ -98,6 +102,20 @@ impl Cmd {
         }
     }
 
+    pub fn from_inst(c: InstCmd) -> Cmd {
+        match c {
+            InstCmd::Exit => Exit,
+            #[cfg(windows)]
+            InstCmd::RestartAdmin => RestartAdmin,
+            InstCmd::Shortcuts => Shortcuts,
+            InstCmd::CheckUpdates => CheckUpdates,
+            InstCmd::About => About,
+            InstCmd::Theme(t) => Theme(t),
+            InstCmd::UiLanguage(i) => UiLanguage(i),
+            c => Inst(c),
+        }
+    }
+
     /// English label with `&` access key (the translation key), or the final
     /// text for labels that are not translated.
     pub fn label_key(self) -> Result<&'static str, String> {
@@ -105,7 +123,8 @@ impl Cmd {
             Clean(c) => return c.label_key(),
             Dups(c) => return c.label_key(),
             Size(c) => return c.label_key(),
-            Sidebar => "&Collapse Sidebar",
+            Inst(c) => return c.label_key(),
+            Sidebar => "Collapse Side&bar",
             RestartAdmin => "Restart as Ad&ministrator",
             Exit => "E&xit",
             Theme(0) => "Use &System Setting",
@@ -125,6 +144,7 @@ impl Cmd {
             Clean(c) => return c.label(),
             Dups(c) => return c.label(),
             Size(c) => return c.label(),
+            Inst(c) => return c.label(),
             _ => {}
         }
         match self.label_key() {
@@ -142,6 +162,7 @@ pub fn shortcut(cmd: Cmd) -> Option<&'static str> {
         Clean(c) => rclean::commands::shortcut(c),
         Dups(c) => rdup::commands::shortcut(c),
         Size(c) => rsize::commands::shortcut(c),
+        Inst(c) => rinst::commands::shortcut(c),
         c => BINDINGS.iter().find(|(_, x)| *x == c).map(|(k, _)| *k),
     }
 }
@@ -229,6 +250,7 @@ fn page_menus(page: usize) -> Own {
         Some(Kind::Clean) => own_menus(rclean::commands::menu_tree(), clean_is_window, Cmd::from_clean),
         Some(Kind::Dups) => own_menus(rdup::commands::menu_tree(), dups_is_window, Cmd::from_dups),
         Some(Kind::Size) => own_menus(rsize::commands::menu_tree(), size_is_window, Cmd::from_size),
+        Some(Kind::Inst) => own_menus(rinst::commands::menu_tree(), inst_is_window, Cmd::from_inst),
         None => Own { file: Vec::new(), view: Vec::new(), rest: Vec::new() },
     }
 }
@@ -299,7 +321,7 @@ mod tests {
             let mut window = Vec::new();
             for (_, items) in menu_tree(page) {
                 M::each_command(&items, &mut |c| {
-                    if !matches!(c, Clean(_) | Dups(_) | Size(_)) {
+                    if !matches!(c, Clean(_) | Dups(_) | Size(_) | Inst(_)) {
                         window.push(c);
                     }
                 });
@@ -318,5 +340,6 @@ mod tests {
         assert!(all(0).contains(&Clean(CleanCmd::Analyse)));
         assert!(all(1).contains(&Dups(DupCmd::Search)));
         assert!(all(2).contains(&Size(SizeCmd::Rescan)));
+        assert!(all(3).contains(&Inst(InstCmd::Uninstall)));
     }
 }

@@ -32,7 +32,7 @@ fn frame(dark: bool, collapsed: bool, hot: Option<Hit>, w: u32, h: u32) -> tiny_
     pm
 }
 
-/// The duplicates page (selected = 1) or the disk space page (selected = 2) at its start.
+/// The duplicates page (selected = 1), the disk space page (2) or the uninstaller (3) at its start.
 fn other_frame(selected: usize, dark: bool, w: u32, h: u32) -> tiny_skia::Pixmap {
     rcare::i18n::set_lang(rcare::i18n::Lang::EnUS);
     let mut g = Gfx::new().expect("fonts");
@@ -42,12 +42,19 @@ fn other_frame(selected: usize, dark: bool, w: u32, h: u32) -> tiny_skia::Pixmap
     let mut rest = Rect::new(0.0, 0.0, w as f32, h as f32);
     let side = rest.take_left(sidebar::width(false, s));
     let l = sidebar::layout(side, PAGES.len(), s);
-    if selected == 1 {
-        let mut page = rdup::page::DupPage::new(&rdup::settings::Settings::default(), &[], None, false, Arc::new(|_| {}));
-        page.render(&mut g, rest, &rdup::ui::theme::Theme::new(dark, None), s, false);
-    } else {
-        let mut page = rsize::page::SizePage::new(rsize::settings::Settings::default(), false, Arc::new(|_| {}));
-        page.render(&mut g, rest, &rsize::ui::theme::Theme::new(dark, None), s, false);
+    match selected {
+        1 => {
+            let mut page = rdup::page::DupPage::new(&rdup::settings::Settings::default(), &[], None, false, Arc::new(|_| {}));
+            page.render(&mut g, rest, &rdup::ui::theme::Theme::new(dark, None), s, false);
+        }
+        2 => {
+            let mut page = rsize::page::SizePage::new(rsize::settings::Settings::default(), false, Arc::new(|_| {}));
+            page.render(&mut g, rest, &rsize::ui::theme::Theme::new(dark, None), s, false);
+        }
+        _ => {
+            let mut page = rinst::page::InstPage::new(&rinst::settings::Settings::default(), false, std::env::temp_dir(), Arc::new(|_| {}));
+            page.render(&mut g, rest, &rinst::ui::theme::Theme::new(dark, None), s, false);
+        }
     }
     sidebar::draw(&mut g, &l, &th, s, State { collapsed: false, selected, hot: None }, PAGES);
     let mut buf = vec![0u32; (w * h) as usize];
@@ -69,4 +76,5 @@ fn screenshots() {
     frame(true, true, Some(Hit::Toggle), 1180, 720).save_png(dir.join("collapsed-dark.png")).unwrap();
     other_frame(1, false, 1180, 720).save_png(dir.join("dups-light.png")).unwrap();
     other_frame(2, true, 1180, 720).save_png(dir.join("size-dark.png")).unwrap();
+    other_frame(3, false, 1180, 720).save_png(dir.join("inst-light.png")).unwrap();
 }
