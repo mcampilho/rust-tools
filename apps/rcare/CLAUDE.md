@@ -1,0 +1,69 @@
+# rcare — manutenção do Windows numa só janela
+
+Só Windows, sem limite de tamanho (perfil `release`, `platforms = "windows"`). Junta as páginas das ferramentas
+pequenas (rclean, rdup, rsize, rinst, e mais tarde as novas) para não abrir várias com administração. O plano, as
+decisões e o que fica de fora de propósito (antivírus próprio, defrag do registo, "limpar a RAM"…) estão em
+`docs/rcare.pt.md` (e `.md`). Pedido do utilizador em 2026-11-22; nome escolhido por ele.
+
+## Comandos
+
+```powershell
+./dev.ps1 build --release -p rcare
+./dev.ps1 test -p rcare                                     # 13 testes
+./dev.ps1 clippy -p rcare --all-targets
+./dev.ps1 test -p rcare --test screens '--' --ignored       # apps/rcare/target/screens/*.png
+./dev.ps1 test -p rcare --lib picture '--' --ignored        # o ícone
+```
+
+## Arquitetura
+
+- **Páginas partilhadas.** O motor já estava em crates (`rt-clean`, `rt-inst`, `rt-dups`, `rt-scan`). O que faltava
+  era a interface, presa ao `main.rs` de cada app. Agora cada app tem uma página na sua biblioteca (rclean:
+  `rclean::page::CleanPage`: estado, fios de trabalho, desenho, teclado e rato) e o `main.rs` da app pequena e o
+  `shell.rs` do rcare só a seguram. A página **não é dona da janela**: o que lhe pede (redesenhar, mostrar uma
+  mensagem, reconstruir os menus) anota em `fx` (`rt_ui::page::Effects`) e a janela leva-o depois de cada chamada
+  (`after_page`); perguntar ao utilizador é uma função que a janela passa (`Confirm`); o que os fios dizem volta como
+  `Event` pelo `Sender` com que a página nasceu. Os comandos que são da janela (Sair, tema, língua, ajuda) a página
+  devolve-os (`key` e `press` dão `Option<Command>`) e a janela decide (`Cmd::from_clean`).
+- **Traduções.** Cada app tem a sua tabela e o `rt_core::i18n` só instala uma como "da app": o rcare instala a sua e
+  junta as das páginas com `rt_core::i18n::add` (`rclean::i18n::add_table`), procuradas depois da dele e antes da
+  comum. `i18n::install` é chamada por `set_lang`, `tr` e `tf`.
+- **Menus.** `commands::menu_tree(página)`: Ficheiro e Ajuda são da janela, e entre eles vão os menus da página
+  (`page_menus`, com `M::map` do `rt-core` a converter os comandos da página em `Cmd`); reconstruídos a cada mudança de
+  página (`menu_rebuild`). Teclas de acesso verificadas por teste, por página.
+- **Barra lateral** (`sidebar.rs`, desenhada com o `rt-gfx`): `layout`/`hit`/`draw` sem janela, por isso testável.
+  Aberta 224 px, recolhida 52 px (o ícone não se mexe). Estado em `settings.ini` (`sidebar=`, `page=`). Cada página é
+  uma entrada de `pages::PAGES` (id, chave de tradução, ícone).
+- `shell.rs` (só Windows): janela, eventos, menus nativos, árvore para leitores de ecrã (botão da barra = 10,
+  páginas = 11…, linhas do limpador = 100 + índice). `main.rs` só chama `shell::run()`; fora do Windows diz que é só
+  para Windows (o crate compila no CI em Linux, onde só a biblioteca se testa).
+- O tema é o de `rclean::ui::theme::Theme` (cada app tem a sua cópia igual); passa para o `rt-ui` quando houver uma
+  segunda página.
+
+## Acrescentar uma página
+
+1. Extrair a página da app (como o `rclean::page`): estado, trabalho, desenho e entrada para a biblioteca; `main.rs`
+   fica com a janela. Mesmas regras: `fx`, `Confirm`, `Event`/`Sender`.
+2. Uma entrada em `pages::PAGES`, o ícone em `sidebar::draw_glyph`, os menus em `commands::page_menus`, a tabela
+   de traduções da app com `add_table` em `i18n::install`.
+3. Um campo no `Shell` (e o encaminhamento de teclas, rato, roda, eventos e árvore de acessibilidade para a página
+   selecionada: hoje só há uma, por isso `shell.rs` fala com `self.clean` diretamente; com a segunda, passar a um
+   `enum` de páginas).
+
+## Estado
+
+Fase 0 (em curso, 2026-11-22): `Effects` no `rt-ui`, `add` no `rt-core::i18n`, `M::map`, página do rclean extraída,
+rcare com barra lateral e o Limpador. Verificado: clippy limpo, testes, capturas (`tests/screens.rs`) vistas.
+**Não verificado**: a janela a correr (o `.exe` não foi aberto), a compilação em Linux (não há WSL a responder),
+a ligação ao `rtsvc`. Por fazer na Fase 0: páginas do rdup, rsize e rinst; ligar ao serviço; `--tray`, "Integração com
+o Windows" e atualizações; entrada no `release.yml` e no bucket do Scoop (só quando houver release).
+
+## Regras
+
+- Visível só pelo `strings.txt` (da app ou da página); teclas de acesso diferentes em cada menu em todas as línguas.
+- `README.md` e `README.pt.md` atualizados em conjunto.
+- Toda a ação destrutiva mostra o que vai fazer, pergunta e guarda cópia para desfazer (ver o plano).
+
+## Git
+
+Faz parte do monorepo `rust-tools`: ver o `CLAUDE.md` da raiz.

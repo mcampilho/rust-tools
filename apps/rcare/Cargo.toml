@@ -1,0 +1,40 @@
+[package]
+name = "rcare"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.93"
+description = "Windows maintenance in one window: cleaner, duplicates, large files, uninstaller and more"
+license = "MIT"
+
+[package.metadata.rust-tools]
+# Read by dev.ps1 and release.yml. `release` unwinds (catch_unwind), `release-small` aborts.
+profile = "release"
+platforms = "windows"
+
+[dependencies]
+rt-core = { path = "../../crates/rt-core" }
+rt-gfx = { path = "../../crates/rt-gfx" }
+rt-sys = { path = "../../crates/rt-sys" }
+rt-ui = { path = "../../crates/rt-ui" }
+rt-clean = { path = "../../crates/rt-clean" }
+# The pages: each app's library holds its page (state, drawing, work).
+rclean = { path = "../rclean" }
+winit = { version = "0.30", default-features = false, features = ["rwh_06"] }
+softbuffer = { version = "0.4", default-features = false }
+tiny-skia = { version = "0.11", default-features = false, features = ["std", "simd"] }
+accesskit = "0.25"
+accesskit_winit = { version = "0.34", default-features = false, features = ["rwh_06"] }
+
+# X11 and Wayland: rcare only runs on Windows, but the workspace builds everywhere.
+[target.'cfg(target_os = "linux")'.dependencies]
+winit = { version = "0.30", default-features = false, features = ["rwh_06", "x11", "wayland", "wayland-dlopen", "wayland-csd-adwaita"] }
+softbuffer = { version = "0.4", default-features = false, features = ["x11", "x11-dlopen", "wayland", "wayland-dlopen"] }
+accesskit_winit = { version = "0.34", default-features = false, features = ["rwh_06", "async-io"] }
+
+[build-dependencies]
+rt-build = { path = "../../crates/rt-build" }
+# build.rs draws the icon with the app's own `src/appicon.rs`.
+tiny-skia = { version = "0.11", default-features = false, features = ["std"] }
+
+[dev-dependencies]
+tiny-skia = { version = "0.11", default-features = false, features = ["std", "simd", "png-format"] }

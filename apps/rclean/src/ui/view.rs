@@ -314,7 +314,8 @@ fn draw_actions(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, hot: Hot
 /// Draws the window.
 #[allow(clippy::too_many_arguments)]
 pub fn draw(g: &mut Gfx, app: &App, l: &Layout, th: &Theme, s: f32, hot: Hot, enabled: &dyn Fn(crate::commands::Command) -> bool) {
-    g.clear(th.bg);
+    // Only the page's own area: in a suite the sidebar is beside it.
+    g.fill_rect(l.full, th.bg);
     draw_actions(g, app, l, th, s, hot, enabled);
     let p = px(s);
     let pad = 8.0 * s;

@@ -2675,6 +2675,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "rcare"
+version = "0.1.0"
+dependencies = [
+ "accesskit",
+ "accesskit_winit",
+ "rclean",
+ "rt-build",
+ "rt-clean",
+ "rt-core",
+ "rt-gfx",
+ "rt-sys",
+ "rt-ui",
+ "softbuffer",
+ "tiny-skia",
+ "winit",
+]
+
+[[package]]
 name = "rclean"
 version = "0.2.0"
 dependencies = [

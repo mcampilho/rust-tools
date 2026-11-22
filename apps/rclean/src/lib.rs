@@ -4,6 +4,7 @@
 pub mod app;
 pub mod commands;
 pub mod i18n;
+pub mod page;
 pub mod procs;
 pub mod settings;
 pub mod storage;

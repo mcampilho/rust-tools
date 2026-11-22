@@ -24,6 +24,19 @@ pub enum M<C> {
 /// The menu bar: each top-level title (an untranslated key) with its items.
 pub type Tree<C> = Vec<(&'static str, Vec<M<C>>)>;
 
+impl<C> M<C> {
+    /// The same entry with its commands turned into another type (the menu
+    /// of a page inside a window that has its own commands).
+    pub fn map<D>(self, f: &impl Fn(C) -> D) -> M<D> {
+        match self {
+            M::Item(c) => M::Item(f(c)),
+            M::Dyn(c, s) => M::Dyn(f(c), s),
+            M::Sep => M::Sep,
+            M::Sub(t, v) => M::Sub(t, v.into_iter().map(|m| m.map(f)).collect()),
+        }
+    }
+}
+
 impl<C: Copy> M<C> {
     /// Calls `f` for every command in `items`, submenus included.
     pub fn each_command(items: &[M<C>], f: &mut impl FnMut(C)) {

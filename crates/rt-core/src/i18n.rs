@@ -201,6 +201,19 @@ pub fn install(table: &'static Catalog) {
     let _ = APP.set(table);
 }
 
+static EXTRA: std::sync::Mutex<Vec<&'static Catalog>> = std::sync::Mutex::new(Vec::new());
+
+/// Adds the table of another part of the program (a page of a suite that
+/// gathers several apps), searched after the app's own table and before the
+/// common one. Adding the same table twice does nothing.
+pub fn add(table: &'static Catalog) {
+    if let Ok(mut v) = EXTRA.lock() {
+        if !v.iter().any(|t| std::ptr::eq(*t, table)) {
+            v.push(table);
+        }
+    }
+}
+
 thread_local! {
     // Per thread: the UI runs on one thread, and tests can use different
     // languages in parallel without interfering.
@@ -238,7 +251,10 @@ fn record_miss(s: &str) {
 
 /// The row for `key` in the app's table or, failing that, the common one.
 pub fn row(key: &str) -> Option<&'static Row> {
-    APP.get().and_then(|t| t.row(key)).or_else(|| COMMON.row(key))
+    APP.get()
+        .and_then(|t| t.row(key))
+        .or_else(|| EXTRA.lock().ok().and_then(|v| v.iter().find_map(|t| t.row(key))))
+        .or_else(|| COMMON.row(key))
 }
 
 /// Whether the app's table or the common one has a row for `key`.

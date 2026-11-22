@@ -13,6 +13,12 @@ fn install() {
     core::install(&TABLE);
 }
 
+/// Adds rclean's table to the translations of a program that holds the page
+/// among others (rcare).
+pub fn add_table() {
+    core::add(&TABLE);
+}
+
 pub fn set_lang(l: Lang) {
     install();
     core::set_lang(l);

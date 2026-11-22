@@ -1,0 +1,163 @@
+//! The sidebar: a button that collapses it, and one entry for each page.
+//! Open it shows the names; collapsed only the icons. Drawn with `rt-gfx`,
+//! like everything in the window; `layout` decides where things go, and the
+//! window uses the same [`Layout`] to find what the pointer is on.
+
+use crate::i18n::tr;
+use crate::pages::{Glyph, PageInfo};
+use rclean::ui::theme::Theme;
+use rt_gfx::gfx::{Align, FontId, Gfx, Rect};
+
+/// What the pointer can be on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Hit {
+    /// The button that collapses or opens the sidebar.
+    Toggle,
+    /// The entry of a page (index into `PAGES`).
+    Page(usize),
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct Layout {
+    pub area: Rect,
+    pub toggle: Rect,
+    pub items: Vec<Rect>,
+}
+
+/// How wide the sidebar is.
+pub fn width(collapsed: bool, s: f32) -> f32 {
+    ((if collapsed { 52.0 } else { 224.0 }) * s).round()
+}
+
+/// Where the button and the entries go in `area`, the sidebar's rectangle.
+pub fn layout(area: Rect, pages: usize, s: f32) -> Layout {
+    let pad = (6.0 * s).round();
+    let row = (40.0 * s).round();
+    let toggle = Rect::new(area.x + pad, area.y + (8.0 * s).round(), area.w - 2.0 * pad, row);
+    let mut y = toggle.bottom() + (10.0 * s).round();
+    let items = (0..pages)
+        .map(|_| {
+            let r = Rect::new(area.x + pad, y, area.w - 2.0 * pad, row);
+            y += row + (2.0 * s).round();
+            r
+        })
+        .collect();
+    Layout { area, toggle, items }
+}
+
+pub fn hit(l: &Layout, x: f32, y: f32) -> Option<Hit> {
+    if l.toggle.contains(x, y) {
+        Some(Hit::Toggle)
+    } else {
+        l.items.iter().position(|r| r.contains(x, y)).map(Hit::Page)
+    }
+}
+
+/// What the sidebar shows besides the pages.
+#[derive(Clone, Copy, Debug)]
+pub struct State {
+    /// Only the icons.
+    pub collapsed: bool,
+    /// The index of the page shown.
+    pub selected: usize,
+    /// What the pointer is on.
+    pub hot: Option<Hit>,
+}
+
+/// Draws the sidebar.
+pub fn draw(g: &mut Gfx, l: &Layout, th: &Theme, s: f32, state: State, pages: &[PageInfo]) {
+    let State { collapsed, selected, hot } = state;
+    g.fill_rect(l.area, th.panel);
+    g.fill_rect(Rect::new(l.area.right() - 1.0, l.area.y, 1.0, l.area.h), th.border);
+    let px = 13.5 * s;
+    // The button: three bars.
+    if hot == Some(Hit::Toggle) {
+        g.fill_rrect(l.toggle, 6.0 * s, th.hover);
+    }
+    let icon = icon_box(l.toggle, s);
+    for k in 0..3 {
+        let y = icon.y + icon.h * (0.2 + 0.3 * k as f32) - 1.0 * s;
+        g.fill_rrect(Rect::new(icon.x, y, icon.w, (2.0 * s).max(1.0)), 1.0 * s, th.text);
+    }
+    if !collapsed {
+        let r = Rect::new(icon.right() + 14.0 * s, l.toggle.y, l.toggle.right() - icon.right() - 18.0 * s, l.toggle.h);
+        g.text_in(&tr("Sidebar"), r, px, FontId::Regular, th.dim, Align::Left);
+    }
+    for (i, (r, p)) in l.items.iter().zip(pages).enumerate() {
+        let on = i == selected;
+        if on {
+            g.fill_rrect(*r, 6.0 * s, th.selection);
+            g.fill_rrect(Rect::new(r.x, r.y + 9.0 * s, 3.0 * s, r.h - 18.0 * s), 1.5 * s, th.accent);
+        } else if hot == Some(Hit::Page(i)) {
+            g.fill_rrect(*r, 6.0 * s, th.hover);
+        }
+        let icon = icon_box(*r, s);
+        draw_glyph(g, p.glyph, icon, if on { th.accent } else { th.text });
+        if !collapsed {
+            let t = Rect::new(icon.right() + 14.0 * s, r.y, r.right() - icon.right() - 18.0 * s, r.h);
+            let font = if on { FontId::Semibold } else { FontId::Regular };
+            g.text_in(&tr(p.label), t, px, font, th.text, Align::Left);
+        }
+    }
+}
+
+/// Where the icon goes in a button: always at the same distance from the
+/// left edge, so it does not move when the sidebar collapses.
+fn icon_box(r: Rect, s: f32) -> Rect {
+    let size = (20.0 * s).round();
+    Rect::new(r.x + (10.0 * s).round(), (r.y + (r.h - size) / 2.0).round(), size, size)
+}
+
+fn draw_glyph(g: &mut Gfx, glyph: Glyph, r: Rect, c: rt_gfx::gfx::Color) {
+    match glyph {
+        Glyph::Sparkle => {
+            let (cx, cy) = (r.x + r.w / 2.0, r.y + r.h / 2.0);
+            let (a, b) = (r.w / 2.0, r.w * 0.12);
+            let pts = [
+                (cx, cy - a),
+                (cx + b, cy - b),
+                (cx + a, cy),
+                (cx + b, cy + b),
+                (cx, cy + a),
+                (cx - b, cy + b),
+                (cx - a, cy),
+                (cx - b, cy - b),
+            ];
+            g.fill_polygon(&pts, c);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::pages::PAGES;
+
+    #[test]
+    fn collapsed_is_narrower_and_scales() {
+        assert!(width(true, 1.0) < width(false, 1.0));
+        assert_eq!(width(false, 2.0), 2.0 * width(false, 1.0));
+    }
+
+    #[test]
+    fn entries_are_found_under_the_pointer() {
+        let l = layout(Rect::new(0.0, 0.0, width(false, 1.0), 600.0), PAGES.len() + 2, 1.0);
+        assert_eq!(hit(&l, 20.0, l.toggle.y + 5.0), Some(Hit::Toggle));
+        for (i, r) in l.items.iter().enumerate() {
+            assert_eq!(hit(&l, r.x + 5.0, r.y + 5.0), Some(Hit::Page(i)));
+        }
+        assert_eq!(hit(&l, 20.0, 590.0), None);
+        // The entries stay inside the sidebar and do not overlap.
+        for w in l.items.windows(2) {
+            assert!(w[0].bottom() <= w[1].y);
+        }
+        assert!(l.items.iter().all(|r| r.right() <= l.area.right()));
+    }
+
+    #[test]
+    fn the_icon_does_not_move_when_collapsing() {
+        let open = layout(Rect::new(0.0, 0.0, width(false, 1.0), 600.0), 1, 1.0);
+        let shut = layout(Rect::new(0.0, 0.0, width(true, 1.0), 600.0), 1, 1.0);
+        assert_eq!(icon_box(open.items[0], 1.0).x, icon_box(shut.items[0], 1.0).x);
+    }
+}
