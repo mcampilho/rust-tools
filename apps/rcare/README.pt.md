@@ -31,6 +31,7 @@ Páginas até agora:
 | Limpeza de disco | [rclean](../rclean/README.pt.md) | Temporários, caches dos browsers e dos gestores de pacotes, atalhos inválidos, entradas inválidas do registo |
 | Ficheiros duplicados | [rdup](../rdup/README.pt.md) | Ficheiros e pastas com o mesmo conteúdo em vários discos e pastas ao mesmo tempo |
 | Ficheiros grandes | [rsize](../rsize/README.pt.md) | O que ocupa espaço num disco ou numa pasta: lista, tipos de ficheiro, treemap, tarte, anéis |
+| Speed Up | – (do próprio rcare) | O Modo de Jogo do Windows, a memória (libertar a lista de espera como administrador), o processador, e os programas abertos: os marcados são convidados a fechar, como faz o botão de fechar deles |
 | Startup Optimizer | – (do próprio rcare) | O que arranca com o Windows, com um interruptor cada: desligado como o Gestor de Tarefas faz, por isso pode voltar a ligar-se e nada é apagado. Os itens de todos os utilizadores precisam de administrador |
 | Desinstalar aplicações | [rinst](../rinst/README.pt.md) | Os programas de todos os utilizadores e fontes, desinstalados uns a seguir aos outros, e os seus restos |
 

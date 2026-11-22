@@ -41,6 +41,7 @@ System Information" na lista abaixo fica de propósito para mais tarde.
 | `crates/rt-core/src/i18n.rs` | `add` (tabelas extra), `tr_in_from`/`tr_from`/`tf_from` (uma tabela procurada primeiro) |
 | `crates/rt-core/src/menu.rs` | `M::map` (converter os comandos de um menu noutro tipo) |
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; estado dos discos pelo `Get-Volume` |
+| `apps/rcare/src/speed.rs`, `speed_page.rs` | Speed Up: interruptor do Modo de Jogo, memória (lista de espera libertada como administrador), processador, programas abertos (fechados só quando marcados, com `WM_CLOSE`) |
 | `apps/rcare/src/startup.rs`, `startup_page.rs` | Startup Optimizer: o que arranca com o Windows (chaves `Run` do utilizador e da máquina, 64/32 bits, as duas pastas Arranque) e desligar/ligar itens por `Explorer\StartupApproved`, como o Gestor de Tarefas |
 | `apps/rcare/src/custom.rs` | Custom Clean: `CustomPage` (disposição, clique, desenho, acessibilidade), `Part`, `Status`, `View`, `large_files` |
 | `docs/rcare(.pt).md` | este plano |
@@ -100,6 +101,20 @@ Detalhes mostram cada disco e como reparar um com `chkdsk X: /f` ou Propriedades
 neste PC o disco S: diz "Warning / Full Repair Needed"). "Rever" abre o limpador ou o desinstalador; nesta página não se
 muda nada. Mais verificações entram com as fases seguintes (limpeza de privacidade na fase 5 — apagar histórico ou
 cookies é decisão do utilizador, porque o rclean nunca o faz —, arranque, integridade do Windows na fase 6).
+
+## Speed Up (fase 3, página do próprio rcare)
+
+Três caixas e uma lista, lidas de novo a cada dois segundos enquanto a página se vê (param quando se escolhe outra
+página ou a janela se esconde): **Modo de Jogo** (o interruptor do próprio Windows,
+`HKCU\Software\Microsoft\GameBar\AutoGameModeEnabled`, ausente = ligado), **Memória** (`GlobalMemoryStatusEx`; a lista
+de espera pelo `NtQuerySystemInformation(SystemMemoryListInformation)`, que aqui respondeu mesmo sem administrador;
+"Libertar a memória em espera" = `NtSetSystemInformation` com `MemoryPurgeStandbyList` depois de ligar o
+`SeProfileSingleProcessPrivilege`, só como administrador), **Processador** (duas amostras de `GetSystemTimes`) e
+**Programas abertos** (janelas de topo visíveis, sem dono nem estilo de ferramenta, agrupadas por processo, sem a shell do
+Windows nem o rcare; memória = working set). "Fechar os programas marcados…" pergunta primeiro e depois manda `WM_CLOSE`
+às janelas: um programa ainda pode pedir para guardar (havia um Bloco de Notas por guardar na lista). A memória dos
+programas nunca é esvaziada (escolha do utilizador). Por fazer: um gráfico do histórico; o "Auto RAM Clean" fica de
+fora de propósito.
 
 ## Startup Optimizer (fase 3, página do próprio rcare, a última da barra lateral)
 
@@ -181,8 +196,9 @@ ecrã.
    Falta: "Procurar atualizações…" funciona quando houver release; o primeiro release (etiqueta `rcare-v0.1.0`, um
    push: **perguntar ao utilizador**) e depois o manifesto do bucket do Scoop (`bucket/rcare.json`, depois
    `checkver.ps1 -Dir bucket -Update`).
-6. ~~Startup Optimizer~~ feito (2026-11-22): ver a secção.
-7. O resto da fase 3, como o utilizador decidiu em 2026-11-22 (abaixo), depois as fases 4–6.
+6. ~~Startup Optimizer~~ e ~~Speed Up~~ feitos (2026-11-22): ver as secções.
+7. O resto da fase 3, como o utilizador decidiu em 2026-11-22 (abaixo): **Program Deactivator** (serviços de terceiros
+   automáticos) e **Extensions** (lista por browser e perfil, abrir a página do browser). Depois as fases 4–6.
 
 ## Decisões para o resto da fase 3 (o utilizador escolheu a opção recomendada de cada, 2026-11-22)
 
@@ -256,7 +272,7 @@ Process Manager, Software Updater, Default Program.
 **2. Manutenção num clique** ✔ (System Maintenance, com as verificações que já existem) — corre em sequência os módulos disponíveis (privacidade, lixo, registo, atalhos,
 verificação de disco, saúde do software) e faz um relatório.
 
-**3. Velocidade** — Startup Optimizer ✔; App/Extension Cleaner e Program Deactivator; Game Mode e Real-Time TuneUp
+**3. Velocidade** — Startup Optimizer ✔; Speed Up ✔ (Modo de Jogo, memória e Smart RAM, processador, programas abertos); App/Extension Cleaner e Program Deactivator; Game Mode e Real-Time TuneUp
 (monitor de desempenho); Smart RAM.
 
 **4. Registo** — Registry Cleaner (as categorias acima, Deep Scan, cópia `.reg` antes de cada limpeza, restauro);

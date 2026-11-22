@@ -12,6 +12,8 @@ pub mod maint;
 pub mod pages;
 pub mod settings;
 pub mod sidebar;
+pub mod speed;
+pub mod speed_page;
 pub mod startup;
 pub mod startup_page;
 pub mod storage;

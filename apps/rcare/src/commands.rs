@@ -24,6 +24,8 @@ pub enum Cmd {
     Inst(InstCmd),
     /// System Maintenance: every check, in one go.
     MaintScan,
+    /// Speed Up: a button or menu entry of its own.
+    Speed(crate::speed_page::Action),
     /// Startup Optimizer: a button of its bar.
     Startup(crate::startup_page::Action),
     /// Custom Clean: the junk, duplicates and large files analysed together.
@@ -138,6 +140,7 @@ impl Cmd {
             Inst(c) => return c.label_key(),
             MaintScan => "&Scan",
             Startup(a) => a.label_key(),
+            Speed(a) => a.label_key(),
             CustomAnalyze => "&Analyze",
             CustomFolder => "Change &Folder...",
             Sidebar => "Collapse Side&bar",
@@ -182,7 +185,7 @@ pub fn shortcut(cmd: Cmd) -> Option<&'static str> {
         Size(c) => rsize::commands::shortcut(c),
         Inst(c) => rinst::commands::shortcut(c),
         // F5 belongs to the page shown; on Custom Clean it analyses.
-        CustomAnalyze | MaintScan | Startup(crate::startup_page::Action::Refresh) => Some("F5"),
+        CustomAnalyze | MaintScan | Startup(crate::startup_page::Action::Refresh) | Speed(crate::speed_page::Action::Refresh) => Some("F5"),
         c => BINDINGS.iter().find(|(_, x)| *x == c).map(|(k, _)| *k),
     }
 }
@@ -270,6 +273,14 @@ fn page_menus(page: usize) -> Own {
         Some(Kind::Clean) => own_menus(rclean::commands::menu_tree(), clean_is_window, Cmd::from_clean),
         Some(Kind::Dups) => own_menus(rdup::commands::menu_tree(), dups_is_window, Cmd::from_dups),
         Some(Kind::Size) => own_menus(rsize::commands::menu_tree(), size_is_window, Cmd::from_size),
+        Some(Kind::Speed) => {
+            use crate::speed_page::Action as A;
+            Own {
+                file: vec![Item::Item(Speed(A::Refresh))],
+                view: vec![Item::Item(Speed(A::GameMode))],
+                rest: vec![("&Edit", vec![Item::Item(Speed(A::CloseTicked)), Item::Sep, Item::Item(Speed(A::FreeStandby))])],
+            }
+        }
         Some(Kind::Startup) => {
             use crate::startup_page::Action as A;
             Own {
@@ -375,6 +386,7 @@ mod tests {
         assert!(all(at("custom")).contains(&CustomAnalyze));
         assert!(all(at("maint")).contains(&MaintScan));
         assert!(all(at("startup")).contains(&Startup(crate::startup_page::Action::Off)));
+        assert!(all(at("speed")).contains(&Speed(crate::speed_page::Action::GameMode)));
         assert!(all(at("clean")).contains(&Clean(CleanCmd::Analyse)));
         assert!(all(at("dups")).contains(&Dups(DupCmd::Search)));
         assert!(all(at("size")).contains(&Size(SizeCmd::Rescan)));

@@ -121,6 +121,32 @@ fn startup(g: &mut Gfx, r: Rect, th: &Theme) {
     page.render(g, r, th, 1.0);
 }
 
+/// Speed Up with a few programs open, one ticked.
+fn speed(g: &mut Gfx, r: Rect, th: &Theme) {
+    use rcare::speed::{Memory, OpenApp};
+    use rcare::speed_page::SpeedPage;
+    let a = |pid: u32, exe: &str, title: &str, mb: u64| OpenApp {
+        pid,
+        exe: exe.into(),
+        title: title.into(),
+        memory: mb << 20,
+        windows: vec![],
+    };
+    let mut page = SpeedPage::new(true);
+    page.memory = Some(Memory { total: 34_267_713_536, available: 17_337_028_608, standby: Some(14_248_808_448) });
+    page.cpu = Some(21.0);
+    page.game_mode = true;
+    page.apps = vec![
+        a(1, "wotblitz.exe", "WoT Blitz", 903),
+        a(2, "chrome.exe", "DAZN | Home - Google Chrome", 279),
+        a(3, "EXCEL.EXE", "scoop_classificados.xlsx - Excel", 173),
+        a(4, "notepad.exe", "*Untitled - Notepad", 5),
+    ];
+    page.ticked = vec![3];
+    page.sel = Some(2);
+    page.render(g, r, th, 1.0);
+}
+
 #[test]
 #[ignore]
 fn screenshots() {
@@ -140,4 +166,6 @@ fn screenshots() {
     save("maint-dark-smallest.png", shot("maint", true, false, None, 760, 480, &mut maint));
     save("startup-light.png", shot("startup", false, false, None, 1280, 720, &mut startup));
     save("startup-dark-smallest.png", shot("startup", true, false, None, 760, 480, &mut startup));
+    save("speed-light.png", shot("speed", false, false, None, 1280, 720, &mut speed));
+    save("speed-dark-smallest.png", shot("speed", true, false, None, 760, 480, &mut speed));
 }

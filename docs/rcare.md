@@ -38,6 +38,7 @@ the list below is deliberately left for later.
 | `crates/rt-core/src/i18n.rs` | `add` (extra tables), `tr_in_from`/`tr_from`/`tf_from` (a table searched first) |
 | `crates/rt-core/src/menu.rs` | `M::map` (turn the commands of a menu into another type) |
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; drive health from `Get-Volume` |
+| `apps/rcare/src/speed.rs`, `speed_page.rs` | Speed Up: Game Mode switch, memory (standby list freed as administrator), processor, programs open (closed only when ticked, with `WM_CLOSE`) |
 | `apps/rcare/src/startup.rs`, `startup_page.rs` | Startup Optimizer: what starts with Windows (`Run` keys of the user and the machine, 64/32 bits, both Startup folders) and turning items off/on through `Explorer\StartupApproved` as Task Manager does |
 | `apps/rcare/src/custom.rs` | Custom Clean: `CustomPage` (layout, hit, draw, accessibility), `Part`, `Status`, `View`, `large_files` |
 | `docs/rcare(.pt).md` | this plan |
@@ -94,6 +95,18 @@ one with `chkdsk X: /f` or the drive's Properties › Tools › Check — on thi
 Needed"). "Review" opens the cleaner or the uninstaller; nothing is changed on this page. More checks join with the
 later phases (privacy sweep in phase 5 — deleting history or cookies is the user's decision, since rclean never does —,
 startup, Windows integrity in phase 6).
+
+## Speed Up (phase 3, rcare's own page)
+
+Three cards and a list, read again every two seconds while the page is shown (paused when another page is chosen or the
+window hides): **Game Mode** (Windows' own switch, `HKCU\Software\Microsoft\GameBar\AutoGameModeEnabled`, absent = on),
+**Memory** (`GlobalMemoryStatusEx`; the standby list from `NtQuerySystemInformation(SystemMemoryListInformation)`, which
+answered even without administrator rights here; "Free Standby Memory" = `NtSetSystemInformation` with
+`MemoryPurgeStandbyList` after enabling `SeProfileSingleProcessPrivilege`, administrator only), **Processor** (two
+`GetSystemTimes` samples), and **Programs open** (top-level visible windows without owner or tool style, grouped by
+process, Windows' shell and rcare left out; memory = working set). "Close the Ticked Programs…" asks first, then posts
+`WM_CLOSE` to their windows: a program can still ask to save (an unsaved Notepad was in the list here). The programs'
+memory is never emptied (the user's choice). Not done yet: a history graph; "Auto RAM Clean" stays out on purpose.
 
 ## Startup Optimizer (phase 3, rcare's own page, last in the sidebar)
 
@@ -174,8 +187,9 @@ connection to the privileged service `rtsvc` from rcare (the pages use it as the
    "Check for
    updates" works once there is a release; the first release (tag `rcare-v0.1.0`, a push: **ask the user**) and then
    the Scoop bucket manifest (`bucket/rcare.json`, then `checkver.ps1 -Dir bucket -Update`).
-6. ~~Startup Optimizer~~ done (2026-11-22): see its section.
-7. The rest of phase 3, as the user decided on 2026-11-22 (below), then phases 4–6.
+6. ~~Startup Optimizer~~ and ~~Speed Up~~ done (2026-11-22): see their sections.
+7. The rest of phase 3, as the user decided on 2026-11-22 (below): **Program Deactivator** (third-party automatic
+   services) and **Extensions** (list per browser and profile, open the browser's page). Then phases 4–6.
 
 ## Decisions for the rest of phase 3 (the user chose the recommended option of each, 2026-11-22)
 
@@ -247,7 +261,7 @@ Uninstall Apps (rinst) ✔, and **Custom Clean** ✔ (junk, duplicates and large
 **2. One-click maintenance** ✔ (System Maintenance, with the checks that exist so far) — runs the available modules in sequence (privacy sweep, junk, registry, shortcuts, disk
 check, software health) and reports.
 
-**3. Speed** — Startup Optimizer ✔; App/Extension Cleaner and Program Deactivator; Game Mode and Real-Time TuneUp
+**3. Speed** — Startup Optimizer ✔; Speed Up ✔ (Game Mode, memory and Smart RAM, processor, programs open); App/Extension Cleaner and Program Deactivator; Game Mode and Real-Time TuneUp
 (performance monitor); Smart RAM.
 
 **4. Registry** — Registry Cleaner (the categories above, Deep Scan, `.reg` copy before each cleaning, restore);

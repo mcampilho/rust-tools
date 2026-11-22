@@ -35,10 +35,14 @@ pub fn layout(area: Rect, pages: usize, s: f32) -> Layout {
     let row = (40.0 * s).round();
     let toggle = Rect::new(area.x + pad, area.y + (8.0 * s).round(), area.w - 2.0 * pad, row);
     let mut y = toggle.bottom() + (10.0 * s).round();
+    // Many pages in a low window: the entries get shorter (down to 28 px) so all of them show.
+    let gap = (2.0 * s).round();
+    let room = area.bottom() - y - pad;
+    let item = if pages == 0 { row } else { ((room / pages as f32) - gap).floor().clamp((28.0 * s).round(), row) };
     let items = (0..pages)
         .map(|_| {
-            let r = Rect::new(area.x + pad, y, area.w - 2.0 * pad, row);
-            y += row + (2.0 * s).round();
+            let r = Rect::new(area.x + pad, y, area.w - 2.0 * pad, item);
+            y += item + gap;
             r
         })
         .collect();
@@ -143,6 +147,20 @@ fn draw_glyph(g: &mut Gfx, glyph: Glyph, r: Rect, c: rt_gfx::gfx::Color) {
             g.fill_rrect(Rect::new(cx - 1.0, r.y + r.h * 0.12, 2.0, r.h * 0.6), 1.0, c);
             let a = r.w * 0.22;
             g.fill_polygon(&[(cx, r.y), (cx + a, r.y + a), (cx - a, r.y + a)], c);
+        }
+        Glyph::Gauge => {
+            // A half dial and its needle.
+            let (cx, cy, rad) = (r.x + r.w / 2.0, r.y + r.h * 0.78, r.w * 0.48);
+            let pts: Vec<(f32, f32)> = (0..=20)
+                .map(|k| {
+                    let a = (180.0 + 180.0 * k as f32 / 20.0).to_radians();
+                    (cx + rad * a.cos(), cy + rad * a.sin())
+                })
+                .collect();
+            g.polyline(&pts, 2.0, c, false);
+            let a = (-50.0f32).to_radians();
+            g.polyline(&[(cx, cy), (cx + rad * 0.8 * a.cos(), cy + rad * 0.8 * a.sin())], 2.0, c, false);
+            g.fill_circle(cx, cy, 2.0, c);
         }
         Glyph::Power => {
             // A ring open at the top, and a stroke down into it.

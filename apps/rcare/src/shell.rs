@@ -10,6 +10,7 @@ use rcare::maint::{self, Check, MaintPage};
 use rcare::pages::{self, Kind, PAGES};
 use rcare::settings::Settings;
 use rcare::sidebar::{self, Hit};
+use rcare::speed_page::SpeedPage;
 use rcare::startup_page::StartupPage;
 use rcare::storage;
 use rclean::app::App;
@@ -67,6 +68,10 @@ macro_rules! page {
                 let $p = &mut $s.startup;
                 $e
             }
+            Kind::Speed => {
+                let $p = &mut $s.speed;
+                $e
+            }
             Kind::Clean => {
                 let $p = &mut $s.clean;
                 $e
@@ -102,6 +107,8 @@ struct Shell {
     maint: MaintPage,
     /// Startup Optimizer: rcare's own page, what starts with Windows.
     startup: StartupPage,
+    /// Speed Up: rcare's own page, Game Mode, memory, processor, programs open.
+    speed: SpeedPage,
     /// What Windows said about the drives, the last time it was asked.
     volumes: Option<Vec<rcare::disks::Volume>>,
     /// Asking Windows about the drives now; it could not be asked the last time.
@@ -118,7 +125,7 @@ struct Shell {
     /// The settings the uninstaller page keeps (its own file, `rinst.ini`).
     inst_settings: rinst::settings::Settings,
     /// Which pages did their first work (reading the drives, the first look).
-    started: [bool; 7],
+    started: [bool; 8],
     /// The index of the page shown.
     selected: usize,
     settings: Settings,
@@ -198,6 +205,7 @@ impl Shell {
     fn take_fx(&mut self) -> Effects {
         let mut fx = Effects::default();
         for e in [
+            self.speed.fx.take(),
             self.startup.fx.take(),
             self.maint.fx.take(),
             self.custom.fx.take(),
@@ -284,6 +292,7 @@ impl Shell {
             // Custom Clean does nothing before it is asked: the three analyses take a while.
             Kind::Custom | Kind::Maint => {}
             Kind::Startup => self.startup.refresh(),
+            Kind::Speed => self.speed.refresh(),
             Kind::Clean => self.clean.analyse(),
             Kind::Dups => self.dups.load_volumes(),
             Kind::Size => self.size.load_volumes(),
@@ -294,6 +303,13 @@ impl Shell {
 
     fn select_page(&mut self, i: usize) {
         if i < PAGES.len() && i != self.selected {
+            // Speed Up reads every two seconds only while it is shown.
+            if PAGES[self.selected].kind == Kind::Speed {
+                self.speed.pause();
+            }
+            if PAGES[i].kind == Kind::Speed && self.started[i] {
+                self.speed.refresh();
+            }
             self.selected = i;
             self.menu_rebuild = true;
             self.menu_dirty = true;
@@ -512,6 +528,11 @@ impl Shell {
             }
             Cmd::MaintScan => self.maint_scan(),
             Cmd::Startup(a) => self.startup.act(a),
+            Cmd::Speed(a) => {
+                let mut d = self.dialogs();
+                self.speed.act(a, &mut d);
+                self.after_page();
+            }
             Cmd::CustomAnalyze => self.custom_analyze(),
             Cmd::CustomFolder => {
                 let mut d = self.dialogs();
@@ -539,7 +560,7 @@ impl Shell {
             Cmd::RestartAdmin => {
                 self.save_settings();
                 let args = match PAGES[self.selected].kind {
-                    Kind::Clean | Kind::Custom | Kind::Maint | Kind::Startup => String::new(),
+                    Kind::Clean | Kind::Custom | Kind::Maint | Kind::Startup | Kind::Speed => String::new(),
                     Kind::Dups => self.dups.restart_args(),
                     Kind::Size => self.size.restart_args(),
                     Kind::Inst => String::new(),
@@ -561,6 +582,12 @@ impl Shell {
                 let keys = match PAGES[self.selected].kind {
                     Kind::Custom => format!("F5\t{}", rt_core::i18n::strip_mnemonic(&tr("&Analyze"))),
                     Kind::Maint => format!("F5\t{}", rt_core::i18n::strip_mnemonic(&tr("&Scan"))),
+                    Kind::Speed => format!(
+                        "F5\t{}\n{}\t{}",
+                        rt_core::i18n::strip_mnemonic(&tr("&Refresh")),
+                        tr("Space"),
+                        rt_core::i18n::strip_mnemonic(&tr("&Close the Ticked Programs...")).trim_end_matches("...")
+                    ),
                     Kind::Startup => format!(
                         "F5\t{}\n{}\t{}\n↑ ↓  PgUp PgDn  Home End\t{}",
                         rt_core::i18n::strip_mnemonic(&tr("&Refresh")),
@@ -613,8 +640,9 @@ impl Shell {
             Cmd::CustomAnalyze | Cmd::CustomFolder => self.custom_idle(),
             Cmd::MaintScan => self.maint_idle(),
             Cmd::Startup(a) => self.startup.enabled(a),
+            Cmd::Speed(a) => self.speed.enabled(a),
             Cmd::RestartAdmin => match PAGES[self.selected].kind {
-                Kind::Clean | Kind::Custom | Kind::Maint | Kind::Startup => self.clean.enabled(CleanCmd::RestartAdmin),
+                Kind::Clean | Kind::Custom | Kind::Maint | Kind::Startup | Kind::Speed => self.clean.enabled(CleanCmd::RestartAdmin),
                 Kind::Dups => self.dups.enabled(rdup::commands::Command::RestartAdmin),
                 Kind::Size => self.size.enabled(rsize::commands::Command::RestartAdmin),
                 Kind::Inst => self.inst.enabled(rinst::commands::Command::RestartAdmin),
@@ -665,6 +693,7 @@ impl Shell {
         self.size.release();
         self.inst.release();
         self.size.release_drawings();
+        self.speed.pause();
         // Release the frame buffer while hidden.
         self.gfx.resize(1, 1);
         self.gfx.trim_cache();
@@ -844,6 +873,7 @@ impl Shell {
         match PAGES[self.selected].kind {
             Kind::Maint => self.maint.render(&mut self.gfx, rest, &theme, s),
             Kind::Startup => self.startup.render(&mut self.gfx, rest, &theme, s),
+            Kind::Speed => self.speed.render(&mut self.gfx, rest, &theme, s),
             Kind::Custom => self.custom.render(&mut self.gfx, rest, &theme, s),
             Kind::Clean => self.clean.render(&mut self.gfx, rest, &theme, s, false),
             Kind::Dups => self.dups.render(&mut self.gfx, rest, &theme, s, false),
@@ -889,6 +919,7 @@ impl Shell {
         let focus = match PAGES[self.selected].kind {
             Kind::Maint => self.maint.accessibility(&mut nodes, &mut children),
             Kind::Startup => self.startup.accessibility(&mut nodes, &mut children),
+            Kind::Speed => self.speed.accessibility(&mut nodes, &mut children),
             Kind::Custom => self.custom.accessibility(&mut nodes, &mut children),
             Kind::Clean => self.clean.accessibility(&mut nodes, &mut children),
             Kind::Dups => self.dups.accessibility(&mut nodes, &mut children),
@@ -953,6 +984,10 @@ impl Shell {
                 self.startup.key(&logical);
                 None
             }
+            Kind::Speed => {
+                self.speed.key(&logical);
+                None
+            }
             Kind::Clean => self.clean.key(ctrl, shift, alt, logical).map(Cmd::from_clean),
             Kind::Dups => self.dups.key(event, mods).map(Cmd::from_dups),
             Kind::Size => self.size.key(event, mods).map(Cmd::from_size),
@@ -993,6 +1028,13 @@ impl Shell {
             Kind::Startup => {
                 self.startup.press();
                 self.after_page();
+            }
+            Kind::Speed => {
+                let a = self.speed.press();
+                self.after_page();
+                if let Some(a) = a {
+                    self.command(el, Cmd::Speed(a));
+                }
             }
             Kind::Maint => match self.maint.press() {
                 Some(maint::Hit::Scan) => self.command(el, Cmd::MaintScan),
@@ -1041,7 +1083,7 @@ impl Shell {
     /// The pointer moved with the left button down.
     fn drag(&mut self, x: f32, y: f32) {
         match PAGES[self.selected].kind {
-            Kind::Custom | Kind::Maint | Kind::Startup => {}
+            Kind::Custom | Kind::Maint | Kind::Startup | Kind::Speed => {}
             Kind::Clean => {
                 if self.clean.dragging {
                     self.clean.drag_to(y);
@@ -1056,7 +1098,7 @@ impl Shell {
     fn right_click(&mut self, el: &ActiveEventLoop) {
         let mods: Mods = self.mods.into();
         match PAGES[self.selected].kind {
-            Kind::Custom | Kind::Maint | Kind::Startup | Kind::Clean => {}
+            Kind::Custom | Kind::Maint | Kind::Startup | Kind::Speed | Kind::Clean => {}
             Kind::Dups => {
                 let popup = self.dups.right_click();
                 self.after_page();
@@ -1086,6 +1128,7 @@ impl Shell {
         match PAGES[self.selected].kind {
             Kind::Custom | Kind::Maint => {}
             Kind::Startup => self.startup.wheel(delta),
+            Kind::Speed => self.speed.wheel(delta),
             Kind::Clean => self.clean.wheel(&mut self.gfx, s, delta, self.cursor),
             Kind::Dups => self.dups.wheel(delta, self.cursor),
             Kind::Size => self.size.wheel(delta, self.cursor),
@@ -1099,6 +1142,7 @@ impl Shell {
         let wake = match PAGES[self.selected].kind {
             // What the other pages report redraws it: nothing turns here.
             Kind::Custom | Kind::Maint | Kind::Startup => None,
+            Kind::Speed => self.speed.animate(),
             Kind::Clean => self.clean.animate().then(|| Instant::now() + Duration::from_millis(40)),
             Kind::Dups => self.dups.animate().map(|d| Instant::now() + d),
             Kind::Size => self.size.animate(),
@@ -1250,7 +1294,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 match PAGES[self.selected].kind {
                     Kind::Dups => self.dups.drop_file(p),
                     Kind::Size => self.size.drop_file(p),
-                    Kind::Custom | Kind::Maint | Kind::Startup | Kind::Clean | Kind::Inst => {}
+                    Kind::Custom | Kind::Maint | Kind::Startup | Kind::Speed | Kind::Clean | Kind::Inst => {}
                 }
                 self.after_page();
             }
@@ -1325,8 +1369,8 @@ const USAGE: &str = "rcare [--tray] [--new-window] [folder]
   Maintenance (the checks in one go), Custom Clean (junk, duplicates and
   large files in one look), the cleaner of
   rclean, the duplicates of rdup, the disk space of rsize and the
-  uninstaller of rinst, the Startup Optimizer, and more as the other tools
-  join them.
+  uninstaller of rinst, Speed Up, the Startup Optimizer, and more as the
+  other tools join them.
 
   folder        Open Custom Clean on this folder (or drive) and analyse it.
   --tray        Stay resident in the notification area: closing the window
@@ -1428,6 +1472,7 @@ pub fn run() {
     let mut shell = Shell {
         maint: MaintPage::default(),
         startup: StartupPage::new(admin),
+        speed: SpeedPage::new(admin),
         volumes: None,
         disks_running: false,
         disks_failed: false,
@@ -1439,7 +1484,7 @@ pub fn run() {
         inst: rinst::page::InstPage::new(&inst_settings, admin, data_dir, inst_send),
         dups_settings,
         inst_settings,
-        started: [false; 7],
+        started: [false; 8],
         selected,
         settings,
         location,

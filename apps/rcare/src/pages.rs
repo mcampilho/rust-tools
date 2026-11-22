@@ -18,6 +18,8 @@ pub enum Kind {
     Inst,
     /// rcare's own: what starts with Windows.
     Startup,
+    /// rcare's own: Game Mode, memory, processor, programs open.
+    Speed,
 }
 
 /// A page in the sidebar.
@@ -48,6 +50,8 @@ pub enum Glyph {
     Remove,
     /// A power sign: what starts with the computer.
     Power,
+    /// A gauge: speed.
+    Gauge,
 }
 
 pub const PAGES: &[PageInfo] = &[
@@ -57,6 +61,7 @@ pub const PAGES: &[PageInfo] = &[
     PageInfo { id: "dups", kind: Kind::Dups, label: "Duplicate Files", glyph: Glyph::Copies },
     PageInfo { id: "size", kind: Kind::Size, label: "Large Files", glyph: Glyph::Bars },
     PageInfo { id: "inst", kind: Kind::Inst, label: "Uninstall Apps", glyph: Glyph::Remove },
+    PageInfo { id: "speed", kind: Kind::Speed, label: "Speed Up", glyph: Glyph::Gauge },
     PageInfo { id: "startup", kind: Kind::Startup, label: "Startup Optimizer", glyph: Glyph::Power },
 ];
 

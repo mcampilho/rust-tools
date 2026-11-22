@@ -31,6 +31,7 @@ Pages so far:
 | Disk Cleaner | [rclean](../rclean/README.md) | Temporary files, browser and package manager caches, broken shortcuts, invalid registry entries |
 | Duplicate Files | [rdup](../rdup/README.md) | Files and folders with the same contents on several drives and folders at once |
 | Large Files | [rsize](../rsize/README.md) | What takes the space on a drive or in a folder: list, file types, treemap, pie, rings |
+| Speed Up | – (rcare's own) | Windows' Game Mode, the memory (free the standby list as administrator), the processor, and the programs open: those ticked are asked to close, as their close button does |
 | Startup Optimizer | – (rcare's own) | What starts with Windows, with a switch each: turned off as Task Manager does it, so it can be turned on again and nothing is deleted. Items of every user need administrator rights |
 | Uninstall Apps | [rinst](../rinst/README.md) | The programs of every user and source, uninstalled one after another, and their leftovers |
 
