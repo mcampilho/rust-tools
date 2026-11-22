@@ -205,6 +205,41 @@ fn extensions(g: &mut Gfx, r: Rect, th: &Theme) {
     page.render(g, r, th, 1.0);
 }
 
+/// The Registry Cleaner after a scan, a category selected with a few entries.
+fn registry(g: &mut Gfx, r: Rect, th: &Theme) {
+    use rcare::registry_page::RegistryPage;
+    use rt_sys::regfile::Entry;
+    let mut page = RegistryPage::new(false, std::env::temp_dir());
+    let e = |key: &str, value: Option<&str>, why: &str| (Entry { key: key.into(), value: value.map(str::to_string) }, why.to_string());
+    for c in &mut page.cats {
+        c.found = Some(Vec::new());
+    }
+    let at = |p: &RegistryPage, id: &str| p.cats.iter().position(|c| c.id == id).unwrap();
+    let run = at(&page, "reg.run");
+    page.cats[run].found = Some(vec![
+        e(
+            "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+            Some("OldSync"),
+            "OldSync → C:\\Program Files\\OldSync\\sync.exe",
+        ),
+        e("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", Some("Updater"), "Updater → D:\\Tools\\updater\\upd.exe"),
+    ]);
+    let mui = at(&page, "reg.muicache");
+    page.cats[mui].found = Some(vec![e(
+        "HKEY_CURRENT_USER\\Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\Shell\\MuiCache",
+        Some("C:\\Games\\old.exe.FriendlyAppName"),
+        "C:\\Games\\old.exe",
+    )]);
+    let com = at(&page, "report.com");
+    page.cats[com].found = Some(vec![e(
+        "HKEY_LOCAL_MACHINE\\Software\\Classes\\CLSID\\{A530D54A-DBA0-4b17-9F99-51A7A2CC17CA}",
+        None,
+        "Tethering Setting Handler → C:\\Windows\\System32\\TetheringSettingHandler.dll",
+    )]);
+    page.sel = run;
+    page.render(g, r, th, 1.0);
+}
+
 #[test]
 #[ignore]
 fn screenshots() {
@@ -231,4 +266,6 @@ fn screenshots() {
     save("services-collapsed.png", shot("services", false, true, None, 1180, 720, &mut services));
     save("extensions-light.png", shot("extensions", false, false, None, 1280, 720, &mut extensions));
     save("extensions-dark-smallest.png", shot("extensions", true, false, None, 760, 480, &mut extensions));
+    save("registry-light.png", shot("registry", false, false, None, 1280, 720, &mut registry));
+    save("registry-dark-smallest.png", shot("registry", true, false, None, 760, 480, &mut registry));
 }

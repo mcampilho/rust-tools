@@ -41,6 +41,7 @@ System Information" na lista abaixo fica de propósito para mais tarde.
 | `crates/rt-core/src/i18n.rs` | `add` (tabelas extra), `tr_in_from`/`tr_from`/`tf_from` (uma tabela procurada primeiro) |
 | `crates/rt-core/src/menu.rs` | `M::map` (converter os comandos de um menu noutro tipo) |
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; estado dos discos pelo `Get-Volume` |
+| `apps/rcare/src/registry_page.rs` | Registry Cleaner: as categorias do registo do limpador (marcadas, cópia `.reg`, limpas), classes COM e serviços só mostrados, o tamanho dos ficheiros do registo |
 | `apps/rcare/src/extensions.rs`, `extensions_page.rs` | Extensions: o que está acrescentado ao Chrome, Edge, Brave, Vivaldi, Opera, Chromium e Firefox, por perfil; abre a página de extensões do próprio browser. Não altera nada |
 | `apps/rcare/src/services.rs`, `services_page.rs` | Program Deactivator: serviços de terceiros que arrancam com o Windows, postos em Manual depois de perguntar, com cópia (`services.txt`) para devolver o arranque |
 | `apps/rcare/src/speed.rs`, `speed_page.rs` | Speed Up: interruptor do Modo de Jogo, memória (lista de espera libertada como administrador), processador, programas abertos (fechados só quando marcados, com `WM_CLOSE`) |
@@ -104,7 +105,26 @@ neste PC o disco S: diz "Warning / Full Repair Needed"). "Rever" abre o limpador
 muda nada. Mais verificações entram com as fases seguintes (limpeza de privacidade na fase 5 — apagar histórico ou
 cookies é decisão do utilizador, porque o rclean nunca o faz —, arranque, integridade do Windows na fase 6).
 
-## Extensions (fase 3, página do próprio rcare, a última da barra lateral)
+## Registry Cleaner (fase 4, página do próprio rcare, a última da barra lateral)
+
+Escolhas do utilizador (2026-11-22): só se limpam as categorias seguras; classes COM e serviços só se mostram; o
+Registry Defrag só mostra tamanhos. O motor é o do limpador (`rt_clean::registry`), por isso o rclean também ganhou
+as categorias novas: ficheiros de ajuda (`Help`, `HTML Help`), sons (o valor predefinido de
+`AppEvents\…\.Current`: o evento fica, sem som) e regras da Firewall do Windows (valores de `FirewallRules` cujo
+`App=` já não existe; a Firewall relê o registo ao reiniciar). `registry::REPORTS`/`report`: classes COM
+(`CLSID\…\InprocServer32` como caminho, `LocalServer32` como comando) e serviços (`Type` 16/32) sem ficheiro — 19
+classes COM aqui, todas restos do próprio Windows, por isso nunca se limpam. Na vista de 32 bits o `Program Files`
+procura-se também em `Program Files (x86)` (antes contava como desaparecido). A página: categorias à esquerda
+(marcadas; as do sistema só como administrador, os relatórios com um "i"), as entradas da escolhida à direita,
+análise num fio quando a página se mostra pela primeira vez e com F5; "Limpar as entradas marcadas…" pergunta com
+a lista e guarda cada categoria em `backups\registry <data>\<id>.reg` antes de apagar (a pasta e o formato do
+limpador), depois volta a analisar; "Abrir a pasta das cópias"; "Tamanho do registo…": o tamanho de cada ficheiro
+do registo (o `System32\config` precisa de administrador até para listar: sem ele só o `NTUSER.DAT` e o
+`UsrClass.dat`, e di-lo). Verificado: a análise deste PC (nada para limpar sem administrador; 19 classes COM
+mostradas), imagens, a página no `.exe` a sério. **Não verificado**: limpar a sério a partir desta página (o teste
+do motor `cleans_a_startup_entry` fá-lo), e as categorias do sistema como administrador.
+
+## Extensions (fase 3, página do próprio rcare)
 
 Lidas dos ficheiros de cada browser, com o `rt_core::json`: nos browsers Chromium (Chrome, Edge, Brave, Vivaldi,
 Chromium em `%LOCALAPPDATA%`, Opera em `%APPDATA%\Opera Software`) o `extensions.settings` do `Secure Preferences` e
@@ -230,7 +250,7 @@ ecrã.
    `checkver.ps1 -Dir bucket -Update`).
 6. ~~Startup Optimizer~~, ~~Speed Up~~, ~~Program Deactivator~~ e ~~Extensions~~ feitos (2026-11-22): a fase 3 está
    completa (o Real-Time TuneUp, um histórico do desempenho, fica para depois). Ver as secções.
-7. Fases 4–6 (registo, rede e proteção, sistema).
+7. ~~Fase 4~~ feita (2026-11-22): Registry Cleaner, ver a secção. Depois as fases 5–6 (rede e proteção, sistema).
 
 ## Decisões para o resto da fase 3 (o utilizador escolheu a opção recomendada de cada, 2026-11-22)
 

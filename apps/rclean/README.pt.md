@@ -117,6 +117,9 @@ Entradas que nomeiam um ficheiro ou uma pasta que já não existe:
 | Ficheiros partilhados | contagens `SharedDLLs` de ficheiros que já não existem | sim |
 | Pastas do instalador | a lista de pastas do Windows Installer, as que já não existem | sim |
 | Tipos de letra | tipos de letra cujo ficheiro já não existe | sim |
+| Ficheiros de ajuda | ficheiros de ajuda registados (`Help`, `HTML Help`) cujo ficheiro já não existe | sim |
+| Sons | sons de eventos do Windows cujo ficheiro já não existe (o evento fica, sem som) | não |
+| Regras da firewall | regras da Firewall do Windows de programas que já não existem | sim |
 
 Só se verificam caminhos completos num disco que está lá: nunca nomes sem
 caminho (`rundll32.exe`), a rede, nem um disco desligado; o `System32` de uma
@@ -200,5 +203,6 @@ o Firefox também do Snap e do Flatpak), e os gestores de pacotes acima.
    tarefas, Enviar para, itens recentes; ficheiros `.desktop` e ligações do
    Linux), para a Reciclagem.
 4. Feito: entradas inválidas do registo (desinstalação, arranque, App Paths,
-   MuiCache, Abrir com, SharedDLLs, pastas do instalador, tipos de letra),
+   MuiCache, Abrir com, SharedDLLs, pastas do instalador, tipos de letra; desde 2026-11-22 ficheiros de ajuda, sons e
+   regras da firewall),
    guardadas num `.reg` antes de saírem.

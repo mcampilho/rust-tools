@@ -9,7 +9,14 @@
 //! - "Open with" programs (`Classes\Applications`) gone;
 //! - `SharedDLLs` counts of files gone;
 //! - Windows Installer's folder list with folders gone;
-//! - fonts whose file is gone.
+//! - fonts whose file is gone;
+//! - help files listed whose file is gone;
+//! - sounds of Windows' events whose file is gone;
+//! - Windows Firewall rules of programs gone.
+//!
+//! Two more are only reported, never cleaned ([`report`]): COM classes whose
+//! file is gone (programs can register them oddly) and services whose
+//! program is gone (Windows' own state).
 //!
 //! Only absolute paths are checked, never on the network or on a drive not
 //! there now. Everything is saved to a `.reg` file before it is deleted
@@ -47,7 +54,39 @@ pub fn targets() -> Vec<Target> {
         t("reg.shareddlls", k("Shared files"), k("Counts of shared files that are gone (SharedDLLs)."), true),
         t("reg.folders", k("Installer folders"), k("Folders Windows Installer keeps a list of that are gone."), true),
         t("reg.fonts", k("Fonts"), k("Fonts listed whose file is gone."), true),
+        t("reg.help", k("Help files"), k("Help files listed whose file is gone."), true),
+        t("reg.sounds", k("Sounds"), k("Sounds of Windows events whose file is gone."), false),
+        t("reg.firewall", k("Firewall rules"), k("Windows Firewall rules of programs that are gone."), true),
     ]
+}
+
+/// What is only reported (never cleaned): COM classes and services whose file is gone.
+pub const REPORTS: [(&str, &str, &str); 2] = [
+    ("report.com", k("COM classes"), k("ActiveX and COM classes whose file is gone. Only shown: programs can register them in odd ways.")),
+    ("report.services", k("Services"), k("Services whose program is gone. Only shown: remove them with their program.")),
+];
+
+/// The entries of a report (`REPORTS`); the same form as a target's.
+pub fn report(id: &str) -> Vec<(rt_sys::regfile::Entry, String)> {
+    #[cfg(windows)]
+    {
+        win::find(id)
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = id;
+        Vec::new()
+    }
+}
+
+/// The program of a Windows Firewall rule (`v2.30|Action=Allow|…|App=C:\x\a.exe|…`), expanded by `expand`.
+pub fn firewall_app(rule: &str, expand: impl Fn(&str) -> String) -> Option<String> {
+    rule.split('|').find_map(|part| part.strip_prefix("App=")).filter(|a| !a.is_empty() && !a.eq_ignore_ascii_case("System")).map(expand)
+}
+
+/// The name of a Windows Firewall rule (`Name=`), or its id.
+pub fn firewall_name<'a>(rule: &'a str, id: &'a str) -> &'a str {
+    rule.split('|').find_map(|p| p.strip_prefix("Name=")).filter(|n| !n.is_empty() && !n.starts_with('@')).unwrap_or(id)
 }
 
 /// The program a command runs: `"C:\x\a.exe" /S` → `C:\x\a.exe`; unquoted,
@@ -81,10 +120,13 @@ pub fn gone(path: &str, wow32: bool) -> bool {
         return false;
     }
     if wow32 {
+        // A 32-bit program's `%ProgramFiles%` and `System32`, read by a 64-bit one.
         let lower = path.to_lowercase();
-        if let Some(i) = lower.find("\\system32\\") {
-            let other = format!("{}\\SysWOW64\\{}", &path[..i], &path[i + 10..]);
-            return !Path::new(&other).exists();
+        for (from, to) in [("\\system32\\", "\\SysWOW64\\"), ("\\program files\\", "\\Program Files (x86)\\")] {
+            if let Some(i) = lower.find(from) {
+                let other = format!("{}{to}{}", &path[..i], &path[i + from.len()..]);
+                return !Path::new(&other).exists();
+            }
         }
     }
     true
@@ -299,6 +341,101 @@ mod win {
                     }
                 }
             }
+            "reg.help" => {
+                for r in [Root::LocalMachine, Root::CurrentUser] {
+                    for &view in views(r) {
+                        for path in ["Software\\Microsoft\\Windows\\Help", "Software\\Microsoft\\Windows\\HTML Help"] {
+                            let Some(k) = Key::open(r, path, view) else { continue };
+                            for (name, v) in k.values() {
+                                let Some(dir) = text(&v).filter(|d| !d.trim().is_empty()) else { continue };
+                                let full = Path::new(dir.trim()).join(&name).to_string_lossy().into_owned();
+                                if gone(&full, view == View::Bits32) {
+                                    out.push((Entry { key: key_path(r, path, view), value: Some(name.clone()) }, full));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            "reg.sounds" => {
+                let path = "AppEvents\\Schemes\\Apps";
+                if let Some(apps) = Key::open(Root::CurrentUser, path, View::Bits64) {
+                    for app in apps.subkeys() {
+                        let Some(a) = apps.sub(&app, View::Bits64) else { continue };
+                        for ev in a.subkeys() {
+                            let key = format!("{path}\\{app}\\{ev}\\.Current");
+                            let Some(file) = Key::open(Root::CurrentUser, &key, View::Bits64).and_then(|c| c.string("")) else { continue };
+                            let file = expand(&file);
+                            if !file.trim().is_empty() && gone(&file, false) {
+                                // The default value only: the event stays, silent.
+                                out.push((
+                                    Entry { key: key_path(Root::CurrentUser, &key, View::Bits64), value: Some(String::new()) },
+                                    format!("{ev} → {file}"),
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+            "reg.firewall" => {
+                let path = "SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\FirewallRules";
+                if let Some(k) = Key::open(Root::LocalMachine, path, View::Bits64) {
+                    for (id, v) in k.values() {
+                        let Some(rule) = text(&v) else { continue };
+                        let Some(app) = firewall_app(&rule, expand) else { continue };
+                        if gone(&app, false) {
+                            let name = firewall_name(&rule, &id).to_string();
+                            out.push((
+                                Entry { key: key_path(Root::LocalMachine, path, View::Bits64), value: Some(id.clone()) },
+                                format!("{name} → {app}"),
+                            ));
+                        }
+                    }
+                }
+            }
+            "report.com" => {
+                for r in [Root::CurrentUser, Root::LocalMachine] {
+                    for &view in views(r) {
+                        let Some(k) = Key::open(r, "Software\\Classes\\CLSID", view) else { continue };
+                        for clsid in k.subkeys() {
+                            let Some(c) = k.sub(&clsid, view) else { continue };
+                            for server in ["InprocServer32", "LocalServer32"] {
+                                let Some(file) = c.sub(server, view).and_then(|s| s.string("")) else { continue };
+                                // A DLL's path as it is (spaces and all); a server's command line by its program.
+                                let file = expand(&file);
+                                let file = if server == "InprocServer32" {
+                                    file.trim().trim_matches('"').to_string()
+                                } else {
+                                    let Some(f) = command_file(&file) else { continue };
+                                    f
+                                };
+                                if gone(&file, view == View::Bits32) {
+                                    let name = c.string("").filter(|n| !n.is_empty()).unwrap_or_else(|| clsid.clone());
+                                    out.push(key_entry(r, format!("Software\\Classes\\CLSID\\{clsid}"), view, format!("{name} → {file}")));
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            "report.services" => {
+                let path = "SYSTEM\\CurrentControlSet\\Services";
+                if let Some(k) = Key::open(Root::LocalMachine, path, View::Bits64) {
+                    for name in k.subkeys() {
+                        let Some(s) = k.sub(&name, View::Bits64) else { continue };
+                        // Programs of their own (16) or shared (32), not drivers.
+                        if s.number("Type").is_none_or(|t| t & 0x30 == 0) {
+                            continue;
+                        }
+                        let Some(file) = s.string("ImagePath").and_then(|i| command_file(&expand(&i))) else { continue };
+                        if gone(&file, false) {
+                            let shown = s.string("DisplayName").filter(|d| !d.starts_with('@')).unwrap_or_else(|| name.clone());
+                            out.push(key_entry(Root::LocalMachine, format!("{path}\\{name}"), View::Bits64, format!("{shown} → {file}")));
+                        }
+                    }
+                }
+            }
             _ => {}
         }
         out
@@ -323,6 +460,19 @@ mod tests {
         let here = std::env::current_exe().unwrap().to_string_lossy().into_owned();
         assert!(!gone(&here, false));
         assert!(gone(&format!("{here}.gone"), false));
+    }
+
+    #[test]
+    fn firewall_rules() {
+        let up = |s: &str| s.replace("%ProgramFiles%", "C:\\Program Files");
+        let rule = "v2.30|Action=Allow|Active=TRUE|Dir=In|Protocol=6|App=%ProgramFiles%\\Old\\old.exe|Name=Old Game|";
+        assert_eq!(firewall_app(rule, up).as_deref(), Some("C:\\Program Files\\Old\\old.exe"));
+        assert_eq!(firewall_name(rule, "{id}"), "Old Game");
+        assert_eq!(firewall_app("v2.30|Action=Allow|App=System|Name=x|", up), None);
+        assert_eq!(firewall_app("v2.30|Action=Block|Svc=dnscache|", up), None);
+        assert_eq!(firewall_name("v2.30|Name=@FirewallAPI.dll,-1|", "{id}"), "{id}");
+        assert_eq!(REPORTS.len(), 2);
+        assert!(targets().iter().all(|t| !t.id.starts_with("report.")));
     }
 
     /// A startup entry of its own to a program gone: found, saved to a
@@ -360,6 +510,13 @@ mod tests {
             println!("{}: {}", t.id, f.entries.len());
             for (e, why) in f.entries.iter().take(8) {
                 println!("    {} {} | {why}", e.key, e.value.as_deref().map(|v| format!("› {v}")).unwrap_or_default());
+            }
+        }
+        for (id, _, _) in REPORTS {
+            let found = report(id);
+            println!("{id}: {}", found.len());
+            for (e, why) in found.iter().take(8) {
+                println!("    {} | {why}", e.key);
             }
         }
     }

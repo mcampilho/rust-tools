@@ -59,9 +59,11 @@ Em Linux (WSL, `CARGO_TARGET_DIR=$HOME/rt-target`) os mesmos com `cargo`.
   qual; `win::find`): `Uninstall` (HKCU e, `admin`, HKLM 64/32; `UninstallString` por `command_file` e
   `InstallLocation` ambos desaparecidos; nunca `WindowsInstaller=1`), `Run`/`RunOnce` (idem), `App Paths` (`admin`),
   `MuiCache` (`mui_program`: `….FriendlyAppName`/`.ApplicationCompany`, nunca `@…`), `Classes\Applications` (todos os
-  verbos sem programa), `SharedDLLs`, `Installer\Folders` (sem `Config.Msi`), `Fonts` (relativos em `%windir%\Fonts`).
+  verbos sem programa), `SharedDLLs`, `Installer\Folders` (sem `Config.Msi`), `Fonts` (relativos em `%windir%\Fonts`); desde 2026-11-22 (para o rcare) `Help`/`HTML Help`, sons (`AppEvents\…\.Current`:
+  só o valor predefinido) e regras da Firewall (`FirewallRules`, `firewall_app`: `App=`; o serviço só as relê ao
+  reiniciar), e `REPORTS`/`report` (classes COM e serviços sem ficheiro: só mostrados pelo rcare, nunca limpos).
   `gone`: só caminhos absolutos num disco presente (`shortcuts::checkable`), no 32 bits o `System32` também em
-  `SysWOW64`. `Found::entries` (`regfile::Entry`, o que nomeava). Limpar: `rt_sys::regfile::save_then_delete` para
+  `SysWOW64` e o `Program Files` em `Program Files (x86)`. `Found::entries` (`regfile::Entry`, o que nomeava). Limpar: `rt_sys::regfile::save_then_delete` para
   `<definições>\backups\registry <data>\<id>.reg` (o `clean` recebe a pasta da limpeza; o resumo diz onde). O
   `regfile` (linhas `.reg` de todos os tipos, `export_key`/`export_value`, apagar) passou a ser partilhado com os
   restos do rinst. Teste real `cleans_a_startup_entry` (ignorado: escreve no `Run` do HKCU). Neste PC (sem

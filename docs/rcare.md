@@ -38,6 +38,7 @@ the list below is deliberately left for later.
 | `crates/rt-core/src/i18n.rs` | `add` (extra tables), `tr_in_from`/`tr_from`/`tf_from` (a table searched first) |
 | `crates/rt-core/src/menu.rs` | `M::map` (turn the commands of a menu into another type) |
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; drive health from `Get-Volume` |
+| `apps/rcare/src/registry_page.rs` | Registry Cleaner: the cleaner's registry categories (ticked, `.reg` copy, cleaned), COM classes and services only reported, the registry's file sizes |
 | `apps/rcare/src/extensions.rs`, `extensions_page.rs` | Extensions: what is added to Chrome, Edge, Brave, Vivaldi, Opera, Chromium and Firefox, by profile; opens the browser's own extensions page. Changes nothing |
 | `apps/rcare/src/services.rs`, `services_page.rs` | Program Deactivator: third-party services that start with Windows, set to Manual after asking, with a copy (`services.txt`) to give the start back |
 | `apps/rcare/src/speed.rs`, `speed_page.rs` | Speed Up: Game Mode switch, memory (standby list freed as administrator), processor, programs open (closed only when ticked, with `WM_CLOSE`) |
@@ -98,7 +99,26 @@ Needed"). "Review" opens the cleaner or the uninstaller; nothing is changed on t
 later phases (privacy sweep in phase 5 — deleting history or cookies is the user's decision, since rclean never does —,
 startup, Windows integrity in phase 6).
 
-## Extensions (phase 3, rcare's own page, last in the sidebar)
+## Registry Cleaner (phase 4, rcare's own page, last in the sidebar)
+
+The user's choices (2026-11-22): only the safe categories are cleaned; COM classes and services are only shown;
+Registry Defrag only shows sizes. The engine is the cleaner's (`rt_clean::registry`), so rclean gained the new
+categories too: help files (`Help`, `HTML Help`), sounds (the default value of `AppEvents\…\.Current`: the event
+stays, silent) and Windows Firewall rules (`FirewallRules` values whose `App=` is gone; the Firewall reads the
+registry again when it restarts). `registry::REPORTS`/`report`: COM classes (`CLSID\…\InprocServer32` as a path,
+`LocalServer32` as a command) and services (`Type` 16/32) whose file is gone — 19 COM classes here, all Windows'
+own leftovers, which is why they are never cleaned. In the 32-bit view `Program Files` is also looked for in
+`Program Files (x86)` (it was counted gone before). The page: categories on the left (ticked; the system's only as
+administrator, the reports with an "i"), the selected one's entries on the right, scan in a thread when the page is
+first shown and with F5; "Clean the Ticked Entries…" asks with the list and saves each category to
+`backups\registry <date>\<id>.reg` before deleting (the cleaner's folder and format), then scans again;
+"Open the Copies Folder"; "Registry Size…": the hives' sizes (`System32\config` needs administrator rights even
+to list: without them only `NTUSER.DAT` and `UsrClass.dat`, and it says so). Verified: the scan of this PC (nothing
+to clean without administrator; 19 COM classes reported), screenshots, the page in the real `.exe`. **Not
+verified**: cleaning for real from this page (the engine's own test `cleans_a_startup_entry` does it), and the
+system's categories as administrator.
+
+## Extensions (phase 3, rcare's own page)
 
 Read from each browser's own files, with `rt_core::json`: for the Chromium browsers (Chrome, Edge, Brave, Vivaldi,
 Chromium under `%LOCALAPPDATA%`, Opera under `%APPDATA%\Opera Software`) `extensions.settings` of `Secure
@@ -221,7 +241,8 @@ connection to the privileged service `rtsvc` from rcare (the pages use it as the
    the Scoop bucket manifest (`bucket/rcare.json`, then `checkver.ps1 -Dir bucket -Update`).
 6. ~~Startup Optimizer~~, ~~Speed Up~~, ~~Program Deactivator~~ and ~~Extensions~~ done (2026-11-22): phase 3 is
    complete (Real-Time TuneUp, a performance history, stays for later). See their sections.
-7. Phases 4–6 (registry, network and protection, system).
+7. ~~Phase 4~~ done (2026-11-22): Registry Cleaner, see its section. Then phases 5–6 (network and protection,
+   system).
 
 ## Decisions for the rest of phase 3 (the user chose the recommended option of each, 2026-11-22)
 
@@ -296,8 +317,8 @@ check, software health) and reports.
 **3. Speed** — Startup Optimizer ✔; Speed Up ✔ (Game Mode, memory and Smart RAM, processor, programs open); Program Deactivator ✔ (third-party services, with a copy); Extensions ✔ (list and open the browser's page); Game Mode and Real-Time TuneUp
 (performance monitor); Smart RAM.
 
-**4. Registry** — Registry Cleaner (the categories above, Deep Scan, `.reg` copy before each cleaning, restore);
-Registry Defrag (analysis).
+**4. Registry** ✔ — Registry Cleaner (the safe categories, COM and services reported, `.reg` copy before each
+cleaning, restore by opening it); Registry Defrag (sizes only).
 
 **5. Network and protection** — Internet Booster (TCP, DNS Protector, browser optimize); Protect System (Defender,
 Firewall, anti-tracking, browser protection, safe folder, undelete to be assessed).

@@ -178,6 +178,15 @@ fn draw_glyph(g: &mut Gfx, glyph: Glyph, r: Rect, c: rt_gfx::gfx::Color) {
             cog(g, r.x + r.w * 0.38, r.y + r.h * 0.6, r.w * 0.4, 8);
             cog(g, r.x + r.w * 0.8, r.y + r.h * 0.22, r.w * 0.24, 6);
         }
+        Glyph::Blocks => {
+            // Three blocks stacked like a hive's cells: two below, one above.
+            let b = r.w * 0.42;
+            let gap = r.w * 0.1;
+            let y2 = r.y + r.h - b;
+            g.stroke_rrect(Rect::new(r.x, y2, b, b), 2.0, 1.6, c);
+            g.stroke_rrect(Rect::new(r.x + b + gap, y2, b, b), 2.0, 1.6, c);
+            g.fill_rrect(Rect::new(r.x + (b + gap) / 2.0, y2 - gap - b, b, b), 2.0, c);
+        }
         Glyph::Puzzle => {
             // A square piece with a knob on top and one on the right.
             let q = r.w * 0.7;

@@ -114,10 +114,13 @@ Entries that name a file or folder that is gone:
 | Shared files | `SharedDLLs` counts of files gone | yes |
 | Installer folders | Windows Installer's list of folders, those gone | yes |
 | Fonts | fonts whose file is gone | yes |
+| Help files | help files listed (`Help`, `HTML Help`) whose file is gone | yes |
+| Sounds | sounds of Windows events whose file is gone (the event stays, silent) | no |
+| Firewall rules | Windows Firewall rules of programs that are gone | yes |
 
 Only full paths on a drive that is there are checked: never relative names
 (`rundll32.exe`), the network, or a drive unplugged; a 32-bit entry's
-`System32` is looked for in `SysWOW64` too. Every entry is saved first to a
+`System32` is looked for in `SysWOW64` too, and its `Program Files` in `Program Files (x86)`. Every entry is saved first to a
 `.reg` file, in `backups\registry <date>` beside the settings (one file per
 item); the end of the cleaning says where. Double-click a file to put its
 entries back. The details list each entry and what it named.
@@ -193,5 +196,5 @@ Flatpak), and the package managers above.
 3. Done: broken shortcuts (Start menu, desktop, taskbar, Send To, recent
    items; Linux `.desktop` files and links), to the Recycle Bin.
 4. Done: invalid registry entries (uninstall, startup, App Paths, MuiCache,
-   Open with, SharedDLLs, Installer folders, fonts), saved to a `.reg` file
+   Open with, SharedDLLs, Installer folders, fonts; since 2026-11-22 help files, sounds and firewall rules), saved to a `.reg` file
    before they are removed.
