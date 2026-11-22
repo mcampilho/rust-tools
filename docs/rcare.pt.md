@@ -145,10 +145,16 @@ ecrã.
 2. ~~Custom Clean~~ feita (2026-11-22): ver a secção acima.
 3. ~~Unificar as cópias de `Theme` e o `Confirm` do rclean~~ feito (2026-11-22): `rt_ui::theme::Theme`, `Dialogs` em
    todas. Falta o utilizador experimentar a janela a sério (só foi aberta e fechada).
-4. Ligar o rcare ao `rtsvc` para tarefas elevadas (existem as tarefas `Clean` e `UninstallMsi`:
-   `rt_svc::client::Client::submit_job`); modo residente (`--tray`), "Integração com o Windows" (menus do Explorador:
-   um por página? decidir), arranque, "Procurar atualizações…" (precisa de um release), `release.yml` e bucket do Scoop
-   (só quando houver release).
+4. ~~Residência e integração~~ feitas (2026-11-22): `--tray` (arranca escondido, o ícone ou outro arranque mostra-o,
+   fechar esconde; experimentado com o `.exe` a sério), uma só instância (`hand_off`, `--new-window`), Ficheiro ›
+   Integração com o Windows › Menu do Explorador (**um** verbo nas pastas e discos, "Analisar com o rcare": a pasta abre
+   na Custom Clean, analisada, só dessa vez — `custom_once`; `--register`/`--unregister`) e Iniciar com o Windows;
+   `rcare [pasta]` faz o mesmo que o verbo. O `rcare-v*` está no `release.yml`. O serviço: as páginas já o usam como as
+   apps pequenas (fotografias do `rtsvc` no limpador e no desinstalador, `scan_with` nos discos); as tarefas dele
+   (`Clean`, `UninstallMsi`) só aceitam clientes elevados, por isso um rcare não elevado não tem mais nada a pedir-lhe.
+   Falta: "Procurar atualizações…" funciona quando houver release; o primeiro release (etiqueta `rcare-v0.1.0`, um
+   push: **perguntar ao utilizador**) e depois o manifesto do bucket do Scoop (`bucket/rcare.json`, depois
+   `checkver.ps1 -Dir bucket -Update`).
 5. Depois, as fases abaixo.
 
 ## Decisões

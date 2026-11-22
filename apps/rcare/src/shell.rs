@@ -116,6 +116,19 @@ struct Shell {
     side: sidebar::Layout,
     side_hot: Option<Hit>,
     dialog: Option<Message>,
+    /// A folder given on the command line or by the Explorer menu: Custom
+    /// Clean looks there this time (the folder chosen in the settings stays).
+    custom_once: Option<std::path::PathBuf>,
+    /// Resident mode (`--tray`): closing the window hides it to the
+    /// notification area; the icon or another launch shows it.
+    tray: bool,
+    hidden: bool,
+    /// The window was last maximized: done when it is first shown.
+    maximize_on_show: bool,
+    /// Starts with the session (as `rcare --tray`).
+    autostart: bool,
+    /// "Analyze with rcare" is on the Explorer menu of folders, for this rcare.exe.
+    explorer_menu: bool,
 }
 
 impl Shell {
@@ -264,6 +277,10 @@ impl Shell {
 
     /// Where Custom Clean looks for duplicates and large files: the folder chosen, or the user's.
     fn custom_folder(&self) -> std::path::PathBuf {
+        // A folder given by the Explorer menu counts for this time only.
+        if let Some(p) = &self.custom_once {
+            return p.clone();
+        }
         if !self.settings.custom_folder.is_empty() {
             return std::path::PathBuf::from(&self.settings.custom_folder);
         }
@@ -379,9 +396,21 @@ impl Shell {
                 let mut d = self.dialogs();
                 if let Some(p) = d.pick_folder(&tr("Choose the folder to look in")) {
                     self.settings.custom_folder = p.display().to_string();
+                    self.custom_once = None;
                     self.save_settings();
                 }
             }
+            Cmd::ExplorerMenu => {
+                let text = match integrate(!self.explorer_menu) {
+                    Ok(t) | Err(t) => t,
+                };
+                self.explorer_menu = integrated_here();
+                self.info(&tr("Windows Integration"), &text);
+            }
+            Cmd::Autostart => match rt_sys::autostart::set("rcare", !self.autostart) {
+                Ok(()) => self.autostart = rt_sys::autostart::enabled("rcare"),
+                Err(e) => self.info("rcare", &tf("Cannot change how it starts: {}", &[&e])),
+            },
             Cmd::Sidebar => {
                 self.settings.sidebar_collapsed = !self.settings.sidebar_collapsed;
                 self.size.resized();
@@ -437,6 +466,8 @@ impl Shell {
             Cmd::Size(c) => self.size.checked(c),
             Cmd::Inst(c) => self.inst.checked(c),
             Cmd::Sidebar => self.settings.sidebar_collapsed,
+            Cmd::Autostart => self.autostart,
+            Cmd::ExplorerMenu => self.explorer_menu,
             Cmd::Theme(t) => self.settings.theme == t,
             Cmd::UiLanguage(0) => self.settings.language.is_none(),
             Cmd::UiLanguage(i) => self.settings.language == i18n::Lang::ALL.get(i as usize - 1).copied(),
@@ -476,7 +507,67 @@ impl Shell {
         self.dups.cancel();
         self.size.cancel();
         self.save_settings();
+        if let Some(w) = &self.win {
+            rt_sys::win::tray::remove(w.hwnd);
+        }
         el.exit();
+    }
+
+    /// The close button: hides to the notification area in resident mode.
+    fn close(&mut self, el: &ActiveEventLoop) {
+        if self.tray {
+            self.hide();
+        } else {
+            self.quit(el);
+        }
+    }
+
+    /// Hides the window to the notification area; the work under way goes on.
+    fn hide(&mut self) {
+        self.save_settings();
+        if let Some(w) = &self.win {
+            w.window.set_visible(false);
+        }
+        self.hidden = true;
+        self.clean.release();
+        self.dups.release();
+        self.size.release();
+        self.inst.release();
+        self.size.release_drawings();
+        // Release the frame buffer while hidden.
+        self.gfx.resize(1, 1);
+        self.gfx.trim_cache();
+    }
+
+    /// Shows the window (from the tray icon or another launch).
+    fn show(&mut self, el: &ActiveEventLoop) {
+        if self.win.is_none() && !self.open_window(el) {
+            return;
+        }
+        if let Some(w) = &self.win {
+            if std::mem::take(&mut self.maximize_on_show) {
+                w.window.set_maximized(true);
+            }
+            w.window.set_visible(true);
+            w.window.set_minimized(false);
+            w.window.focus_window();
+        }
+        self.hidden = false;
+        self.autostart = rt_sys::autostart::enabled("rcare");
+        self.ensure_started(self.selected);
+        self.menu_dirty = true;
+        self.redraw();
+    }
+
+    /// Folders from a later launch (the Explorer menu): the window shows,
+    /// and Custom Clean analyses the first one.
+    fn open_paths(&mut self, el: &ActiveEventLoop, paths: Vec<std::path::PathBuf>) {
+        self.show(el);
+        if let Some(p) = paths.into_iter().next() {
+            self.custom_once = Some(p);
+            self.select_page(pages::index_of("custom"));
+            self.custom_analyze();
+        }
     }
 
     fn open_window(&mut self, el: &ActiveEventLoop) -> bool {
@@ -485,7 +576,9 @@ impl Shell {
             .with_title("rcare")
             .with_inner_size(LogicalSize::new(w.max(760.0), h.max(480.0)))
             .with_min_inner_size(LogicalSize::new(760.0, 480.0))
-            .with_maximized(maximized)
+            // Maximizing shows the window: a resident start, which stays
+            // hidden, maximizes when it is first shown.
+            .with_maximized(maximized && !self.tray)
             .with_window_icon(rt_ui::window::icon(rcare::appicon::render))
             .with_theme(Some(rt_ui::window::theme(self.dark())))
             .with_visible(false);
@@ -501,6 +594,11 @@ impl Shell {
                 let _ = proxy.send_event(UserEvent::Win(m));
             }),
         );
+        if self.tray {
+            rt_sys::win::set_resident(hwnd, &IDENT);
+            rt_sys::win::tray::show(hwnd, "rcare");
+        }
+        self.maximize_on_show = maximized;
         self.win = Some(Win { window, surface, adapter, hwnd, menu: None });
         true
     }
@@ -863,9 +961,20 @@ impl ApplicationHandler<UserEvent> for Shell {
             return;
         }
         self.sync_menu();
+        // A folder from the command line (or the Explorer menu): Custom Clean analyses it.
+        if self.custom_once.is_some() {
+            self.selected = pages::index_of("custom");
+            self.menu_rebuild = true;
+            self.custom_analyze();
+        }
+        // A resident start stays in the notification area until it is shown.
+        if self.tray && self.custom_once.is_none() {
+            self.hidden = true;
+            return;
+        }
         self.ensure_started(self.selected);
         if let Some(w) = &self.win {
-            if self.settings.window.is_some_and(|(_, _, max)| max) {
+            if std::mem::take(&mut self.maximize_on_show) {
                 w.window.set_maximized(true);
             }
             w.window.set_visible(true);
@@ -907,7 +1016,18 @@ impl ApplicationHandler<UserEvent> for Shell {
                 }
                 self.redraw();
             }
-            UserEvent::Win(_) => {}
+            // Another launch (with folders: from the Explorer menu), or the tray icon: the window shows.
+            UserEvent::Win(rt_sys::win::WinMsg::OpenFiles(paths)) => self.open_paths(el, paths),
+            UserEvent::Win(rt_sys::win::WinMsg::Tray(rt_sys::win::tray::TrayEvent::Activate)) => self.show(el),
+            UserEvent::Win(rt_sys::win::WinMsg::Tray(rt_sys::win::tray::TrayEvent::Menu)) => {
+                if let Some(hwnd) = self.win.as_ref().map(|w| w.hwnd) {
+                    match rt_sys::win::tray::menu(hwnd, &tr("Open rcare"), &tr("Exit")) {
+                        Some(1) => self.show(el),
+                        Some(2) => self.quit(el),
+                        _ => {}
+                    }
+                }
+            }
             UserEvent::Update(s) => {
                 let who = rt_ui::update::Who {
                     app: "rcare",
@@ -952,7 +1072,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             w.adapter.process_event(&w.window, &event);
         }
         match event {
-            WindowEvent::CloseRequested => self.quit(el),
+            WindowEvent::CloseRequested => self.close(el),
             WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
                 self.size.resized();
                 self.redraw();
@@ -1005,7 +1125,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.right_click(el)
             }
             WindowEvent::MouseWheel { delta, .. } if self.dialog.is_none() => self.wheel(delta),
-            WindowEvent::RedrawRequested => self.render(),
+            WindowEvent::RedrawRequested if !self.hidden => self.render(),
             _ => {}
         }
     }
@@ -1018,11 +1138,40 @@ impl ApplicationHandler<UserEvent> for Shell {
     }
 }
 
-const USAGE: &str = "rcare
+/// Whether "Analyze with rcare" is on the Explorer menu of folders, for this rcare.exe.
+fn integrated_here() -> bool {
+    rt_ui::explorer::folders_here("rcare")
+}
+
+/// Adds "Analyze with rcare" to the Explorer menu of folders and drives
+/// (current user only), or takes it out; returns the message to show.
+/// The folder chosen there opens in Custom Clean, analysed.
+fn integrate(on: bool) -> Result<String, String> {
+    let texts = rt_ui::explorer::FolderTexts {
+        verb: tr("Analyze with rcare"),
+        added: tr("“Analyze with rcare” was added to the Explorer context menu of folders and drives."),
+        removed: tr("“Analyze with rcare” was removed from the Explorer context menu."),
+        failed: tr("Cannot change the Windows registry (error {})."),
+    };
+    rt_ui::explorer::set_folders("rcare", on, &texts)
+}
+
+const USAGE: &str = "rcare [--tray] [--new-window] [folder]
 
   Windows maintenance in one window. The sidebar chooses the page: Custom
-  Clean (junk, duplicates and large files in one look), the cleaner of rclean, the duplicates of rdup, the disk space of rsize and
-  the uninstaller of rinst, and more as the other tools join them.
+  Clean (junk, duplicates and large files in one look), the cleaner of
+  rclean, the duplicates of rdup, the disk space of rsize and the
+  uninstaller of rinst, and more as the other tools join them.
+
+  folder        Open Custom Clean on this folder (or drive) and analyse it.
+  --tray        Stay resident in the notification area: closing the window
+                hides it, and the icon (or starting rcare again) shows it.
+                Exit from the icon's menu or File > Exit. File > Windows
+                Integration > Start with Windows starts it this way.
+  --new-window  Open a separate window even when rcare is resident.
+  --register    Add \"Analyze with rcare\" to the Explorer context menu of
+                folders and drives (current user only).
+  --unregister  Remove it.
 
 Settings are stored in %APPDATA%\\rcare, or next to the program when a file
 named rcare.portable exists there (portable mode).";
@@ -1033,6 +1182,27 @@ pub fn run() {
     rt_sys::update::clean_old();
     let help = raw.iter().any(|a| a == "--help" || a == "-h" || a == "/?");
     if help && rt_sys::win::print_to_console(USAGE) {
+        return;
+    }
+    if raw.iter().any(|a| a == "--register" || a == "--unregister") {
+        let mut location = storage::detect();
+        let settings = Settings::load(&location.load());
+        i18n::set_lang(settings.language.unwrap_or_else(i18n::system_lang));
+        let result = integrate(raw.iter().any(|a| a == "--register"));
+        let ok = result.is_ok();
+        let text = match result {
+            Ok(t) | Err(t) => t,
+        };
+        rt_sys::win::report(&tr("Windows Integration"), &text);
+        std::process::exit(if ok { 0 } else { 1 });
+    }
+    // A drive from the Explorer menu comes as `C:"` (see `folder_arg`).
+    let folders: Vec<std::path::PathBuf> =
+        raw.iter().filter(|a| !a.starts_with("--")).map(|a| std::path::PathBuf::from(rt_sys::win::assoc::folder_arg(a))).collect();
+    let tray = raw.iter().any(|a| a == "--tray" || a == "/tray") && !help;
+    let new_window = raw.iter().any(|a| a == "--new-window") || help;
+    // A resident rcare shows itself (and analyses the folder) instantly.
+    if !new_window && rt_sys::win::hand_off(&IDENT, &folders, false, false) {
         return;
     }
     // SAFETY: only changes how this process reports a missing disc or card:
@@ -1117,6 +1287,12 @@ pub fn run() {
         side: sidebar::Layout::default(),
         side_hot: None,
         dialog: help.then(|| Message::new("rcare", USAGE)),
+        custom_once: folders.into_iter().next(),
+        tray,
+        hidden: false,
+        maximize_on_show: false,
+        autostart: rt_sys::autostart::enabled("rcare"),
+        explorer_menu: integrated_here(),
     };
     shell.apply_language();
     if let Err(e) = event_loop.run_app(&mut shell) {

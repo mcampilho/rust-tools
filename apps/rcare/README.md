@@ -50,7 +50,12 @@ are in `%APPDATA%\rcare`, or next to the program when a file named
 
 Profile `release`: it is not built for size.
 
+Command line: `rcare [--tray] [--new-window] [folder]`. A folder opens Custom
+Clean on it, analysed. `--tray` stays in the notification area (File ›
+Windows Integration › Start with Windows starts it this way); File › Windows
+Integration › Explorer Context Menu adds "Analyze with rcare" to folders and
+drives (or `--register` / `--unregister`).
+
 ## Not yet
 
-Resident mode (`--tray`), "Windows Integration", Check for Updates for real
-(there is no release yet), the Scoop bucket and the release workflow.
+Check for Updates for real (there is no release yet) and the Scoop bucket.

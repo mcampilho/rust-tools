@@ -55,7 +55,7 @@ Fase 0 (2026-11-22): páginas do rclean, rdup, rsize e rinst (`rclean::page::Cle
 `rsize::page::SizePage`, `rinst::page::InstPage`), `Effects`/`Dialogs`/`Mods` no `rt-ui`, `add`/`tr_from` no `rt-core::i18n`, `M::map`; rcare com
 barra lateral, menus combinados dos quatro e as quatro páginas. **A passagem de testemunho completa está em
 `docs/rcare.pt.md`** (padrão de página, como o rcare funciona, verificado e não, próximos passos): ler primeiro.
-Custom Clean (`custom.rs`, página do próprio rcare) feita. Falta: ligar ao `rtsvc`, `--tray`, "Integração com o Windows", atualizações, `release.yml` e bucket.
+Custom Clean (`custom.rs`, página do próprio rcare) feita. Feito também: `--tray`, uma só instância, "Integração com o Windows" (um verbo "Analisar com o rcare" → Custom Clean), `rcare-v*` no `release.yml`. Falta: o primeiro release (push: perguntar) e o bucket.
 Arranque verificado (abre, fecha com código 0). **Não verificado**: usar a janela, a compilação em Linux das apps
 pequenas religadas.
 ## Regras

@@ -50,7 +50,12 @@ existe lá um ficheiro `rcare.portable`.
 
 Perfil `release`: não é feito para ocupar pouco.
 
+Linha de comandos: `rcare [--tray] [--new-window] [pasta]`. Uma pasta abre a
+Custom Clean nela, analisada. `--tray` fica na área de notificação (Ficheiro ›
+Integração com o Windows › Iniciar com o Windows arranca-o assim); Ficheiro ›
+Integração com o Windows › Menu do Explorador acrescenta "Analisar com o rcare"
+às pastas e discos (ou `--register` / `--unregister`).
+
 ## Por fazer
 
-Modo residente (`--tray`), "Integração com o Windows", "Procurar atualizações…"
-a sério (ainda não há release), o bucket do Scoop e o workflow de release.
+"Procurar atualizações…" a sério (ainda não há release) e o bucket do Scoop.

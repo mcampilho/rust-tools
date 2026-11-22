@@ -138,9 +138,16 @@ connection to the privileged service `rtsvc` from rcare (the pages use it as the
 2. ~~Custom Clean~~ done (2026-11-22): see its section above.
 3. ~~Unify the `Theme` copies and rclean's `Confirm`~~ done (2026-11-22): `rt_ui::theme::Theme`, `Dialogs` everywhere.
    The user should still try the real window (it was only started and closed).
-4. Connect rcare to `rtsvc` for elevated jobs (jobs `Clean`, `UninstallMsi` exist: `rt_svc::client::Client::submit_job`);
-   resident mode (`--tray`), "Windows Integration" (Explorer menus: one per page? decide), autostart, "Check for
-   updates" (needs a release), `release.yml` and the Scoop bucket (only once there is a release).
+4. ~~Residency and integration~~ done (2026-11-22): `--tray` (hidden start, the icon or another launch shows it, closing
+   hides it; tested with the real `.exe`), one instance (`hand_off`, `--new-window`), File › Windows Integration ›
+   Explorer Context Menu (**one** verb on folders and drives, "Analyze with rcare": the folder opens in Custom Clean,
+   analysed, for that time only — `custom_once`; `--register`/`--unregister`) and Start with Windows; `rcare [folder]`
+   does the same as the verb. `rcare-v*` is in `release.yml`. The service: the pages already use it as the small apps
+   do (snapshots of `rtsvc` for the cleaner and the uninstaller, `scan_with` for the drives); its jobs (`Clean`,
+   `UninstallMsi`) only take elevated clients, so an rcare that is not elevated has nothing more to ask of it. Left:
+   "Check for
+   updates" works once there is a release; the first release (tag `rcare-v0.1.0`, a push: **ask the user**) and then
+   the Scoop bucket manifest (`bucket/rcare.json`, then `checkver.ps1 -Dir bucket -Update`).
 5. Then the phases below.
 
 ## Decisions

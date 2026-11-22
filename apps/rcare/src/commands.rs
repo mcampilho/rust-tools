@@ -30,6 +30,10 @@ pub enum Cmd {
     Sidebar,
     /// Starts rcare again with administrator rights.
     RestartAdmin,
+    /// "Analyze with rcare" on the Explorer menu of folders and drives (on or off).
+    ExplorerMenu,
+    /// Starts rcare resident with the session (`--tray`).
+    Autostart,
     Exit,
     /// 0 system, 1 light, 2 dark.
     Theme(u8),
@@ -132,6 +136,8 @@ impl Cmd {
             CustomFolder => "Change &Folder...",
             Sidebar => "Collapse Side&bar",
             RestartAdmin => "Restart as Ad&ministrator",
+            ExplorerMenu => "&Explorer Context Menu",
+            Autostart => "Start wit&h Windows",
             Exit => "E&xit",
             Theme(0) => "Use &System Setting",
             Theme(1) => "&Light",
@@ -276,7 +282,7 @@ pub fn menu_tree(page: usize) -> Vec<(&'static str, Vec<M>)> {
     if !file.is_empty() {
         file.push(Sep);
     }
-    file.extend([Item(RestartAdmin), Sep, Item(Exit)]);
+    file.extend([Item(RestartAdmin), Sub("Windows &Integration", vec![Item(ExplorerMenu), Sep, Item(Autostart)]), Sep, Item(Exit)]);
     let mut view = own.view;
     if !view.is_empty() {
         view.push(Sep);
@@ -336,6 +342,7 @@ mod tests {
                 });
             }
             assert!(window.contains(&Exit) && window.contains(&About) && window.contains(&Sidebar));
+            assert_eq!(window.iter().filter(|c| **c == Autostart).count(), 1);
             assert_eq!(window.iter().filter(|c| **c == Exit).count(), 1);
         }
         // A page's own entries made it: the cleaner's Analyze, the duplicates' search, the scan's rescan.

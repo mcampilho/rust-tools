@@ -1,5 +1,5 @@
 # Builds one tool when its version tag is pushed (rcalc-v1.1.0, rpad-v1.0.0,
-# rview-v1.1.0, rsize-v0.1.0, rdup-v0.1.0, rwall-v0.1.0, rpack-v0.1.0, rinst-v0.1.0, rclean-v0.1.0, and the command-line apps
+# rview-v1.1.0, rsize-v0.1.0, rdup-v0.1.0, rwall-v0.1.0, rpack-v0.1.0, rinst-v0.1.0, rclean-v0.1.0, rcare-v0.1.0, and the command-line apps
 # rscoop-cli-v0.1.0, rsize-cli-v0.1.0, rdup-cli-v0.1.0) and publishes it as a GitHub release, with SHA-256
 # sums and build provenance, for Windows and Linux. An app that is Windows only says so in its Cargo.toml
 # (`platforms = "windows"` under [package.metadata.rust-tools]) and gets no Linux package.
@@ -8,7 +8,7 @@ name: release
 
 on:
   push:
-    tags: ["rcalc-v*", "rpad-v*", "rview-v*", "rsize-v*", "rdup-v*", "rwall-v*", "rpack-v*", "rinst-v*", "rclean-v*", "rscoop-cli-v*", "rsize-cli-v*", "rdup-cli-v*"]
+    tags: ["rcalc-v*", "rpad-v*", "rview-v*", "rsize-v*", "rdup-v*", "rwall-v*", "rpack-v*", "rinst-v*", "rclean-v*", "rcare-v*", "rscoop-cli-v*", "rsize-cli-v*", "rdup-cli-v*"]
   workflow_dispatch:
     inputs:
       tag:
