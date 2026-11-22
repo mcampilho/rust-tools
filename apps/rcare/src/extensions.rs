@@ -409,6 +409,8 @@ pub fn open_page(e: &Extension) -> Result<(), String> {
 mod tests {
     use super::*;
 
+    /// Windows paths (`\`, `C:\…`): the profiles are Windows' own.
+    #[cfg(windows)]
     #[test]
     fn chromium_preferences() {
         let dir = std::env::temp_dir().join(format!("rcare-ext-{}", std::process::id()));

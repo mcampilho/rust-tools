@@ -22,8 +22,10 @@ pub enum Place {
     CommonFolder,
 }
 
-/// `HKCU` or `HKLM` relative path of the keys.
+/// `HKCU` or `HKLM` relative path of the keys (read on Windows only).
+#[cfg_attr(not(windows), allow(dead_code))]
 const RUN: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+#[cfg_attr(not(windows), allow(dead_code))]
 const APPROVED: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved";
 
 impl Place {
@@ -101,6 +103,7 @@ pub fn filetime_now() -> u64 {
 
 /// The program of a command line, and whether it is gone. A program
 /// without a folder (found on the `PATH`) is never said to be gone.
+#[cfg_attr(not(windows), allow(dead_code))]
 fn program_of(command: &str) -> (Option<PathBuf>, bool) {
     let file = rinst::inventory::command_file(command);
     let missing = file.as_ref().is_some_and(|f| f.is_absolute() && !f.exists());
