@@ -38,6 +38,7 @@ the list below is deliberately left for later.
 | `crates/rt-core/src/i18n.rs` | `add` (extra tables), `tr_in_from`/`tr_from`/`tf_from` (a table searched first) |
 | `crates/rt-core/src/menu.rs` | `M::map` (turn the commands of a menu into another type) |
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; drive health from `Get-Volume` |
+| `apps/rcare/src/extensions.rs`, `extensions_page.rs` | Extensions: what is added to Chrome, Edge, Brave, Vivaldi, Opera, Chromium and Firefox, by profile; opens the browser's own extensions page. Changes nothing |
 | `apps/rcare/src/services.rs`, `services_page.rs` | Program Deactivator: third-party services that start with Windows, set to Manual after asking, with a copy (`services.txt`) to give the start back |
 | `apps/rcare/src/speed.rs`, `speed_page.rs` | Speed Up: Game Mode switch, memory (standby list freed as administrator), processor, programs open (closed only when ticked, with `WM_CLOSE`) |
 | `apps/rcare/src/startup.rs`, `startup_page.rs` | Startup Optimizer: what starts with Windows (`Run` keys of the user and the machine, 64/32 bits, both Startup folders) and turning items off/on through `Explorer\StartupApproved` as Task Manager does |
@@ -97,7 +98,22 @@ Needed"). "Review" opens the cleaner or the uninstaller; nothing is changed on t
 later phases (privacy sweep in phase 5 — deleting history or cookies is the user's decision, since rclean never does —,
 startup, Windows integrity in phase 6).
 
-## Program Deactivator (phase 3, rcare's own page, last in the sidebar)
+## Extensions (phase 3, rcare's own page, last in the sidebar)
+
+Read from each browser's own files, with `rt_core::json`: for the Chromium browsers (Chrome, Edge, Brave, Vivaldi,
+Chromium under `%LOCALAPPDATA%`, Opera under `%APPDATA%\Opera Software`) `extensions.settings` of `Secure
+Preferences` and `Preferences` of each profile (System and Guest left out; names from `Local State`), for Firefox
+`extensions.json` of each profile. Left out: the browsers' own parts (Chromium `location` 5 and 10; Firefox
+`app-builtin`, `app-system-*`), themes, hosted apps, dictionaries. Off = `disable_reasons` not empty (or the old
+`state` 0) / Firefox `active` false. "Installed by": store, another program (`location` 2, 3, 6), policy (7, 9),
+unpacked (4, 8). A name `__MSG_…__` is read from the extension's `_locales`. "Open in Browser" starts the browser
+(`App Paths`, then the usual folders) with `--profile-directory=<profile>` and `chrome://extensions/?id=<id>` (`edge://`,
+`brave://`, `vivaldi://`, `opera://`; Firefox `about:addons`). Nothing is changed by rcare (the user's choice).
+Verified: the real list here (Chrome 19, Brave 2, the same states Chrome shows), screenshots, the page opening in
+the real `.exe`. **Not verified**: opening the browser's page (it would open the user's browser); Edge, Vivaldi,
+Opera and Firefox (not installed here: tested with sample files only).
+
+## Program Deactivator (phase 3, rcare's own page)
 
 The services (`SERVICE_WIN32`, not drivers) that start with Windows (Automatic or Automatic (delayed)) and are not
 Microsoft's: the company is read from the program's version information (`CompanyName`, any of its languages);
@@ -203,9 +219,9 @@ connection to the privileged service `rtsvc` from rcare (the pages use it as the
    "Check for
    updates" works once there is a release; the first release (tag `rcare-v0.1.0`, a push: **ask the user**) and then
    the Scoop bucket manifest (`bucket/rcare.json`, then `checkver.ps1 -Dir bucket -Update`).
-6. ~~Startup Optimizer~~, ~~Speed Up~~ and ~~Program Deactivator~~ done (2026-11-22): see their sections.
-7. The rest of phase 3, as the user decided on 2026-11-22 (below): **Extensions** (list per browser and profile,
-   open the browser's page). Then phases 4–6.
+6. ~~Startup Optimizer~~, ~~Speed Up~~, ~~Program Deactivator~~ and ~~Extensions~~ done (2026-11-22): phase 3 is
+   complete (Real-Time TuneUp, a performance history, stays for later). See their sections.
+7. Phases 4–6 (registry, network and protection, system).
 
 ## Decisions for the rest of phase 3 (the user chose the recommended option of each, 2026-11-22)
 
@@ -277,7 +293,7 @@ Uninstall Apps (rinst) ✔, and **Custom Clean** ✔ (junk, duplicates and large
 **2. One-click maintenance** ✔ (System Maintenance, with the checks that exist so far) — runs the available modules in sequence (privacy sweep, junk, registry, shortcuts, disk
 check, software health) and reports.
 
-**3. Speed** — Startup Optimizer ✔; Speed Up ✔ (Game Mode, memory and Smart RAM, processor, programs open); Program Deactivator ✔ (third-party services, with a copy); App/Extension Cleaner; Game Mode and Real-Time TuneUp
+**3. Speed** — Startup Optimizer ✔; Speed Up ✔ (Game Mode, memory and Smart RAM, processor, programs open); Program Deactivator ✔ (third-party services, with a copy); Extensions ✔ (list and open the browser's page); Game Mode and Real-Time TuneUp
 (performance monitor); Smart RAM.
 
 **4. Registry** — Registry Cleaner (the categories above, Deep Scan, `.reg` copy before each cleaning, restore);

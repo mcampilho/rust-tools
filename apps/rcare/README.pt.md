@@ -34,9 +34,10 @@ Páginas até agora:
 | Speed Up | – (do próprio rcare) | O Modo de Jogo do Windows, a memória (libertar a lista de espera como administrador), o processador, e os programas abertos: os marcados são convidados a fechar, como faz o botão de fechar deles |
 | Startup Optimizer | – (do próprio rcare) | O que arranca com o Windows, com um interruptor cada: desligado como o Gestor de Tarefas faz, por isso pode voltar a ligar-se e nada é apagado. Os itens de todos os utilizadores precisam de administrador |
 | Program Deactivator | – (do próprio rcare) | Serviços de outras empresas que arrancam com o Windows, com um interruptor cada: desligado, um serviço só arranca quando é preciso (Manual); como arrancava fica numa cópia para o ligar de novo. Alterar precisa de administrador |
+| Extensions | – (do próprio rcare) | O que está acrescentado ao Chrome, Edge, Brave, Vivaldi, Opera, Chromium e Firefox, por perfil, ligado ou não, e quem o instalou; abre a página de extensões do próprio browser, onde se desliga ou remove. Não altera nada |
 | Desinstalar aplicações | [rinst](../rinst/README.pt.md) | Os programas de todos os utilizadores e fontes, desinstalados uns a seguir aos outros, e os seus restos |
 
-A seguir: as ferramentas de velocidade, registo, rede e proteção (ver o
+A seguir: as ferramentas de registo, rede, proteção e sistema (ver o
 plano). As ferramentas pequenas ficam como estão: as páginas são código
 partilhado, por isso uma correção faz-se uma vez.
 

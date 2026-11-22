@@ -41,6 +41,7 @@ System Information" na lista abaixo fica de propósito para mais tarde.
 | `crates/rt-core/src/i18n.rs` | `add` (tabelas extra), `tr_in_from`/`tr_from`/`tf_from` (uma tabela procurada primeiro) |
 | `crates/rt-core/src/menu.rs` | `M::map` (converter os comandos de um menu noutro tipo) |
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; estado dos discos pelo `Get-Volume` |
+| `apps/rcare/src/extensions.rs`, `extensions_page.rs` | Extensions: o que está acrescentado ao Chrome, Edge, Brave, Vivaldi, Opera, Chromium e Firefox, por perfil; abre a página de extensões do próprio browser. Não altera nada |
 | `apps/rcare/src/services.rs`, `services_page.rs` | Program Deactivator: serviços de terceiros que arrancam com o Windows, postos em Manual depois de perguntar, com cópia (`services.txt`) para devolver o arranque |
 | `apps/rcare/src/speed.rs`, `speed_page.rs` | Speed Up: interruptor do Modo de Jogo, memória (lista de espera libertada como administrador), processador, programas abertos (fechados só quando marcados, com `WM_CLOSE`) |
 | `apps/rcare/src/startup.rs`, `startup_page.rs` | Startup Optimizer: o que arranca com o Windows (chaves `Run` do utilizador e da máquina, 64/32 bits, as duas pastas Arranque) e desligar/ligar itens por `Explorer\StartupApproved`, como o Gestor de Tarefas |
@@ -103,7 +104,22 @@ neste PC o disco S: diz "Warning / Full Repair Needed"). "Rever" abre o limpador
 muda nada. Mais verificações entram com as fases seguintes (limpeza de privacidade na fase 5 — apagar histórico ou
 cookies é decisão do utilizador, porque o rclean nunca o faz —, arranque, integridade do Windows na fase 6).
 
-## Program Deactivator (fase 3, página do próprio rcare, a última da barra lateral)
+## Extensions (fase 3, página do próprio rcare, a última da barra lateral)
+
+Lidas dos ficheiros de cada browser, com o `rt_core::json`: nos browsers Chromium (Chrome, Edge, Brave, Vivaldi,
+Chromium em `%LOCALAPPDATA%`, Opera em `%APPDATA%\Opera Software`) o `extensions.settings` do `Secure Preferences` e
+do `Preferences` de cada perfil (sem o System e o Guest; nomes do `Local State`), no Firefox o `extensions.json` de
+cada perfil. De fora: as partes do próprio browser (`location` 5 e 10 no Chromium; `app-builtin`, `app-system-*` no
+Firefox), temas, aplicações alojadas, dicionários. Desligada = `disable_reasons` não vazio (ou o antigo `state` 0) /
+`active` falso no Firefox. "Instalada por": loja, outro programa (`location` 2, 3, 6), política (7, 9),
+descompactada (4, 8). Um nome `__MSG_…__` lê-se dos `_locales` da extensão. "Abrir no browser" arranca o browser
+(`App Paths`, depois as pastas habituais) com `--profile-directory=<perfil>` e `chrome://extensions/?id=<id>`
+(`edge://`, `brave://`, `vivaldi://`, `opera://`; Firefox `about:addons`). O rcare não altera nada (escolha do
+utilizador). Verificado: a lista real aqui (Chrome 19, Brave 2, os mesmos estados que o Chrome mostra), imagens, a
+página a abrir no `.exe` a sério. **Não verificado**: abrir a página do browser (abriria o browser do utilizador);
+Edge, Vivaldi, Opera e Firefox (não instalados aqui: só ficheiros de exemplo nos testes).
+
+## Program Deactivator (fase 3, página do próprio rcare)
 
 Os serviços (`SERVICE_WIN32`, não controladores) que arrancam com o Windows (Automático ou Automático (atrasado)) e
 não são da Microsoft: a empresa lê-se das informações de versão do programa (`CompanyName`, em qualquer das línguas
@@ -212,9 +228,9 @@ ecrã.
    Falta: "Procurar atualizações…" funciona quando houver release; o primeiro release (etiqueta `rcare-v0.1.0`, um
    push: **perguntar ao utilizador**) e depois o manifesto do bucket do Scoop (`bucket/rcare.json`, depois
    `checkver.ps1 -Dir bucket -Update`).
-6. ~~Startup Optimizer~~, ~~Speed Up~~ e ~~Program Deactivator~~ feitos (2026-11-22): ver as secções.
-7. O resto da fase 3, como o utilizador decidiu em 2026-11-22 (abaixo): **Extensions** (lista por browser e perfil,
-   abrir a página do browser). Depois as fases 4–6.
+6. ~~Startup Optimizer~~, ~~Speed Up~~, ~~Program Deactivator~~ e ~~Extensions~~ feitos (2026-11-22): a fase 3 está
+   completa (o Real-Time TuneUp, um histórico do desempenho, fica para depois). Ver as secções.
+7. Fases 4–6 (registo, rede e proteção, sistema).
 
 ## Decisões para o resto da fase 3 (o utilizador escolheu a opção recomendada de cada, 2026-11-22)
 
@@ -288,7 +304,7 @@ Process Manager, Software Updater, Default Program.
 **2. Manutenção num clique** ✔ (System Maintenance, com as verificações que já existem) — corre em sequência os módulos disponíveis (privacidade, lixo, registo, atalhos,
 verificação de disco, saúde do software) e faz um relatório.
 
-**3. Velocidade** — Startup Optimizer ✔; Speed Up ✔ (Modo de Jogo, memória e Smart RAM, processador, programas abertos); Program Deactivator ✔ (serviços de terceiros, com cópia); App/Extension Cleaner; Game Mode e Real-Time TuneUp
+**3. Velocidade** — Startup Optimizer ✔; Speed Up ✔ (Modo de Jogo, memória e Smart RAM, processador, programas abertos); Program Deactivator ✔ (serviços de terceiros, com cópia); Extensions ✔ (lista e abrir a página do browser); Game Mode e Real-Time TuneUp
 (monitor de desempenho); Smart RAM.
 
 **4. Registo** — Registry Cleaner (as categorias acima, Deep Scan, cópia `.reg` antes de cada limpeza, restauro);

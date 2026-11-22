@@ -173,6 +173,38 @@ fn services(g: &mut Gfx, r: Rect, th: &Theme) {
     page.render(g, r, th, 1.0);
 }
 
+/// The Extensions page with a few extensions of two browsers.
+fn extensions(g: &mut Gfx, r: Rect, th: &Theme) {
+    use rcare::extensions::{Browser, Extension, Source};
+    use rcare::extensions_page::ExtensionsPage;
+    let e = |name: &str, browser: Browser, profile: &str, enabled: bool, source: Source| Extension {
+        id: name.to_lowercase(),
+        name: name.into(),
+        version: "1.0".into(),
+        browser,
+        profile_dir: "Default".into(),
+        profile: profile.into(),
+        enabled,
+        source,
+        folder: None,
+    };
+    let mut page = ExtensionsPage {
+        list: vec![
+            e("Bitdefender Anti-tracker", Browser::Chrome, "Miguel", true, Source::Program),
+            e("Bitwarden Password Manager", Browser::Chrome, "Miguel", true, Source::Store),
+            e("Dark Reader", Browser::Chrome, "Miguel", false, Source::Store),
+            e("Google Docs Offline", Browser::Chrome, "Miguel", true, Source::Store),
+            e("Tampermonkey", Browser::Chrome, "Work", false, Source::Store),
+            e("Bitwarden Password Manager", Browser::Brave, "Personal", true, Source::Store),
+            e("uBlock Origin", Browser::Firefox, "default-release", true, Source::Store),
+        ],
+        read: true,
+        ..ExtensionsPage::default()
+    };
+    page.sel = Some(2);
+    page.render(g, r, th, 1.0);
+}
+
 #[test]
 #[ignore]
 fn screenshots() {
@@ -197,4 +229,6 @@ fn screenshots() {
     save("services-light.png", shot("services", false, false, None, 1280, 720, &mut services));
     save("services-dark-smallest.png", shot("services", true, false, None, 760, 480, &mut services));
     save("services-collapsed.png", shot("services", false, true, None, 1180, 720, &mut services));
+    save("extensions-light.png", shot("extensions", false, false, None, 1280, 720, &mut extensions));
+    save("extensions-dark-smallest.png", shot("extensions", true, false, None, 760, 480, &mut extensions));
 }

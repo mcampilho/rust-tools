@@ -5,6 +5,7 @@
 
 use rcare::commands::{self, Cmd};
 use rcare::custom::{self, CustomPage, Part, Status};
+use rcare::extensions_page::ExtensionsPage;
 use rcare::i18n::{self, tf, tr};
 use rcare::maint::{self, Check, MaintPage};
 use rcare::pages::{self, Kind, PAGES};
@@ -77,6 +78,10 @@ macro_rules! page {
                 let $p = &mut $s.services;
                 $e
             }
+            Kind::Extensions => {
+                let $p = &mut $s.extensions;
+                $e
+            }
             Kind::Clean => {
                 let $p = &mut $s.clean;
                 $e
@@ -116,6 +121,8 @@ struct Shell {
     speed: SpeedPage,
     /// Program Deactivator: rcare's own page, the services of other companies.
     services: ServicesPage,
+    /// Extensions: rcare's own page, what is added to the browsers.
+    extensions: ExtensionsPage,
     /// What Windows said about the drives, the last time it was asked.
     volumes: Option<Vec<rcare::disks::Volume>>,
     /// Asking Windows about the drives now; it could not be asked the last time.
@@ -215,6 +222,7 @@ impl Shell {
             self.speed.fx.take(),
             self.startup.fx.take(),
             self.services.fx.take(),
+            self.extensions.fx.take(),
             self.maint.fx.take(),
             self.custom.fx.take(),
             self.clean.fx.take(),
@@ -301,6 +309,7 @@ impl Shell {
             Kind::Custom | Kind::Maint => {}
             Kind::Startup => self.startup.refresh(),
             Kind::Services => self.services.refresh(),
+            Kind::Extensions => self.extensions.refresh(),
             Kind::Speed => self.speed.refresh(),
             Kind::Clean => self.clean.analyse(),
             Kind::Dups => self.dups.load_volumes(),
@@ -537,6 +546,7 @@ impl Shell {
             }
             Cmd::MaintScan => self.maint_scan(),
             Cmd::Startup(a) => self.startup.act(a),
+            Cmd::Extensions(a) => self.extensions.act(a),
             Cmd::Services(a) => {
                 let mut d = self.dialogs();
                 self.services.act(a, &mut d);
@@ -574,7 +584,9 @@ impl Shell {
             Cmd::RestartAdmin => {
                 self.save_settings();
                 let args = match PAGES[self.selected].kind {
-                    Kind::Clean | Kind::Custom | Kind::Maint | Kind::Startup | Kind::Speed | Kind::Services => String::new(),
+                    Kind::Clean | Kind::Custom | Kind::Maint | Kind::Startup | Kind::Speed | Kind::Services | Kind::Extensions => {
+                        String::new()
+                    }
                     Kind::Dups => self.dups.restart_args(),
                     Kind::Size => self.size.restart_args(),
                     Kind::Inst => String::new(),
@@ -596,6 +608,13 @@ impl Shell {
                 let keys = match PAGES[self.selected].kind {
                     Kind::Custom => format!("F5\t{}", rt_core::i18n::strip_mnemonic(&tr("&Analyze"))),
                     Kind::Maint => format!("F5\t{}", rt_core::i18n::strip_mnemonic(&tr("&Scan"))),
+                    Kind::Extensions => format!(
+                        "F5\t{}\n{}\t{}\n↑ ↓  PgUp PgDn  Home End\t{}",
+                        rt_core::i18n::strip_mnemonic(&tr("&Refresh")),
+                        tr("Enter"),
+                        rt_core::i18n::strip_mnemonic(&tr("Open in &Browser")),
+                        tr("Move in the list")
+                    ),
                     Kind::Speed => format!(
                         "F5\t{}\n{}\t{}",
                         rt_core::i18n::strip_mnemonic(&tr("&Refresh")),
@@ -655,9 +674,10 @@ impl Shell {
             Cmd::MaintScan => self.maint_idle(),
             Cmd::Startup(a) => self.startup.enabled(a),
             Cmd::Services(a) => self.services.enabled(a),
+            Cmd::Extensions(a) => self.extensions.enabled(a),
             Cmd::Speed(a) => self.speed.enabled(a),
             Cmd::RestartAdmin => match PAGES[self.selected].kind {
-                Kind::Clean | Kind::Custom | Kind::Maint | Kind::Startup | Kind::Speed | Kind::Services => {
+                Kind::Clean | Kind::Custom | Kind::Maint | Kind::Startup | Kind::Speed | Kind::Services | Kind::Extensions => {
                     self.clean.enabled(CleanCmd::RestartAdmin)
                 }
                 Kind::Dups => self.dups.enabled(rdup::commands::Command::RestartAdmin),
@@ -891,6 +911,7 @@ impl Shell {
             Kind::Maint => self.maint.render(&mut self.gfx, rest, &theme, s),
             Kind::Startup => self.startup.render(&mut self.gfx, rest, &theme, s),
             Kind::Services => self.services.render(&mut self.gfx, rest, &theme, s),
+            Kind::Extensions => self.extensions.render(&mut self.gfx, rest, &theme, s),
             Kind::Speed => self.speed.render(&mut self.gfx, rest, &theme, s),
             Kind::Custom => self.custom.render(&mut self.gfx, rest, &theme, s),
             Kind::Clean => self.clean.render(&mut self.gfx, rest, &theme, s, false),
@@ -938,6 +959,7 @@ impl Shell {
             Kind::Maint => self.maint.accessibility(&mut nodes, &mut children),
             Kind::Startup => self.startup.accessibility(&mut nodes, &mut children),
             Kind::Services => self.services.accessibility(&mut nodes, &mut children),
+            Kind::Extensions => self.extensions.accessibility(&mut nodes, &mut children),
             Kind::Speed => self.speed.accessibility(&mut nodes, &mut children),
             Kind::Custom => self.custom.accessibility(&mut nodes, &mut children),
             Kind::Clean => self.clean.accessibility(&mut nodes, &mut children),
@@ -1008,6 +1030,10 @@ impl Shell {
                 None
             }
             Kind::Services => self.services.key(&logical).map(Cmd::Services),
+            Kind::Extensions => {
+                self.extensions.key(&logical);
+                None
+            }
             Kind::Clean => self.clean.key(ctrl, shift, alt, logical).map(Cmd::from_clean),
             Kind::Dups => self.dups.key(event, mods).map(Cmd::from_dups),
             Kind::Size => self.size.key(event, mods).map(Cmd::from_size),
@@ -1047,6 +1073,10 @@ impl Shell {
         match PAGES[self.selected].kind {
             Kind::Startup => {
                 self.startup.press();
+                self.after_page();
+            }
+            Kind::Extensions => {
+                self.extensions.press();
                 self.after_page();
             }
             Kind::Services => {
@@ -1110,7 +1140,7 @@ impl Shell {
     /// The pointer moved with the left button down.
     fn drag(&mut self, x: f32, y: f32) {
         match PAGES[self.selected].kind {
-            Kind::Custom | Kind::Maint | Kind::Startup | Kind::Speed | Kind::Services => {}
+            Kind::Custom | Kind::Maint | Kind::Startup | Kind::Speed | Kind::Services | Kind::Extensions => {}
             Kind::Clean => {
                 if self.clean.dragging {
                     self.clean.drag_to(y);
@@ -1125,7 +1155,7 @@ impl Shell {
     fn right_click(&mut self, el: &ActiveEventLoop) {
         let mods: Mods = self.mods.into();
         match PAGES[self.selected].kind {
-            Kind::Custom | Kind::Maint | Kind::Startup | Kind::Speed | Kind::Services | Kind::Clean => {}
+            Kind::Custom | Kind::Maint | Kind::Startup | Kind::Speed | Kind::Services | Kind::Extensions | Kind::Clean => {}
             Kind::Dups => {
                 let popup = self.dups.right_click();
                 self.after_page();
@@ -1156,6 +1186,7 @@ impl Shell {
             Kind::Custom | Kind::Maint => {}
             Kind::Startup => self.startup.wheel(delta),
             Kind::Services => self.services.wheel(delta),
+            Kind::Extensions => self.extensions.wheel(delta),
             Kind::Speed => self.speed.wheel(delta),
             Kind::Clean => self.clean.wheel(&mut self.gfx, s, delta, self.cursor),
             Kind::Dups => self.dups.wheel(delta, self.cursor),
@@ -1169,7 +1200,7 @@ impl Shell {
     fn animate(&mut self) -> Option<Instant> {
         let wake = match PAGES[self.selected].kind {
             // What the other pages report redraws it: nothing turns here.
-            Kind::Custom | Kind::Maint | Kind::Startup | Kind::Services => None,
+            Kind::Custom | Kind::Maint | Kind::Startup | Kind::Services | Kind::Extensions => None,
             Kind::Speed => self.speed.animate(),
             Kind::Clean => self.clean.animate().then(|| Instant::now() + Duration::from_millis(40)),
             Kind::Dups => self.dups.animate().map(|d| Instant::now() + d),
@@ -1322,7 +1353,14 @@ impl ApplicationHandler<UserEvent> for Shell {
                 match PAGES[self.selected].kind {
                     Kind::Dups => self.dups.drop_file(p),
                     Kind::Size => self.size.drop_file(p),
-                    Kind::Custom | Kind::Maint | Kind::Startup | Kind::Speed | Kind::Services | Kind::Clean | Kind::Inst => {}
+                    Kind::Custom
+                    | Kind::Maint
+                    | Kind::Startup
+                    | Kind::Speed
+                    | Kind::Services
+                    | Kind::Extensions
+                    | Kind::Clean
+                    | Kind::Inst => {}
                 }
                 self.after_page();
             }
@@ -1501,6 +1539,7 @@ pub fn run() {
         maint: MaintPage::default(),
         startup: StartupPage::new(admin),
         services: ServicesPage::new(admin, data_dir.clone()),
+        extensions: ExtensionsPage::default(),
         speed: SpeedPage::new(admin),
         volumes: None,
         disks_running: false,

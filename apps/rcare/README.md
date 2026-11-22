@@ -34,10 +34,11 @@ Pages so far:
 | Speed Up | – (rcare's own) | Windows' Game Mode, the memory (free the standby list as administrator), the processor, and the programs open: those ticked are asked to close, as their close button does |
 | Startup Optimizer | – (rcare's own) | What starts with Windows, with a switch each: turned off as Task Manager does it, so it can be turned on again and nothing is deleted. Items of every user need administrator rights |
 | Program Deactivator | – (rcare's own) | Services of other companies that start with Windows, with a switch each: turned off, a service starts only when needed (Manual); how it started is kept in a copy to turn it on again. Needs administrator rights to change |
+| Extensions | – (rcare's own) | What is added to Chrome, Edge, Brave, Vivaldi, Opera, Chromium and Firefox, by profile, on or off, and who installed it; opens the browser's own extensions page, where it is turned off or removed. Changes nothing itself |
 | Uninstall Apps | [rinst](../rinst/README.md) | The programs of every user and source, uninstalled one after another, and their leftovers |
 
 Next:
-speed, registry, network and protection tools (see the plan). The small tools
+registry, network, protection and system tools (see the plan). The small tools
 stay as they are: the pages are shared code, so a fix is made once.
 
 Settings (theme, language, window, sidebar, the page shown, the boxes ticked)

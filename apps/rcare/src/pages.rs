@@ -22,6 +22,8 @@ pub enum Kind {
     Speed,
     /// rcare's own: services of other companies that start with Windows.
     Services,
+    /// rcare's own: what is added to the browsers.
+    Extensions,
 }
 
 /// A page in the sidebar.
@@ -56,6 +58,8 @@ pub enum Glyph {
     Gauge,
     /// Two cogs: services.
     Cogs,
+    /// A puzzle piece: extensions.
+    Puzzle,
 }
 
 pub const PAGES: &[PageInfo] = &[
@@ -68,6 +72,7 @@ pub const PAGES: &[PageInfo] = &[
     PageInfo { id: "speed", kind: Kind::Speed, label: "Speed Up", glyph: Glyph::Gauge },
     PageInfo { id: "startup", kind: Kind::Startup, label: "Startup Optimizer", glyph: Glyph::Power },
     PageInfo { id: "services", kind: Kind::Services, label: "Program Deactivator", glyph: Glyph::Cogs },
+    PageInfo { id: "extensions", kind: Kind::Extensions, label: "Extensions", glyph: Glyph::Puzzle },
 ];
 
 /// The index of the page saved as `id`; the first one when it is unknown.

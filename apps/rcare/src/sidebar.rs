@@ -178,6 +178,15 @@ fn draw_glyph(g: &mut Gfx, glyph: Glyph, r: Rect, c: rt_gfx::gfx::Color) {
             cog(g, r.x + r.w * 0.38, r.y + r.h * 0.6, r.w * 0.4, 8);
             cog(g, r.x + r.w * 0.8, r.y + r.h * 0.22, r.w * 0.24, 6);
         }
+        Glyph::Puzzle => {
+            // A square piece with a knob on top and one on the right.
+            let q = r.w * 0.7;
+            let body = Rect::new(r.x, r.y + r.h - q, q, q);
+            g.fill_rrect(body, 2.0, c);
+            let k = r.w * 0.14;
+            g.fill_circle(body.x + q / 2.0, body.y - k * 0.4, k, c);
+            g.fill_circle(body.right() + k * 0.4, body.y + q / 2.0, k, c);
+        }
         Glyph::Power => {
             // A ring open at the top, and a stroke down into it.
             let (cx, cy, rad) = (r.x + r.w / 2.0, r.y + r.h * 0.56, r.w * 0.4);
