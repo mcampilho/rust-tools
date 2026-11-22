@@ -242,7 +242,23 @@ connection to the privileged service `rtsvc` from rcare (the pages use it as the
 6. ~~Startup Optimizer~~, ~~Speed Up~~, ~~Program Deactivator~~ and ~~Extensions~~ done (2026-11-22): phase 3 is
    complete (Real-Time TuneUp, a performance history, stays for later). See their sections.
 7. ~~Phase 4~~ done (2026-11-22): Registry Cleaner, see its section. Then phases 5–6 (network and protection,
-   system).
+   system); phase 5's decisions are taken (below).
+
+## Decisions for phase 5 (the user chose the recommended option of each, 2026-11-22)
+
+With these, rcare itself still uses no network: what needs it (Defender's definitions) is done by Windows.
+
+- **Privacy Sweep**: only Windows' traces — recent documents, the Run and Explorer address bar history, jump lists,
+  the clipboard — with a `.reg` copy of what is registry. Never the browsers' history, cookies or passwords (rclean's
+  rule stays).
+- **Internet Booster (TCP Optimize)**: show Windows' current TCP values (autotuning, ECN, RSS…) and offer "Restore
+  Windows' values", with a copy of what was there. No "boost" tweaks (TTL 64, MTU, duplicate ACKs): Windows tunes
+  itself and those old tweaks can make it worse.
+- **DNS Protector**: show each connection's DNS and let the user choose Automatic (the router's) or a known one
+  (Cloudflare, Quad9, Google), as administrator, with a copy of what was there to undo.
+- **Protect System**: Defender and the Firewall through Windows' own tools — their state, a quick scan, updating the
+  definitions, turning on what is off; the "safe folder" is Defender's Controlled folder access. Left out: ads
+  removal, email, homepage advisor, fingerprint; undelete stays for later (a tool of its own).
 
 ## Decisions for the rest of phase 3 (the user chose the recommended option of each, 2026-11-22)
 

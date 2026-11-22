@@ -250,7 +250,24 @@ ecrã.
    `checkver.ps1 -Dir bucket -Update`).
 6. ~~Startup Optimizer~~, ~~Speed Up~~, ~~Program Deactivator~~ e ~~Extensions~~ feitos (2026-11-22): a fase 3 está
    completa (o Real-Time TuneUp, um histórico do desempenho, fica para depois). Ver as secções.
-7. ~~Fase 4~~ feita (2026-11-22): Registry Cleaner, ver a secção. Depois as fases 5–6 (rede e proteção, sistema).
+7. ~~Fase 4~~ feita (2026-11-22): Registry Cleaner, ver a secção. Depois as fases 5–6 (rede e proteção, sistema); as decisões da fase 5 estão tomadas (abaixo).
+
+## Decisões para a fase 5 (o utilizador escolheu a opção recomendada de cada, 2026-11-22)
+
+Com elas, o próprio rcare continua sem rede: o que precisa dela (as definições do Defender) fá-lo o Windows.
+
+- **Privacy Sweep**: só rastos do Windows — documentos recentes, histórico do Executar e da barra do Explorador,
+  listas de saltos, área de transferência — com cópia `.reg` do que for registo. Nunca histórico, cookies nem
+  palavras-passe dos browsers (a regra do rclean mantém-se).
+- **Internet Booster (TCP Optimize)**: mostrar os valores TCP atuais do Windows (autotuning, ECN, RSS…) e oferecer
+  "Repor os valores do Windows", com cópia do que estava. Sem "acelerações" (TTL 64, MTU, ACKs duplicados): o Windows
+  ajusta-se sozinho e esses ajustes antigos podem piorar.
+- **DNS Protector**: mostrar o DNS de cada ligação e deixar escolher Automático (o do router) ou um conhecido
+  (Cloudflare, Quad9, Google), como administrador, com cópia do que estava para desfazer.
+- **Protect System**: Defender e Firewall pelas ferramentas do próprio Windows — estado, análise rápida, atualizar
+  definições, ligar o que estiver desligado; a "pasta segura" é o Acesso controlado a pastas do Defender. De fora:
+  remoção de anúncios, email, aconselhador de página inicial, impressão digital; o undelete fica para depois (uma
+  ferramenta à parte).
 
 ## Decisões para o resto da fase 3 (o utilizador escolheu a opção recomendada de cada, 2026-11-22)
 
