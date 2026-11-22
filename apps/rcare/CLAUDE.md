@@ -56,8 +56,8 @@ Fase 0 (2026-11-22): páginas do rclean, rdup, rsize e rinst (`rclean::page::Cle
 barra lateral, menus combinados dos quatro e as quatro páginas. **A passagem de testemunho completa está em
 `docs/rcare.pt.md`** (padrão de página, como o rcare funciona, verificado e não, próximos passos): ler primeiro.
 Custom Clean (`custom.rs`, página do próprio rcare) feita. Feito também: `--tray`, uma só instância, "Integração com o Windows" (um verbo "Analisar com o rcare" → Custom Clean), `rcare-v*` no `release.yml`. Falta: o primeiro release (push: perguntar) e o bucket.
-Arranque verificado (abre, fecha com código 0). **Não verificado**: usar a janela, a compilação em Linux das apps
-pequenas religadas.
+Arranque verificado (abre, fecha com código 0). **Não verificado**: usar a janela. A compilação das apps pequenas religadas em Linux passou no CI
+(2026-11-22).
 ## Regras
 
 - Visível só pelo `strings.txt` (da app ou da página); teclas de acesso diferentes em cada menu em todas as línguas.

@@ -134,9 +134,9 @@ um teste de arranque do `rcare.exe` a sério (compilação de depuração, modo 
 ficou 8 s, fechou com a mensagem de fecho e código 0, e escreveu os quatro ficheiros de definições (apagados depois).
 
 **Não verificado**: usar a janela a sério (rato, teclado, menus nativos, menus que saltam, diálogos, mudar de página,
-desinstalar), a compilação em Linux das apps pequenas depois de religadas (o código `#[cfg(not(windows))]` do
-`main.rs`, `menus.rs` e `page.rs` delas: não há WSL a responder nem alvo Linux instalado — o CI em Linux será a
-primeira verificação), a ligação do rcare ao serviço `rtsvc` (as páginas usam-no como as apps pequenas), leitores de
+desinstalar), correr as apps pequenas em Linux depois de religadas (compilação, clippy e testes em Linux passaram no CI
+em 2026-11-22, execução 45064520969, depois do push de `bf7e572`; os menus desenhados e os diálogos delas não foram
+corridos), a ligação do rcare ao serviço `rtsvc` (as páginas usam-no como as apps pequenas), leitores de
 ecrã.
 
 ## Próximos passos, por ordem

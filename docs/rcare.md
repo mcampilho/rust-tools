@@ -128,8 +128,8 @@ start-up test of the real `rcare.exe` (debug build, portable mode in `target\deb
 closed by its close message with code 0 and wrote its four settings files (removed afterwards).
 
 **Not verified**: using the real window (mouse, keyboard, native menus, popups, dialogs, switching pages, uninstalling),
-the Linux build of the small apps after the rewiring (`#[cfg(not(windows))]` code in their `main.rs`, `menus.rs`
-and `page.rs`: there is no WSL answering and no Linux target installed — CI on Linux will be the first check), the
+running the small apps on Linux after the rewiring (their build, clippy and tests on Linux passed in CI on
+2026-11-22, run 45064520969, after the push of `bf7e572`; their drawn menus and dialogs were not run), the
 connection to the privileged service `rtsvc` from rcare (the pages use it as the small apps do), screen readers.
 
 ## Next steps, in order
