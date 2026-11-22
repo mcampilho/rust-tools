@@ -28,6 +28,8 @@ pub enum Cmd {
     Speed(crate::speed_page::Action),
     /// Startup Optimizer: a button of its bar.
     Startup(crate::startup_page::Action),
+    /// Program Deactivator: a button of its bar.
+    Services(crate::services_page::Action),
     /// Custom Clean: the junk, duplicates and large files analysed together.
     CustomAnalyze,
     /// Custom Clean: the folder where duplicates and large files are looked for.
@@ -141,6 +143,7 @@ impl Cmd {
             MaintScan => "&Scan",
             Startup(a) => a.label_key(),
             Speed(a) => a.label_key(),
+            Services(a) => a.label_key(),
             CustomAnalyze => "&Analyze",
             CustomFolder => "Change &Folder...",
             Sidebar => "Collapse Side&bar",
@@ -185,7 +188,11 @@ pub fn shortcut(cmd: Cmd) -> Option<&'static str> {
         Size(c) => rsize::commands::shortcut(c),
         Inst(c) => rinst::commands::shortcut(c),
         // F5 belongs to the page shown; on Custom Clean it analyses.
-        CustomAnalyze | MaintScan | Startup(crate::startup_page::Action::Refresh) | Speed(crate::speed_page::Action::Refresh) => Some("F5"),
+        CustomAnalyze
+        | MaintScan
+        | Startup(crate::startup_page::Action::Refresh)
+        | Speed(crate::speed_page::Action::Refresh)
+        | Services(crate::services_page::Action::Refresh) => Some("F5"),
         c => BINDINGS.iter().find(|(_, x)| *x == c).map(|(k, _)| *k),
     }
 }
@@ -292,6 +299,17 @@ fn page_menus(page: usize) -> Own {
                 )],
             }
         }
+        Some(Kind::Services) => {
+            use crate::services_page::Action as A;
+            Own {
+                file: vec![Item::Item(Services(A::Refresh))],
+                view: Vec::new(),
+                rest: vec![(
+                    "&Edit",
+                    vec![Item::Item(Services(A::Off)), Item::Item(Services(A::On)), Item::Sep, Item::Item(Services(A::Open))],
+                )],
+            }
+        }
         Some(Kind::Maint) => Own { file: vec![Item::Item(MaintScan)], view: Vec::new(), rest: Vec::new() },
         Some(Kind::Custom) => Own { file: vec![Item::Item(CustomAnalyze), Item::Item(CustomFolder)], view: Vec::new(), rest: Vec::new() },
         Some(Kind::Inst) => own_menus(rinst::commands::menu_tree(), inst_is_window, Cmd::from_inst),
@@ -386,6 +404,7 @@ mod tests {
         assert!(all(at("custom")).contains(&CustomAnalyze));
         assert!(all(at("maint")).contains(&MaintScan));
         assert!(all(at("startup")).contains(&Startup(crate::startup_page::Action::Off)));
+        assert!(all(at("services")).contains(&Services(crate::services_page::Action::Off)));
         assert!(all(at("speed")).contains(&Speed(crate::speed_page::Action::GameMode)));
         assert!(all(at("clean")).contains(&Clean(CleanCmd::Analyse)));
         assert!(all(at("dups")).contains(&Dups(DupCmd::Search)));

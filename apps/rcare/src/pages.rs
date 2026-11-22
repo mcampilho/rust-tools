@@ -20,6 +20,8 @@ pub enum Kind {
     Startup,
     /// rcare's own: Game Mode, memory, processor, programs open.
     Speed,
+    /// rcare's own: services of other companies that start with Windows.
+    Services,
 }
 
 /// A page in the sidebar.
@@ -52,6 +54,8 @@ pub enum Glyph {
     Power,
     /// A gauge: speed.
     Gauge,
+    /// Two cogs: services.
+    Cogs,
 }
 
 pub const PAGES: &[PageInfo] = &[
@@ -63,6 +67,7 @@ pub const PAGES: &[PageInfo] = &[
     PageInfo { id: "inst", kind: Kind::Inst, label: "Uninstall Apps", glyph: Glyph::Remove },
     PageInfo { id: "speed", kind: Kind::Speed, label: "Speed Up", glyph: Glyph::Gauge },
     PageInfo { id: "startup", kind: Kind::Startup, label: "Startup Optimizer", glyph: Glyph::Power },
+    PageInfo { id: "services", kind: Kind::Services, label: "Program Deactivator", glyph: Glyph::Cogs },
 ];
 
 /// The index of the page saved as `id`; the first one when it is unknown.

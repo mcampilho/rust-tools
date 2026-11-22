@@ -31,13 +31,16 @@ accesskit_winit = { version = "0.34", default-features = false, features = ["rwh
 [target.'cfg(windows)'.dependencies]
 # SetErrorMode: a missing disc or card is an error code, not a dialog (as in rdup and rsize);
 # the registry: turning startup items on and off as Task Manager does; Speed Up: memory,
-# processor, the programs open (their windows, asked to close), the standby list (ntdll).
+# processor, the programs open (their windows, asked to close), the standby list (ntdll);
+# Program Deactivator: the services and their programs' company (version information).
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
     "Win32_Security",
+    "Win32_Storage_FileSystem",
     "Win32_System_Diagnostics_Debug",
     "Win32_System_ProcessStatus",
     "Win32_System_Registry",
+    "Win32_System_Services",
     "Win32_System_SystemInformation",
     "Win32_System_Threading",
     "Win32_UI_WindowsAndMessaging",

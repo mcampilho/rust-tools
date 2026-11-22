@@ -41,6 +41,7 @@ System Information" na lista abaixo fica de propósito para mais tarde.
 | `crates/rt-core/src/i18n.rs` | `add` (tabelas extra), `tr_in_from`/`tr_from`/`tf_from` (uma tabela procurada primeiro) |
 | `crates/rt-core/src/menu.rs` | `M::map` (converter os comandos de um menu noutro tipo) |
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; estado dos discos pelo `Get-Volume` |
+| `apps/rcare/src/services.rs`, `services_page.rs` | Program Deactivator: serviços de terceiros que arrancam com o Windows, postos em Manual depois de perguntar, com cópia (`services.txt`) para devolver o arranque |
 | `apps/rcare/src/speed.rs`, `speed_page.rs` | Speed Up: interruptor do Modo de Jogo, memória (lista de espera libertada como administrador), processador, programas abertos (fechados só quando marcados, com `WM_CLOSE`) |
 | `apps/rcare/src/startup.rs`, `startup_page.rs` | Startup Optimizer: o que arranca com o Windows (chaves `Run` do utilizador e da máquina, 64/32 bits, as duas pastas Arranque) e desligar/ligar itens por `Explorer\StartupApproved`, como o Gestor de Tarefas |
 | `apps/rcare/src/custom.rs` | Custom Clean: `CustomPage` (disposição, clique, desenho, acessibilidade), `Part`, `Status`, `View`, `large_files` |
@@ -101,6 +102,21 @@ Detalhes mostram cada disco e como reparar um com `chkdsk X: /f` ou Propriedades
 neste PC o disco S: diz "Warning / Full Repair Needed"). "Rever" abre o limpador ou o desinstalador; nesta página não se
 muda nada. Mais verificações entram com as fases seguintes (limpeza de privacidade na fase 5 — apagar histórico ou
 cookies é decisão do utilizador, porque o rclean nunca o faz —, arranque, integridade do Windows na fase 6).
+
+## Program Deactivator (fase 3, página do próprio rcare, a última da barra lateral)
+
+Os serviços (`SERVICE_WIN32`, não controladores) que arrancam com o Windows (Automático ou Automático (atrasado)) e
+não são da Microsoft: a empresa lê-se das informações de versão do programa (`CompanyName`, em qualquer das línguas
+dele); sem empresa, um programa na pasta do Windows conta como do Windows, e um serviço cujo programa não se sabe fica
+de fora. Lidos pelo Gestor de Serviços (`EnumServicesStatusExW`, `QueryServiceConfigW`, `QueryServiceConfig2W` para o
+atraso), que responde sem administrador. Desligar um pergunta primeiro (programas de segurança e controladores podem
+precisar de arrancar com o Windows), escreve como arrancava em `services.txt` na pasta de dados do rcare (nome,
+tabulação, `auto`/`delayed`; guarda-se o primeiro) e só depois o põe em Manual (`ChangeServiceConfigW`); se a cópia
+não se escreve, nada muda. Ligar devolve esse arranque (com o atraso) e tira-o da cópia. A lista mostra também os
+serviços que o rcare pôs em Manual, para se poderem devolver. Alterar precisa de administrador (sem ele os
+interruptores ficam esbatidos e dizem porquê). Verificado: a lista real aqui (Bitdefender, IObit, Intel, NVIDIA,
+Everything, o serviço das rust-tools), imagens, a página a abrir no `.exe` a sério. **Não verificado**: alterar um
+serviço a sério (precisa do rcare elevado).
 
 ## Speed Up (fase 3, página do próprio rcare)
 
@@ -196,9 +212,9 @@ ecrã.
    Falta: "Procurar atualizações…" funciona quando houver release; o primeiro release (etiqueta `rcare-v0.1.0`, um
    push: **perguntar ao utilizador**) e depois o manifesto do bucket do Scoop (`bucket/rcare.json`, depois
    `checkver.ps1 -Dir bucket -Update`).
-6. ~~Startup Optimizer~~ e ~~Speed Up~~ feitos (2026-11-22): ver as secções.
-7. O resto da fase 3, como o utilizador decidiu em 2026-11-22 (abaixo): **Program Deactivator** (serviços de terceiros
-   automáticos) e **Extensions** (lista por browser e perfil, abrir a página do browser). Depois as fases 4–6.
+6. ~~Startup Optimizer~~, ~~Speed Up~~ e ~~Program Deactivator~~ feitos (2026-11-22): ver as secções.
+7. O resto da fase 3, como o utilizador decidiu em 2026-11-22 (abaixo): **Extensions** (lista por browser e perfil,
+   abrir a página do browser). Depois as fases 4–6.
 
 ## Decisões para o resto da fase 3 (o utilizador escolheu a opção recomendada de cada, 2026-11-22)
 
@@ -272,7 +288,7 @@ Process Manager, Software Updater, Default Program.
 **2. Manutenção num clique** ✔ (System Maintenance, com as verificações que já existem) — corre em sequência os módulos disponíveis (privacidade, lixo, registo, atalhos,
 verificação de disco, saúde do software) e faz um relatório.
 
-**3. Velocidade** — Startup Optimizer ✔; Speed Up ✔ (Modo de Jogo, memória e Smart RAM, processador, programas abertos); App/Extension Cleaner e Program Deactivator; Game Mode e Real-Time TuneUp
+**3. Velocidade** — Startup Optimizer ✔; Speed Up ✔ (Modo de Jogo, memória e Smart RAM, processador, programas abertos); Program Deactivator ✔ (serviços de terceiros, com cópia); App/Extension Cleaner; Game Mode e Real-Time TuneUp
 (monitor de desempenho); Smart RAM.
 
 **4. Registo** — Registry Cleaner (as categorias acima, Deep Scan, cópia `.reg` antes de cada limpeza, restauro);

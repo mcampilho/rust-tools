@@ -147,6 +147,32 @@ fn speed(g: &mut Gfx, r: Rect, th: &Theme) {
     page.render(g, r, th, 1.0);
 }
 
+/// The Program Deactivator with a few services, one turned off by rcare.
+fn services(g: &mut Gfx, r: Rect, th: &Theme) {
+    use rcare::services::{Service, Start};
+    use rcare::services_page::ServicesPage;
+    let e = |name: &str, company: &str, start: Start, running: bool, cmd: &str| Service {
+        name: name.into(),
+        display: name.into(),
+        company: Some(company.into()),
+        command: cmd.into(),
+        file: None,
+        start,
+        running,
+        was: (start == Start::Manual).then_some(Start::Auto),
+    };
+    let mut page = ServicesPage::new(true, std::env::temp_dir());
+    page.services = vec![
+        e("Bitdefender Virus Shield", "Bitdefender", Start::Auto, true, "\"C:\\Program Files\\Bitdefender\\Bitdefender Security\\bdservicehost.exe\""),
+        e("Everything", "voidtools", Start::Auto, true, "\"C:\\Programs\\Everything\\Everything.exe\" -svc"),
+        e("Google Updater Service", "Google LLC", Start::Manual, false, "\"C:\\Program Files (x86)\\Google\\GoogleUpdater\\updater.exe\" --system --windows-service"),
+        e("NVIDIA Display Container LS", "NVIDIA Corporation", Start::Auto, true, "C:\\WINDOWS\\System32\\DriverStore\\FileRepository\\nv_dispi.inf_amd64\\Display.NvContainer\\NVDisplay.Container.exe -s NVDisplay.ContainerLocalSystem"),
+        e("rust-tools service", "–", Start::Delayed, true, "\"C:\\Programs\\rust-tools\\rtsvc.exe\" run"),
+    ];
+    page.sel = Some(1);
+    page.render(g, r, th, 1.0);
+}
+
 #[test]
 #[ignore]
 fn screenshots() {
@@ -168,4 +194,7 @@ fn screenshots() {
     save("startup-dark-smallest.png", shot("startup", true, false, None, 760, 480, &mut startup));
     save("speed-light.png", shot("speed", false, false, None, 1280, 720, &mut speed));
     save("speed-dark-smallest.png", shot("speed", true, false, None, 760, 480, &mut speed));
+    save("services-light.png", shot("services", false, false, None, 1280, 720, &mut services));
+    save("services-dark-smallest.png", shot("services", true, false, None, 760, 480, &mut services));
+    save("services-collapsed.png", shot("services", false, true, None, 1180, 720, &mut services));
 }

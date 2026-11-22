@@ -10,6 +10,8 @@ pub mod disks;
 pub mod i18n;
 pub mod maint;
 pub mod pages;
+pub mod services;
+pub mod services_page;
 pub mod settings;
 pub mod sidebar;
 pub mod speed;

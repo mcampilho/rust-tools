@@ -33,6 +33,7 @@ Páginas até agora:
 | Ficheiros grandes | [rsize](../rsize/README.pt.md) | O que ocupa espaço num disco ou numa pasta: lista, tipos de ficheiro, treemap, tarte, anéis |
 | Speed Up | – (do próprio rcare) | O Modo de Jogo do Windows, a memória (libertar a lista de espera como administrador), o processador, e os programas abertos: os marcados são convidados a fechar, como faz o botão de fechar deles |
 | Startup Optimizer | – (do próprio rcare) | O que arranca com o Windows, com um interruptor cada: desligado como o Gestor de Tarefas faz, por isso pode voltar a ligar-se e nada é apagado. Os itens de todos os utilizadores precisam de administrador |
+| Program Deactivator | – (do próprio rcare) | Serviços de outras empresas que arrancam com o Windows, com um interruptor cada: desligado, um serviço só arranca quando é preciso (Manual); como arrancava fica numa cópia para o ligar de novo. Alterar precisa de administrador |
 | Desinstalar aplicações | [rinst](../rinst/README.pt.md) | Os programas de todos os utilizadores e fontes, desinstalados uns a seguir aos outros, e os seus restos |
 
 A seguir: as ferramentas de velocidade, registo, rede e proteção (ver o

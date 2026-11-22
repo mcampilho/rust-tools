@@ -38,6 +38,7 @@ the list below is deliberately left for later.
 | `crates/rt-core/src/i18n.rs` | `add` (extra tables), `tr_in_from`/`tr_from`/`tf_from` (a table searched first) |
 | `crates/rt-core/src/menu.rs` | `M::map` (turn the commands of a menu into another type) |
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; drive health from `Get-Volume` |
+| `apps/rcare/src/services.rs`, `services_page.rs` | Program Deactivator: third-party services that start with Windows, set to Manual after asking, with a copy (`services.txt`) to give the start back |
 | `apps/rcare/src/speed.rs`, `speed_page.rs` | Speed Up: Game Mode switch, memory (standby list freed as administrator), processor, programs open (closed only when ticked, with `WM_CLOSE`) |
 | `apps/rcare/src/startup.rs`, `startup_page.rs` | Startup Optimizer: what starts with Windows (`Run` keys of the user and the machine, 64/32 bits, both Startup folders) and turning items off/on through `Explorer\StartupApproved` as Task Manager does |
 | `apps/rcare/src/custom.rs` | Custom Clean: `CustomPage` (layout, hit, draw, accessibility), `Part`, `Status`, `View`, `large_files` |
@@ -95,6 +96,21 @@ one with `chkdsk X: /f` or the drive's Properties › Tools › Check — on thi
 Needed"). "Review" opens the cleaner or the uninstaller; nothing is changed on this page. More checks join with the
 later phases (privacy sweep in phase 5 — deleting history or cookies is the user's decision, since rclean never does —,
 startup, Windows integrity in phase 6).
+
+## Program Deactivator (phase 3, rcare's own page, last in the sidebar)
+
+The services (`SERVICE_WIN32`, not drivers) that start with Windows (Automatic or Automatic (delayed)) and are not
+Microsoft's: the company is read from the program's version information (`CompanyName`, any of its languages);
+with no company, a program in the Windows folder counts as Windows' own, and a service whose program cannot be
+told is left out. Read with the Service Control Manager (`EnumServicesStatusExW`, `QueryServiceConfigW`,
+`QueryServiceConfig2W` for the delay), which answers without administrator rights. Turning one off asks first
+(security programs and drivers may need to start with Windows), writes how it started to `services.txt` in rcare's
+data folder (name, tab, `auto`/`delayed`; the first start is kept), and only then sets it to Manual
+(`ChangeServiceConfigW`); if the copy cannot be written nothing is changed. Turning it on gives back that start
+(delay included) and takes it out of the copy. The list also shows the services rcare set to Manual, so they can
+be given back. Changing needs administrator rights (without them the switches are dimmed and say why).
+Verified: the real list here (Bitdefender, IObit, Intel, NVIDIA, Everything, the rust-tools service), screenshots,
+the page opening in the real `.exe`. **Not verified**: changing a service for real (needs an elevated rcare).
 
 ## Speed Up (phase 3, rcare's own page)
 
@@ -187,9 +203,9 @@ connection to the privileged service `rtsvc` from rcare (the pages use it as the
    "Check for
    updates" works once there is a release; the first release (tag `rcare-v0.1.0`, a push: **ask the user**) and then
    the Scoop bucket manifest (`bucket/rcare.json`, then `checkver.ps1 -Dir bucket -Update`).
-6. ~~Startup Optimizer~~ and ~~Speed Up~~ done (2026-11-22): see their sections.
-7. The rest of phase 3, as the user decided on 2026-11-22 (below): **Program Deactivator** (third-party automatic
-   services) and **Extensions** (list per browser and profile, open the browser's page). Then phases 4–6.
+6. ~~Startup Optimizer~~, ~~Speed Up~~ and ~~Program Deactivator~~ done (2026-11-22): see their sections.
+7. The rest of phase 3, as the user decided on 2026-11-22 (below): **Extensions** (list per browser and profile,
+   open the browser's page). Then phases 4–6.
 
 ## Decisions for the rest of phase 3 (the user chose the recommended option of each, 2026-11-22)
 
@@ -261,7 +277,7 @@ Uninstall Apps (rinst) ✔, and **Custom Clean** ✔ (junk, duplicates and large
 **2. One-click maintenance** ✔ (System Maintenance, with the checks that exist so far) — runs the available modules in sequence (privacy sweep, junk, registry, shortcuts, disk
 check, software health) and reports.
 
-**3. Speed** — Startup Optimizer ✔; Speed Up ✔ (Game Mode, memory and Smart RAM, processor, programs open); App/Extension Cleaner and Program Deactivator; Game Mode and Real-Time TuneUp
+**3. Speed** — Startup Optimizer ✔; Speed Up ✔ (Game Mode, memory and Smart RAM, processor, programs open); Program Deactivator ✔ (third-party services, with a copy); App/Extension Cleaner; Game Mode and Real-Time TuneUp
 (performance monitor); Smart RAM.
 
 **4. Registry** — Registry Cleaner (the categories above, Deep Scan, `.reg` copy before each cleaning, restore);

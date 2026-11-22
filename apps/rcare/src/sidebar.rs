@@ -162,6 +162,22 @@ fn draw_glyph(g: &mut Gfx, glyph: Glyph, r: Rect, c: rt_gfx::gfx::Color) {
             g.polyline(&[(cx, cy), (cx + rad * 0.8 * a.cos(), cy + rad * 0.8 * a.sin())], 2.0, c, false);
             g.fill_circle(cx, cy, 2.0, c);
         }
+        Glyph::Cogs => {
+            // A big cog and a small one: an outline with teeth, a dot in the middle.
+            let cog = |g: &mut Gfx, cx: f32, cy: f32, rad: f32, teeth: usize| {
+                let pts: Vec<(f32, f32)> = (0..teeth * 4)
+                    .map(|k| {
+                        let a = (k as f32 + 0.5) * std::f32::consts::TAU / (teeth * 4) as f32;
+                        let out = if (k / 2) % 2 == 0 { rad } else { rad * 0.74 };
+                        (cx + out * a.cos(), cy + out * a.sin())
+                    })
+                    .collect();
+                g.polyline(&pts, 1.6, c, true);
+                g.fill_circle(cx, cy, rad * 0.28, c);
+            };
+            cog(g, r.x + r.w * 0.38, r.y + r.h * 0.6, r.w * 0.4, 8);
+            cog(g, r.x + r.w * 0.8, r.y + r.h * 0.22, r.w * 0.24, 6);
+        }
         Glyph::Power => {
             // A ring open at the top, and a stroke down into it.
             let (cx, cy, rad) = (r.x + r.w / 2.0, r.y + r.h * 0.56, r.w * 0.4);
