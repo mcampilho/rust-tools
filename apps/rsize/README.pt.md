@@ -39,7 +39,7 @@ consola (do Executar, por exemplo), o rsize abre e mostra-as na sua janela.
 a arrancar o rsize (com ou sem pasta) ou clicar no ícone mostra a janela de imediato
 e lê lá a pasta; fechar a janela só a esconde, e uma leitura continua. Para sair, usa
 o menu do ícone ou Ficheiro › Sair. `--new-window` abre uma janela à parte mesmo com
-o rsize residente. **Ficheiro › Iniciar com o Windows** (Iniciar ao entrar na sessão,
+o rsize residente. **Ficheiro › Integração com o Windows › Iniciar com o Windows** (Iniciar ao entrar na sessão,
 em Linux) arranca-o assim com a sessão, só para o utilizador atual (a chave Run, ou
 `~/.config/autostart/rsize.desktop`); escolhê-lo outra vez desliga-o.
 

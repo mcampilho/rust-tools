@@ -37,7 +37,7 @@ escolha.
 analisar nada até ser mostrado. Voltar a arrancar o rclean ou clicar no ícone mostra
 a janela e analisa outra vez; fechar a janela só a esconde, e uma limpeza continua.
 Para sair, use o menu do ícone ou Ficheiro › Sair. `--new-window` abre uma janela à
-parte mesmo com o rclean residente. **Ficheiro › Iniciar com o Windows** (Iniciar ao
+parte mesmo com o rclean residente. **Ficheiro › Integração com o Windows › Iniciar com o Windows** (Iniciar ao
 entrar na sessão, em Linux) arranca-o assim com a sessão, só para o utilizador atual
 (a chave Run, ou `~/.config/autostart/rclean.desktop`); escolhê-lo outra vez
 desliga-o.

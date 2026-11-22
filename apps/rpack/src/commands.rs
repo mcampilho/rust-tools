@@ -11,6 +11,12 @@ pub enum Command {
     /// Asks for an archive to open.
     OpenArchive,
     CloseArchive,
+    /// "Open with rpack" on the Explorer menu of archives (on or off).
+    #[cfg(windows)]
+    ExplorerMenu,
+    /// Opens the panel that makes rpack the default app of the archive types.
+    #[cfg(windows)]
+    DefaultViewer,
     /// Starts rpack resident with the session (`--tray`).
     Autostart,
     Exit,
@@ -74,6 +80,10 @@ impl Command {
         Ok(match self {
             OpenArchive => "&Open Archive...",
             CloseArchive => "&Close Archive",
+            #[cfg(windows)]
+            ExplorerMenu => "&Explorer Context Menu",
+            #[cfg(windows)]
+            DefaultViewer => "Set as &Default Viewer...",
             Autostart => {
                 if cfg!(windows) {
                     "Start wit&h Windows"
@@ -182,8 +192,14 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
     use rt_core::menu::M::*;
     let mut langs = vec![Item(UiLanguage(0)), Sep];
     langs.extend((1..=Lang::ALL.len()).map(|i| Item(UiLanguage(i as u8))));
+    let mut file = vec![Item(OpenArchive), Item(CloseArchive), Sep];
+    #[cfg(windows)]
+    file.extend([Sub("Windows &Integration", vec![Item(ExplorerMenu), Item(DefaultViewer), Sep, Item(Autostart)]), Sep]);
+    #[cfg(not(windows))]
+    file.extend([Item(Autostart), Sep]);
+    file.push(Item(Exit));
     vec![
-        ("&File", vec![Item(OpenArchive), Item(CloseArchive), Sep, Item(Autostart), Sep, Item(Exit)]),
+        ("&File", file),
         ("&Edit", vec![Item(OpenItem), Item(Up), Item(Refresh), Sep, Item(SelectAll), Sep, Item(CopyPath), Item(Reveal), Item(Recycle)]),
         (
             "&Archive",

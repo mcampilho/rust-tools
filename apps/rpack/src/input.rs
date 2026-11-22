@@ -5,6 +5,13 @@ use super::*;
 
 impl Shell {
     pub(super) fn key(&mut self, el: &ActiveEventLoop, event: &winit::event::KeyEvent) {
+        #[cfg(windows)]
+        if let Some(p) = &mut self.assoc {
+            if p.key(&event.logical_key) == rt_ui::assoc::Outcome::Close {
+                self.close_assoc();
+            }
+            return;
+        }
         if let Some(d) = &self.dialog {
             // Ctrl+C copies the message (all the hashes, when it shows some).
             if self.mods.control_key() && matches!(&event.logical_key, WKey::Character(c) if c.eq_ignore_ascii_case("c")) {

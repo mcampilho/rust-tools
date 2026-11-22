@@ -110,7 +110,7 @@ Launching rview again (with or without a file) or clicking the tray icon
 shows the window instantly and opens the file there; closing the window
 (or Ctrl+W) only hides it. Quit from the tray icon's menu or File › Exit.
 `--new-window` opens a separate window even when rview is resident.
-**File › Start with Windows** (Start When I Log In on Linux) starts it this
+**File › Windows Integration › Start with Windows** (Start When I Log In on Linux) starts it this
 way with the session, for the current user only (the Run key, or
 `~/.config/autostart/rview.desktop`); choosing it again turns it off. Settings (theme, language, word wrap, window size, last folder) are
 kept in `%APPDATA%\rview\settings.ini`, or next to `rview.exe` when a file

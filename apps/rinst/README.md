@@ -34,7 +34,7 @@ reading nothing until shown. Launching rinst again or clicking the tray icon
 shows the window and reads the programs again (unless an uninstalling is
 running); closing the window only hides it, and an uninstalling goes on. Quit
 from the tray icon's menu or File › Exit. `--new-window` opens a separate
-window even when rinst is resident. **File › Start with Windows** (Start
+window even when rinst is resident. **File › Windows Integration › Start with Windows** (Start
 When I Log In on Linux) starts it this way with the session, for the current
 user only (the Run key, or `~/.config/autostart/rinst.desktop`); choosing it
 again turns it off.

@@ -1019,6 +1019,11 @@ fn main() {
     if first_run {
         // The file marks that rwall has run, and holds the defaults to edit.
         shell.save();
+        // A wallpaper changer is only useful resident: it starts with the
+        // session from the first run on, until the user turns it off.
+        if !shell.autostart && rwall::autostart::set(true).is_ok() {
+            shell.autostart = rwall::autostart::enabled();
+        }
     }
     if let Err(e) = event_loop.run_app(&mut shell) {
         eprintln!("rwall: {e}");

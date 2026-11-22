@@ -125,6 +125,12 @@ struct Shell {
     maximize_on_show: bool,
     /// Starts with the session (as `rpack --tray`).
     autostart: bool,
+    /// "Open with rpack" is on the Explorer menu of archives, for this rpack.exe.
+    #[cfg(windows)]
+    integrated: bool,
+    /// The Default app panel (File › Windows Integration).
+    #[cfg(windows)]
+    assoc: Option<rt_ui::assoc::AssocPanel>,
     #[cfg(not(windows))]
     resident: Option<rt_sys::linux::shell::Shell>,
 }
@@ -856,6 +862,14 @@ impl Shell {
                 Ok(()) => self.autostart = rt_sys::autostart::enabled("rpack"),
                 Err(e) => self.info("rpack", &tf("Cannot change how it starts: {}", &[&e])),
             },
+            #[cfg(windows)]
+            Command::ExplorerMenu => self.integration(if self.integrated { Integration::Unregister } else { Integration::Register }),
+            #[cfg(windows)]
+            Command::DefaultViewer => {
+                self.assoc = Some(rt_ui::assoc::AssocPanel::new(rpack::assoc::spec(), &tr("Open with rpack")));
+                self.dragging = false;
+                self.redraw();
+            }
             Command::OpenItem => self.open_row(),
             Command::Up => self.go_up(),
             Command::Refresh => match self.app.place.clone() {
@@ -972,6 +986,8 @@ impl Shell {
             Command::Overwrite(i) => Overwrite::ALL.get(i as usize) == Some(&self.app.overwrite),
             Command::OpenAfter => self.app.open_after,
             Command::Autostart => self.autostart,
+            #[cfg(windows)]
+            Command::ExplorerMenu => self.integrated,
             _ => false,
         }
     }
@@ -997,6 +1013,37 @@ impl Shell {
             Command::Stop => !idle,
             _ => true,
         }
+    }
+
+    /// A panel over the page (the Default app panel) takes the mouse and the keys.
+    #[cfg(windows)]
+    fn assoc_open(&self) -> bool {
+        self.assoc.is_some()
+    }
+
+    #[cfg(not(windows))]
+    fn assoc_open(&self) -> bool {
+        false
+    }
+
+    /// The Default app panel closes: the menu shows what it changed.
+    #[cfg(windows)]
+    fn close_assoc(&mut self) {
+        self.assoc = None;
+        self.integrated = integrated_here();
+        self.menu_dirty = true;
+        self.redraw();
+    }
+
+    /// Runs a Windows Integration action from the menu and shows the result.
+    #[cfg(windows)]
+    fn integration(&mut self, action: Integration) {
+        let text = match integrate(action) {
+            Ok(t) | Err(t) => t,
+        };
+        self.integrated = integrated_here();
+        self.menu_dirty = true;
+        self.info(&tr("Windows Integration"), &text);
     }
 
     fn info(&mut self, title: &str, text: &str) {
@@ -1362,6 +1409,13 @@ impl ApplicationHandler<UserEvent> for Shell {
             WindowEvent::CursorMoved { position, .. } => {
                 let (x, y) = (position.x as f32, position.y as f32);
                 self.cursor = Some((x, y));
+                #[cfg(windows)]
+                if let Some(p) = &mut self.assoc {
+                    if p.pointer(x, y) {
+                        self.redraw();
+                    }
+                    return;
+                }
                 #[cfg(not(windows))]
                 if self.menu_pointer(el, x, y) {
                     return;
@@ -1380,6 +1434,16 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
             WindowEvent::MouseInput { state, button: MouseButton::Left, .. } => match state {
                 ElementState::Pressed => {
+                    #[cfg(windows)]
+                    if let (Some(p), Some((x, y))) = (&mut self.assoc, self.cursor) {
+                        let hwnd = self.win.as_ref().map_or(std::ptr::null_mut(), |w| w.hwnd);
+                        match p.click(hwnd, x, y) {
+                            rt_ui::assoc::Outcome::Close => self.close_assoc(),
+                            rt_ui::assoc::Outcome::Redraw => self.redraw(),
+                            rt_ui::assoc::Outcome::Nothing => {}
+                        }
+                        return;
+                    }
                     if let Some((x, y)) = self.cursor {
                         self.press(el, x, y);
                     }
@@ -1392,7 +1456,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.redraw();
             }
             WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Right, .. }
-                if self.dialog.is_none() && self.app.add.is_none() =>
+                if self.dialog.is_none() && self.app.add.is_none() && !self.assoc_open() =>
             {
                 if let Hot::Row(i) = self.hot {
                     if !self.app.selected.get(i).copied().unwrap_or(false) {
@@ -1404,6 +1468,17 @@ impl ApplicationHandler<UserEvent> for Shell {
                     if self.app.rows[i] != Row::Up {
                         self.context_menu(el);
                     }
+                }
+            }
+            #[cfg(windows)]
+            WindowEvent::MouseWheel { delta, .. } if self.assoc.is_some() => {
+                let s = self.scale();
+                let lines = match delta {
+                    MouseScrollDelta::LineDelta(_, y) => -y,
+                    MouseScrollDelta::PixelDelta(p) => -p.y as f32 / (30.0 * s),
+                };
+                if self.assoc.as_mut().is_some_and(|p| p.wheel(lines, s)) {
+                    self.redraw();
                 }
             }
             WindowEvent::MouseWheel { delta, .. } if self.dialog.is_none() && self.app.add.is_none() => {
@@ -1447,7 +1522,63 @@ impl ApplicationHandler<UserEvent> for Shell {
     }
 }
 
+#[cfg(windows)]
+#[derive(Clone, Copy)]
+enum Integration {
+    Register,
+    Associate,
+    Unregister,
+}
+
+#[cfg(windows)]
+fn integrated_here() -> bool {
+    let exe = rt_sys::win::assoc::current_exe().unwrap_or_default();
+    rpack::assoc::status(&exe) == rpack::assoc::Status::Here
+}
+
+/// Adds or removes rpack in Explorer (current user only); returns the
+/// message to show, or an error message.
+#[cfg(windows)]
+fn integrate(action: Integration) -> Result<String, String> {
+    use rpack::assoc;
+    let exe = rt_sys::win::assoc::current_exe()?;
+    let failed = |e: assoc::Error| tf("Cannot change the Windows registry (error {}).", &[&e.to_string()]);
+    let verb = tr("Open with rpack");
+    match action {
+        Integration::Register => {
+            assoc::register(&exe, &verb).map_err(failed)?;
+            Ok(tf(
+                "rpack was added to the Explorer context menu and to the “Open with” list for: {}",
+                &[&assoc::list(&assoc::extensions())],
+            ))
+        }
+        Integration::Unregister => {
+            assoc::unregister().map_err(failed)?;
+            Ok(tr("rpack was removed from Explorer and from the file associations."))
+        }
+        Integration::Associate => {
+            let d = assoc::associate(&exe, &verb).map_err(failed)?;
+            let mut parts = Vec::new();
+            if !d.set.is_empty() {
+                parts.push(tf("rpack is now the default viewer for: {}", &[&assoc::list(&d.set)]));
+            }
+            if !d.already.is_empty() {
+                parts.push(tf("rpack was already the default viewer for: {}", &[&assoc::list(&d.already)]));
+            }
+            if !d.user_choice.is_empty() {
+                assoc::open_default_apps();
+                parts.push(tf(
+                    "Windows asks you to choose the default app yourself for: {}\nIn the Settings window that opened, use “Choose default apps by file type” and pick rpack.",
+                    &[&assoc::list(&d.user_choice)],
+                ));
+            }
+            Ok(parts.join("\n\n"))
+        }
+    }
+}
+
 const USAGE: &str = "rpack [archive | folder] [--tray] [--new-window]
+       rpack --register | --associate | --unregister (Windows)
 
   Browses drives and folders, and opens, tests and extracts archives: zip,
   tar, and files compressed whole with gzip, bzip2, xz, lzma, lzip, zstd, lz4
@@ -1464,6 +1595,14 @@ const USAGE: &str = "rpack [archive | folder] [--tray] [--new-window]
                 Exit from the icon's menu or File > Exit. File > Start with
                 Windows starts it this way with the session.
   --new-window  Open a separate window even when rpack is resident.
+
+Windows only (current user only, no administrator rights):
+  --register    Add \"Open with rpack\" to the Explorer context menu of
+                archives, and rpack to their \"Open with\" list.
+  --associate   Also make rpack the default app for those types where
+                Windows allows it.
+  --unregister  Remove everything --register and --associate added and
+                restore the previous defaults.
 
 Settings are stored in the user's settings folder (%APPDATA%\\rpack on
 Windows, ~/.config/rpack on Linux), or next to the program when a file named
@@ -1484,6 +1623,31 @@ fn main() {
     if help {
         println!("{USAGE}");
         return;
+    }
+    #[cfg(windows)]
+    {
+        let flag = |f: &str| raw.iter().any(|a| a == f);
+        let action = if flag("--unregister") {
+            Some(Integration::Unregister)
+        } else if flag("--associate") {
+            Some(Integration::Associate)
+        } else if flag("--register") {
+            Some(Integration::Register)
+        } else {
+            None
+        };
+        if let Some(action) = action {
+            let mut location = storage::detect();
+            let settings = Settings::load(&location.load());
+            i18n::set_lang(settings.language.unwrap_or_else(i18n::system_lang));
+            let result = integrate(action);
+            let ok = result.is_ok();
+            let text = match result {
+                Ok(t) | Err(t) => t,
+            };
+            rt_sys::win::report(&tr("Windows Integration"), &text);
+            std::process::exit(if ok { 0 } else { 1 });
+        }
     }
     let arg = raw.iter().find(|a| !a.starts_with("--") && *a != "/tray").map(PathBuf::from);
     let tray = raw.iter().any(|a| a == "--tray" || a == "/tray") && !help;
@@ -1550,6 +1714,10 @@ fn main() {
         hidden: false,
         maximize_on_show: false,
         autostart: rt_sys::autostart::enabled("rpack"),
+        #[cfg(windows)]
+        integrated: integrated_here(),
+        #[cfg(windows)]
+        assoc: None,
         #[cfg(not(windows))]
         resident: None,
     };

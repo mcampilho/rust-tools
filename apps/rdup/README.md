@@ -32,7 +32,7 @@ Launching rdup again (with or without folders) or clicking the tray icon
 shows the window instantly and searches the folders there; closing the
 window only hides it, and a search goes on. Quit from the tray icon's menu
 or File › Exit. `--new-window` opens a separate window even when rdup is
-resident. **File › Start with Windows** (Start When I Log In on Linux) starts
+resident. **File › Windows Integration › Start with Windows** (Start When I Log In on Linux) starts
 it this way with the session, for the current user only (the Run key, or
 `~/.config/autostart/rdup.desktop`); choosing it again turns it off.
 

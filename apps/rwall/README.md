@@ -42,7 +42,7 @@ opens the settings; its menu (right click) has **Next picture**, **About this
 picture** (the page about it, in the browser), **Settings…**, **Show the
 picture file** and **Exit**. Closing the settings only hides them (Esc too). The
 first time rwall starts this way, it shows its settings and puts Bing's picture
-of the day on the desktop. **Start with Windows**, at the top right of the
+of the day on the desktop. **Start with Windows** (on from the first run; turn it off whenever you like), at the top right of the
 settings beside the tabs, starts it this way.
 
 In the settings window, Esc closes it and F5 is **Next picture**.

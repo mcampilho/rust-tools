@@ -156,8 +156,10 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
     langs.extend((1..=Lang::ALL.len()).map(|i| Item(UiLanguage(i as u8))));
     let mut file = vec![Item(Open), Item(Reload), Item(OpenFolder), Sep];
     #[cfg(windows)]
-    file.extend([Sub("Windows &Integration", vec![Item(ExplorerMenu), Item(DefaultViewer)]), Sep]);
-    file.extend([Item(Autostart), Sep, Item(Close), Item(Exit)]);
+    file.extend([Sub("Windows &Integration", vec![Item(ExplorerMenu), Item(DefaultViewer), Sep, Item(Autostart)]), Sep]);
+    #[cfg(not(windows))]
+    file.extend([Item(Autostart), Sep]);
+    file.extend([Item(Close), Item(Exit)]);
     vec![
         ("&File", file),
         ("&Edit", vec![Item(Copy), Item(CopyPlain), Sep, Item(SelectAll)]),

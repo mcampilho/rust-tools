@@ -15,7 +15,7 @@ correm na raiz do repositório.
 O `rpack.exe` é um único executável de 4,8 MB: sem instalador, sem runtime, sem
 DLLs além das que vêm com o Windows. Não faz ligações à rede e não tem
 telemetria. Está a ser feito por fases: palavras-passe, rar, iso, cab, zpaq e o
-menu do Explorador vêm a seguir (ver [A seguir](#a-seguir)).
+menu do Explorador vêm a seguir (ver [A seguir](#a-seguir)). **Ficheiro › Integração com o Windows** já acrescenta `Abrir com o rpack` ao menu do Explorador dos arquivos (`--register`) e define o rpack como a aplicação predefinida deles (`--associate`, ou o painel *Definir como visualizador predefinido…*; `--unregister` desfaz ambos).
 
 ## Utilização
 
@@ -31,7 +31,7 @@ na sua janela.
 a arrancar o rpack (com ou sem arquivo ou pasta) ou clicar no ícone mostra a janela
 de imediato e abre lá o que foi dado; fechar a janela só a esconde, e uma tarefa
 continua. Para sair, usa-se o menu do ícone ou Ficheiro › Sair. `--new-window` abre
-uma janela à parte mesmo com o rpack residente. **Ficheiro › Iniciar com o Windows**
+uma janela à parte mesmo com o rpack residente. **Ficheiro › Integração com o Windows › Iniciar com o Windows**
 (Iniciar ao entrar na sessão, em Linux) arranca-o assim com a sessão, só para o
 utilizador atual (a chave Run, ou `~/.config/autostart/rpack.desktop`); escolhê-lo
 outra vez desliga-o.

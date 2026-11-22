@@ -15,7 +15,7 @@ repository root.
 `rpack.exe` is a single 4.8 MB executable: no installer, no runtime, no DLLs
 beyond those that ship with Windows. It makes no network connections and has
 no telemetry. It is being built in phases: passwords, rar, iso, cab, zpaq and
-the Explorer menu come next (see [Next](#next)).
+the Explorer menu come next (see [Next](#next)). **File › Windows Integration** already adds Open with rpack to the Explorer menu of archives (--register) and sets rpack as their default app (--associate, or the panel *Set as Default Viewer…*; --unregister undoes both).
 
 ## Use
 
@@ -32,7 +32,7 @@ Launching rpack again (with or without an archive or folder) or clicking the
 tray icon shows the window instantly and opens what was given there; closing
 the window only hides it, and a task goes on. Quit from the tray icon's menu
 or File › Exit. `--new-window` opens a separate window even when rpack is
-resident. **File › Start with Windows** (Start When I Log In on Linux) starts
+resident. **File › Windows Integration › Start with Windows** (Start When I Log In on Linux) starts
 it this way with the session, for the current user only (the Run key, or
 `~/.config/autostart/rpack.desktop`); choosing it again turns it off.
 

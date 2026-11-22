@@ -41,7 +41,7 @@ as definições; o menu (clique direito) tem **Imagem seguinte**, **Sobre esta
 imagem** (a página sobre ela, no navegador), **Definições…**, **Mostrar o
 ficheiro** e **Sair**. Fechar as definições só as esconde (o Esc também). Da
 primeira vez que arranca assim, o rwall mostra as definições e põe a imagem do
-dia do Bing no ambiente de trabalho. **Iniciar com o Windows**, no canto
+dia do Bing no ambiente de trabalho. **Iniciar com o Windows** (ligado desde o primeiro arranque; desliga quando quiseres), no canto
 superior direito das definições, ao lado dos separadores, arranca-o desta maneira.
 
 Na janela das definições, o Esc fecha-a e o F5 é **Imagem seguinte**.

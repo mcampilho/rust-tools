@@ -36,7 +36,7 @@ you to choose.
 looking at nothing until shown. Launching rclean again or clicking the tray
 icon shows the window and analyzes again; closing the window only hides it,
 and a cleaning goes on. Quit from the tray icon's menu or File › Exit.
-`--new-window` opens a separate window even when rclean is resident. **File ›
+`--new-window` opens a separate window even when rclean is resident. **File › Windows Integration ›
 Start with Windows** (Start When I Log In on Linux) starts it this way with
 the session, for the current user only (the Run key, or
 `~/.config/autostart/rclean.desktop`); choosing it again turns it off.

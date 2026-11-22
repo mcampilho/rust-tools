@@ -170,8 +170,10 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
     langs.extend((1..=Lang::ALL.len()).map(|i| Item(UiLanguage(i as u8))));
     let mut file = vec![Item(ChooseFolder), Item(Drives), Sep, Item(Rescan), Item(Stop), Sep, Item(ExportCsv), Sep];
     #[cfg(windows)]
-    file.extend([Item(RestartAdmin), Sub("Windows &Integration", vec![Item(ExplorerMenu)]), Sep]);
-    file.extend([Item(Autostart), Sep, Item(Exit)]);
+    file.extend([Item(RestartAdmin), Sub("Windows &Integration", vec![Item(ExplorerMenu), Sep, Item(Autostart)]), Sep]);
+    #[cfg(not(windows))]
+    file.extend([Item(Autostart), Sep]);
+    file.push(Item(Exit));
     vec![
         ("&File", file),
         ("&Edit", vec![Item(CopyPath), Sep, Item(OpenItem), Item(Reveal), Sep, Item(Delete)]),

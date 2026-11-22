@@ -35,7 +35,7 @@ ler nada até ser mostrado. Voltar a arrancar o rinst ou clicar no ícone mostra
 janela e lê outra vez os programas (a não ser que esteja a desinstalar); fechar a
 janela só a esconde, e uma desinstalação continua. Para sair, usa-se o menu do ícone
 ou Ficheiro › Sair. `--new-window` abre uma janela à parte mesmo com o rinst
-residente. **Ficheiro › Iniciar com o Windows** (Iniciar ao entrar na sessão, em
+residente. **Ficheiro › Integração com o Windows › Iniciar com o Windows** (Iniciar ao entrar na sessão, em
 Linux) arranca-o assim com a sessão, só para o utilizador atual (a chave Run, ou
 `~/.config/autostart/rinst.desktop`); escolhê-lo outra vez desliga-o.
 

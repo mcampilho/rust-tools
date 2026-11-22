@@ -11,6 +11,9 @@ pub enum Command {
     RestartAdmin,
     /// Writes the list shown to a CSV file.
     Export,
+    /// "Uninstall with rinst" on the Explorer menu of folders and drives (on or off).
+    #[cfg(windows)]
+    ExplorerMenu,
     /// Starts rinst resident with the session (`--tray`).
     Autostart,
     Exit,
@@ -69,6 +72,8 @@ impl Command {
             #[cfg(windows)]
             RestartAdmin => "Restart as Ad&ministrator",
             Export => "&Export to CSV...",
+            #[cfg(windows)]
+            ExplorerMenu => "&Explorer Context Menu",
             Autostart => {
                 if cfg!(windows) {
                     "Start wit&h Windows"
@@ -181,8 +186,10 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
     langs.extend((1..=Lang::ALL.len()).map(|i| Item(UiLanguage(i as u8))));
     let mut file = vec![Item(Refresh), Item(Export), Sep, Item(FindLeftovers), Sep];
     #[cfg(windows)]
-    file.extend([Item(RestartAdmin), Sep]);
-    file.extend([Item(Autostart), Sep, Item(Exit)]);
+    file.extend([Item(RestartAdmin), Sub("Windows &Integration", vec![Item(ExplorerMenu), Sep, Item(Autostart)]), Sep]);
+    #[cfg(not(windows))]
+    file.extend([Item(Autostart), Sep]);
+    file.push(Item(Exit));
     vec![
         ("&File", file),
         ("&Program", program_menu()),

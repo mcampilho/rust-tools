@@ -130,6 +130,9 @@ struct Shell {
     maximize_on_show: bool,
     /// Starts with the session (as `rinst --tray`).
     autostart: bool,
+    /// "Uninstall with rinst" is on the Explorer menu of folders, for this rinst.exe.
+    #[cfg(windows)]
+    explorer_menu: bool,
     #[cfg(not(windows))]
     resident: Option<rt_sys::linux::shell::Shell>,
 }
@@ -283,6 +286,14 @@ impl Shell {
             Command::Modify => self.uninstall(rinst::uninstall::How::Modify),
             Command::SelectAll => self.app.select_all(),
             Command::Exit => self.quit(el),
+            #[cfg(windows)]
+            Command::ExplorerMenu => {
+                let text = match integrate(!self.explorer_menu) {
+                    Ok(t) | Err(t) => t,
+                };
+                self.explorer_menu = integrated_here();
+                self.info(&tr("Windows Integration"), &text);
+            }
             Command::Autostart => match rt_sys::autostart::set("rinst", !self.autostart) {
                 Ok(()) => self.autostart = rt_sys::autostart::enabled("rinst"),
                 Err(e) => self.info("rinst", &tf("Cannot change how it starts: {}", &[&e])),
@@ -371,6 +382,8 @@ impl Shell {
             Command::ShowSystem => self.app.show_system,
             Command::ShowUpdates => self.app.show_updates,
             Command::Autostart => self.autostart,
+            #[cfg(windows)]
+            Command::ExplorerMenu => self.explorer_menu,
             _ => false,
         }
     }
@@ -949,6 +962,25 @@ impl ApplicationHandler<UserEvent> for Shell {
     }
 }
 
+/// Whether "Uninstall with rinst" is on the Explorer menu of folders, for this rinst.exe.
+#[cfg(windows)]
+fn integrated_here() -> bool {
+    rt_ui::explorer::folders_here("rinst")
+}
+
+/// Adds "Uninstall with rinst" to the Explorer menu of folders and drives
+/// (current user only), or takes it out; returns the message to show.
+#[cfg(windows)]
+fn integrate(on: bool) -> Result<String, String> {
+    let texts = rt_ui::explorer::FolderTexts {
+        verb: tr("Uninstall with rinst"),
+        added: tr("“Uninstall with rinst” was added to the Explorer context menu of folders and drives."),
+        removed: tr("“Uninstall with rinst” was removed from the Explorer context menu."),
+        failed: tr("Cannot change the Windows registry (error {})."),
+    };
+    rt_ui::explorer::set_folders("rinst", on, &texts)
+}
+
 const USAGE: &str = "rinst [--tray] [--new-window]
 
   Lists the programs installed on this computer: for every user (the
@@ -962,6 +994,11 @@ const USAGE: &str = "rinst [--tray] [--new-window]
                 File > Exit. File > Start with Windows starts it this way
                 with the session.
   --new-window  Open a separate window even when rinst is resident.
+
+Windows only:
+  --register    Add \"Uninstall with rinst\" to the Explorer context menu of
+                folders and drives (current user only).
+  --unregister  Remove it.
 
 Settings are stored in the user's settings folder (%APPDATA%\\rinst on
 Windows, ~/.config/rinst on Linux), or next to the program when a file
@@ -980,6 +1017,19 @@ fn main() {
     if help {
         println!("{USAGE}");
         return;
+    }
+    #[cfg(windows)]
+    if raw.iter().any(|a| a == "--register" || a == "--unregister") {
+        let mut location = storage::detect();
+        let settings = Settings::load(&location.load());
+        i18n::set_lang(settings.language.unwrap_or_else(i18n::system_lang));
+        let result = integrate(raw.iter().any(|a| a == "--register"));
+        let ok = result.is_ok();
+        let text = match result {
+            Ok(t) | Err(t) => t,
+        };
+        rt_sys::win::report(&tr("Windows Integration"), &text);
+        std::process::exit(if ok { 0 } else { 1 });
     }
     let tray = raw.iter().any(|a| a == "--tray" || a == "/tray") && !help;
     let new_window = raw.iter().any(|a| a == "--new-window") || help;
@@ -1055,6 +1105,8 @@ fn main() {
         hidden: false,
         maximize_on_show: false,
         autostart: rt_sys::autostart::enabled("rinst"),
+        #[cfg(windows)]
+        explorer_menu: integrated_here(),
         #[cfg(not(windows))]
         resident: None,
     };

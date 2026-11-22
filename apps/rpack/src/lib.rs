@@ -3,6 +3,8 @@
 
 pub mod app;
 pub mod archive;
+#[cfg(windows)]
+pub mod assoc;
 pub mod commands;
 pub mod create;
 pub mod extract;
