@@ -87,6 +87,7 @@ if ($Apps) {
 }
 
 $plan = @()
+$unchanged = @()
 foreach ($app in $chosen) {
     $current = Get-AppVersion $app
     $last = Get-LastTag $app
@@ -97,7 +98,10 @@ foreach ($app in $chosen) {
     if ($last) {
         $changes = [int]((Invoke-Git rev-list --count "$last..HEAD" -- "apps/$app" crates ':(exclude)*.md' | Out-String).Trim())
     }
-    if (-not $All -and -not $Apps -and $last -and $changes -eq 0) { continue }
+    if (-not $All -and -not $Apps -and $last -and $changes -eq 0) {
+        $unchanged += "$app $($last -replace '^.*-v', '')"
+        continue
+    }
     if (-not $last) {
         $new = $current; $why = 'first release'
     } elseif ((ConvertTo-Version $current) -gt (ConvertTo-Version $lastVersion)) {
@@ -110,9 +114,16 @@ foreach ($app in $chosen) {
     $plan += [pscustomobject]@{ App = $app; Last = $(if ($last) { $last } else { '-' }); Current = $current; New = $new; Why = $why; Changes = $changes }
 }
 
-if (-not $plan) { Write-Host 'Nothing to release: no app changed since its last release (-All or -Apps to choose).'; exit 0 }
+# The apps left out: nothing changed since their last release (documentation apart).
+$same = if ($unchanged) { "Unchanged since their last release (-Apps or -All to release them too): $($unchanged -join ', ')." }
+if (-not $plan) {
+    Write-Host 'Nothing to release: no app changed since its last release.'
+    if ($same) { Write-Host $same }
+    exit 0
+}
 
 $plan | Format-Table App, Last, Current, New, Why, Changes -AutoSize | Out-String | Write-Host
+if ($same) { Write-Host $same }
 $groups = [math]::Ceiling($plan.Count / 3)
 Write-Host "$($plan.Count) releases: one commit, a push of master, then the tags in $groups push(es) of up to three."
 if ($DryRun) { Write-Host 'Dry run: nothing was changed.'; exit 0 }
