@@ -109,10 +109,11 @@ pub const PAGES: &[PageInfo] = &[
     PageInfo { id: "protect", kind: Kind::Protect, label: "Protect System", glyph: Glyph::Shield },
     PageInfo { id: "net", kind: Kind::Net, label: "Internet Booster", glyph: Glyph::Globe },
     PageInfo { id: "privacy", kind: Kind::Privacy, label: "Privacy Sweep", glyph: Glyph::Eye },
-    PageInfo { id: "sysinfo", kind: Kind::Sys, label: "System Information", glyph: Glyph::Monitor },
     PageInfo { id: "repair", kind: Kind::Repair, label: "Repair", glyph: Glyph::Wrench },
-    PageInfo { id: "schedule", kind: Kind::Schedule, label: "Scheduler", glyph: Glyph::Clock },
     PageInfo { id: "files", kind: Kind::Files, label: "File Tools", glyph: Glyph::Folder },
+    // System Information and the Scheduler stay the last two (the user's wish, 2026-11-23): new pages go above.
+    PageInfo { id: "sysinfo", kind: Kind::Sys, label: "System Information", glyph: Glyph::Monitor },
+    PageInfo { id: "schedule", kind: Kind::Schedule, label: "Scheduler", glyph: Glyph::Clock },
 ];
 
 /// The index of the page saved as `id`; the first one when it is unknown.
@@ -123,6 +124,12 @@ pub fn index_of(id: &str) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn system_information_and_the_scheduler_are_last() {
+        let ids: Vec<&str> = PAGES.iter().rev().take(2).map(|p| p.id).collect();
+        assert_eq!(ids, ["schedule", "sysinfo"]);
+    }
 
     #[test]
     fn ids_are_unique_and_found() {

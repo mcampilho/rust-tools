@@ -107,7 +107,7 @@ Needed"). "Review" opens the cleaner or the uninstaller; nothing is changed on t
 later phases (privacy sweep in phase 5 — deleting history or cookies is the user's decision, since rclean never does —,
 startup, Windows integrity in phase 6).
 
-## Scheduler (2026-11-23, the user's request; rcare's own page, last in the sidebar)
+## Scheduler (2026-11-23, the user's request; rcare's own page, always the last in the sidebar, with System Information just above it: new pages go before those two, the user's wish, tested in `pages.rs`)
 
 The user's choices: Windows' Task Scheduler; the repairs (SFC, DISM, a chkdsk scan of each NTFS drive — checking only)
 and cleaning the junk ticked in the Disk Cleaner (never the registry or shortcuts); a Scheduler page and a log.
@@ -125,7 +125,7 @@ reading (tests), `rcare --run sfc` without administrator rights (SFC refused, re
 screenshots, the page in the real `.exe`. **Not verified**: creating, running and deleting a task for real (they need
 administrator rights), a scheduled cleaning (it would really delete this PC's junk).
 
-## File Tools (2026-11-23, the user's choice from "Later"; rcare's own page, after the Scheduler)
+## File Tools (2026-11-23, the user's choice from "Later"; rcare's own page, after Repair)
 
 Empty Folder Scanner and File Shredder on one page, two cards. `files.rs`: `empty_folders(root, stop)` lists the top
 folder of each branch with no file anywhere inside (and how many empty folders it holds); links and junctions are

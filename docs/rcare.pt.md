@@ -113,7 +113,7 @@ neste PC o disco S: diz "Warning / Full Repair Needed"). "Rever" abre o limpador
 muda nada. Mais verificações entram com as fases seguintes (limpeza de privacidade na fase 5 — apagar histórico ou
 cookies é decisão do utilizador, porque o rclean nunca o faz —, arranque, integridade do Windows na fase 6).
 
-## Agendador (2026-11-23, pedido do utilizador; página do próprio rcare, a última da barra lateral)
+## Agendador (2026-11-23, pedido do utilizador; página do próprio rcare, sempre a última da barra lateral, com o System Information logo acima: as páginas novas entram antes destas duas, vontade do utilizador, verificada por teste em `pages.rs`)
 
 Escolhas do utilizador: o Agendador de Tarefas do Windows; os reparos (SFC, DISM, uma verificação chkdsk de cada disco
 NTFS — só verifica) e a limpeza do lixo marcado no Disk Cleaner (nunca o registo nem os atalhos); uma página Agendador
@@ -132,7 +132,7 @@ Criar…, Correr agora, Apagar… (perguntam), Abrir o registo. Verificado: os f
 página no `.exe` a sério. **Não verificado**: criar, correr e apagar uma tarefa a sério (precisam de administrador),
 uma limpeza agendada (apagaria a sério o lixo deste PC).
 
-## Ferramentas de ficheiros (2026-11-23, escolha do utilizador entre o "Depois"; página do próprio rcare, depois do Agendador)
+## Ferramentas de ficheiros (2026-11-23, escolha do utilizador entre o "Depois"; página do próprio rcare, depois do Reparar)
 
 Empty Folder Scanner e File Shredder numa só página, dois cartões. `files.rs`: `empty_folders(raiz, stop)` lista a
 pasta de cima de cada ramo sem nenhum ficheiro lá dentro (e quantas pastas vazias tem); ligações e junções nunca são
