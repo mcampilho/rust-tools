@@ -23,6 +23,8 @@ pub mod ps;
 pub mod registry_page;
 pub mod repair;
 pub mod repair_page;
+pub mod schedule;
+pub mod schedule_page;
 pub mod services;
 pub mod services_page;
 pub mod settings;

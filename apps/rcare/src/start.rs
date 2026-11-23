@@ -10,7 +10,7 @@ pub const USER: &str = "--user";
 /// Whether this start should ask Windows for administrator rights.
 pub fn wants_elevation(args: &[String], elevated: bool) -> bool {
     let has = |names: &[&str]| args.iter().any(|a| names.contains(&a.as_str()));
-    !elevated && !has(&[USER, "/user", "--tray", "/tray", "--help", "-h", "/?", "--register", "--unregister"])
+    !elevated && !has(&[USER, "/user", "--tray", "/tray", "--help", "-h", "/?", "--register", "--unregister", "--run"])
 }
 
 /// The command line for the elevated start: the same arguments, each quoted
@@ -49,6 +49,7 @@ mod tests {
         assert!(!wants_elevation(&v(&["--tray"]), false), "no prompt at every sign-in");
         assert!(!wants_elevation(&v(&["--help"]), false));
         assert!(!wants_elevation(&v(&["--register"]), false));
+        assert!(!wants_elevation(&v(&["--run", "sfc"]), false), "a scheduled run is started with the rights Task Scheduler gives");
     }
 
     #[test]

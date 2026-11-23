@@ -41,6 +41,7 @@ Páginas até agora:
 | Privacy Sweep | – (do próprio rcare) | Os rastos que o Windows guarda: documentos recentes, o Executar, o histórico do Explorador, as caixas Abrir e Guardar, listas de saltos, a área de transferência. Os do registo vão antes para um `.reg`; nunca o histórico, os cookies nem as palavras-passe dos browsers |
 | System Information | – (do próprio rcare) | O Windows, o computador, os gráficos, a saúde dos discos, os dispositivos com problemas e a bateria; o Arranque rápido e as páginas do próprio Windows de Aplicações predefinidas e de Atualizações de controladores; Copiar põe tudo na área de transferência |
 | Reparar | – (do próprio rcare) | As ferramentas de reparação do próprio Windows, uma de cada vez, com o que escrevem à medida que chega: SFC, DISM, chkdsk (verificação de cada disco, e correção dos erros que encontrar) e reparar o menu Iniciar |
+| Agendador | – (do próprio rcare) | SFC, DISM, verificação dos discos e limpeza do lixo marcado, diária, semanal ou mensal a uma hora marcada, pelo Agendador de Tarefas do Windows (mesmo com o rcare fechado); as últimas execuções e um registo |
 | Desinstalar aplicações | [rinst](../rinst/README.pt.md) | Os programas de todos os utilizadores e fontes, desinstalados uns a seguir aos outros, e os seus restos |
 
 A seguir: as ferramentas de sistema (ver o
@@ -66,7 +67,7 @@ disso. `--user` arranca-o sem perguntar (e se o pedido do Windows for recusado, 
 os direitos); Ficheiro › Reiniciar como administrador dá-os depois. Como administrador, o Windows não deixa
 largar ficheiros do Explorador na janela: use as caixas de escolher pastas, ou `--user`.
 
-Linha de comandos: `rcare [--user] [--tray] [--new-window] [pasta]`. Uma pasta abre a
+Linha de comandos: `rcare [--user] [--tray] [--new-window] [pasta]`; `rcare --run sfc,dism,chkdsk,clean` é o que um agendamento corre (sem janela). Uma pasta abre a
 Custom Clean nela, analisada. `--tray` fica na área de notificação, sem administrador (sem pedido a cada início de sessão; Ficheiro ›
 Integração com o Windows › Iniciar com o Windows arranca-o assim); Ficheiro ›
 Integração com o Windows › Menu do Explorador acrescenta "Analisar com o rcare"

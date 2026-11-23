@@ -41,6 +41,8 @@ System Information" na lista abaixo fica de propósito para mais tarde.
 | `crates/rt-core/src/i18n.rs` | `add` (tabelas extra), `tr_in_from`/`tr_from`/`tf_from` (uma tabela procurada primeiro) |
 | `crates/rt-core/src/menu.rs` | `M::map` (converter os comandos de um menu noutro tipo) |
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; estado dos discos pelo `Get-Volume` |
+| `apps/rcare/src/schedule.rs`, `schedule_page.rs` | Agendador: agendamentos no Agendador de Tarefas do Windows que correm `rcare --run …` (reparos, o lixo marcado), o registo e as últimas execuções |
+| `apps/rcare/src/bg.rs` | Trabalho fora do fio da janela (`Job`) |
 | `apps/rcare/src/repair.rs`, `repair_page.rs` | Reparar: SFC, DISM, chkdsk /scan por disco NTFS (e /spotfix), o menu Iniciar; o que a ferramenta escreve à medida que chega, com o progresso |
 | `apps/rcare/src/sysinfo.rs`, `sysinfo_page.rs` | System Information: Windows, o computador, gráficos, saúde dos discos, dispositivos com problemas, bateria; Arranque rápido, Aplicações predefinidas, Atualizações de controladores (páginas do Windows); Copiar |
 | `apps/rcare/src/privacy.rs`, `privacy_page.rs` | Privacy Sweep: rastos do Windows (documentos recentes, Executar, Explorador, caixas Abrir/Guardar, listas de saltos, área de transferência); os do registo vão antes para um `.reg` |
@@ -109,6 +111,25 @@ Detalhes mostram cada disco e como reparar um com `chkdsk X: /f` ou Propriedades
 neste PC o disco S: diz "Warning / Full Repair Needed"). "Rever" abre o limpador ou o desinstalador; nesta página não se
 muda nada. Mais verificações entram com as fases seguintes (limpeza de privacidade na fase 5 — apagar histórico ou
 cookies é decisão do utilizador, porque o rclean nunca o faz —, arranque, integridade do Windows na fase 6).
+
+## Agendador (2026-11-23, pedido do utilizador; página do próprio rcare, a última da barra lateral)
+
+Escolhas do utilizador: o Agendador de Tarefas do Windows; os reparos (SFC, DISM, uma verificação chkdsk de cada disco
+NTFS — só verifica) e a limpeza do lixo marcado no Disk Cleaner (nunca o registo nem os atalhos); uma página Agendador
+e um registo. `schedule.rs`: um `Schedule` (tarefa `\rcare\Schedule N`, as operações, diário / semanal num dia /
+mensal no dia 1–28, a hora) guardado em `schedules.txt` ao lado das definições; `schtasks /Create /TN … /TR
+""<rcare.exe>" --run sfc,clean" /SC … /ST hh:mm /RL HIGHEST /IT /F` (os privilégios mais altos, só com a sessão do
+utilizador aberta, sem guardar palavra-passe), `/Delete`, `/Run`; o estado, a próxima e a última execução e o
+resultado lidos com `Get-ScheduledTask -TaskPath '\rcare\'` + `Get-ScheduledTaskInfo`. `rcare --run <ops>` (shell.rs,
+antes de tudo: sem janela, sem entregar a outra instância, sem pedido de elevação) corre cada operação por ordem — os
+reparos pelo `repair::run` esperado, a limpeza pelo motor do rclean com as marcas das definições do rcare — e
+acrescenta ao `schedule.log` (o que cada ferramenta escreveu) e ao `schedule-runs.txt` (quando, o quê, bem ou não, uma
+linha; as últimas 200). A página: um formulário (o que corre, Diário / Semanal / Mensal, o dia da semana ou do mês, a
+hora de 30 em 30 minutos), os agendamentos com o que o Agendador de Tarefas diz de cada um, as últimas execuções;
+Criar…, Correr agora, Apagar… (perguntam), Abrir o registo. Verificado: os ficheiros, os argumentos e a leitura
+(testes), `rcare --run sfc` sem administrador (o SFC recusou, registado nos dois ficheiros, código 1), imagens, a
+página no `.exe` a sério. **Não verificado**: criar, correr e apagar uma tarefa a sério (precisam de administrador),
+uma limpeza agendada (apagaria a sério o lixo deste PC).
 
 ## A janela continua a responder; perguntas no tema (2026-11-23, testes do utilizador)
 

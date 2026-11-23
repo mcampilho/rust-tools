@@ -14,6 +14,7 @@ use rcare::privacy_page::PrivacyPage;
 use rcare::protect_page::ProtectPage;
 use rcare::registry_page::RegistryPage;
 use rcare::repair_page::RepairPage;
+use rcare::schedule_page::SchedulePage;
 use rcare::services_page::ServicesPage;
 use rcare::settings::Settings;
 use rcare::sidebar::{self, Hit};
@@ -112,6 +113,10 @@ macro_rules! page {
                 let $p = &mut $s.repair;
                 $e
             }
+            Kind::Schedule => {
+                let $p = &mut $s.schedule;
+                $e
+            }
             Kind::Clean => {
                 let $p = &mut $s.clean;
                 $e
@@ -197,6 +202,8 @@ struct Shell {
     sys: SysPage,
     /// Repair: rcare's own page, Windows' repair tools.
     repair: RepairPage,
+    /// Scheduler: rcare's own page, the slow work at a set time.
+    schedule: SchedulePage,
     /// What Windows said about the drives, the last time it was asked.
     volumes: Option<Vec<rcare::disks::Volume>>,
     /// Asking Windows about the drives now; it could not be asked the last time.
@@ -303,6 +310,7 @@ impl Shell {
             self.privacy.fx.take(),
             self.sys.fx.take(),
             self.repair.fx.take(),
+            self.schedule.fx.take(),
             self.maint.fx.take(),
             self.custom.fx.take(),
             self.clean.fx.take(),
@@ -426,6 +434,7 @@ impl Shell {
             Kind::Privacy => self.privacy.scan(),
             Kind::Sys => self.sys.refresh(),
             Kind::Repair => self.repair.refresh(),
+            Kind::Schedule => self.schedule.refresh(),
             Kind::Speed => self.speed.refresh(),
             Kind::Clean => self.clean.analyse(),
             Kind::Dups => self.dups.load_volumes(),
@@ -679,6 +688,12 @@ impl Shell {
             Cmd::Startup(a) => self.startup.act(a),
             Cmd::Extensions(a) => self.extensions.act(a),
             Cmd::Sys(a) => self.sys.act(a),
+            Cmd::Schedule(a) => {
+                let mut d = self.dialogs();
+                self.schedule.act(a, &mut d);
+                self.ask_if(d, cmd);
+                self.after_page();
+            }
             Cmd::Repair(a) => {
                 let mut d = self.dialogs();
                 self.repair.act(a, &mut d);
@@ -753,7 +768,9 @@ impl Shell {
                     }
                     Kind::Dups => self.dups.restart_args(),
                     Kind::Size => self.size.restart_args(),
-                    Kind::Inst | Kind::Registry | Kind::Protect | Kind::Net | Kind::Privacy | Kind::Sys | Kind::Repair => String::new(),
+                    Kind::Inst | Kind::Registry | Kind::Protect | Kind::Net | Kind::Privacy | Kind::Sys | Kind::Repair | Kind::Schedule => {
+                        String::new()
+                    }
                 };
                 if rt_sys::win::restart_elevated(&args) {
                     self.quit(el);
@@ -770,6 +787,7 @@ impl Shell {
             }
             Cmd::Shortcuts => {
                 let keys = match PAGES[self.selected].kind {
+                    Kind::Schedule => format!("F5\t{}", rt_core::i18n::strip_mnemonic(&tr("&Refresh"))),
                     Kind::Repair => {
                         format!("{}\t{}\n↑ ↓\t{}", tr("Enter"), rt_core::i18n::strip_mnemonic(&tr("&Run")), tr("Move in the list"))
                     }
@@ -865,6 +883,7 @@ impl Shell {
             Cmd::Privacy(a) => self.privacy.enabled(a),
             Cmd::Sys(a) => self.sys.enabled(a),
             Cmd::Repair(a) => self.repair.enabled(a),
+            Cmd::Schedule(a) => self.schedule.enabled(a),
             Cmd::Speed(a) => self.speed.enabled(a),
             Cmd::RestartAdmin => match PAGES[self.selected].kind {
                 Kind::Clean
@@ -873,6 +892,7 @@ impl Shell {
                 | Kind::Privacy
                 | Kind::Sys
                 | Kind::Repair
+                | Kind::Schedule
                 | Kind::Custom
                 | Kind::Maint
                 | Kind::Startup
@@ -1118,6 +1138,7 @@ impl Shell {
             Kind::Privacy => self.privacy.render(&mut self.gfx, rest, &theme, s),
             Kind::Sys => self.sys.render(&mut self.gfx, rest, &theme, s),
             Kind::Repair => self.repair.render(&mut self.gfx, rest, &theme, s),
+            Kind::Schedule => self.schedule.render(&mut self.gfx, rest, &theme, s),
             Kind::Speed => self.speed.render(&mut self.gfx, rest, &theme, s),
             Kind::Custom => self.custom.render(&mut self.gfx, rest, &theme, s),
             Kind::Clean => self.clean.render(&mut self.gfx, rest, &theme, s, false),
@@ -1172,6 +1193,7 @@ impl Shell {
             Kind::Privacy => self.privacy.accessibility(&mut nodes, &mut children),
             Kind::Sys => self.sys.accessibility(&mut nodes, &mut children),
             Kind::Repair => self.repair.accessibility(&mut nodes, &mut children),
+            Kind::Schedule => self.schedule.accessibility(&mut nodes, &mut children),
             Kind::Speed => self.speed.accessibility(&mut nodes, &mut children),
             Kind::Custom => self.custom.accessibility(&mut nodes, &mut children),
             Kind::Clean => self.clean.accessibility(&mut nodes, &mut children),
@@ -1269,6 +1291,7 @@ impl Shell {
                 None
             }
             Kind::Repair => self.repair.key(&logical).map(Cmd::Repair),
+            Kind::Schedule => self.schedule.key(&logical).map(Cmd::Schedule),
             Kind::Clean => self.clean.key(ctrl, shift, alt, logical).map(Cmd::from_clean),
             Kind::Dups => self.dups.key(event, mods).map(Cmd::from_dups),
             Kind::Size => self.size.key(event, mods).map(Cmd::from_size),
@@ -1321,6 +1344,13 @@ impl Shell {
             Kind::Sys => {
                 self.sys.press();
                 self.after_page();
+            }
+            Kind::Schedule => {
+                let a = self.schedule.press();
+                self.after_page();
+                if let Some(a) = a {
+                    self.command(el, Cmd::Schedule(a));
+                }
             }
             Kind::Repair => {
                 let a = self.repair.press();
@@ -1429,7 +1459,8 @@ impl Shell {
             | Kind::Net
             | Kind::Privacy
             | Kind::Sys
-            | Kind::Repair => {}
+            | Kind::Repair
+            | Kind::Schedule => {}
             Kind::Clean => {
                 if self.clean.dragging {
                     self.clean.drag_to(y);
@@ -1456,6 +1487,7 @@ impl Shell {
             | Kind::Privacy
             | Kind::Sys
             | Kind::Repair
+            | Kind::Schedule
             | Kind::Clean => {}
             Kind::Dups => {
                 let popup = self.dups.right_click();
@@ -1491,6 +1523,7 @@ impl Shell {
             Kind::Registry => self.registry.wheel(delta, self.cursor),
             Kind::Protect | Kind::Net | Kind::Privacy | Kind::Sys => {}
             Kind::Repair => self.repair.wheel(delta),
+            Kind::Schedule => {}
             Kind::Speed => self.speed.wheel(delta),
             Kind::Clean => self.clean.wheel(&mut self.gfx, s, delta, self.cursor),
             Kind::Dups => self.dups.wheel(delta, self.cursor),
@@ -1516,6 +1549,7 @@ impl Shell {
             Kind::Privacy => self.privacy.animate(),
             Kind::Sys => self.sys.animate(),
             Kind::Repair => self.repair.animate(),
+            Kind::Schedule => self.schedule.animate(),
             Kind::Speed => self.speed.animate(),
             Kind::Clean => self.clean.animate().then(|| Instant::now() + Duration::from_millis(40)),
             Kind::Dups => self.dups.animate().map(|d| Instant::now() + d),
@@ -1682,6 +1716,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     | Kind::Privacy
                     | Kind::Sys
                     | Kind::Repair
+                    | Kind::Schedule
                     | Kind::Clean
                     | Kind::Inst => {}
                 }
@@ -1799,6 +1834,12 @@ pub fn run() {
         rt_sys::win::report(&tr("Windows Integration"), &text);
         std::process::exit(if ok { 0 } else { 1 });
     }
+    // A scheduled run (Task Scheduler starts `rcare --run sfc,clean`): no window, the work, its log, the end.
+    if let Some(ops) = rcare::schedule::run_args(&raw) {
+        let location = storage::detect();
+        let dir = storage::data_dir(&location);
+        std::process::exit(rcare::schedule::run(&ops, &dir, rt_sys::win::elevated()));
+    }
     // A drive from the Explorer menu comes as `C:"` (see `folder_arg`).
     let folders: Vec<std::path::PathBuf> =
         raw.iter().filter(|a| !a.starts_with("--")).map(|a| std::path::PathBuf::from(rt_sys::win::assoc::folder_arg(a))).collect();
@@ -1844,11 +1885,7 @@ pub fn run() {
             app.set_known(list, age);
         }
     }
-    let data_dir = location
-        .dir
-        .clone()
-        .or_else(|| std::env::current_exe().ok().and_then(|e| e.parent().map(|p| p.to_path_buf())))
-        .unwrap_or_else(std::env::temp_dir);
+    let data_dir = storage::data_dir(&location);
     // One sender for each page: what its threads say comes back as a `UserEvent`.
     macro_rules! sender {
         ($variant:ident) => {{
@@ -1880,6 +1917,7 @@ pub fn run() {
         privacy: PrivacyPage::new(data_dir.clone()),
         sys: SysPage::new(admin),
         repair: RepairPage::new(admin),
+        schedule: SchedulePage::new(admin, data_dir.clone()),
         speed: SpeedPage::new(admin),
         volumes: None,
         disks_running: false,

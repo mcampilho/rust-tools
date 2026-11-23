@@ -320,6 +320,33 @@ Beginning verification phase of system scan.\r\nVerification 37% complete.\r",
     page.render(g, r, th, 1.0);
 }
 
+/// The Scheduler with two schedules and a few runs.
+fn scheduler(g: &mut Gfx, r: Rect, th: &Theme) {
+    use rcare::schedule::{Freq, Op, Run, Schedule, TaskStatus};
+    use rcare::schedule_page::SchedulePage;
+    let mut page = SchedulePage::new(true, std::env::temp_dir());
+    page.list = vec![
+        Schedule { name: "Schedule 1".into(), ops: vec![Op::Sfc, Op::Clean], freq: Freq::Weekly(6), hour: 3, minute: 0 },
+        Schedule { name: "Schedule 2".into(), ops: vec![Op::Dism, Op::Chkdsk], freq: Freq::Monthly(1), hour: 2, minute: 30 },
+    ];
+    page.status.insert(
+        "Schedule 1".into(),
+        TaskStatus { state: "Ready".into(), next: "2026-11-29T03:00:00".into(), last: "2026-11-22T03:00:00".into(), result: Some(0) },
+    );
+    page.status.insert(
+        "Schedule 2".into(),
+        TaskStatus { state: "Ready".into(), next: "2026-12-01T02:30:00".into(), last: String::new(), result: None },
+    );
+    let run = |when: &str, op: Op, ok: bool, d: &str| Run { when: when.into(), op, ok, detail: d.into() };
+    page.runs = vec![
+        run("2026-11-22 03:21", Op::Clean, true, "1.84 GB freed in 12,402 files, 7 in use"),
+        run("2026-11-22 03:19", Op::Sfc, true, "finished"),
+        run("2026-11-15 03:24", Op::Sfc, false, "ended with code 1"),
+    ];
+    page.sel = Some(0);
+    page.render(g, r, th, 1.0);
+}
+
 /// A question in the window's theme (before SFC starts), over the Repair page.
 fn question(g: &mut Gfx, r: Rect, th: &Theme) {
     repair(g, r, th);
@@ -373,5 +400,7 @@ fn screenshots() {
     save("repair-light.png", shot("repair", false, false, None, 1280, 720, &mut repair));
     save("repair-dark-smallest.png", shot("repair", true, false, None, 760, 480, &mut repair));
     save("question-dark.png", shot("repair", true, false, None, 1180, 720, &mut question));
+    save("scheduler-light.png", shot("schedule", false, false, None, 1280, 720, &mut scheduler));
+    save("scheduler-dark-smallest.png", shot("schedule", true, false, None, 760, 480, &mut scheduler));
     save("question-light.png", shot("repair", false, false, None, 1180, 720, &mut question));
 }

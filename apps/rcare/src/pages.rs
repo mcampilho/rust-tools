@@ -36,6 +36,8 @@ pub enum Kind {
     Sys,
     /// rcare's own: Windows' repair tools.
     Repair,
+    /// rcare's own: the slow work at a set time.
+    Schedule,
 }
 
 /// A page in the sidebar.
@@ -84,6 +86,8 @@ pub enum Glyph {
     Monitor,
     /// A wrench: repairs.
     Wrench,
+    /// A clock: the scheduler.
+    Clock,
 }
 
 pub const PAGES: &[PageInfo] = &[
@@ -103,6 +107,7 @@ pub const PAGES: &[PageInfo] = &[
     PageInfo { id: "privacy", kind: Kind::Privacy, label: "Privacy Sweep", glyph: Glyph::Eye },
     PageInfo { id: "sysinfo", kind: Kind::Sys, label: "System Information", glyph: Glyph::Monitor },
     PageInfo { id: "repair", kind: Kind::Repair, label: "Repair", glyph: Glyph::Wrench },
+    PageInfo { id: "schedule", kind: Kind::Schedule, label: "Scheduler", glyph: Glyph::Clock },
 ];
 
 /// The index of the page saved as `id`; the first one when it is unknown.

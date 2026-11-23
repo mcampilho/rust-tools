@@ -38,6 +38,8 @@ the list below is deliberately left for later.
 | `crates/rt-core/src/i18n.rs` | `add` (extra tables), `tr_in_from`/`tr_from`/`tf_from` (a table searched first) |
 | `crates/rt-core/src/menu.rs` | `M::map` (turn the commands of a menu into another type) |
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; drive health from `Get-Volume` |
+| `apps/rcare/src/schedule.rs`, `schedule_page.rs` | Scheduler: schedules in Windows' Task Scheduler running `rcare --run …` (repairs, the junk ticked), the log and the last runs |
+| `apps/rcare/src/bg.rs` | Work off the window's thread (`Job`) |
 | `apps/rcare/src/repair.rs`, `repair_page.rs` | Repair: SFC, DISM, chkdsk /scan per NTFS drive (and /spotfix), the Start menu; the tool's output as it comes, with its progress |
 | `apps/rcare/src/sysinfo.rs`, `sysinfo_page.rs` | System Information: Windows, the computer, graphics, drives' health, devices with a problem, battery; Fast Startup, Default Apps, Driver Updates (Windows' pages); Copy |
 | `apps/rcare/src/privacy.rs`, `privacy_page.rs` | Privacy Sweep: Windows' traces (recent documents, Run, Explorer, open/save dialogs, jump lists, clipboard); registry ones to a `.reg` first |
@@ -103,6 +105,24 @@ one with `chkdsk X: /f` or the drive's Properties › Tools › Check — on thi
 Needed"). "Review" opens the cleaner or the uninstaller; nothing is changed on this page. More checks join with the
 later phases (privacy sweep in phase 5 — deleting history or cookies is the user's decision, since rclean never does —,
 startup, Windows integrity in phase 6).
+
+## Scheduler (2026-11-23, the user's request; rcare's own page, last in the sidebar)
+
+The user's choices: Windows' Task Scheduler; the repairs (SFC, DISM, a chkdsk scan of each NTFS drive — checking only)
+and cleaning the junk ticked in the Disk Cleaner (never the registry or shortcuts); a Scheduler page and a log.
+`schedule.rs`: a `Schedule` (task name `\rcare\Schedule N`, the operations, daily / weekly on a day / monthly on day
+1–28, the time) kept in `schedules.txt` beside the settings; `schtasks /Create /TN … /TR ""<rcare.exe>" --run
+sfc,clean" /SC … /ST hh:mm /RL HIGHEST /IT /F` (the highest rights, only while the user's session is open, no password
+kept), `/Delete`, `/Run`; Task Scheduler's state, next and last run and result read with `Get-ScheduledTask
+-TaskPath '\rcare\'` + `Get-ScheduledTaskInfo`. `rcare --run <ops>` (shell.rs, before anything else: no window, no
+hand-off, no elevation prompt) runs each operation in turn — the repairs through `repair::run` waited for, the
+cleaning through rclean's engine with the ticks in rcare's settings — and appends to `schedule.log` (each tool's
+output) and `schedule-runs.txt` (when, what, ok or not, a line; the last 200). The page: a form (what runs, Daily /
+Weekly / Monthly, the weekday or the day, the time in steps of 30 minutes), the schedules with Task Scheduler's word on
+each, the last runs; Create…, Run Now, Delete… (each asks), Open the Log. Verified: the files, the arguments and the
+reading (tests), `rcare --run sfc` without administrator rights (SFC refused, recorded in both files, exit code 1),
+screenshots, the page in the real `.exe`. **Not verified**: creating, running and deleting a task for real (they need
+administrator rights), a scheduled cleaning (it would really delete this PC's junk).
 
 ## The window keeps answering; questions in the theme (2026-11-23, the user's tests)
 

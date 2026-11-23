@@ -41,6 +41,7 @@ Pages so far:
 | Privacy Sweep | – (rcare's own) | The traces Windows keeps: recent documents, the Run box, Explorer's history, the open and save dialogs, jump lists, the clipboard. Registry ones are saved to a `.reg` file first; never the browsers' history, cookies or passwords |
 | System Information | – (rcare's own) | Windows, the computer, graphics, the drives' health, devices with a problem and the battery; Fast Startup, and Windows' own Default Apps and Driver Updates pages; Copy puts it all on the clipboard |
 | Repair | – (rcare's own) | Windows' own repair tools, one at a time, with their output as it comes: SFC, DISM, chkdsk (a scan of each drive, and fixing the errors it finds) and repairing the Start menu |
+| Scheduler | – (rcare's own) | SFC, DISM, a check of the drives and cleaning the junk ticked, daily, weekly or monthly at a set time, through Windows' Task Scheduler (even with rcare closed); the last runs and a log |
 | Uninstall Apps | [rinst](../rinst/README.md) | The programs of every user and source, uninstalled one after another, and their leftovers |
 
 Next:
@@ -66,7 +67,7 @@ without asking (and if Windows' prompt is refused, rcare starts without the righ
 as Administrator gives them later. As administrator, Windows does not let files be dropped on the window
 from Explorer: use the folder dialogs, or `--user`.
 
-Command line: `rcare [--user] [--tray] [--new-window] [folder]`. A folder opens Custom
+Command line: `rcare [--user] [--tray] [--new-window] [folder]`; `rcare --run sfc,dism,chkdsk,clean` is what a schedule runs (no window). A folder opens Custom
 Clean on it, analysed. `--tray` stays in the notification area, without administrator rights (no prompt at every sign-in; File ›
 Windows Integration › Start with Windows starts it this way); File › Windows
 Integration › Explorer Context Menu adds "Analyze with rcare" to folders and

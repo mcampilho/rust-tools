@@ -178,6 +178,18 @@ fn draw_glyph(g: &mut Gfx, glyph: Glyph, r: Rect, c: rt_gfx::gfx::Color) {
             cog(g, r.x + r.w * 0.38, r.y + r.h * 0.6, r.w * 0.4, 8);
             cog(g, r.x + r.w * 0.8, r.y + r.h * 0.22, r.w * 0.24, 6);
         }
+        Glyph::Clock => {
+            // A dial and its two hands.
+            let (cx, cy, rad) = (r.x + r.w / 2.0, r.y + r.h / 2.0, r.w * 0.46);
+            let pts: Vec<(f32, f32)> = (0..=32)
+                .map(|k| {
+                    let a = std::f32::consts::TAU * k as f32 / 32.0;
+                    (cx + rad * a.cos(), cy + rad * a.sin())
+                })
+                .collect();
+            g.polyline(&pts, 1.6, c, false);
+            g.polyline(&[(cx, cy - rad * 0.62), (cx, cy), (cx + rad * 0.45, cy + rad * 0.2)], 1.8, c, false);
+        }
         Glyph::Wrench => {
             // A handle across, and an open jaw at its top end.
             let (x0, y0, x1, y1) = (r.x + r.w * 0.16, r.y + r.h * 0.84, r.x + r.w * 0.66, r.y + r.h * 0.34);
