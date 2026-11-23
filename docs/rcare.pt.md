@@ -41,6 +41,7 @@ System Information" na lista abaixo fica de propósito para mais tarde.
 | `crates/rt-core/src/i18n.rs` | `add` (tabelas extra), `tr_in_from`/`tr_from`/`tf_from` (uma tabela procurada primeiro) |
 | `crates/rt-core/src/menu.rs` | `M::map` (converter os comandos de um menu noutro tipo) |
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; estado dos discos pelo `Get-Volume` |
+| `apps/rcare/src/privacy.rs`, `privacy_page.rs` | Privacy Sweep: rastos do Windows (documentos recentes, Executar, Explorador, caixas Abrir/Guardar, listas de saltos, área de transferência); os do registo vão antes para um `.reg` |
 | `apps/rcare/src/net.rs`, `net_page.rs` | Internet Booster: os valores TCP do Windows (repostos aos do próprio Windows) e o DNS de cada ligação (Automático, Cloudflare, Quad9, Google), com uma cópia `.cmd` antes de cada alteração |
 | `apps/rcare/src/protect.rs`, `protect_page.rs`, `ps.rs` | Protect System: produtos antivírus e firewall, Defender, Acesso controlado a pastas, perfis da Firewall do Windows; as ações do próprio Windows. O `ps.rs` corre o PowerShell e ferramentas sem janela |
 | `apps/rcare/src/registry_page.rs` | Registry Cleaner: as categorias do registo do limpador (marcadas, cópia `.reg`, limpas), classes COM e serviços só mostrados, o tamanho dos ficheiros do registo |
@@ -107,7 +108,24 @@ neste PC o disco S: diz "Warning / Full Repair Needed"). "Rever" abre o limpador
 muda nada. Mais verificações entram com as fases seguintes (limpeza de privacidade na fase 5 — apagar histórico ou
 cookies é decisão do utilizador, porque o rclean nunca o faz —, arranque, integridade do Windows na fase 6).
 
-## Internet Booster (fase 5, página do próprio rcare, a última da barra lateral)
+## Privacy Sweep (fase 5, página do próprio rcare, a última da barra lateral)
+
+Só rastos do Windows (escolha do utilizador): documentos recentes (os ficheiros de
+`%APPDATA%\Microsoft\Windows\Recent`, não as subpastas, e `Explorer\RecentDocs`), o Executar (`RunMRU`), a barra de
+endereços e as pesquisas do Explorador (`TypedPaths`, `WordWheelQuery`), as caixas Abrir e Guardar
+(`ComDlg32\OpenSavePidlMRU`, `LastVisitedPidlMRU`), listas de saltos (`Recent\AutomaticDestinations` e
+`CustomDestinations`; desmarcadas por omissão: os itens afixados também saem) e a área de transferência
+(`Clipboard.Clear` e `Windows.ApplicationModel.DataTransfer.Clipboard.ClearHistory` pelo PowerShell; desmarcada por
+omissão). Contagem: ficheiros mais os valores das chaves (sem a contabilidade `MRUList`/`MRUListEx`; uma chave vazia
+não conta). Limpar pergunta com a lista; as chaves de cada rasto vão para `backups\privacy <data>\<id>.reg` e
+apagam-se inteiras (o Windows volta a criá-las), os ficheiros apagam-se (um já desaparecido não é falha). Nunca o
+histórico, os cookies nem as palavras-passe dos browsers. Aqui: 114 documentos recentes, 2 no Executar, 21 nas
+caixas, 32 ficheiros de listas de saltos. Verificado: essa contagem, apagar ficheiros numa pasta própria (teste),
+imagens, a página no `.exe` a sério (não apaga nada sozinha). **Não verificado**: limpar a sério os rastos deste PC, e
+a área de transferência. Ainda não está na verificação de um clique do System Maintenance (o plano dele inclui a
+varredura de privacidade): um passo para depois.
+
+## Internet Booster (fase 5, página do próprio rcare)
 
 Um PowerShell escondido (`net::SCRIPT`): `Get-NetTCPSetting -SettingName Internet` e `Get-NetOffloadGlobalSetting` (as
 palavras do próprio PowerShell, iguais em todas as línguas: o `netsh` escreve na língua do sistema) e, por adaptador
@@ -286,7 +304,10 @@ ecrã.
    `checkver.ps1 -Dir bucket -Update`).
 6. ~~Startup Optimizer~~, ~~Speed Up~~, ~~Program Deactivator~~ e ~~Extensions~~ feitos (2026-11-22): a fase 3 está
    completa (o Real-Time TuneUp, um histórico do desempenho, fica para depois). Ver as secções.
-7. ~~Fase 4~~ feita (2026-11-22): Registry Cleaner, ver a secção. Depois as fases 5–6 (rede e proteção, sistema); as decisões da fase 5 estão tomadas (abaixo).
+7. ~~Fase 4~~ feita (2026-11-22): Registry Cleaner. ~~Fase 5~~ feita (2026-11-23): Protect System, Internet Booster,
+   Privacy Sweep (ver as secções). Depois a fase 6 (sistema: Arranque rápido, reparar o menu Iniciar, controladores,
+   programas predefinidos, Informações do sistema, saúde do hardware e do software, uma página Reparar com SFC, DISM,
+   chkdsk).
 
 ## Decisões para a fase 5 (o utilizador escolheu a opção recomendada de cada, 2026-11-22)
 
@@ -383,7 +404,7 @@ verificação de disco, saúde do software) e faz um relatório.
 **4. Registo** — Registry Cleaner (as categorias acima, Deep Scan, cópia `.reg` antes de cada limpeza, restauro);
 Registry Defrag (análise).
 
-**5. Rede e proteção** — Internet Booster (TCP, DNS Protector, otimizar browsers); Protect System (Defender,
+**5. Rede e proteção** ✔ (Protect System, Internet Booster, Privacy Sweep, como decidido) — Internet Booster (TCP, DNS Protector, otimizar browsers); Protect System (Defender,
 Firewall, anti-tracking, proteção do browser, pasta segura, undelete a avaliar).
 
 **6. Sistema** — Fast Startup, reparar o Menu Iniciar, Update Drivers, Set Default Program, System Information, saúde

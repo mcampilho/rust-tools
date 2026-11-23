@@ -38,6 +38,8 @@ pub enum Cmd {
     Protect(crate::protect_page::Action),
     /// Internet Booster: a button of its page.
     Net(crate::net_page::Action),
+    /// Privacy Sweep: a button of its bar.
+    Privacy(crate::privacy_page::Action),
     /// Custom Clean: the junk, duplicates and large files analysed together.
     CustomAnalyze,
     /// Custom Clean: the folder where duplicates and large files are looked for.
@@ -156,6 +158,7 @@ impl Cmd {
             Registry(a) => a.label_key(),
             Protect(a) => a.label_key(),
             Net(a) => a.label_key(),
+            Privacy(a) => a.label_key(),
             CustomAnalyze => "&Analyze",
             CustomFolder => "Change &Folder...",
             Sidebar => "Collapse Side&bar",
@@ -208,7 +211,8 @@ pub fn shortcut(cmd: Cmd) -> Option<&'static str> {
         | Extensions(crate::extensions_page::Action::Refresh)
         | Registry(crate::registry_page::Action::Scan)
         | Protect(crate::protect_page::Action::Refresh)
-        | Net(crate::net_page::Action::Refresh) => Some("F5"),
+        | Net(crate::net_page::Action::Refresh)
+        | Privacy(crate::privacy_page::Action::Scan) => Some("F5"),
         c => BINDINGS.iter().find(|(_, x)| *x == c).map(|(k, _)| *k),
     }
 }
@@ -366,6 +370,14 @@ fn page_menus(page: usize) -> Own {
             edit.extend([Item::Sep, Item::Item(Net(A::Copies))]);
             Own { file: vec![Item::Item(Net(A::Refresh))], view: Vec::new(), rest: vec![("&Edit", edit)] }
         }
+        Some(Kind::Privacy) => {
+            use crate::privacy_page::Action as A;
+            Own {
+                file: vec![Item::Item(Privacy(A::Scan))],
+                view: Vec::new(),
+                rest: vec![("&Edit", vec![Item::Item(Privacy(A::Sweep)), Item::Sep, Item::Item(Privacy(A::Copies))])],
+            }
+        }
         Some(Kind::Maint) => Own { file: vec![Item::Item(MaintScan)], view: Vec::new(), rest: Vec::new() },
         Some(Kind::Custom) => Own { file: vec![Item::Item(CustomAnalyze), Item::Item(CustomFolder)], view: Vec::new(), rest: Vec::new() },
         Some(Kind::Inst) => own_menus(rinst::commands::menu_tree(), inst_is_window, Cmd::from_inst),
@@ -465,6 +477,7 @@ mod tests {
         assert!(all(at("registry")).contains(&Registry(crate::registry_page::Action::Clean)));
         assert!(all(at("protect")).contains(&Protect(crate::protect_page::Action::QuickScan)));
         assert!(all(at("net")).contains(&Net(crate::net_page::Action::Dns(crate::net::Provider::Quad9))));
+        assert!(all(at("privacy")).contains(&Privacy(crate::privacy_page::Action::Sweep)));
         assert!(all(at("speed")).contains(&Speed(crate::speed_page::Action::GameMode)));
         assert!(all(at("clean")).contains(&Clean(CleanCmd::Analyse)));
         assert!(all(at("dups")).contains(&Dups(DupCmd::Search)));

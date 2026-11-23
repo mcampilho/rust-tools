@@ -273,6 +273,19 @@ dns\t7\tWi-Fi\tIntel(R) Wi-Fi 6 AX201\tTrue\t1.1.1.1,1.0.0.1\t2606:4700:4700::11
     page.render(g, r, th, 1.0);
 }
 
+/// Privacy Sweep after a scan of this PC's numbers, the clipboard ticked too.
+fn privacy(g: &mut Gfx, r: Rect, th: &Theme) {
+    use rcare::privacy::Found;
+    use rcare::privacy_page::PrivacyPage;
+    let mut page = PrivacyPage::new(std::env::temp_dir());
+    for (row, n) in page.rows.iter_mut().zip([114, 2, 0, 21, 32, 0]) {
+        row.found = Some(Found { count: n, clipboard: row.trace.id == "clipboard", ..Found::default() });
+    }
+    page.rows[5].ticked = true;
+    page.sel = 1;
+    page.render(g, r, th, 1.0);
+}
+
 #[test]
 #[ignore]
 fn screenshots() {
@@ -306,4 +319,6 @@ fn screenshots() {
     save("protect-smallest.png", shot("protect", false, false, None, 760, 480, &mut protect));
     save("net-light.png", shot("net", false, false, None, 1280, 720, &mut net));
     save("net-dark-smallest.png", shot("net", true, false, None, 760, 480, &mut net));
+    save("privacy-light.png", shot("privacy", false, false, None, 1280, 720, &mut privacy));
+    save("privacy-dark-smallest.png", shot("privacy", true, false, None, 760, 480, &mut privacy));
 }

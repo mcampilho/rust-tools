@@ -178,6 +178,21 @@ fn draw_glyph(g: &mut Gfx, glyph: Glyph, r: Rect, c: rt_gfx::gfx::Color) {
             cog(g, r.x + r.w * 0.38, r.y + r.h * 0.6, r.w * 0.4, 8);
             cog(g, r.x + r.w * 0.8, r.y + r.h * 0.22, r.w * 0.24, 6);
         }
+        Glyph::Eye => {
+            // An eye's outline and its pupil.
+            let (cx, cy) = (r.x + r.w / 2.0, r.y + r.h / 2.0);
+            let (a, b) = (r.w * 0.5, r.h * 0.32);
+            let pts: Vec<(f32, f32)> = (0..=32)
+                .map(|k| {
+                    let t = std::f32::consts::TAU * k as f32 / 32.0;
+                    // A lens: pointed at both ends.
+                    let y = b * t.sin() * (1.0 - 0.35 * t.cos().abs());
+                    (cx + a * t.cos(), cy + y)
+                })
+                .collect();
+            g.polyline(&pts, 1.6, c, false);
+            g.fill_circle(cx, cy, r.w * 0.16, c);
+        }
         Glyph::Globe => {
             // A circle, its equator and a meridian's two halves.
             let (cx, cy, rad) = (r.x + r.w / 2.0, r.y + r.h / 2.0, r.w * 0.46);

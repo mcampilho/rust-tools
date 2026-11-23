@@ -9,7 +9,7 @@ decisões e o que fica de fora de propósito (antivírus próprio, defrag do reg
 
 ```powershell
 ./dev.ps1 build --release -p rcare
-./dev.ps1 test -p rcare                                     # 53 testes
+./dev.ps1 test -p rcare                                     # 57 testes
 ./dev.ps1 clippy -p rcare --all-targets
 ./dev.ps1 test -p rcare --test screens '--' --ignored       # apps/rcare/target/screens/*.png
 ./dev.ps1 test -p rcare --lib picture '--' --ignored        # o ícone
@@ -55,7 +55,7 @@ Fase 0 (2026-11-22): páginas do rclean, rdup, rsize e rinst (`rclean::page::Cle
 `rsize::page::SizePage`, `rinst::page::InstPage`), `Effects`/`Dialogs`/`Mods` no `rt-ui`, `add`/`tr_from` no `rt-core::i18n`, `M::map`; rcare com
 barra lateral, menus combinados dos quatro e as quatro páginas. **A passagem de testemunho completa está em
 `docs/rcare.pt.md`** (padrão de página, como o rcare funciona, verificado e não, próximos passos): ler primeiro.
-Custom Clean (`custom.rs`) e System Maintenance (`maint.rs`, `disks.rs`; fase 2) Startup Optimizer (`startup.rs`, `startup_page.rs`) Speed Up (`speed.rs`, `speed_page.rs`) Program Deactivator (`services.rs`, `services_page.rs`) Extensions (`extensions.rs`, `extensions_page.rs`; fase 3 completa) Registry Cleaner (`registry_page.rs`, motor `rt_clean::registry`; fase 4) e Protect System (`protect.rs`, `protect_page.rs`; `ps.rs` corre o PowerShell e ferramentas sem janela; fase 5), páginas do próprio rcare, feitas. Internet Booster (`net.rs`, `net_page.rs`; fase 5) também. A seguir, na fase 5: Privacy Sweep (ver `docs/rcare.pt.md`). Feito também: `--tray`, uma só instância, "Integração com o Windows" (um verbo "Analisar com o rcare" → Custom Clean), `rcare-v*` no `release.yml`. Falta: o primeiro release (push: perguntar) e o bucket.
+Custom Clean (`custom.rs`) e System Maintenance (`maint.rs`, `disks.rs`; fase 2) Startup Optimizer (`startup.rs`, `startup_page.rs`) Speed Up (`speed.rs`, `speed_page.rs`) Program Deactivator (`services.rs`, `services_page.rs`) Extensions (`extensions.rs`, `extensions_page.rs`; fase 3 completa) Registry Cleaner (`registry_page.rs`, motor `rt_clean::registry`; fase 4) e Protect System (`protect.rs`, `protect_page.rs`; `ps.rs` corre o PowerShell e ferramentas sem janela; fase 5), páginas do próprio rcare, feitas. Internet Booster (`net.rs`, `net_page.rs`) e Privacy Sweep (`privacy.rs`, `privacy_page.rs`) também: fase 5 completa. A seguir: fase 6 (ver `docs/rcare.pt.md`). Feito também: `--tray`, uma só instância, "Integração com o Windows" (um verbo "Analisar com o rcare" → Custom Clean), `rcare-v*` no `release.yml`. Falta: o primeiro release (push: perguntar) e o bucket.
 Arranque verificado (abre, fecha com código 0). **Não verificado**: usar a janela. A compilação das apps pequenas religadas em Linux passou no CI
 (2026-11-22).
 ## Regras

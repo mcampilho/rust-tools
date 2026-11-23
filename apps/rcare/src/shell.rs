@@ -10,6 +10,7 @@ use rcare::i18n::{self, tf, tr};
 use rcare::maint::{self, Check, MaintPage};
 use rcare::net_page::NetPage;
 use rcare::pages::{self, Kind, PAGES};
+use rcare::privacy_page::PrivacyPage;
 use rcare::protect_page::ProtectPage;
 use rcare::registry_page::RegistryPage;
 use rcare::services_page::ServicesPage;
@@ -97,6 +98,10 @@ macro_rules! page {
                 let $p = &mut $s.net;
                 $e
             }
+            Kind::Privacy => {
+                let $p = &mut $s.privacy;
+                $e
+            }
             Kind::Clean => {
                 let $p = &mut $s.clean;
                 $e
@@ -144,6 +149,8 @@ struct Shell {
     protect: ProtectPage,
     /// Internet Booster: rcare's own page, TCP values and the DNS.
     net: NetPage,
+    /// Privacy Sweep: rcare's own page, the traces Windows keeps.
+    privacy: PrivacyPage,
     /// What Windows said about the drives, the last time it was asked.
     volumes: Option<Vec<rcare::disks::Volume>>,
     /// Asking Windows about the drives now; it could not be asked the last time.
@@ -247,6 +254,7 @@ impl Shell {
             self.registry.fx.take(),
             self.protect.fx.take(),
             self.net.fx.take(),
+            self.privacy.fx.take(),
             self.maint.fx.take(),
             self.custom.fx.take(),
             self.clean.fx.take(),
@@ -337,6 +345,7 @@ impl Shell {
             Kind::Registry => self.registry.scan(),
             Kind::Protect => self.protect.refresh(),
             Kind::Net => self.net.refresh(),
+            Kind::Privacy => self.privacy.scan(),
             Kind::Speed => self.speed.refresh(),
             Kind::Clean => self.clean.analyse(),
             Kind::Dups => self.dups.load_volumes(),
@@ -574,6 +583,11 @@ impl Shell {
             Cmd::MaintScan => self.maint_scan(),
             Cmd::Startup(a) => self.startup.act(a),
             Cmd::Extensions(a) => self.extensions.act(a),
+            Cmd::Privacy(a) => {
+                let mut d = self.dialogs();
+                self.privacy.act(a, &mut d);
+                self.after_page();
+            }
             Cmd::Net(a) => {
                 let mut d = self.dialogs();
                 self.net.act(a, &mut d);
@@ -631,7 +645,7 @@ impl Shell {
                     }
                     Kind::Dups => self.dups.restart_args(),
                     Kind::Size => self.size.restart_args(),
-                    Kind::Inst | Kind::Registry | Kind::Protect | Kind::Net => String::new(),
+                    Kind::Inst | Kind::Registry | Kind::Protect | Kind::Net | Kind::Privacy => String::new(),
                 };
                 if rt_sys::win::restart_elevated(&args) {
                     self.quit(el);
@@ -651,6 +665,13 @@ impl Shell {
                     Kind::Custom => format!("F5\t{}", rt_core::i18n::strip_mnemonic(&tr("&Analyze"))),
                     Kind::Maint => format!("F5\t{}", rt_core::i18n::strip_mnemonic(&tr("&Scan"))),
                     Kind::Protect | Kind::Net => format!("F5\t{}", rt_core::i18n::strip_mnemonic(&tr("&Refresh"))),
+                    Kind::Privacy => format!(
+                        "F5\t{}\n{}\t{}\n↑ ↓\t{}",
+                        rt_core::i18n::strip_mnemonic(&tr("&Scan")),
+                        tr("Space"),
+                        tr("Tick or untick the selected category"),
+                        tr("Move in the list")
+                    ),
                     Kind::Registry => format!(
                         "F5\t{}\n{}\t{}\n↑ ↓  PgUp PgDn  Home End\t{}",
                         rt_core::i18n::strip_mnemonic(&tr("&Scan")),
@@ -728,11 +749,13 @@ impl Shell {
             Cmd::Registry(a) => self.registry.enabled(a),
             Cmd::Protect(a) => self.protect.enabled(a),
             Cmd::Net(a) => self.net.enabled(a),
+            Cmd::Privacy(a) => self.privacy.enabled(a),
             Cmd::Speed(a) => self.speed.enabled(a),
             Cmd::RestartAdmin => match PAGES[self.selected].kind {
                 Kind::Clean
                 | Kind::Protect
                 | Kind::Net
+                | Kind::Privacy
                 | Kind::Custom
                 | Kind::Maint
                 | Kind::Startup
@@ -975,6 +998,7 @@ impl Shell {
             Kind::Registry => self.registry.render(&mut self.gfx, rest, &theme, s),
             Kind::Protect => self.protect.render(&mut self.gfx, rest, &theme, s),
             Kind::Net => self.net.render(&mut self.gfx, rest, &theme, s),
+            Kind::Privacy => self.privacy.render(&mut self.gfx, rest, &theme, s),
             Kind::Speed => self.speed.render(&mut self.gfx, rest, &theme, s),
             Kind::Custom => self.custom.render(&mut self.gfx, rest, &theme, s),
             Kind::Clean => self.clean.render(&mut self.gfx, rest, &theme, s, false),
@@ -1026,6 +1050,7 @@ impl Shell {
             Kind::Registry => self.registry.accessibility(&mut nodes, &mut children),
             Kind::Protect => self.protect.accessibility(&mut nodes, &mut children),
             Kind::Net => self.net.accessibility(&mut nodes, &mut children),
+            Kind::Privacy => self.privacy.accessibility(&mut nodes, &mut children),
             Kind::Speed => self.speed.accessibility(&mut nodes, &mut children),
             Kind::Custom => self.custom.accessibility(&mut nodes, &mut children),
             Kind::Clean => self.clean.accessibility(&mut nodes, &mut children),
@@ -1106,6 +1131,10 @@ impl Shell {
             }
             Kind::Protect => self.protect.key(&logical).map(Cmd::Protect),
             Kind::Net => self.net.key(&logical).map(Cmd::Net),
+            Kind::Privacy => {
+                self.privacy.key(&logical);
+                None
+            }
             Kind::Clean => self.clean.key(ctrl, shift, alt, logical).map(Cmd::from_clean),
             Kind::Dups => self.dups.key(event, mods).map(Cmd::from_dups),
             Kind::Size => self.size.key(event, mods).map(Cmd::from_size),
@@ -1150,6 +1179,13 @@ impl Shell {
             Kind::Extensions => {
                 self.extensions.press();
                 self.after_page();
+            }
+            Kind::Privacy => {
+                let a = self.privacy.press();
+                self.after_page();
+                if let Some(a) = a {
+                    self.command(el, Cmd::Privacy(a));
+                }
             }
             Kind::Net => {
                 let a = self.net.press();
@@ -1241,7 +1277,8 @@ impl Shell {
             | Kind::Extensions
             | Kind::Registry
             | Kind::Protect
-            | Kind::Net => {}
+            | Kind::Net
+            | Kind::Privacy => {}
             Kind::Clean => {
                 if self.clean.dragging {
                     self.clean.drag_to(y);
@@ -1265,6 +1302,7 @@ impl Shell {
             | Kind::Registry
             | Kind::Protect
             | Kind::Net
+            | Kind::Privacy
             | Kind::Clean => {}
             Kind::Dups => {
                 let popup = self.dups.right_click();
@@ -1298,7 +1336,7 @@ impl Shell {
             Kind::Services => self.services.wheel(delta),
             Kind::Extensions => self.extensions.wheel(delta),
             Kind::Registry => self.registry.wheel(delta, self.cursor),
-            Kind::Protect | Kind::Net => {}
+            Kind::Protect | Kind::Net | Kind::Privacy => {}
             Kind::Speed => self.speed.wheel(delta),
             Kind::Clean => self.clean.wheel(&mut self.gfx, s, delta, self.cursor),
             Kind::Dups => self.dups.wheel(delta, self.cursor),
@@ -1316,6 +1354,7 @@ impl Shell {
             Kind::Registry => self.registry.animate(),
             Kind::Protect => self.protect.animate(),
             Kind::Net => self.net.animate(),
+            Kind::Privacy => None,
             Kind::Speed => self.speed.animate(),
             Kind::Clean => self.clean.animate().then(|| Instant::now() + Duration::from_millis(40)),
             Kind::Dups => self.dups.animate().map(|d| Instant::now() + d),
@@ -1477,6 +1516,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     | Kind::Registry
                     | Kind::Protect
                     | Kind::Net
+                    | Kind::Privacy
                     | Kind::Clean
                     | Kind::Inst => {}
                 }
@@ -1661,6 +1701,7 @@ pub fn run() {
         registry: RegistryPage::new(admin, data_dir.clone()),
         protect: ProtectPage::new(admin),
         net: NetPage::new(admin, data_dir.clone()),
+        privacy: PrivacyPage::new(data_dir.clone()),
         speed: SpeedPage::new(admin),
         volumes: None,
         disks_running: false,

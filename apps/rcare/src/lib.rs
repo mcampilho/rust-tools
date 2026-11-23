@@ -14,6 +14,8 @@ pub mod maint;
 pub mod net;
 pub mod net_page;
 pub mod pages;
+pub mod privacy;
+pub mod privacy_page;
 pub mod protect;
 pub mod protect_page;
 pub mod ps;

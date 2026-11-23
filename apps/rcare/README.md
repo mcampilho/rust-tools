@@ -38,10 +38,11 @@ Pages so far:
 | Registry Cleaner | – (rcare's own, with rclean's engine) | Registry entries that name what is gone, by category, saved to a `.reg` file before they are deleted; COM classes and services only shown; the size of the registry's files |
 | Protect System | – (rcare's own) | The antivirus and firewall as Windows reports them (other companies' included), Microsoft Defender and the Windows Firewall's profiles; a quick scan, new definitions and turning on what is off, all through Windows' own tools |
 | Internet Booster | – (rcare's own) | Windows' TCP values, with those changed by other tools put back to Windows' own, and each connection's DNS: automatic or Cloudflare, Quad9, Google. Each change keeps a `.cmd` copy that puts back what was there |
+| Privacy Sweep | – (rcare's own) | The traces Windows keeps: recent documents, the Run box, Explorer's history, the open and save dialogs, jump lists, the clipboard. Registry ones are saved to a `.reg` file first; never the browsers' history, cookies or passwords |
 | Uninstall Apps | [rinst](../rinst/README.md) | The programs of every user and source, uninstalled one after another, and their leftovers |
 
 Next:
-network, protection and system tools (see the plan). The small tools
+system tools (see the plan). The small tools
 stay as they are: the pages are shared code, so a fix is made once.
 
 Settings (theme, language, window, sidebar, the page shown, the boxes ticked)

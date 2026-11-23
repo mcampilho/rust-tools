@@ -38,6 +38,7 @@ the list below is deliberately left for later.
 | `crates/rt-core/src/i18n.rs` | `add` (extra tables), `tr_in_from`/`tr_from`/`tf_from` (a table searched first) |
 | `crates/rt-core/src/menu.rs` | `M::map` (turn the commands of a menu into another type) |
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; drive health from `Get-Volume` |
+| `apps/rcare/src/privacy.rs`, `privacy_page.rs` | Privacy Sweep: Windows' traces (recent documents, Run, Explorer, open/save dialogs, jump lists, clipboard); registry ones to a `.reg` first |
 | `apps/rcare/src/net.rs`, `net_page.rs` | Internet Booster: Windows' TCP values (put back to Windows' own) and each connection's DNS (Automatic, Cloudflare, Quad9, Google), with a `.cmd` copy before each change |
 | `apps/rcare/src/protect.rs`, `protect_page.rs`, `ps.rs` | Protect System: antivirus and firewall products, Defender, Controlled folder access, the Windows Firewall's profiles; Windows' own actions. `ps.rs` runs PowerShell and tools without a window |
 | `apps/rcare/src/registry_page.rs` | Registry Cleaner: the cleaner's registry categories (ticked, `.reg` copy, cleaned), COM classes and services only reported, the registry's file sizes |
@@ -101,7 +102,22 @@ Needed"). "Review" opens the cleaner or the uninstaller; nothing is changed on t
 later phases (privacy sweep in phase 5 — deleting history or cookies is the user's decision, since rclean never does —,
 startup, Windows integrity in phase 6).
 
-## Internet Booster (phase 5, rcare's own page, last in the sidebar)
+## Privacy Sweep (phase 5, rcare's own page, last in the sidebar)
+
+Only Windows' traces (the user's choice): recent documents (the files in `%APPDATA%\Microsoft\Windows\Recent`, not
+its subfolders, and `Explorer\RecentDocs`), the Run box (`RunMRU`), Explorer's address bar and searches
+(`TypedPaths`, `WordWheelQuery`), the open and save dialogs (`ComDlg32\OpenSavePidlMRU`, `LastVisitedPidlMRU`), jump
+lists (`Recent\AutomaticDestinations` and `CustomDestinations`; not ticked by default: pinned items go too) and the
+clipboard (`Clipboard.Clear` and `Windows.ApplicationModel.DataTransfer.Clipboard.ClearHistory` through PowerShell; not
+ticked by default). Counted: files plus the keys' values (their `MRUList`/`MRUListEx` bookkeeping left out; an empty
+key is nothing). Sweeping asks with the list; each trace's keys go to `backups\privacy <date>\<id>.reg` and are
+deleted whole (Windows makes them again), files are deleted (one already gone is not a failure). Never the
+browsers' history, cookies or passwords. Here: 114 recent documents, 2 in Run, 21 in the dialogs, 32 jump list files.
+Verified: that count, sweeping files in a folder of its own (test), screenshots, the page in the real `.exe` (nothing
+swept on its own). **Not verified**: sweeping this PC's traces for real, and the clipboard. Not yet in System
+Maintenance's one-click check (its plan lists a privacy sweep): a step for later.
+
+## Internet Booster (phase 5, rcare's own page)
 
 One hidden PowerShell (`net::SCRIPT`): `Get-NetTCPSetting -SettingName Internet` and `Get-NetOffloadGlobalSetting`
 (PowerShell's own words, the same in every language: `netsh` prints in the system's language), and for each adapter
@@ -276,8 +292,9 @@ connection to the privileged service `rtsvc` from rcare (the pages use it as the
    the Scoop bucket manifest (`bucket/rcare.json`, then `checkver.ps1 -Dir bucket -Update`).
 6. ~~Startup Optimizer~~, ~~Speed Up~~, ~~Program Deactivator~~ and ~~Extensions~~ done (2026-11-22): phase 3 is
    complete (Real-Time TuneUp, a performance history, stays for later). See their sections.
-7. ~~Phase 4~~ done (2026-11-22): Registry Cleaner, see its section. Then phases 5–6 (network and protection,
-   system); phase 5's decisions are taken (below).
+7. ~~Phase 4~~ done (2026-11-22): Registry Cleaner. ~~Phase 5~~ done (2026-11-23): Protect System, Internet
+   Booster, Privacy Sweep (see their sections). Then phase 6 (system: Fast Startup, Start menu repair, drivers, default
+   programs, System Information, hardware and software health, a Repair page with SFC, DISM, chkdsk).
 
 ## Decisions for phase 5 (the user chose the recommended option of each, 2026-11-22)
 
@@ -371,7 +388,7 @@ check, software health) and reports.
 **4. Registry** ✔ — Registry Cleaner (the safe categories, COM and services reported, `.reg` copy before each
 cleaning, restore by opening it); Registry Defrag (sizes only).
 
-**5. Network and protection** — Internet Booster (TCP, DNS Protector, browser optimize); Protect System (Defender,
+**5. Network and protection** ✔ (Protect System, Internet Booster, Privacy Sweep, as decided) — Internet Booster (TCP, DNS Protector, browser optimize); Protect System (Defender,
 Firewall, anti-tracking, browser protection, safe folder, undelete to be assessed).
 
 **6. System** — Fast Startup, repair Start Menu, Update Drivers, Set Default Program, System Information, hardware

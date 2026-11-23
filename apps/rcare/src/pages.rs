@@ -30,6 +30,8 @@ pub enum Kind {
     Protect,
     /// rcare's own: TCP values and the DNS.
     Net,
+    /// rcare's own: the traces Windows keeps.
+    Privacy,
 }
 
 /// A page in the sidebar.
@@ -72,6 +74,8 @@ pub enum Glyph {
     Shield,
     /// A globe: the network.
     Globe,
+    /// An eye: privacy.
+    Eye,
 }
 
 pub const PAGES: &[PageInfo] = &[
@@ -88,6 +92,7 @@ pub const PAGES: &[PageInfo] = &[
     PageInfo { id: "registry", kind: Kind::Registry, label: "Registry Cleaner", glyph: Glyph::Blocks },
     PageInfo { id: "protect", kind: Kind::Protect, label: "Protect System", glyph: Glyph::Shield },
     PageInfo { id: "net", kind: Kind::Net, label: "Internet Booster", glyph: Glyph::Globe },
+    PageInfo { id: "privacy", kind: Kind::Privacy, label: "Privacy Sweep", glyph: Glyph::Eye },
 ];
 
 /// The index of the page saved as `id`; the first one when it is unknown.

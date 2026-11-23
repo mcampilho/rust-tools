@@ -38,9 +38,10 @@ Páginas até agora:
 | Registry Cleaner | – (do próprio rcare, com o motor do rclean) | Entradas do registo que indicam o que já não existe, por categoria, guardadas num `.reg` antes de se apagarem; classes COM e serviços só mostrados; o tamanho dos ficheiros do registo |
 | Protect System | – (do próprio rcare) | O antivírus e a firewall como o Windows os relata (os de outras empresas incluídos), o Microsoft Defender e os perfis da Firewall do Windows; análise rápida, definições novas e ligar o que está desligado, tudo pelas ferramentas do próprio Windows |
 | Internet Booster | – (do próprio rcare) | Os valores TCP do Windows, com os alterados por outras ferramentas repostos aos do Windows, e o DNS de cada ligação: automático ou Cloudflare, Quad9, Google. Cada alteração guarda uma cópia `.cmd` que repõe o que estava |
+| Privacy Sweep | – (do próprio rcare) | Os rastos que o Windows guarda: documentos recentes, o Executar, o histórico do Explorador, as caixas Abrir e Guardar, listas de saltos, a área de transferência. Os do registo vão antes para um `.reg`; nunca o histórico, os cookies nem as palavras-passe dos browsers |
 | Desinstalar aplicações | [rinst](../rinst/README.pt.md) | Os programas de todos os utilizadores e fontes, desinstalados uns a seguir aos outros, e os seus restos |
 
-A seguir: as ferramentas de rede, proteção e sistema (ver o
+A seguir: as ferramentas de sistema (ver o
 plano). As ferramentas pequenas ficam como estão: as páginas são código
 partilhado, por isso uma correção faz-se uma vez.
 
