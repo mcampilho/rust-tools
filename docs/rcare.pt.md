@@ -41,6 +41,7 @@ System Information" na lista abaixo fica de propósito para mais tarde.
 | `crates/rt-core/src/i18n.rs` | `add` (tabelas extra), `tr_in_from`/`tr_from`/`tf_from` (uma tabela procurada primeiro) |
 | `crates/rt-core/src/menu.rs` | `M::map` (converter os comandos de um menu noutro tipo) |
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; estado dos discos pelo `Get-Volume` |
+| `apps/rcare/src/protect.rs`, `protect_page.rs`, `ps.rs` | Protect System: produtos antivírus e firewall, Defender, Acesso controlado a pastas, perfis da Firewall do Windows; as ações do próprio Windows. O `ps.rs` corre o PowerShell e ferramentas sem janela |
 | `apps/rcare/src/registry_page.rs` | Registry Cleaner: as categorias do registo do limpador (marcadas, cópia `.reg`, limpas), classes COM e serviços só mostrados, o tamanho dos ficheiros do registo |
 | `apps/rcare/src/extensions.rs`, `extensions_page.rs` | Extensions: o que está acrescentado ao Chrome, Edge, Brave, Vivaldi, Opera, Chromium e Firefox, por perfil; abre a página de extensões do próprio browser. Não altera nada |
 | `apps/rcare/src/services.rs`, `services_page.rs` | Program Deactivator: serviços de terceiros que arrancam com o Windows, postos em Manual depois de perguntar, com cópia (`services.txt`) para devolver o arranque |
@@ -105,7 +106,24 @@ neste PC o disco S: diz "Warning / Full Repair Needed"). "Rever" abre o limpador
 muda nada. Mais verificações entram com as fases seguintes (limpeza de privacidade na fase 5 — apagar histórico ou
 cookies é decisão do utilizador, porque o rclean nunca o faz —, arranque, integridade do Windows na fase 6).
 
-## Registry Cleaner (fase 4, página do próprio rcare, a última da barra lateral)
+## Protect System (fase 5, página do próprio rcare, a última da barra lateral)
+
+Um PowerShell escondido (`protect::SCRIPT`, um facto por linha, lido pelo `parse`): `AntiVirusProduct` e
+`FirewallProduct` de `root/SecurityCenter2` (`productState`: 0x10 no byte do meio = ligado, último byte 0 = definições
+atualizadas; a linha do próprio Defender fica de fora, quem o descreve é o `Get-MpComputerStatus`: `AMRunningMode`
+Normal = é o antivírus, Passive/EDR, ou parado), `EnableControlledFolderAccess` do `Get-MpPreference`,
+`Get-NetFirewallProfile`. Três caixas (antivírus, firewall, Microsoft Defender) com um ponto verde ou laranja. Ações,
+todas do Windows e num fio: Análise rápida e Atualizar definições (`MpCmdRun -Scan -ScanType 1`, `-SignatureUpdate`;
+só quando o Defender é o antivírus), Ligar o que está desligado… (pergunta com a lista; `netsh advfirewall set
+<perfil> state on`, `Set-MpPreference -DisableRealtimeMonitoring $false`; administrador), Abrir a Segurança do Windows
+(`windowsdefender:`), Acesso controlado a pastas (a página dele na Segurança do Windows: ligá-lo pode bloquear
+programas, por isso é o utilizador que o faz lá). Aqui: Bitdefender e IObit ligados, Defender parado, o
+`Get-MpPreference` falha (o Acesso controlado a pastas aparece Desconhecido), todos os perfis da Firewall do Windows
+ligados. Verificado: essa leitura, imagens (este PC, e o Defender como antivírus; numa página estreita os botões vão
+em duas linhas), a página no `.exe` a sério. **Não verificado**: a análise, as definições e o ligar a sério (aqui o
+Defender não é o antivírus; ligar precisa de administrador).
+
+## Registry Cleaner (fase 4, página do próprio rcare)
 
 Escolhas do utilizador (2026-11-22): só se limpam as categorias seguras; classes COM e serviços só se mostram; o
 Registry Defrag só mostra tamanhos. O motor é o do limpador (`rt_clean::registry`), por isso o rclean também ganhou

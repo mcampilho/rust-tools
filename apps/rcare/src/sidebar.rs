@@ -178,6 +178,22 @@ fn draw_glyph(g: &mut Gfx, glyph: Glyph, r: Rect, c: rt_gfx::gfx::Color) {
             cog(g, r.x + r.w * 0.38, r.y + r.h * 0.6, r.w * 0.4, 8);
             cog(g, r.x + r.w * 0.8, r.y + r.h * 0.22, r.w * 0.24, 6);
         }
+        Glyph::Shield => {
+            // A shield's outline, and a tick in it.
+            let (x, y, w, h) = (r.x + r.w * 0.12, r.y, r.w * 0.76, r.h);
+            let pts = [
+                (x + w / 2.0, y),
+                (x + w, y + h * 0.16),
+                (x + w, y + h * 0.5),
+                (x + w * 0.72, y + h * 0.84),
+                (x + w / 2.0, y + h),
+                (x + w * 0.28, y + h * 0.84),
+                (x, y + h * 0.5),
+                (x, y + h * 0.16),
+            ];
+            g.polyline(&pts, 1.8, c, true);
+            g.polyline(&[(x + w * 0.27, y + h * 0.5), (x + w * 0.45, y + h * 0.66), (x + w * 0.74, y + h * 0.34)], 2.0, c, false);
+        }
         Glyph::Blocks => {
             // Three blocks stacked like a hive's cells: two below, one above.
             let b = r.w * 0.42;

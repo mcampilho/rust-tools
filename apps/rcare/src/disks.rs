@@ -44,22 +44,8 @@ pub fn parse(text: &str) -> Vec<Volume> {
 }
 
 /// Asks Windows, without a window; None when PowerShell could not be run.
-#[cfg(windows)]
 pub fn read() -> Option<Vec<Volume>> {
-    use std::os::windows::process::CommandExt;
-    let out = std::process::Command::new("powershell.exe")
-        .args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", SCRIPT])
-        .stdin(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
-        .output()
-        .ok()?;
-    out.status.success().then(|| parse(&String::from_utf8_lossy(&out.stdout)))
-}
-
-#[cfg(not(windows))]
-pub fn read() -> Option<Vec<Volume>> {
-    None
+    crate::ps::run(SCRIPT).map(|t| parse(&t))
 }
 
 #[cfg(test)]

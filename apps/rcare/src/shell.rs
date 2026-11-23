@@ -9,6 +9,7 @@ use rcare::extensions_page::ExtensionsPage;
 use rcare::i18n::{self, tf, tr};
 use rcare::maint::{self, Check, MaintPage};
 use rcare::pages::{self, Kind, PAGES};
+use rcare::protect_page::ProtectPage;
 use rcare::registry_page::RegistryPage;
 use rcare::services_page::ServicesPage;
 use rcare::settings::Settings;
@@ -87,6 +88,10 @@ macro_rules! page {
                 let $p = &mut $s.registry;
                 $e
             }
+            Kind::Protect => {
+                let $p = &mut $s.protect;
+                $e
+            }
             Kind::Clean => {
                 let $p = &mut $s.clean;
                 $e
@@ -130,6 +135,8 @@ struct Shell {
     extensions: ExtensionsPage,
     /// Registry Cleaner: rcare's own page, invalid registry entries.
     registry: RegistryPage,
+    /// Protect System: rcare's own page, the antivirus, the firewall and Defender.
+    protect: ProtectPage,
     /// What Windows said about the drives, the last time it was asked.
     volumes: Option<Vec<rcare::disks::Volume>>,
     /// Asking Windows about the drives now; it could not be asked the last time.
@@ -231,6 +238,7 @@ impl Shell {
             self.services.fx.take(),
             self.extensions.fx.take(),
             self.registry.fx.take(),
+            self.protect.fx.take(),
             self.maint.fx.take(),
             self.custom.fx.take(),
             self.clean.fx.take(),
@@ -319,6 +327,7 @@ impl Shell {
             Kind::Services => self.services.refresh(),
             Kind::Extensions => self.extensions.refresh(),
             Kind::Registry => self.registry.scan(),
+            Kind::Protect => self.protect.refresh(),
             Kind::Speed => self.speed.refresh(),
             Kind::Clean => self.clean.analyse(),
             Kind::Dups => self.dups.load_volumes(),
@@ -556,6 +565,11 @@ impl Shell {
             Cmd::MaintScan => self.maint_scan(),
             Cmd::Startup(a) => self.startup.act(a),
             Cmd::Extensions(a) => self.extensions.act(a),
+            Cmd::Protect(a) => {
+                let mut d = self.dialogs();
+                self.protect.act(a, &mut d);
+                self.after_page();
+            }
             Cmd::Registry(a) => {
                 let mut d = self.dialogs();
                 self.registry.act(a, &mut d);
@@ -603,7 +617,7 @@ impl Shell {
                     }
                     Kind::Dups => self.dups.restart_args(),
                     Kind::Size => self.size.restart_args(),
-                    Kind::Inst | Kind::Registry => String::new(),
+                    Kind::Inst | Kind::Registry | Kind::Protect => String::new(),
                 };
                 if rt_sys::win::restart_elevated(&args) {
                     self.quit(el);
@@ -622,6 +636,7 @@ impl Shell {
                 let keys = match PAGES[self.selected].kind {
                     Kind::Custom => format!("F5\t{}", rt_core::i18n::strip_mnemonic(&tr("&Analyze"))),
                     Kind::Maint => format!("F5\t{}", rt_core::i18n::strip_mnemonic(&tr("&Scan"))),
+                    Kind::Protect => format!("F5\t{}", rt_core::i18n::strip_mnemonic(&tr("&Refresh"))),
                     Kind::Registry => format!(
                         "F5\t{}\n{}\t{}\n↑ ↓  PgUp PgDn  Home End\t{}",
                         rt_core::i18n::strip_mnemonic(&tr("&Scan")),
@@ -697,9 +712,11 @@ impl Shell {
             Cmd::Services(a) => self.services.enabled(a),
             Cmd::Extensions(a) => self.extensions.enabled(a),
             Cmd::Registry(a) => self.registry.enabled(a),
+            Cmd::Protect(a) => self.protect.enabled(a),
             Cmd::Speed(a) => self.speed.enabled(a),
             Cmd::RestartAdmin => match PAGES[self.selected].kind {
                 Kind::Clean
+                | Kind::Protect
                 | Kind::Custom
                 | Kind::Maint
                 | Kind::Startup
@@ -940,6 +957,7 @@ impl Shell {
             Kind::Services => self.services.render(&mut self.gfx, rest, &theme, s),
             Kind::Extensions => self.extensions.render(&mut self.gfx, rest, &theme, s),
             Kind::Registry => self.registry.render(&mut self.gfx, rest, &theme, s),
+            Kind::Protect => self.protect.render(&mut self.gfx, rest, &theme, s),
             Kind::Speed => self.speed.render(&mut self.gfx, rest, &theme, s),
             Kind::Custom => self.custom.render(&mut self.gfx, rest, &theme, s),
             Kind::Clean => self.clean.render(&mut self.gfx, rest, &theme, s, false),
@@ -989,6 +1007,7 @@ impl Shell {
             Kind::Services => self.services.accessibility(&mut nodes, &mut children),
             Kind::Extensions => self.extensions.accessibility(&mut nodes, &mut children),
             Kind::Registry => self.registry.accessibility(&mut nodes, &mut children),
+            Kind::Protect => self.protect.accessibility(&mut nodes, &mut children),
             Kind::Speed => self.speed.accessibility(&mut nodes, &mut children),
             Kind::Custom => self.custom.accessibility(&mut nodes, &mut children),
             Kind::Clean => self.clean.accessibility(&mut nodes, &mut children),
@@ -1067,6 +1086,7 @@ impl Shell {
                 self.registry.key(&logical);
                 None
             }
+            Kind::Protect => self.protect.key(&logical).map(Cmd::Protect),
             Kind::Clean => self.clean.key(ctrl, shift, alt, logical).map(Cmd::from_clean),
             Kind::Dups => self.dups.key(event, mods).map(Cmd::from_dups),
             Kind::Size => self.size.key(event, mods).map(Cmd::from_size),
@@ -1111,6 +1131,13 @@ impl Shell {
             Kind::Extensions => {
                 self.extensions.press();
                 self.after_page();
+            }
+            Kind::Protect => {
+                let a = self.protect.press();
+                self.after_page();
+                if let Some(a) = a {
+                    self.command(el, Cmd::Protect(a));
+                }
             }
             Kind::Registry => {
                 let a = self.registry.press();
@@ -1180,7 +1207,14 @@ impl Shell {
     /// The pointer moved with the left button down.
     fn drag(&mut self, x: f32, y: f32) {
         match PAGES[self.selected].kind {
-            Kind::Custom | Kind::Maint | Kind::Startup | Kind::Speed | Kind::Services | Kind::Extensions | Kind::Registry => {}
+            Kind::Custom
+            | Kind::Maint
+            | Kind::Startup
+            | Kind::Speed
+            | Kind::Services
+            | Kind::Extensions
+            | Kind::Registry
+            | Kind::Protect => {}
             Kind::Clean => {
                 if self.clean.dragging {
                     self.clean.drag_to(y);
@@ -1195,8 +1229,15 @@ impl Shell {
     fn right_click(&mut self, el: &ActiveEventLoop) {
         let mods: Mods = self.mods.into();
         match PAGES[self.selected].kind {
-            Kind::Custom | Kind::Maint | Kind::Startup | Kind::Speed | Kind::Services | Kind::Extensions | Kind::Registry | Kind::Clean => {
-            }
+            Kind::Custom
+            | Kind::Maint
+            | Kind::Startup
+            | Kind::Speed
+            | Kind::Services
+            | Kind::Extensions
+            | Kind::Registry
+            | Kind::Protect
+            | Kind::Clean => {}
             Kind::Dups => {
                 let popup = self.dups.right_click();
                 self.after_page();
@@ -1229,6 +1270,7 @@ impl Shell {
             Kind::Services => self.services.wheel(delta),
             Kind::Extensions => self.extensions.wheel(delta),
             Kind::Registry => self.registry.wheel(delta, self.cursor),
+            Kind::Protect => {}
             Kind::Speed => self.speed.wheel(delta),
             Kind::Clean => self.clean.wheel(&mut self.gfx, s, delta, self.cursor),
             Kind::Dups => self.dups.wheel(delta, self.cursor),
@@ -1244,6 +1286,7 @@ impl Shell {
             // What the other pages report redraws it: nothing turns here.
             Kind::Custom | Kind::Maint | Kind::Startup | Kind::Services | Kind::Extensions => None,
             Kind::Registry => self.registry.animate(),
+            Kind::Protect => self.protect.animate(),
             Kind::Speed => self.speed.animate(),
             Kind::Clean => self.clean.animate().then(|| Instant::now() + Duration::from_millis(40)),
             Kind::Dups => self.dups.animate().map(|d| Instant::now() + d),
@@ -1403,6 +1446,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     | Kind::Services
                     | Kind::Extensions
                     | Kind::Registry
+                    | Kind::Protect
                     | Kind::Clean
                     | Kind::Inst => {}
                 }
@@ -1585,6 +1629,7 @@ pub fn run() {
         services: ServicesPage::new(admin, data_dir.clone()),
         extensions: ExtensionsPage::default(),
         registry: RegistryPage::new(admin, data_dir.clone()),
+        protect: ProtectPage::new(admin),
         speed: SpeedPage::new(admin),
         volumes: None,
         disks_running: false,

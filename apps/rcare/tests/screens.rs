@@ -240,6 +240,27 @@ fn registry(g: &mut Gfx, r: Rect, th: &Theme) {
     page.render(g, r, th, 1.0);
 }
 
+/// Protect System as this PC reported it (two antivirus programs on, Defender off), one firewall profile off.
+fn protect(g: &mut Gfx, r: Rect, th: &Theme) {
+    use rcare::protect_page::ProtectPage;
+    let mut page = ProtectPage::new(false);
+    page.status = Some(rcare::protect::parse(
+        "av\tIObit Malware Fighter\t266240\nav\tBitdefender Antivirus\t266240\nfw\tBitdefender Firewall\t266240\n\
+mp\tNot running\tFalse\t65535\t4294967295\tFalse\nprofile\tDomain\tTrue\nprofile\tPrivate\tTrue\nprofile\tPublic\tFalse\n",
+    ));
+    page.render(g, r, th, 1.0);
+}
+
+/// Protect System with Defender as the antivirus.
+fn protect_defender(g: &mut Gfx, r: Rect, th: &Theme) {
+    use rcare::protect_page::ProtectPage;
+    let mut page = ProtectPage::new(true);
+    page.status = Some(rcare::protect::parse(
+        "mp\tNormal\tTrue\t1\t12\tTrue\ncfa\t0\nprofile\tDomain\tTrue\nprofile\tPrivate\tTrue\nprofile\tPublic\tTrue\n",
+    ));
+    page.render(g, r, th, 1.0);
+}
+
 #[test]
 #[ignore]
 fn screenshots() {
@@ -268,4 +289,7 @@ fn screenshots() {
     save("extensions-dark-smallest.png", shot("extensions", true, false, None, 760, 480, &mut extensions));
     save("registry-light.png", shot("registry", false, false, None, 1280, 720, &mut registry));
     save("registry-dark-smallest.png", shot("registry", true, false, None, 760, 480, &mut registry));
+    save("protect-light.png", shot("protect", false, false, None, 1280, 720, &mut protect));
+    save("protect-defender-dark.png", shot("protect", true, false, None, 1180, 720, &mut protect_defender));
+    save("protect-smallest.png", shot("protect", false, false, None, 760, 480, &mut protect));
 }

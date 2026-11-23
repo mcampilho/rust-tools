@@ -38,6 +38,7 @@ the list below is deliberately left for later.
 | `crates/rt-core/src/i18n.rs` | `add` (extra tables), `tr_in_from`/`tr_from`/`tf_from` (a table searched first) |
 | `crates/rt-core/src/menu.rs` | `M::map` (turn the commands of a menu into another type) |
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; drive health from `Get-Volume` |
+| `apps/rcare/src/protect.rs`, `protect_page.rs`, `ps.rs` | Protect System: antivirus and firewall products, Defender, Controlled folder access, the Windows Firewall's profiles; Windows' own actions. `ps.rs` runs PowerShell and tools without a window |
 | `apps/rcare/src/registry_page.rs` | Registry Cleaner: the cleaner's registry categories (ticked, `.reg` copy, cleaned), COM classes and services only reported, the registry's file sizes |
 | `apps/rcare/src/extensions.rs`, `extensions_page.rs` | Extensions: what is added to Chrome, Edge, Brave, Vivaldi, Opera, Chromium and Firefox, by profile; opens the browser's own extensions page. Changes nothing |
 | `apps/rcare/src/services.rs`, `services_page.rs` | Program Deactivator: third-party services that start with Windows, set to Manual after asking, with a copy (`services.txt`) to give the start back |
@@ -99,7 +100,23 @@ Needed"). "Review" opens the cleaner or the uninstaller; nothing is changed on t
 later phases (privacy sweep in phase 5 — deleting history or cookies is the user's decision, since rclean never does —,
 startup, Windows integrity in phase 6).
 
-## Registry Cleaner (phase 4, rcare's own page, last in the sidebar)
+## Protect System (phase 5, rcare's own page, last in the sidebar)
+
+One hidden PowerShell (`protect::SCRIPT`, a fact a line, read by `parse`): `root/SecurityCenter2` `AntiVirusProduct` and
+`FirewallProduct` (`productState`: the middle byte's 0x10 = on, the last byte 0 = definitions up to date; Defender's
+own line is left out, its `Get-MpComputerStatus` describes it: `AMRunningMode` Normal = the antivirus, Passive/EDR,
+or not running), `Get-MpPreference` `EnableControlledFolderAccess`, `Get-NetFirewallProfile`. Three cards (antivirus,
+firewall, Microsoft Defender) with a green or orange dot. Actions, all Windows' own and in a thread: Quick Scan and
+Update Definitions (`MpCmdRun -Scan -ScanType 1`, `-SignatureUpdate`; only when Defender is the antivirus), Turn On
+What Is Off… (asks with the list; `netsh advfirewall set <profile> state on`, `Set-MpPreference
+-DisableRealtimeMonitoring $false`; administrator), Open Windows Security (`windowsdefender:`), Controlled Folder
+Access (its page in Windows Security: turning it on can block programs, so the user does it there). Here: Bitdefender
+and IObit on, Defender not running, `Get-MpPreference` fails (so Controlled folder access shows Unknown), every
+Windows Firewall profile on. Verified: that reading, screenshots (this PC, and Defender as the antivirus; on a narrow
+page the buttons go on two rows), the page in the real `.exe`. **Not verified**: the scan, the definitions and turning
+on for real (Defender is not the antivirus here; turning on needs administrator rights).
+
+## Registry Cleaner (phase 4, rcare's own page)
 
 The user's choices (2026-11-22): only the safe categories are cleaned; COM classes and services are only shown;
 Registry Defrag only shows sizes. The engine is the cleaner's (`rt_clean::registry`), so rclean gained the new

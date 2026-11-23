@@ -26,6 +26,8 @@ pub enum Kind {
     Extensions,
     /// rcare's own: invalid registry entries, and the registry's size.
     Registry,
+    /// rcare's own: the antivirus, the firewall and Defender.
+    Protect,
 }
 
 /// A page in the sidebar.
@@ -64,6 +66,8 @@ pub enum Glyph {
     Puzzle,
     /// A stack of blocks: the registry.
     Blocks,
+    /// A shield: protection.
+    Shield,
 }
 
 pub const PAGES: &[PageInfo] = &[
@@ -78,6 +82,7 @@ pub const PAGES: &[PageInfo] = &[
     PageInfo { id: "services", kind: Kind::Services, label: "Program Deactivator", glyph: Glyph::Cogs },
     PageInfo { id: "extensions", kind: Kind::Extensions, label: "Extensions", glyph: Glyph::Puzzle },
     PageInfo { id: "registry", kind: Kind::Registry, label: "Registry Cleaner", glyph: Glyph::Blocks },
+    PageInfo { id: "protect", kind: Kind::Protect, label: "Protect System", glyph: Glyph::Shield },
 ];
 
 /// The index of the page saved as `id`; the first one when it is unknown.
