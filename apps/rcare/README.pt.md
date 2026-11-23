@@ -42,6 +42,7 @@ Páginas até agora:
 | System Information | – (do próprio rcare) | O Windows, o computador, os gráficos, a saúde dos discos, os dispositivos com problemas e a bateria; o Arranque rápido e as páginas do próprio Windows de Aplicações predefinidas e de Atualizações de controladores; Copiar põe tudo na área de transferência |
 | Reparar | – (do próprio rcare) | As ferramentas de reparação do próprio Windows, uma de cada vez, com o que escrevem à medida que chega: SFC, DISM, chkdsk (verificação de cada disco, e correção dos erros que encontrar) e reparar o menu Iniciar |
 | Agendador | – (do próprio rcare) | SFC, DISM, verificação dos discos e limpeza do lixo marcado, diária, semanal ou mensal a uma hora marcada, pelo Agendador de Tarefas do Windows (mesmo com o rcare fechado); as últimas execuções e um registo |
+| Ferramentas de ficheiros | – (do próprio rcare) | As pastas vazias dentro de uma pasta, enviadas para a Reciclagem; e o File Shredder: ficheiros escritos por cima com bytes aleatórios, com outro nome e apagados, para que as ferramentas de recuperação não encontrem nada (num SSD não é garantido) |
 | Desinstalar aplicações | [rinst](../rinst/README.pt.md) | Os programas de todos os utilizadores e fontes, desinstalados uns a seguir aos outros, e os seus restos |
 
 A seguir: as ferramentas de sistema (ver o

@@ -9,6 +9,7 @@ use rclean::page::CleanPage;
 use rclean::targets::{all, Env};
 use rclean::ui::gfx::{Gfx, Rect};
 use rt_ui::theme::Theme;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 /// A frame: the page drawn by `page` in the area right of the sidebar, with the page `id` selected.
@@ -28,7 +29,7 @@ fn shot(
     let s = 1.0;
     let mut rest = Rect::new(0.0, 0.0, w as f32, h as f32);
     let side = rest.take_left(sidebar::width(collapsed, s));
-    let l = sidebar::layout(side, PAGES.len(), s);
+    let l = sidebar::layout(side, PAGES.len(), s, sidebar::scroll_to(&sidebar::layout(side, PAGES.len(), s, 0), 0, index_of(id)));
     page(&mut g, rest, &th);
     sidebar::draw(&mut g, &l, &th, s, State { collapsed, selected: index_of(id), hot }, PAGES);
     let mut buf = vec![0u32; (w * h) as usize];
@@ -347,6 +348,22 @@ fn scheduler(g: &mut Gfx, r: Rect, th: &Theme) {
     page.render(g, r, th, 1.0);
 }
 
+/// File Tools: empty folders found under a folder, and files waiting to be shredded.
+fn files(g: &mut Gfx, r: Rect, th: &Theme) {
+    use rcare::files_page::{Empty, FilesPage};
+    let mut page = FilesPage::default();
+    let root = PathBuf::from(r"D:\Projects");
+    page.root = Some(root.clone());
+    page.empties = Some(
+        [("old-site\\assets\\fonts", 1), ("scratch", 4), ("tools\\build\\obj", 2), ("tools\\cache", 1)]
+            .iter()
+            .map(|(p, n)| Empty { path: root.join(p), count: *n, ticked: true })
+            .collect(),
+    );
+    page.items = vec![PathBuf::from(r"C:\Users\Ana\Documents\bank-statement-2026.pdf"), PathBuf::from(r"C:\Users\Ana\Desktop\old-keys")];
+    page.render(g, r, th, 1.0);
+}
+
 /// A question in the window's theme (before SFC starts), over the Repair page.
 fn question(g: &mut Gfx, r: Rect, th: &Theme) {
     repair(g, r, th);
@@ -402,5 +419,7 @@ fn screenshots() {
     save("question-dark.png", shot("repair", true, false, None, 1180, 720, &mut question));
     save("scheduler-light.png", shot("schedule", false, false, None, 1280, 720, &mut scheduler));
     save("scheduler-dark-smallest.png", shot("schedule", true, false, None, 760, 480, &mut scheduler));
+    save("files-light.png", shot("files", false, false, None, 1280, 720, &mut files));
+    save("files-dark-smallest.png", shot("files", true, false, None, 760, 480, &mut files));
     save("question-light.png", shot("repair", false, false, None, 1180, 720, &mut question));
 }

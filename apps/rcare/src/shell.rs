@@ -6,6 +6,7 @@
 use rcare::commands::{self, Cmd};
 use rcare::custom::{self, CustomPage, Part, Status};
 use rcare::extensions_page::ExtensionsPage;
+use rcare::files_page::FilesPage;
 use rcare::i18n::{self, tf, tr};
 use rcare::maint::{self, Check, MaintPage};
 use rcare::net_page::NetPage;
@@ -117,6 +118,10 @@ macro_rules! page {
                 let $p = &mut $s.schedule;
                 $e
             }
+            Kind::Files => {
+                let $p = &mut $s.files;
+                $e
+            }
             Kind::Clean => {
                 let $p = &mut $s.clean;
                 $e
@@ -171,6 +176,9 @@ impl Dialogs for ShellDialogs {
     fn recycle(&mut self, path: &std::path::Path) -> Result<(), String> {
         self.sys.recycle(path)
     }
+    fn open_files(&mut self) -> Vec<std::path::PathBuf> {
+        self.sys.open_files()
+    }
 }
 
 struct Shell {
@@ -204,6 +212,8 @@ struct Shell {
     repair: RepairPage,
     /// Scheduler: rcare's own page, the slow work at a set time.
     schedule: SchedulePage,
+    /// File Tools: rcare's own page.
+    files: FilesPage,
     /// What Windows said about the drives, the last time it was asked.
     volumes: Option<Vec<rcare::disks::Volume>>,
     /// Asking Windows about the drives now; it could not be asked the last time.
@@ -238,6 +248,8 @@ struct Shell {
     cursor_icon: CursorIcon,
     side: sidebar::Layout,
     side_hot: Option<Hit>,
+    /// The first sidebar entry shown, when they do not all fit.
+    side_scroll: usize,
     dialog: Option<Message>,
     /// A folder given on the command line or by the Explorer menu: Custom
     /// Clean looks there this time (the folder chosen in the settings stays).
@@ -311,6 +323,7 @@ impl Shell {
             self.sys.fx.take(),
             self.repair.fx.take(),
             self.schedule.fx.take(),
+            self.files.fx.take(),
             self.maint.fx.take(),
             self.custom.fx.take(),
             self.clean.fx.take(),
@@ -435,6 +448,7 @@ impl Shell {
             Kind::Sys => self.sys.refresh(),
             Kind::Repair => self.repair.refresh(),
             Kind::Schedule => self.schedule.refresh(),
+            Kind::Files => {}
             Kind::Speed => self.speed.refresh(),
             Kind::Clean => self.clean.analyse(),
             Kind::Dups => self.dups.load_volumes(),
@@ -454,6 +468,7 @@ impl Shell {
                 self.speed.refresh();
             }
             self.selected = i;
+            self.side_scroll = sidebar::scroll_to(&self.side, self.side_scroll, i);
             self.menu_rebuild = true;
             self.menu_dirty = true;
             self.ensure_started(i);
@@ -688,6 +703,12 @@ impl Shell {
             Cmd::Startup(a) => self.startup.act(a),
             Cmd::Extensions(a) => self.extensions.act(a),
             Cmd::Sys(a) => self.sys.act(a),
+            Cmd::Files(a) => {
+                let mut d = self.dialogs();
+                self.files.act(a, &mut d);
+                self.ask_if(d, cmd);
+                self.after_page();
+            }
             Cmd::Schedule(a) => {
                 let mut d = self.dialogs();
                 self.schedule.act(a, &mut d);
@@ -768,9 +789,15 @@ impl Shell {
                     }
                     Kind::Dups => self.dups.restart_args(),
                     Kind::Size => self.size.restart_args(),
-                    Kind::Inst | Kind::Registry | Kind::Protect | Kind::Net | Kind::Privacy | Kind::Sys | Kind::Repair | Kind::Schedule => {
-                        String::new()
-                    }
+                    Kind::Inst
+                    | Kind::Registry
+                    | Kind::Protect
+                    | Kind::Net
+                    | Kind::Privacy
+                    | Kind::Sys
+                    | Kind::Repair
+                    | Kind::Schedule
+                    | Kind::Files => String::new(),
                 };
                 if rt_sys::win::restart_elevated(&args) {
                     self.quit(el);
@@ -788,6 +815,7 @@ impl Shell {
             Cmd::Shortcuts => {
                 let keys = match PAGES[self.selected].kind {
                     Kind::Schedule => format!("F5\t{}", rt_core::i18n::strip_mnemonic(&tr("&Refresh"))),
+                    Kind::Files => String::new(),
                     Kind::Repair => {
                         format!("{}\t{}\n↑ ↓\t{}", tr("Enter"), rt_core::i18n::strip_mnemonic(&tr("&Run")), tr("Move in the list"))
                     }
@@ -884,6 +912,7 @@ impl Shell {
             Cmd::Sys(a) => self.sys.enabled(a),
             Cmd::Repair(a) => self.repair.enabled(a),
             Cmd::Schedule(a) => self.schedule.enabled(a),
+            Cmd::Files(a) => self.files.enabled(a),
             Cmd::Speed(a) => self.speed.enabled(a),
             Cmd::RestartAdmin => match PAGES[self.selected].kind {
                 Kind::Clean
@@ -893,6 +922,7 @@ impl Shell {
                 | Kind::Sys
                 | Kind::Repair
                 | Kind::Schedule
+                | Kind::Files
                 | Kind::Custom
                 | Kind::Maint
                 | Kind::Startup
@@ -1117,7 +1147,8 @@ impl Shell {
         let full = Rect::new(0.0, 0.0, w.get() as f32, h.get() as f32);
         let mut rest = full;
         let side = rest.take_left(sidebar::width(self.settings.sidebar_collapsed, s));
-        self.side = sidebar::layout(side, PAGES.len(), s);
+        self.side = sidebar::layout(side, PAGES.len(), s, self.side_scroll);
+        self.side_scroll = self.side_scroll.min(self.side.max_scroll);
         if PAGES[self.selected].kind == Kind::Custom {
             self.custom.view.status = self.custom_status();
             self.custom.view.folder = self.custom_folder().display().to_string();
@@ -1139,6 +1170,7 @@ impl Shell {
             Kind::Sys => self.sys.render(&mut self.gfx, rest, &theme, s),
             Kind::Repair => self.repair.render(&mut self.gfx, rest, &theme, s),
             Kind::Schedule => self.schedule.render(&mut self.gfx, rest, &theme, s),
+            Kind::Files => self.files.render(&mut self.gfx, rest, &theme, s),
             Kind::Speed => self.speed.render(&mut self.gfx, rest, &theme, s),
             Kind::Custom => self.custom.render(&mut self.gfx, rest, &theme, s),
             Kind::Clean => self.clean.render(&mut self.gfx, rest, &theme, s, false),
@@ -1194,6 +1226,7 @@ impl Shell {
             Kind::Sys => self.sys.accessibility(&mut nodes, &mut children),
             Kind::Repair => self.repair.accessibility(&mut nodes, &mut children),
             Kind::Schedule => self.schedule.accessibility(&mut nodes, &mut children),
+            Kind::Files => self.files.accessibility(&mut nodes, &mut children),
             Kind::Speed => self.speed.accessibility(&mut nodes, &mut children),
             Kind::Custom => self.custom.accessibility(&mut nodes, &mut children),
             Kind::Clean => self.clean.accessibility(&mut nodes, &mut children),
@@ -1292,6 +1325,7 @@ impl Shell {
             }
             Kind::Repair => self.repair.key(&logical).map(Cmd::Repair),
             Kind::Schedule => self.schedule.key(&logical).map(Cmd::Schedule),
+            Kind::Files => self.files.key(&logical).map(Cmd::Files),
             Kind::Clean => self.clean.key(ctrl, shift, alt, logical).map(Cmd::from_clean),
             Kind::Dups => self.dups.key(event, mods).map(Cmd::from_dups),
             Kind::Size => self.size.key(event, mods).map(Cmd::from_size),
@@ -1344,6 +1378,13 @@ impl Shell {
             Kind::Sys => {
                 self.sys.press();
                 self.after_page();
+            }
+            Kind::Files => {
+                let a = self.files.press();
+                self.after_page();
+                if let Some(a) = a {
+                    self.command(el, Cmd::Files(a));
+                }
             }
             Kind::Schedule => {
                 let a = self.schedule.press();
@@ -1460,7 +1501,8 @@ impl Shell {
             | Kind::Privacy
             | Kind::Sys
             | Kind::Repair
-            | Kind::Schedule => {}
+            | Kind::Schedule
+            | Kind::Files => {}
             Kind::Clean => {
                 if self.clean.dragging {
                     self.clean.drag_to(y);
@@ -1488,6 +1530,7 @@ impl Shell {
             | Kind::Sys
             | Kind::Repair
             | Kind::Schedule
+            | Kind::Files
             | Kind::Clean => {}
             Kind::Dups => {
                 let popup = self.dups.right_click();
@@ -1515,6 +1558,16 @@ impl Shell {
 
     fn wheel(&mut self, delta: winit::event::MouseScrollDelta) {
         let s = self.scale();
+        // Over the sidebar: its entries scroll (when they do not all fit).
+        if self.cursor.is_some_and(|(x, y)| self.side.area.contains(x, y)) {
+            let rows = match delta {
+                winit::event::MouseScrollDelta::LineDelta(_, l) => (-l).round() as isize,
+                winit::event::MouseScrollDelta::PixelDelta(p) => (-p.y / 30.0).round() as isize,
+            };
+            self.side_scroll = (self.side_scroll as isize + rows).clamp(0, self.side.max_scroll as isize) as usize;
+            self.redraw();
+            return;
+        }
         match PAGES[self.selected].kind {
             Kind::Custom | Kind::Maint => {}
             Kind::Startup => self.startup.wheel(delta),
@@ -1523,7 +1576,7 @@ impl Shell {
             Kind::Registry => self.registry.wheel(delta, self.cursor),
             Kind::Protect | Kind::Net | Kind::Privacy | Kind::Sys => {}
             Kind::Repair => self.repair.wheel(delta),
-            Kind::Schedule => {}
+            Kind::Schedule | Kind::Files => {}
             Kind::Speed => self.speed.wheel(delta),
             Kind::Clean => self.clean.wheel(&mut self.gfx, s, delta, self.cursor),
             Kind::Dups => self.dups.wheel(delta, self.cursor),
@@ -1550,6 +1603,7 @@ impl Shell {
             Kind::Sys => self.sys.animate(),
             Kind::Repair => self.repair.animate(),
             Kind::Schedule => self.schedule.animate(),
+            Kind::Files => self.files.animate(),
             Kind::Speed => self.speed.animate(),
             Kind::Clean => self.clean.animate().then(|| Instant::now() + Duration::from_millis(40)),
             Kind::Dups => self.dups.animate().map(|d| Instant::now() + d),
@@ -1717,6 +1771,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     | Kind::Sys
                     | Kind::Repair
                     | Kind::Schedule
+                    | Kind::Files
                     | Kind::Clean
                     | Kind::Inst => {}
                 }
@@ -1918,6 +1973,7 @@ pub fn run() {
         sys: SysPage::new(admin),
         repair: RepairPage::new(admin),
         schedule: SchedulePage::new(admin, data_dir.clone()),
+        files: FilesPage::default(),
         speed: SpeedPage::new(admin),
         volumes: None,
         disks_running: false,
@@ -1947,6 +2003,7 @@ pub fn run() {
         cursor_icon: CursorIcon::Default,
         side: sidebar::Layout::default(),
         side_hot: None,
+        side_scroll: 0,
         dialog: help.then(|| Message::new("rcare", USAGE)),
         custom_once: folders.into_iter().next(),
         tray,

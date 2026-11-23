@@ -10,6 +10,8 @@ pub mod custom;
 pub mod disks;
 pub mod extensions;
 pub mod extensions_page;
+pub mod files;
+pub mod files_page;
 pub mod i18n;
 pub mod maint;
 pub mod net;

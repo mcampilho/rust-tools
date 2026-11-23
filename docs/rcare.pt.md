@@ -42,6 +42,7 @@ System Information" na lista abaixo fica de propósito para mais tarde.
 | `crates/rt-core/src/menu.rs` | `M::map` (converter os comandos de um menu noutro tipo) |
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; estado dos discos pelo `Get-Volume` |
 | `apps/rcare/src/schedule.rs`, `schedule_page.rs` | Agendador: agendamentos no Agendador de Tarefas do Windows que correm `rcare --run …` (reparos, o lixo marcado), o registo e as últimas execuções |
+| `apps/rcare/src/files.rs`, `files_page.rs` | Ferramentas de ficheiros: pastas vazias (para a Reciclagem) e o File Shredder |
 | `apps/rcare/src/bg.rs` | Trabalho fora do fio da janela (`Job`) |
 | `apps/rcare/src/repair.rs`, `repair_page.rs` | Reparar: SFC, DISM, chkdsk /scan por disco NTFS (e /spotfix), o menu Iniciar; o que a ferramenta escreve à medida que chega, com o progresso |
 | `apps/rcare/src/sysinfo.rs`, `sysinfo_page.rs` | System Information: Windows, o computador, gráficos, saúde dos discos, dispositivos com problemas, bateria; Arranque rápido, Aplicações predefinidas, Atualizações de controladores (páginas do Windows); Copiar |
@@ -130,6 +131,22 @@ Criar…, Correr agora, Apagar… (perguntam), Abrir o registo. Verificado: os f
 (testes), `rcare --run sfc` sem administrador (o SFC recusou, registado nos dois ficheiros, código 1), imagens, a
 página no `.exe` a sério. **Não verificado**: criar, correr e apagar uma tarefa a sério (precisam de administrador),
 uma limpeza agendada (apagaria a sério o lixo deste PC).
+
+## Ferramentas de ficheiros (2026-11-23, escolha do utilizador entre o "Depois"; página do próprio rcare, depois do Agendador)
+
+Empty Folder Scanner e File Shredder numa só página, dois cartões. `files.rs`: `empty_folders(raiz, stop)` lista a
+pasta de cima de cada ramo sem nenhum ficheiro lá dentro (e quantas pastas vazias tem); ligações e junções nunca são
+seguidas nem contam como vazias, uma pasta que não se lê não está vazia, `$Recycle.Bin`, `System Volume Information` e
+`$WINDOWS.~BT` ficam de fora, e a pasta escolhida nunca aparece. As marcadas vão para a Reciclagem (`rt_sys::recycle`)
+depois de perguntar. `shred(caminho)`: tira o só de leitura, escreve bytes aleatórios por cima (xorshift; só têm de ser
+diferentes dos do ficheiro), grava no disco, corta, muda o nome ao acaso, apaga; `shred_all` aceita ficheiros e pastas
+(uma pasta: todos os ficheiros, depois as pastas que ficaram vazias, as mais fundas primeiro). A pergunta diz que nada
+os recupera e que um SSD ou uma pen USB pode guardar cópias antigas dos blocos. A página: Escolher a pasta… (diálogo de
+pastas), Procurar, Remover…; Acrescentar ficheiros… (`Dialogs::open_files`, novo no `rt-ui`, vários ficheiros),
+Acrescentar uma pasta…, Limpar, Destruir…; o trabalho em `bg::Job`. A barra lateral passou a deslizar (roda, a entrada
+escolhida sempre à vista, esbatido nas pontas), porque 19 entradas já não cabem numa janela baixa. Verificado: os
+testes (ramos vazios, ligações, destruição com um ficheiro só de leitura e uma pasta, nada fica com outro nome),
+imagens. **Não verificado**: a página no `.exe` a sério.
 
 ## A janela continua a responder; perguntas no tema (2026-11-23, testes do utilizador)
 

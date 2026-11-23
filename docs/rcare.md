@@ -39,6 +39,7 @@ the list below is deliberately left for later.
 | `crates/rt-core/src/menu.rs` | `M::map` (turn the commands of a menu into another type) |
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; drive health from `Get-Volume` |
 | `apps/rcare/src/schedule.rs`, `schedule_page.rs` | Scheduler: schedules in Windows' Task Scheduler running `rcare --run …` (repairs, the junk ticked), the log and the last runs |
+| `apps/rcare/src/files.rs`, `files_page.rs` | File Tools: empty folders (to the Recycle Bin) and the File Shredder |
 | `apps/rcare/src/bg.rs` | Work off the window's thread (`Job`) |
 | `apps/rcare/src/repair.rs`, `repair_page.rs` | Repair: SFC, DISM, chkdsk /scan per NTFS drive (and /spotfix), the Start menu; the tool's output as it comes, with its progress |
 | `apps/rcare/src/sysinfo.rs`, `sysinfo_page.rs` | System Information: Windows, the computer, graphics, drives' health, devices with a problem, battery; Fast Startup, Default Apps, Driver Updates (Windows' pages); Copy |
@@ -123,6 +124,21 @@ each, the last runs; Create…, Run Now, Delete… (each asks), Open the Log. Ve
 reading (tests), `rcare --run sfc` without administrator rights (SFC refused, recorded in both files, exit code 1),
 screenshots, the page in the real `.exe`. **Not verified**: creating, running and deleting a task for real (they need
 administrator rights), a scheduled cleaning (it would really delete this PC's junk).
+
+## File Tools (2026-11-23, the user's choice from "Later"; rcare's own page, after the Scheduler)
+
+Empty Folder Scanner and File Shredder on one page, two cards. `files.rs`: `empty_folders(root, stop)` lists the top
+folder of each branch with no file anywhere inside (and how many empty folders it holds); links and junctions are
+never followed nor counted as empty, a folder that cannot be read is not empty, `$Recycle.Bin`, `System Volume
+Information` and `$WINDOWS.~BT` are left alone, and the chosen folder itself is never listed. The ticked ones go to the
+Recycle Bin (`rt_sys::recycle`) after a question. `shred(path)`: read-only cleared, the bytes overwritten with random
+ones (xorshift; only unlike the file's), flushed, truncated, renamed at random, deleted; `shred_all` takes files and
+folders (a folder: all its files, then the emptied folders, deepest first). The question says that nothing brings the
+files back and that an SSD or USB stick may keep old copies of the blocks. The page: Choose the Folder… (folder
+dialog), Scan, Remove…; Add Files… (`Dialogs::open_files`, new in `rt-ui`, several files), Add a Folder…, Clear, Shred…;
+the work in `bg::Job`s. The sidebar now scrolls (wheel, the selected entry kept in sight, a fade at the edges) because
+19 entries no longer fit a low window. Verified: the tests (empty branches, links, shredding with a read-only file and
+a folder, nothing left under another name), screenshots. **Not verified**: the page in the real `.exe`.
 
 ## The window keeps answering; questions in the theme (2026-11-23, the user's tests)
 

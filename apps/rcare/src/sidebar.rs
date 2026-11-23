@@ -21,7 +21,12 @@ pub enum Hit {
 pub struct Layout {
     pub area: Rect,
     pub toggle: Rect,
+    /// Every page's entry, where it is (those scrolled away lie outside `list`).
     pub items: Vec<Rect>,
+    /// Where the entries are shown (they are clipped to it).
+    pub list: Rect,
+    /// How far the entries can scroll (0: they all fit).
+    pub max_scroll: usize,
 }
 
 /// How wide the sidebar is.
@@ -29,31 +34,47 @@ pub fn width(collapsed: bool, s: f32) -> f32 {
     ((if collapsed { 52.0 } else { 224.0 }) * s).round()
 }
 
-/// Where the button and the entries go in `area`, the sidebar's rectangle.
-pub fn layout(area: Rect, pages: usize, s: f32) -> Layout {
+/// Where the button and the entries go in `area`, the sidebar's rectangle;
+/// `scroll` is the first entry shown when they do not all fit.
+pub fn layout(area: Rect, pages: usize, s: f32, scroll: usize) -> Layout {
     let pad = (6.0 * s).round();
     let row = (40.0 * s).round();
     let toggle = Rect::new(area.x + pad, area.y + (8.0 * s).round(), area.w - 2.0 * pad, row);
-    let mut y = toggle.bottom() + (10.0 * s).round();
-    // Many pages in a low window: the entries get shorter (down to 22 px, the icon's height) so all of them show.
+    let top = toggle.bottom() + (10.0 * s).round();
+    let list = Rect::new(area.x, top, area.w, (area.bottom() - top - pad).max(0.0));
+    // Many pages in a low window: the entries get shorter so all of them show; below 26 px
+    // they stay 26 px and the list scrolls.
     let gap = (2.0 * s).round();
-    let room = area.bottom() - y - pad;
-    let item = if pages == 0 { row } else { ((room / pages as f32) - gap).floor().clamp((22.0 * s).round(), row) };
-    let items = (0..pages)
-        .map(|_| {
-            let r = Rect::new(area.x + pad, y, area.w - 2.0 * pad, item);
-            y += item + gap;
-            r
-        })
-        .collect();
-    Layout { area, toggle, items }
+    let least = (26.0 * s).round();
+    let fit = if pages == 0 { row } else { ((list.h / pages as f32) - gap).floor() };
+    let item = fit.clamp(least, row);
+    let shown = (((list.h + gap) / (item + gap)).floor() as usize).max(1);
+    let max_scroll = pages.saturating_sub(shown);
+    let scroll = scroll.min(max_scroll);
+    let items =
+        (0..pages).map(|i| Rect::new(area.x + pad, top + (i as f32 - scroll as f32) * (item + gap), area.w - 2.0 * pad, item)).collect();
+    Layout { area, toggle, items, list, max_scroll }
 }
 
 pub fn hit(l: &Layout, x: f32, y: f32) -> Option<Hit> {
     if l.toggle.contains(x, y) {
         Some(Hit::Toggle)
-    } else {
+    } else if l.list.contains(x, y) {
         l.items.iter().position(|r| r.contains(x, y)).map(Hit::Page)
+    } else {
+        None
+    }
+}
+
+/// The first entry to show so that entry `i` is in view.
+pub fn scroll_to(l: &Layout, scroll: usize, i: usize) -> usize {
+    let shown = l.items.len().saturating_sub(l.max_scroll).max(1);
+    if i < scroll {
+        i
+    } else if i >= scroll + shown {
+        (i + 1 - shown).min(l.max_scroll)
+    } else {
+        scroll.min(l.max_scroll)
     }
 }
 
@@ -87,7 +108,11 @@ pub fn draw(g: &mut Gfx, l: &Layout, th: &Theme, s: f32, state: State, pages: &[
         let r = Rect::new(icon.right() + 14.0 * s, l.toggle.y, l.toggle.right() - icon.right() - 18.0 * s, l.toggle.h);
         g.text_in(&tr("Sidebar"), r, px, FontId::Regular, th.dim, Align::Left);
     }
+    g.set_clip(Some(l.list));
     for (i, (r, p)) in l.items.iter().zip(pages).enumerate() {
+        if r.bottom() < l.list.y || r.y > l.list.bottom() {
+            continue;
+        }
         let on = i == selected;
         if on {
             g.fill_rrect(*r, 6.0 * s, th.selection);
@@ -101,6 +126,23 @@ pub fn draw(g: &mut Gfx, l: &Layout, th: &Theme, s: f32, state: State, pages: &[
             let t = Rect::new(icon.right() + 14.0 * s, r.y, r.right() - icon.right() - 18.0 * s, r.h);
             let font = if on { FontId::Semibold } else { FontId::Regular };
             g.text_in(&tr(p.label), t, px, font, th.text, Align::Left);
+        }
+    }
+    g.set_clip(None);
+    // More above or below: a fade at that edge.
+    if l.max_scroll > 0 {
+        let fade = (14.0 * s).round();
+        let first_shown = l.items.first().is_some_and(|r| r.y >= l.list.y - 0.5);
+        let last_shown = l.items.last().is_some_and(|r| r.bottom() <= l.list.bottom() + 0.5);
+        for k in 0..fade as u32 {
+            let a = ((1.0 - k as f32 / fade) * 200.0) as u8;
+            let c = th.panel.with_alpha(a);
+            if !first_shown {
+                g.fill_rect(Rect::new(l.area.x, l.list.y + k as f32, l.area.w - 1.0, 1.0), c);
+            }
+            if !last_shown {
+                g.fill_rect(Rect::new(l.area.x, l.list.bottom() - 1.0 - k as f32, l.area.w - 1.0, 1.0), c);
+            }
         }
     }
 }
@@ -177,6 +219,13 @@ fn draw_glyph(g: &mut Gfx, glyph: Glyph, r: Rect, c: rt_gfx::gfx::Color) {
             };
             cog(g, r.x + r.w * 0.38, r.y + r.h * 0.6, r.w * 0.4, 8);
             cog(g, r.x + r.w * 0.8, r.y + r.h * 0.22, r.w * 0.24, 6);
+        }
+        Glyph::Folder => {
+            // A folder: its tab, then its body.
+            let tab = Rect::new(r.x, r.y + r.h * 0.12, r.w * 0.42, r.h * 0.2);
+            g.fill_rrect(tab, 2.0, c);
+            let body = Rect::new(r.x, r.y + r.h * 0.26, r.w, r.h * 0.62);
+            g.stroke_rrect(body, 2.0, 1.6, c);
         }
         Glyph::Clock => {
             // A dial and its two hands.
@@ -322,12 +371,14 @@ mod tests {
 
     #[test]
     fn entries_are_found_under_the_pointer() {
-        let l = layout(Rect::new(0.0, 0.0, width(false, 1.0), 600.0), PAGES.len() + 2, 1.0);
+        // Tall enough for every entry: nothing scrolls.
+        let l = layout(Rect::new(0.0, 0.0, width(false, 1.0), 1200.0), PAGES.len() + 2, 1.0, 0);
+        assert_eq!(l.max_scroll, 0);
         assert_eq!(hit(&l, 20.0, l.toggle.y + 5.0), Some(Hit::Toggle));
         for (i, r) in l.items.iter().enumerate() {
             assert_eq!(hit(&l, r.x + 5.0, r.y + 5.0), Some(Hit::Page(i)));
         }
-        assert_eq!(hit(&l, 20.0, 590.0), None);
+        assert_eq!(hit(&l, 20.0, 1190.0), None);
         // The entries stay inside the sidebar and do not overlap.
         for w in l.items.windows(2) {
             assert!(w[0].bottom() <= w[1].y);
@@ -336,9 +387,29 @@ mod tests {
     }
 
     #[test]
+    fn many_pages_in_a_low_window_scroll() {
+        let area = Rect::new(0.0, 0.0, width(false, 1.0), 420.0);
+        let l = layout(area, 20, 1.0, 0);
+        assert!(l.max_scroll > 0, "20 pages do not fit 420 px");
+        assert!(l.items.iter().all(|r| r.h >= 26.0), "entries stay readable");
+        // Scrolled to the end: the last entry is shown, the first is not hit.
+        let end = layout(area, 20, 1.0, 99);
+        let last = end.items[19];
+        assert!(last.bottom() <= end.list.bottom() + 0.5 && last.y >= end.list.y);
+        assert_eq!(hit(&end, last.x + 5.0, last.y + 5.0), Some(Hit::Page(19)));
+        assert!(end.items[0].bottom() < end.list.y, "the first is scrolled away");
+        // Choosing a page scrolls to it.
+        assert_eq!(scroll_to(&l, 0, 19), l.max_scroll);
+        assert_eq!(scroll_to(&l, l.max_scroll, 0), 0);
+        assert_eq!(scroll_to(&l, 2, 3), 2, "already in view");
+        // Enough room: no scrolling at all.
+        assert_eq!(layout(Rect::new(0.0, 0.0, 224.0, 1400.0), 20, 1.0, 5).max_scroll, 0);
+    }
+
+    #[test]
     fn the_icon_does_not_move_when_collapsing() {
-        let open = layout(Rect::new(0.0, 0.0, width(false, 1.0), 600.0), 1, 1.0);
-        let shut = layout(Rect::new(0.0, 0.0, width(true, 1.0), 600.0), 1, 1.0);
+        let open = layout(Rect::new(0.0, 0.0, width(false, 1.0), 600.0), 1, 1.0, 0);
+        let shut = layout(Rect::new(0.0, 0.0, width(true, 1.0), 600.0), 1, 1.0, 0);
         assert_eq!(icon_box(open.items[0], 1.0).x, icon_box(shut.items[0], 1.0).x);
     }
 }

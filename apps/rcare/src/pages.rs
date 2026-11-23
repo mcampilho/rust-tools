@@ -38,6 +38,8 @@ pub enum Kind {
     Repair,
     /// rcare's own: the slow work at a set time.
     Schedule,
+    /// rcare's own: File Tools.
+    Files,
 }
 
 /// A page in the sidebar.
@@ -88,6 +90,8 @@ pub enum Glyph {
     Wrench,
     /// A clock: the scheduler.
     Clock,
+    /// A folder: the file tools.
+    Folder,
 }
 
 pub const PAGES: &[PageInfo] = &[
@@ -108,6 +112,7 @@ pub const PAGES: &[PageInfo] = &[
     PageInfo { id: "sysinfo", kind: Kind::Sys, label: "System Information", glyph: Glyph::Monitor },
     PageInfo { id: "repair", kind: Kind::Repair, label: "Repair", glyph: Glyph::Wrench },
     PageInfo { id: "schedule", kind: Kind::Schedule, label: "Scheduler", glyph: Glyph::Clock },
+    PageInfo { id: "files", kind: Kind::Files, label: "File Tools", glyph: Glyph::Folder },
 ];
 
 /// The index of the page saved as `id`; the first one when it is unknown.

@@ -46,6 +46,8 @@ pub enum Cmd {
     Repair(crate::repair_page::Action),
     /// Scheduler: a button of its bar.
     Schedule(crate::schedule_page::Action),
+    /// File Tools: a button of its page.
+    Files(crate::files_page::Action),
     /// Custom Clean: the junk, duplicates and large files analysed together.
     CustomAnalyze,
     /// Custom Clean: the folder where duplicates and large files are looked for.
@@ -168,6 +170,7 @@ impl Cmd {
             Sys(a) => a.label_key(),
             Repair(a) => a.label_key(),
             Schedule(a) => a.label_key(),
+            Files(a) => a.label_key(),
             CustomAnalyze => "&Analyze",
             CustomFolder => "Change &Folder...",
             Sidebar => "Collapse Side&bar",
@@ -437,6 +440,26 @@ fn page_menus(page: usize) -> Own {
                         Item::Item(Schedule(A::Delete)),
                         Item::Sep,
                         Item::Item(Schedule(A::Log)),
+                    ],
+                )],
+            }
+        }
+        Some(Kind::Files) => {
+            use crate::files_page::Action as A;
+            Own {
+                file: Vec::new(),
+                view: Vec::new(),
+                rest: vec![(
+                    "&Edit",
+                    vec![
+                        Item::Item(Files(A::ChooseFolder)),
+                        Item::Item(Files(A::Scan)),
+                        Item::Item(Files(A::Remove)),
+                        Item::Sep,
+                        Item::Item(Files(A::AddFiles)),
+                        Item::Item(Files(A::AddFolder)),
+                        Item::Item(Files(A::Clear)),
+                        Item::Item(Files(A::Shred)),
                     ],
                 )],
             }

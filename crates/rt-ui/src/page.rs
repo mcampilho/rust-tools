@@ -45,6 +45,10 @@ pub trait Dialogs {
     fn save_file(&mut self, name: &str, kind: (&str, &str), dir: Option<&std::path::Path>) -> Option<std::path::PathBuf>;
     /// Moves a file or folder to the Recycle Bin (the trash on Linux).
     fn recycle(&mut self, path: &std::path::Path) -> Result<(), String>;
+    /// Asks for files (any kind, several at once); none when cancelled or not offered here.
+    fn open_files(&mut self) -> Vec<std::path::PathBuf> {
+        Vec::new()
+    }
 }
 
 /// The dialogs of the system, over the window `hwnd` (Windows) or alone (Linux).
@@ -65,6 +69,10 @@ impl Dialogs for SystemDialogs {
     fn save_file(&mut self, name: &str, kind: (&str, &str), dir: Option<&std::path::Path>) -> Option<std::path::PathBuf> {
         let filter = rt_sys::win::dialogs::filter(&[(kind.0.to_string(), kind.1)]);
         rt_sys::win::dialogs::save_file(self.hwnd, name, dir, &filter)
+    }
+    fn open_files(&mut self) -> Vec<std::path::PathBuf> {
+        // A filter must end in two NULs: every file.
+        rt_sys::win::dialogs::open_files(self.hwnd, None, &rt_sys::win::dialogs::filter(&[("*.*".to_string(), "*.*")]))
     }
     fn recycle(&mut self, path: &std::path::Path) -> Result<(), String> {
         rt_sys::win::recycle(self.hwnd, path)
