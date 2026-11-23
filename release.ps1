@@ -91,10 +91,11 @@ foreach ($app in $chosen) {
     $current = Get-AppVersion $app
     $last = Get-LastTag $app
     $lastVersion = if ($last) { $last -replace '^.*-v', '' } else { $null }
-    # What changed since: the app's folder and the crates it is built from.
+    # What changed since: the app's folder and the crates it is built from, but documentation
+    # (a README or a CLAUDE.md is not a reason for a new release).
     $changes = 0
     if ($last) {
-        $changes = [int]((Invoke-Git rev-list --count "$last..HEAD" -- "apps/$app" crates | Out-String).Trim())
+        $changes = [int]((Invoke-Git rev-list --count "$last..HEAD" -- "apps/$app" crates ':(exclude)*.md' | Out-String).Trim())
     }
     if (-not $All -and -not $Apps -and $last -and $changes -eq 0) { continue }
     if (-not $last) {
