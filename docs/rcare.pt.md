@@ -166,8 +166,7 @@ apagam-se inteiras (o Windows volta a criá-las), os ficheiros apagam-se (um já
 histórico, os cookies nem as palavras-passe dos browsers. Aqui: 114 documentos recentes, 2 no Executar, 21 nas
 caixas, 32 ficheiros de listas de saltos. Verificado: essa contagem, apagar ficheiros numa pasta própria (teste),
 imagens, a página no `.exe` a sério (não apaga nada sozinha). **Não verificado**: limpar a sério os rastos deste PC, e
-a área de transferência. Ainda não está na verificação de um clique do System Maintenance (o plano dele inclui a
-varredura de privacidade): um passo para depois.
+a área de transferência. Também contada na verificação de um clique do System Maintenance (a segunda linha).
 
 ## Internet Booster (fase 5, página do próprio rcare)
 
@@ -352,7 +351,8 @@ ecrã.
    Privacy Sweep. ~~Fase 6~~ feita (2026-11-23): System Information (com Arranque rápido, Aplicações predefinidas,
    Atualizações de controladores) e Reparar (SFC, DISM, chkdsk, menu Iniciar). Ver as secções. A lista do utilizador até
    System Information está coberta.
-8. A seguir: a Privacy Sweep na verificação de um clique do System Maintenance; o que ficou de fora de propósito ou
+8. ~~A Privacy Sweep na verificação de um clique do System Maintenance~~ feita (2026-11-23): uma sexta linha, com os
+   rastos marcados na Privacy Sweep (a verificação corre-a também), o botão abre essa página. A seguir: o que ficou de fora de propósito ou
    para depois (ver "Depois" abaixo: Auto Shutdown, Context Menu Manager, File Shredder, Empty Folder Scanner,
    Process Manager…); o primeiro release `rcare-v0.1.0` (um push e uma etiqueta: perguntar ao utilizador) e o bucket do
    Scoop.

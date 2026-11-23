@@ -26,7 +26,7 @@ Pages so far:
 
 | Page | The small tool | What it does |
 | --- | --- | --- |
-| System Maintenance | – (rcare's own) | The checks in one go (F5): junk, broken shortcuts, invalid registry entries, programs with a problem, and what Windows says about each drive; each row opens the page that fixes it. Nothing is changed there |
+| System Maintenance | – (rcare's own) | The checks in one go (F5): junk, Windows' traces (Privacy Sweep), broken shortcuts, invalid registry entries, programs with a problem, and what Windows says about each drive; each row opens the page that fixes it. Nothing is changed there |
 | Custom Clean | – (rcare's own) | Junk, duplicate and large files (100 MB or more) of a folder in one look, with a button to review each in its page; F5 analyses. Nothing is deleted there |
 | Disk Cleaner | [rclean](../rclean/README.md) | Temporary files, browser and package manager caches, broken shortcuts, invalid registry entries |
 | Duplicate Files | [rdup](../rdup/README.md) | Files and folders with the same contents on several drives and folders at once |

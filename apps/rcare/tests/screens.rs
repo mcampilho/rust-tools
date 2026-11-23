@@ -80,6 +80,7 @@ fn maint(g: &mut Gfx, r: Rect, th: &Theme) {
     let mut page = MaintPage::default();
     page.view.status = [
         Status::Done { bytes: 4_812_000_000, count: 23_410 },
+        Status::Done { bytes: 0, count: 137 },
         Status::Done { bytes: 0, count: 0 },
         Status::Done { bytes: 0, count: 7 },
         Status::Working,

@@ -2,8 +2,8 @@
 //! each, with what each found and a button to the page where it is fixed.
 //! Like Custom Clean, it is rcare's own page and changes nothing: the
 //! cleaner looks for junk, broken shortcuts and invalid registry entries,
-//! the uninstaller for programs with a problem, and Windows says how the
-//! drives are (`disks`). More checks join as the later phases bring them.
+//! the uninstaller for programs with a problem, the Privacy Sweep counts
+//! Windows' traces, and Windows says how the drives are (`disks`). More checks join as the later phases bring them.
 //!
 //! This module only lays out, finds what the pointer is on and draws; the
 //! window (`shell.rs`) reads the other pages and fills a [`View`].
@@ -15,10 +15,14 @@ use rt_ui::page::Effects;
 use rt_ui::theme::Theme;
 use winit::window::CursorIcon;
 
+/// How many checks there are.
+pub const N: usize = 6;
+
 /// One check.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Check {
     Junk,
+    Privacy,
     Shortcuts,
     Registry,
     Software,
@@ -26,12 +30,13 @@ pub enum Check {
 }
 
 impl Check {
-    pub const ALL: [Check; 5] = [Check::Junk, Check::Shortcuts, Check::Registry, Check::Software, Check::Disks];
+    pub const ALL: [Check; N] = [Check::Junk, Check::Privacy, Check::Shortcuts, Check::Registry, Check::Software, Check::Disks];
 
     /// The row's title (a translation key).
     pub fn title(self) -> &'static str {
         match self {
             Check::Junk => "Junk Files",
+            Check::Privacy => "Privacy Sweep",
             Check::Shortcuts => "Broken Shortcuts",
             Check::Registry => "Invalid Registry Entries",
             Check::Software => "Software Health",
@@ -43,6 +48,7 @@ impl Check {
     pub fn about(self) -> &'static str {
         match self {
             Check::Junk => "Temporary files and the caches of the system, the browsers and the package managers.",
+            Check::Privacy => "The traces Windows keeps: recent documents, the Run box, Explorer's history.",
             Check::Shortcuts => "Shortcuts whose program or file is gone.",
             Check::Registry => "Uninstall entries, startup entries and paths that point to nothing.",
             Check::Software => "Programs whose uninstaller is gone or whose install failed.",
@@ -55,6 +61,7 @@ impl Check {
         match self {
             Check::Junk | Check::Shortcuts | Check::Registry => Some("clean"),
             Check::Software => Some("inst"),
+            Check::Privacy => Some("privacy"),
             Check::Disks => None,
         }
     }
@@ -75,6 +82,9 @@ pub fn result_line(check: Check, status: &Status) -> (String, Option<bool>) {
                 (Check::Registry, false) if one => tr("One invalid entry"),
                 (Check::Software, false) if one => tr("One program with a problem"),
                 (Check::Disks, false) if one => tr("One drive needs a repair"),
+                (Check::Privacy, false) if one => tr("One trace"),
+                (Check::Privacy, true) => tr("No traces"),
+                (Check::Privacy, false) => tf("{} traces", &[&n]),
                 (Check::Junk, true) => tr("Nothing to clean"),
                 (Check::Junk, false) => tf("{} in {} files", &[&rsize::format::size(*bytes), &n]),
                 (Check::Shortcuts, true) => tr("No broken shortcuts"),
@@ -102,7 +112,7 @@ pub enum Hit {
 /// What the page shows.
 #[derive(Clone, Debug, Default)]
 pub struct View {
-    pub status: [Status; 5],
+    pub status: [Status; N],
     pub hot: Option<Hit>,
     /// The checks can be started (nothing is running).
     pub can_scan: bool,
@@ -126,8 +136,8 @@ impl View {
 pub struct Layout {
     pub area: Rect,
     pub scan: Rect,
-    pub rows: [Rect; 5],
-    pub buttons: [Rect; 5],
+    pub rows: [Rect; N],
+    pub buttons: [Rect; N],
 }
 
 /// Where everything goes in `area`: the rows as tall as the page lets them be.
@@ -138,8 +148,8 @@ pub fn layout(area: Rect, s: f32) -> Layout {
     let scan = Rect::new(inner.x, inner.y + (66.0 * s).round(), (180.0 * s).round(), bh);
     let top = scan.bottom() + (20.0 * s).round();
     let gap = (6.0 * s).round();
-    let h = ((inner.bottom() - top - 4.0 * gap) / 5.0).clamp(52.0 * s, 68.0 * s).floor();
-    let mut rows = [Rect::default(); 5];
+    let h = ((inner.bottom() - top - (N - 1) as f32 * gap) / N as f32).clamp(44.0 * s, 68.0 * s).floor();
+    let mut rows = [Rect::default(); N];
     for (i, r) in rows.iter_mut().enumerate() {
         *r = Rect::new(inner.x, top + i as f32 * (h + gap), inner.w, h);
     }
@@ -368,7 +378,7 @@ mod tests {
             for pair in l.rows.windows(2) {
                 assert!(pair[0].bottom() <= pair[1].y);
             }
-            assert!(l.rows[4].bottom() <= l.area.bottom(), "the last row is cut at {w}x{h}");
+            assert!(l.rows[N - 1].bottom() <= l.area.bottom(), "the last row is cut at {w}x{h}");
         }
     }
 

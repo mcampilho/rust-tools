@@ -156,8 +156,8 @@ key is nothing). Sweeping asks with the list; each trace's keys go to `backups\p
 deleted whole (Windows makes them again), files are deleted (one already gone is not a failure). Never the
 browsers' history, cookies or passwords. Here: 114 recent documents, 2 in Run, 21 in the dialogs, 32 jump list files.
 Verified: that count, sweeping files in a folder of its own (test), screenshots, the page in the real `.exe` (nothing
-swept on its own). **Not verified**: sweeping this PC's traces for real, and the clipboard. Not yet in System
-Maintenance's one-click check (its plan lists a privacy sweep): a step for later.
+swept on its own). **Not verified**: sweeping this PC's traces for real, and the clipboard. Also counted by System
+Maintenance's one-click check (its second row).
 
 ## Internet Booster (phase 5, rcare's own page)
 
@@ -338,7 +338,8 @@ connection to the privileged service `rtsvc` from rcare (the pages use it as the
    Booster, Privacy Sweep. ~~Phase 6~~ done (2026-11-23): System Information (with Fast Startup, Default Apps, Driver
    Updates) and Repair (SFC, DISM, chkdsk, Start menu). See their sections. The user's list up to System Information is
    covered.
-8. Next: the Privacy Sweep in System Maintenance's one-click check; what was left out on purpose or for later (see
+8. ~~The Privacy Sweep in System Maintenance's one-click check~~ done (2026-11-23): a sixth row, counting the traces
+   ticked in the Privacy Sweep (the scan runs it too), its button opens that page. Next: what was left out on purpose or for later (see
    "Later" below: Auto Shutdown, Context Menu Manager, File Shredder, Empty Folder Scanner, Process Manager…); the
    first release `rcare-v0.1.0` (a push and a tag: ask the user) and the Scoop bucket.
 

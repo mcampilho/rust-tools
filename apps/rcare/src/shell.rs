@@ -399,7 +399,7 @@ impl Shell {
     }
 
     /// How far each check got, read from the pages that do the work.
-    fn maint_status(&self) -> [Status; 5] {
+    fn maint_status(&self) -> [Status; maint::N] {
         use rclean::targets::Group;
         let clean_done = self.clean.app.busy.is_none() && self.started[pages::index_of("clean")];
         let of_group = |want: &dyn Fn(Group) -> bool, ticked_only: bool| {
@@ -445,7 +445,14 @@ impl Shell {
         } else {
             Status::NotYet
         };
-        [junk, shortcuts, registry, software, disks]
+        // The traces ticked in the Privacy Sweep (the clipboard cannot be counted).
+        let privacy = if self.privacy.rows.iter().all(|r| r.found.is_some()) && !self.privacy.rows.is_empty() {
+            let count = self.privacy.rows.iter().filter(|r| r.ticked).filter_map(|r| r.found.as_ref()).map(|f| f.count as u64).sum();
+            Status::Done { bytes: 0, count }
+        } else {
+            Status::NotYet
+        };
+        [junk, privacy, shortcuts, registry, software, disks]
     }
 
     /// Runs every check: the cleaner analyses, the uninstaller reads the
@@ -458,6 +465,8 @@ impl Shell {
         self.clean.analyse();
         self.started[pages::index_of("inst")] = true;
         self.inst.refresh();
+        self.started[pages::index_of("privacy")] = true;
+        self.privacy.scan();
         self.disks_running = true;
         let proxy = self.proxy.clone();
         std::thread::spawn(move || {
@@ -1522,7 +1531,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                         6 => self.dialog = None,
                         10 => self.command(el, Cmd::Sidebar),
                         30 if PAGES[self.selected].kind == Kind::Maint => self.command(el, Cmd::MaintScan),
-                        id @ 32..=36 if PAGES[self.selected].kind == Kind::Maint => self.maint_review(id as usize - 32),
+                        id @ 32..=37 if PAGES[self.selected].kind == Kind::Maint => self.maint_review(id as usize - 32),
                         30 if PAGES[self.selected].kind == Kind::Custom => self.command(el, Cmd::CustomAnalyze),
                         31 if PAGES[self.selected].kind == Kind::Custom => self.command(el, Cmd::CustomFolder),
                         id @ 32..=34 if PAGES[self.selected].kind == Kind::Custom => self.custom_review(id as usize - 32),
