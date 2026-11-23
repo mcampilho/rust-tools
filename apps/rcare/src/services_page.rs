@@ -92,6 +92,10 @@ pub struct ServicesPage {
     /// Where the copy is kept (rcare's data folder).
     pub dir: PathBuf,
     scale: f32,
+    /// Reading the services (the Service Control Manager can be slow while Windows is busy).
+    loading: crate::bg::Job<Vec<Service>>,
+    /// A change under way: the row, the start it goes to, and how it ended.
+    changing: crate::bg::Job<(usize, Start, Result<(), String>)>,
 }
 
 impl ServicesPage {
@@ -99,13 +103,56 @@ impl ServicesPage {
         ServicesPage { admin, dir, scale: 1.0, ..ServicesPage::default() }
     }
 
-    /// Reads the list again, keeping the selection on the same service.
+    /// Reads the list again in a thread; `animate` takes it, keeping the selection on the same service.
     pub fn refresh(&mut self) {
-        let keep = self.sel.and_then(|i| self.services.get(i)).map(|e| e.name.clone());
-        self.services = services::read(&Copy::load(&self.dir));
-        self.sel = keep.and_then(|n| self.services.iter().position(|e| e.name == n));
-        self.scroll = self.scroll.min(self.services.len().saturating_sub(1));
-        self.read = true;
+        let dir = self.dir.clone();
+        self.loading.start(move || services::read(&Copy::load(&dir)));
+        self.fx.redraw();
+    }
+
+    pub fn busy(&self) -> bool {
+        self.loading.busy() || self.changing.busy()
+    }
+
+    /// While reading or changing: takes what came, and when to look again.
+    pub fn animate(&mut self) -> Option<std::time::Instant> {
+        if let Some(list) = self.loading.take() {
+            let keep = self.sel.and_then(|i| self.services.get(i)).map(|e| e.name.clone());
+            self.services = list;
+            self.sel = keep.and_then(|n| self.services.iter().position(|e| e.name == n));
+            self.scroll = self.scroll.min(self.services.len().saturating_sub(1));
+            self.read = true;
+            self.fx.menus();
+            self.fx.redraw();
+        }
+        if let Some((i, to, res)) = self.changing.take() {
+            self.changed(i, to, res);
+        }
+        self.busy().then(crate::bg::soon)
+    }
+
+    /// A change ended: the row and the copy follow it, or why not is said.
+    fn changed(&mut self, i: usize, to: Start, res: Result<(), String>) {
+        let Some(e) = self.services.get(i).cloned() else { return };
+        let on = to.with_windows();
+        match res {
+            Ok(()) => {
+                if on {
+                    let mut copy = Copy::load(&self.dir);
+                    copy.forget(&e.name);
+                    let _ = copy.save(&self.dir);
+                }
+                let s = &mut self.services[i];
+                s.was = if on { None } else { Some(e.start) };
+                s.start = to;
+                self.note = Some(if on {
+                    tf("“{}” will start with Windows.", &[&e.display])
+                } else {
+                    tf("“{}” will start only when needed.", &[&e.display])
+                });
+            }
+            Err(why) => self.fx.info(&tr("Program Deactivator"), &tf("Could not change “{}”: {}", &[&e.display, &why])),
+        }
         self.fx.menus();
         self.fx.redraw();
     }
@@ -113,17 +160,17 @@ impl ServicesPage {
     pub fn enabled(&self, a: Action) -> bool {
         let sel = self.sel.and_then(|i| self.services.get(i));
         match a {
-            Action::Off => self.admin && sel.is_some_and(|e| e.on()),
-            Action::On => self.admin && sel.is_some_and(|e| !e.on()),
+            Action::Off => self.admin && !self.busy() && sel.is_some_and(|e| e.on()),
+            Action::On => self.admin && !self.busy() && sel.is_some_and(|e| !e.on()),
             Action::Open => sel.is_some_and(|e| e.file.as_ref().is_some_and(|f| f.parent().is_some_and(|d| d.is_dir()))),
-            Action::Refresh => true,
+            Action::Refresh => !self.busy(),
         }
     }
 
     /// Turns the service `i` off (after asking) or on; says why not when it cannot.
     fn set(&mut self, i: usize, on: bool, dialogs: &mut dyn Dialogs) {
         let Some(e) = self.services.get(i).cloned() else { return };
-        if e.on() == on {
+        if e.on() == on || self.busy() {
             return;
         }
         if !self.admin {
@@ -153,23 +200,10 @@ impl ServicesPage {
             }
             Start::Manual
         };
-        match services::set_start(&e.name, to) {
-            Ok(()) => {
-                if on {
-                    copy.forget(&e.name);
-                    let _ = copy.save(&self.dir);
-                }
-                let s = &mut self.services[i];
-                s.was = if on { None } else { Some(e.start) };
-                s.start = to;
-                self.note = Some(if on {
-                    tf("“{}” will start with Windows.", &[&e.display])
-                } else {
-                    tf("“{}” will start only when needed.", &[&e.display])
-                });
-            }
-            Err(why) => self.fx.info(&tr("Program Deactivator"), &tf("Could not change “{}”: {}", &[&e.display, &why])),
-        }
+        // The Service Control Manager can wait while Windows is busy: in a thread.
+        let name = e.name.clone();
+        self.changing.start(move || (i, to, services::set_start(&name, to)));
+        self.note = Some(tr("Changing…"));
         self.fx.menus();
         self.fx.redraw();
     }

@@ -4,6 +4,7 @@
 //! holds its page, and the small app and rcare both use it.
 
 pub mod appicon;
+pub mod bg;
 pub mod commands;
 pub mod custom;
 pub mod disks;

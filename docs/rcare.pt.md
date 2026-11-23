@@ -110,6 +110,27 @@ neste PC o disco S: diz "Warning / Full Repair Needed"). "Rever" abre o limpador
 muda nada. Mais verificações entram com as fases seguintes (limpeza de privacidade na fase 5 — apagar histórico ou
 cookies é decisão do utilizador, porque o rclean nunca o faz —, arranque, integridade do Windows na fase 6).
 
+## A janela continua a responder; perguntas no tema (2026-11-23, testes do utilizador)
+
+O utilizador viu a janela bloquear (e teve de a terminar) com o SFC ou o DISM a correr e outras páginas abertas, e
+caixas de confirmação brancas no modo escuro. Agora:
+
+- **Nada lento no fio da janela.** O `bg::Job` corre uma função num fio e a página recolhe o resultado no `animate` (a
+  janela chama o `animate` da página mostrada enquanto ela tem trabalho). Leituras: Startup Optimizer, Program
+  Deactivator (o Gestor de Serviços pode esperar pelo TrustedInstaller enquanto o SFC/DISM correm), Extensions, a
+  contagem da Privacy Sweep (também para o System Maintenance), a leitura de dois em dois segundos do Speed Up.
+  Alterações: o arranque de um serviço, a limpeza do Registry Cleaner e da Privacy Sweep (`reg.exe` por entrada),
+  libertar a lista de espera. Medido com `SendMessageTimeout` em cada página enquanto carrega: depois dos primeiros
+  ~400 ms da janela, responde em 1 ms ou menos. Não reproduzido com o SFC/DISM a correr (precisam de administrador).
+- **Perguntas desenhadas na janela** (`rt_gfx::dialog::draw_panel` com botões próprios,
+  `rt_ui::message::Message::question`): o `Dialogs::confirm` de uma página passa pelo `ShellDialogs`, que anota a
+  pergunta e responde não; a janela mostra-a com Sim e Não no seu tema (Enter Sim, Esc Não, os leitores de ecrã têm os
+  dois botões); Sim corre o mesmo comando outra vez e a mesma pergunta recebe sim uma vez. As páginas das apps
+  pequenas dentro do rcare também; as caixas de pastas e de guardar continuam as do Windows.
+- **As operações longas avisam antes**: SFC (5–20 minutos), DISM (20 minutos ou mais, rede), chkdsk (minutos a mais de
+  uma hora) e a análise rápida do Defender perguntam com quanto demoram e que o computador e as outras páginas se
+  podem usar entretanto.
+
 ## Reparar (fase 6, página do próprio rcare, a última da barra lateral)
 
 As ferramentas do próprio Windows, uma de cada vez (escolhas do utilizador): `sfc /scannow`; `DISM /Online

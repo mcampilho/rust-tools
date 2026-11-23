@@ -9,7 +9,7 @@ decisões e o que fica de fora de propósito (antivírus próprio, defrag do reg
 
 ```powershell
 ./dev.ps1 build --release -p rcare
-./dev.ps1 test -p rcare                                     # 69 testes
+./dev.ps1 test -p rcare                                     # 70 testes (mais 1 no binário)
 ./dev.ps1 clippy -p rcare --all-targets
 ./dev.ps1 test -p rcare --test screens '--' --ignored       # apps/rcare/target/screens/*.png
 ./dev.ps1 test -p rcare --lib picture '--' --ignored        # o ícone
@@ -59,6 +59,9 @@ Custom Clean (`custom.rs`) e System Maintenance (`maint.rs`, `disks.rs`; fase 2)
 Arranque verificado (abre, fecha com código 0). **Não verificado**: usar a janela. A compilação das apps pequenas religadas em Linux passou no CI
 (2026-11-22).
 ## Regras
+
+- Nada lento no fio da janela: leituras e alterações num `bg::Job`, recolhidas no `animate`.
+- Perguntas pelo `Dialogs::confirm` (desenhadas no tema pelo `ShellDialogs`), nunca a caixa do Windows.
 
 - Visível só pelo `strings.txt` (da app ou da página); teclas de acesso diferentes em cada menu em todas as línguas.
 - `README.md` e `README.pt.md` atualizados em conjunto.

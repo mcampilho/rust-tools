@@ -188,7 +188,16 @@ impl ProtectPage {
         }
         match a {
             Action::Refresh => self.refresh(),
-            Action::QuickScan => self.start(Job::QuickScan),
+            Action::QuickScan => {
+                let text = format!(
+                    "{}\n\n{}",
+                    tr("A quick scan by Microsoft Defender takes a few minutes, and the computer may be slower meanwhile. Start it now?"),
+                    tr("You can keep using the computer and the other pages meanwhile: the result shows here when it ends.")
+                );
+                if dialogs.confirm(&tr("Protect System"), &text) {
+                    self.start(Job::QuickScan);
+                }
+            }
             Action::UpdateDefinitions => self.start(Job::UpdateDefinitions),
             Action::TurnOn => {
                 let fixes = self.status.as_ref().map(Status::off).unwrap_or_default();

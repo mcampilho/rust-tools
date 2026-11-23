@@ -75,18 +75,29 @@ pub struct ExtensionsPage {
     pub read: bool,
     /// A line for the status bar (what was just done).
     pub note: Option<String>,
+    /// Reading the browsers' profiles, in a thread.
+    loading: crate::bg::Job<Vec<Extension>>,
 }
 
 impl ExtensionsPage {
-    /// Reads the list again, keeping the selection on the same extension.
+    /// Reads the list again in a thread; `animate` takes it, keeping the selection on the same extension.
     pub fn refresh(&mut self) {
-        let keep = self.sel.and_then(|i| self.list.get(i)).map(|e| (e.browser, e.profile_dir.clone(), e.id.clone()));
-        self.list = extensions::read();
-        self.sel = keep.and_then(|(b, p, id)| self.list.iter().position(|e| e.browser == b && e.profile_dir == p && e.id == id));
-        self.scroll = self.scroll.min(self.list.len().saturating_sub(1));
-        self.read = true;
-        self.fx.menus();
+        self.loading.start(extensions::read);
         self.fx.redraw();
+    }
+
+    /// While reading: takes the list when it comes, and when to look again.
+    pub fn animate(&mut self) -> Option<std::time::Instant> {
+        if let Some(list) = self.loading.take() {
+            let keep = self.sel.and_then(|i| self.list.get(i)).map(|e| (e.browser, e.profile_dir.clone(), e.id.clone()));
+            self.list = list;
+            self.sel = keep.and_then(|(b, p, id)| self.list.iter().position(|e| e.browser == b && e.profile_dir == p && e.id == id));
+            self.scroll = self.scroll.min(self.list.len().saturating_sub(1));
+            self.read = true;
+            self.fx.menus();
+            self.fx.redraw();
+        }
+        self.loading.busy().then(crate::bg::soon)
     }
 
     pub fn enabled(&self, a: Action) -> bool {

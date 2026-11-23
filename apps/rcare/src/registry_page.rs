@@ -161,6 +161,8 @@ pub struct RegistryPage {
     pub note: Option<String>,
     /// The scan under way: what it sends, and how many categories are left.
     scanning: Option<(Receiver<Scanned>, usize)>,
+    /// Cleaning (reg.exe once a key or value): (deleted, failed, the first error, the copies' folder).
+    cleaning: crate::bg::Job<(u64, u64, Option<String>, PathBuf)>,
 }
 
 impl RegistryPage {
@@ -169,7 +171,7 @@ impl RegistryPage {
     }
 
     pub fn busy(&self) -> bool {
-        self.scanning.is_some()
+        self.scanning.is_some() || self.cleaning.busy()
     }
 
     /// The folder of the `.reg` copies (the cleaner's, beside the settings).
@@ -206,8 +208,28 @@ impl RegistryPage {
         self.fx.redraw();
     }
 
-    /// While scanning: takes what arrived, and when to look again.
+    /// While scanning or cleaning: takes what arrived, and when to look again.
     pub fn animate(&mut self) -> Option<Instant> {
+        if let Some((done, failed, error, dir)) = self.cleaning.take() {
+            let mut text = tf("{} registry entries were deleted.", &[&done.to_string()]);
+            if failed > 0 {
+                text += "\n\n";
+                text += &tf("{} could not be deleted: {}", &[&failed.to_string(), error.as_deref().unwrap_or("")]);
+            }
+            if dir.is_dir() {
+                text += "\n\n";
+                text += &tf(
+                    "The registry entries were saved in {} first: open the .reg files there to put them back.",
+                    &[&dir.display().to_string()],
+                );
+            }
+            self.fx.info(&tr("Registry Cleaner"), &text);
+            self.note = Some(tf("{} registry entries were deleted.", &[&done.to_string()]));
+            self.scan();
+        }
+        if self.cleaning.busy() {
+            return Some(crate::bg::soon());
+        }
         let (recv, left) = self.scanning.as_mut()?;
         let (mut changed, mut gone) = (false, false);
         loop {
@@ -320,31 +342,26 @@ impl RegistryPage {
             format!("{:04}-{:02}-{:02} {:02}{:02}{:02}", t.year, t.month, t.day, t.hour, t.minute, t.second)
         };
         let dir = self.copies_dir().join(format!("registry {stamp}"));
-        let (mut done, mut failed, mut error) = (0u64, 0u64, None);
-        for &i in &work {
-            let found = Found { entries: self.cats[i].found.clone().unwrap_or_default(), ..Found::default() };
-            let c = registry::clean(&found, &dir.join(format!("{}.reg", self.cats[i].id)));
-            done += c.files;
-            failed += c.failed;
-            if error.is_none() {
-                error = c.error;
+        // reg.exe once an entry (the copy, then the delete): in a thread.
+        let work: Vec<(Found, String)> = work
+            .iter()
+            .map(|&i| (Found { entries: self.cats[i].found.clone().unwrap_or_default(), ..Found::default() }, self.cats[i].id.clone()))
+            .collect();
+        self.cleaning.start(move || {
+            let (mut done, mut failed, mut error) = (0u64, 0u64, None);
+            for (found, id) in &work {
+                let c = registry::clean(found, &dir.join(format!("{id}.reg")));
+                done += c.files;
+                failed += c.failed;
+                if error.is_none() {
+                    error = c.error;
+                }
             }
-        }
-        let mut text = tf("{} registry entries were deleted.", &[&done.to_string()]);
-        if failed > 0 {
-            text += "\n\n";
-            text += &tf("{} could not be deleted: {}", &[&failed.to_string(), error.as_deref().unwrap_or("")]);
-        }
-        if dir.is_dir() {
-            text += "\n\n";
-            text += &tf(
-                "The registry entries were saved in {} first: open the .reg files there to put them back.",
-                &[&dir.display().to_string()],
-            );
-        }
-        self.fx.info(&tr("Registry Cleaner"), &text);
-        self.note = Some(tf("{} registry entries were deleted.", &[&done.to_string()]));
-        self.scan();
+            (done, failed, error, dir)
+        });
+        self.note = Some(tr("Cleaning…"));
+        self.fx.menus();
+        self.fx.redraw();
     }
 
     // ------------------------------------------------------------ drawing

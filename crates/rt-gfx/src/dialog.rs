@@ -152,6 +152,21 @@ fn message_rows(g: &mut Gfx, text: &str, px: f32, s: f32, full: Rect, pad: f32, 
 /// Draws a message panel over `full`, dimming what is behind it. Returns
 /// (panel, OK button), for clicks.
 pub fn draw_message(g: &mut Gfx, full: Rect, st: &DialogStyle, s: f32, title: &str, text: &str) -> (Rect, Rect) {
+    let (panel, buttons) = draw_panel(g, full, st, s, title, text, &[("OK", true)]);
+    (panel, buttons.first().copied().unwrap_or_default())
+}
+
+/// Draws a message panel with its own buttons (label, whether it is the main
+/// one), right-aligned in that order. Returns (panel, the buttons), for clicks.
+pub fn draw_panel(
+    g: &mut Gfx,
+    full: Rect,
+    st: &DialogStyle,
+    s: f32,
+    title: &str,
+    text: &str,
+    buttons: &[(&str, bool)],
+) -> (Rect, Vec<Rect>) {
     g.fill_rect(full, Color::rgba(0x000000, if st.dark { 0x90 } else { 0x60 }));
     let pad = (24.0 * s).round();
     let title_px = 17.0 * s;
@@ -170,11 +185,11 @@ pub fn draw_message(g: &mut Gfx, full: Rect, st: &DialogStyle, s: f32, title: &s
             break;
         }
     }
-    let Some(MessageRows { rows, col, columns, w, px, lh, .. }) = fitted else { return (Rect::default(), Rect::default()) };
+    let Some(MessageRows { rows, col, columns, w, px, lh, .. }) = fitted else { return (Rect::default(), Vec::new()) };
     let inner = (w - 2.0 * pad - (columns - 1) as f32 * gap) / columns as f32;
     let per_column = rows.len().div_ceil(columns).max(1);
     let h = (chrome + per_column.min(rows.len()) as f32 * lh).min(full.h - 16.0 * s);
-    let panel = Rect::new(((full.w - w) / 2.0).round(), ((full.h - h) / 2.0).round().max(8.0 * s), w.round(), h.round());
+    let panel = Rect::new((full.x + (full.w - w) / 2.0).round(), full.y + ((full.h - h) / 2.0).round().max(8.0 * s), w.round(), h.round());
     let bg = if st.dark { Color::rgb(0x2B2B2B) } else { Color::rgb(0xFFFFFF) };
     let r = (8.0 * s).round();
     for i in 1..=4 {
@@ -215,12 +230,25 @@ pub fn draw_message(g: &mut Gfx, full: Rect, st: &DialogStyle, s: f32, title: &s
         }
         y += lh;
     }
-    let bw = (88.0 * s).round();
-    let ok = Rect::new(panel.right() - pad - bw, panel.bottom() - pad - btn_h, bw, btn_h);
+    // The buttons, right-aligned: the last one at the right edge.
     let accent = if st.dark { Color::rgb(0x4CC2FF) } else { Color::rgb(0x0067C0) };
-    g.fill_rrect(ok, (4.0 * s).round(), accent);
-    g.text_in("OK", ok, 13.0 * s, FontId::Bold, if st.dark { Color::rgb(0x000000) } else { Color::rgb(0xFFFFFF) }, Align::Center);
-    (panel, ok)
+    let widths: Vec<f32> = buttons.iter().map(|(l, _)| (g.measure(l, 13.0 * s, FontId::Bold) + 32.0 * s).max(88.0 * s).round()).collect();
+    let mut x = panel.right() - pad;
+    let mut rects = vec![Rect::default(); buttons.len()];
+    for (i, ((label, main), bw)) in buttons.iter().zip(&widths).enumerate().rev() {
+        x -= bw;
+        let r = Rect::new(x, panel.bottom() - pad - btn_h, *bw, btn_h);
+        if *main {
+            g.fill_rrect(r, (4.0 * s).round(), accent);
+            g.text_in(label, r, 13.0 * s, FontId::Bold, if st.dark { Color::rgb(0x000000) } else { Color::rgb(0xFFFFFF) }, Align::Center);
+        } else {
+            g.stroke_rrect(r, (4.0 * s).round(), 1.0, st.border);
+            g.text_in(label, r, 13.0 * s, FontId::Regular, st.text, Align::Center);
+        }
+        rects[i] = r;
+        x -= 8.0 * s;
+    }
+    (panel, rects)
 }
 
 #[cfg(test)]

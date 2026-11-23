@@ -87,6 +87,8 @@ pub struct StartupPage {
     /// A line for the status bar (what was just done).
     pub note: Option<String>,
     scale: f32,
+    /// Reading what starts with Windows, in a thread.
+    loading: crate::bg::Job<Vec<Entry>>,
 }
 
 impl StartupPage {
@@ -94,15 +96,24 @@ impl StartupPage {
         StartupPage { admin, scale: 1.0, ..StartupPage::default() }
     }
 
-    /// Reads the list again, keeping the selection on the same item.
+    /// Reads the list again in a thread; `animate` takes it, keeping the selection on the same item.
     pub fn refresh(&mut self) {
-        let keep = self.sel.and_then(|i| self.entries.get(i)).map(|e| (e.place, e.name.clone()));
-        self.entries = startup::read();
-        self.sel = keep.and_then(|(p, n)| self.entries.iter().position(|e| e.place == p && e.name == n));
-        self.scroll = self.scroll.min(self.entries.len().saturating_sub(1));
-        self.read = true;
-        self.fx.menus();
+        self.loading.start(startup::read);
         self.fx.redraw();
+    }
+
+    /// While reading: takes the list when it comes, and when to look again.
+    pub fn animate(&mut self) -> Option<std::time::Instant> {
+        if let Some(list) = self.loading.take() {
+            let keep = self.sel.and_then(|i| self.entries.get(i)).map(|e| (e.place, e.name.clone()));
+            self.entries = list;
+            self.sel = keep.and_then(|(p, n)| self.entries.iter().position(|e| e.place == p && e.name == n));
+            self.scroll = self.scroll.min(self.entries.len().saturating_sub(1));
+            self.read = true;
+            self.fx.menus();
+            self.fx.redraw();
+        }
+        self.loading.busy().then(crate::bg::soon)
     }
 
     /// Whether this item can be changed from here now.

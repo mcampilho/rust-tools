@@ -67,6 +67,10 @@ pub struct PrivacyPage {
     /// What the page asks of the window (see `rt_ui::page`).
     pub fx: Effects,
     pub note: Option<String>,
+    /// Counting the traces, in a thread (one result a row).
+    scanning: crate::bg::Job<Vec<Found>>,
+    /// Sweeping: (done, failed, the first error, the copies' folder).
+    sweeping: crate::bg::Job<(usize, usize, Option<String>, PathBuf)>,
 }
 
 impl PrivacyPage {
@@ -84,13 +88,48 @@ impl PrivacyPage {
         self.data_dir.join("backups")
     }
 
-    /// Looks at every trace again (quick: folders and a few keys).
+    /// Looks at every trace again, in a thread (folders and a few keys: quick, unless Windows is busy).
     pub fn scan(&mut self) {
-        for r in &mut self.rows {
-            r.found = Some(privacy::measure(&r.trace));
+        if self.sweeping.busy() {
+            return;
         }
+        let traces: Vec<Trace> = self.rows.iter().map(|r| r.trace.clone()).collect();
+        self.scanning.start(move || traces.iter().map(privacy::measure).collect());
         self.fx.menus();
         self.fx.redraw();
+    }
+
+    pub fn busy(&self) -> bool {
+        self.scanning.busy() || self.sweeping.busy()
+    }
+
+    /// While counting or sweeping: takes what came, and when to look again.
+    pub fn animate(&mut self) -> Option<std::time::Instant> {
+        if let Some(found) = self.scanning.take() {
+            for (r, f) in self.rows.iter_mut().zip(found) {
+                r.found = Some(f);
+            }
+            self.fx.menus();
+            self.fx.redraw();
+        }
+        if let Some((done, failed, error, dir)) = self.sweeping.take() {
+            let mut text = tr("The ticked traces were swept.");
+            if failed > 0 {
+                text += "\n\n";
+                text += &tf("{} could not be removed (in use?): {}", &[&failed.to_string(), error.as_deref().unwrap_or("")]);
+            }
+            if dir.is_dir() {
+                text += "\n\n";
+                text += &tf(
+                    "The registry entries were saved in {} first: open the .reg files there to put them back.",
+                    &[&dir.display().to_string()],
+                );
+            }
+            self.fx.info(&tr("Privacy Sweep"), &text);
+            self.note = Some(tf("{} traces removed.", &[&done.to_string()]));
+            self.scan();
+        }
+        self.busy().then(crate::bg::soon)
     }
 
     /// Whether a row has something to sweep.
@@ -104,8 +143,8 @@ impl PrivacyPage {
 
     pub fn enabled(&self, a: Action) -> bool {
         match a {
-            Action::Scan => true,
-            Action::Sweep => !self.to_sweep().is_empty(),
+            Action::Scan => !self.busy(),
+            Action::Sweep => !self.busy() && !self.to_sweep().is_empty(),
             Action::Copies => self.copies_dir().is_dir(),
         }
     }
@@ -154,31 +193,22 @@ impl PrivacyPage {
                     format!("{:04}-{:02}-{:02} {:02}{:02}{:02}", t.year, t.month, t.day, t.hour, t.minute, t.second)
                 };
                 let dir = self.copies_dir().join(format!("privacy {stamp}"));
-                let (mut done, mut failed, mut error) = (0, 0, None);
-                for &i in &work {
-                    let Some(f) = self.rows[i].found.clone() else { continue };
-                    let s = privacy::sweep(&f, &dir.join(format!("{}.reg", self.rows[i].trace.id)));
-                    done += s.done;
-                    failed += s.failed;
-                    if error.is_none() {
-                        error = s.error;
+                // reg.exe once a key, PowerShell for the clipboard: in a thread.
+                let work: Vec<(Found, String)> =
+                    work.iter().filter_map(|&i| self.rows[i].found.clone().map(|f| (f, self.rows[i].trace.id.to_string()))).collect();
+                self.sweeping.start(move || {
+                    let (mut done, mut failed, mut error) = (0, 0, None);
+                    for (f, id) in &work {
+                        let s = privacy::sweep(f, &dir.join(format!("{id}.reg")));
+                        done += s.done;
+                        failed += s.failed;
+                        if error.is_none() {
+                            error = s.error;
+                        }
                     }
-                }
-                self.scan();
-                let mut text = tr("The ticked traces were swept.");
-                if failed > 0 {
-                    text += "\n\n";
-                    text += &tf("{} could not be removed (in use?): {}", &[&failed.to_string(), error.as_deref().unwrap_or("")]);
-                }
-                if dir.is_dir() {
-                    text += "\n\n";
-                    text += &tf(
-                        "The registry entries were saved in {} first: open the .reg files there to put them back.",
-                        &[&dir.display().to_string()],
-                    );
-                }
-                self.fx.info(&tr("Privacy Sweep"), &text);
-                self.note = Some(tf("{} traces removed.", &[&done.to_string()]));
+                    (done, failed, error, dir)
+                });
+                self.note = Some(tr("Sweeping…"));
             }
         }
         self.fx.menus();

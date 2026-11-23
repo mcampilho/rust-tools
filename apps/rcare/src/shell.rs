@@ -140,7 +140,39 @@ struct Win {
     menu: Option<rt_sys::win::menu::MenuBar<Cmd>>,
 }
 
+/// The dialogs given to a page: a question is noted (and drawn by the window, in its theme) and
+/// answered no for now; when the user says yes, the command runs again and the same question is yes.
+struct ShellDialogs {
+    sys: SystemDialogs,
+    approved: Option<(String, String)>,
+    asked: Option<(String, String)>,
+}
+
+impl Dialogs for ShellDialogs {
+    fn confirm(&mut self, title: &str, text: &str) -> bool {
+        if self.approved.as_ref().is_some_and(|(t, x)| t == title && x == text) {
+            self.approved = None;
+            return true;
+        }
+        self.asked.get_or_insert_with(|| (title.to_string(), text.to_string()));
+        false
+    }
+    fn pick_folder(&mut self, title: &str) -> Option<std::path::PathBuf> {
+        self.sys.pick_folder(title)
+    }
+    fn save_file(&mut self, name: &str, kind: (&str, &str), dir: Option<&std::path::Path>) -> Option<std::path::PathBuf> {
+        self.sys.save_file(name, kind, dir)
+    }
+    fn recycle(&mut self, path: &std::path::Path) -> Result<(), String> {
+        self.sys.recycle(path)
+    }
+}
+
 struct Shell {
+    /// A question shown (title, text) and the command that asked it, run again on yes.
+    asked: Option<((String, String), Cmd)>,
+    /// The question just approved: the command's next ask of it is yes.
+    approved: Option<(String, String)>,
     /// Custom Clean: rcare's own page, an overview of three of the others.
     custom: CustomPage,
     /// System Maintenance: rcare's own page, the checks in one go.
@@ -319,9 +351,39 @@ impl Shell {
         }
     }
 
-    /// The system's dialogs, over this window.
-    fn dialogs(&self) -> SystemDialogs {
-        SystemDialogs { hwnd: self.win.as_ref().map_or(std::ptr::null_mut(), |w| w.hwnd) }
+    /// The dialogs a page gets: its questions are drawn in the window (in its
+    /// theme), the rest are the system's. An approved question is answered yes once.
+    fn dialogs(&mut self) -> ShellDialogs {
+        ShellDialogs {
+            sys: SystemDialogs { hwnd: self.win.as_ref().map_or(std::ptr::null_mut(), |w| w.hwnd) },
+            approved: self.approved.take(),
+            asked: None,
+        }
+    }
+
+    /// After a command: a question it asked is shown, and the command waits for the answer.
+    fn ask_if(&mut self, d: ShellDialogs, cmd: Cmd) {
+        if let Some((title, text)) = d.asked {
+            self.dialog = Some(Message::question(&title, &text, &tr("Yes"), &tr("No")));
+            self.asked = Some(((title, text), cmd));
+            self.clean.dragging = false;
+            self.dups.dragging = false;
+            self.inst.dragging = false;
+            self.redraw();
+        }
+    }
+
+    /// The answer to the question shown: yes runs its command again, approved.
+    fn answer(&mut self, el: &ActiveEventLoop, yes: bool) {
+        self.dialog = None;
+        if let Some((q, cmd)) = self.asked.take() {
+            if yes {
+                self.approved = Some(q);
+                self.command(el, cmd);
+                self.approved = None;
+            }
+        }
+        self.redraw();
     }
 
     fn info(&mut self, title: &str, text: &str) {
@@ -446,7 +508,9 @@ impl Shell {
             Status::NotYet
         };
         // The traces ticked in the Privacy Sweep (the clipboard cannot be counted).
-        let privacy = if self.privacy.rows.iter().all(|r| r.found.is_some()) && !self.privacy.rows.is_empty() {
+        let privacy = if self.privacy.busy() {
+            Status::Working
+        } else if self.privacy.rows.iter().all(|r| r.found.is_some()) && !self.privacy.rows.is_empty() {
             let count = self.privacy.rows.iter().filter(|r| r.ticked).filter_map(|r| r.found.as_ref()).map(|f| f.count as u64).sum();
             Status::Done { bytes: 0, count }
         } else {
@@ -590,21 +654,25 @@ impl Shell {
             Cmd::Clean(c) => {
                 let mut d = self.dialogs();
                 self.clean.command(c, &mut d);
+                self.ask_if(d, cmd);
                 self.after_page();
             }
             Cmd::Dups(c) => {
                 let mut d = self.dialogs();
                 self.dups.command(c, &mut d);
+                self.ask_if(d, cmd);
                 self.after_page();
             }
             Cmd::Size(c) => {
                 let mut d = self.dialogs();
                 self.size.command(c, &mut d);
+                self.ask_if(d, cmd);
                 self.after_page();
             }
             Cmd::Inst(c) => {
                 let mut d = self.dialogs();
                 self.inst.command(c, &mut d);
+                self.ask_if(d, cmd);
                 self.after_page();
             }
             Cmd::MaintScan => self.maint_scan(),
@@ -614,36 +682,43 @@ impl Shell {
             Cmd::Repair(a) => {
                 let mut d = self.dialogs();
                 self.repair.act(a, &mut d);
+                self.ask_if(d, cmd);
                 self.after_page();
             }
             Cmd::Privacy(a) => {
                 let mut d = self.dialogs();
                 self.privacy.act(a, &mut d);
+                self.ask_if(d, cmd);
                 self.after_page();
             }
             Cmd::Net(a) => {
                 let mut d = self.dialogs();
                 self.net.act(a, &mut d);
+                self.ask_if(d, cmd);
                 self.after_page();
             }
             Cmd::Protect(a) => {
                 let mut d = self.dialogs();
                 self.protect.act(a, &mut d);
+                self.ask_if(d, cmd);
                 self.after_page();
             }
             Cmd::Registry(a) => {
                 let mut d = self.dialogs();
                 self.registry.act(a, &mut d);
+                self.ask_if(d, cmd);
                 self.after_page();
             }
             Cmd::Services(a) => {
                 let mut d = self.dialogs();
                 self.services.act(a, &mut d);
+                self.ask_if(d, cmd);
                 self.after_page();
             }
             Cmd::Speed(a) => {
                 let mut d = self.dialogs();
                 self.speed.act(a, &mut d);
+                self.ask_if(d, cmd);
                 self.after_page();
             }
             Cmd::CustomAnalyze => self.custom_analyze(),
@@ -1108,13 +1183,17 @@ impl Shell {
         if let Some(dl) = &self.dialog {
             let mut dn = Node::new(Role::Dialog);
             dn.set_label(dl.title.clone());
-            dn.set_children(vec![NodeId(5), NodeId(6)]);
+            let labels = dl.labels();
+            dn.set_children(std::iter::once(NodeId(5)).chain((0..labels.len()).map(|i| NodeId(6 + i as u64))).collect::<Vec<_>>());
             let mut tn = Node::new(Role::Label);
             tn.set_value(dl.spoken_text());
-            let mut ok = Node::new(Role::Button);
-            ok.set_label("OK");
-            ok.add_action(accesskit::Action::Click);
-            nodes.extend([(NodeId(4), dn), (NodeId(5), tn), (NodeId(6), ok)]);
+            nodes.extend([(NodeId(4), dn), (NodeId(5), tn)]);
+            for (i, l) in labels.iter().enumerate() {
+                let mut b = Node::new(Role::Button);
+                b.set_label(l.to_string());
+                b.add_action(accesskit::Action::Click);
+                nodes.push((NodeId(6 + i as u64), b));
+            }
             children.push(NodeId(4));
             focus = NodeId(6);
         }
@@ -1128,8 +1207,12 @@ impl Shell {
     // ------------------------------------------------------------ input
 
     fn key(&mut self, el: &ActiveEventLoop, event: &winit::event::KeyEvent) {
-        if self.dialog.is_some() {
-            if Message::closes_on(&event.logical_key) {
+        if let Some(d) = &self.dialog {
+            if d.is_question() {
+                if let Some(yes) = Message::answer_on(&event.logical_key) {
+                    self.answer(el, yes);
+                }
+            } else if Message::closes_on(&event.logical_key) {
                 self.dialog = None;
                 self.redraw();
             }
@@ -1210,7 +1293,11 @@ impl Shell {
 
     fn press(&mut self, el: &ActiveEventLoop, x: f32, y: f32) {
         if let Some(d) = &self.dialog {
-            if d.closes_at(x, y) {
+            if d.is_question() {
+                if let Some(yes) = d.answer_at(x, y) {
+                    self.answer(el, yes);
+                }
+            } else if d.closes_at(x, y) {
                 self.dialog = None;
                 self.redraw();
             }
@@ -1417,11 +1504,16 @@ impl Shell {
     fn animate(&mut self) -> Option<Instant> {
         let wake = match PAGES[self.selected].kind {
             // What the other pages report redraws it: nothing turns here.
-            Kind::Custom | Kind::Maint | Kind::Startup | Kind::Services | Kind::Extensions => None,
+            Kind::Custom => None,
+            // The one-click check counts the Privacy Sweep's traces in a thread.
+            Kind::Maint => self.privacy.animate(),
+            Kind::Startup => self.startup.animate(),
+            Kind::Services => self.services.animate(),
+            Kind::Extensions => self.extensions.animate(),
             Kind::Registry => self.registry.animate(),
             Kind::Protect => self.protect.animate(),
             Kind::Net => self.net.animate(),
-            Kind::Privacy => None,
+            Kind::Privacy => self.privacy.animate(),
             Kind::Sys => self.sys.animate(),
             Kind::Repair => self.repair.animate(),
             Kind::Speed => self.speed.animate(),
@@ -1528,6 +1620,8 @@ impl ApplicationHandler<UserEvent> for Shell {
             UserEvent::A11y(ev) => match ev.window_event {
                 accesskit_winit::WindowEvent::ActionRequested(req) if req.action == accesskit::Action::Click => {
                     match req.target_node.0 {
+                        6 if self.dialog.as_ref().is_some_and(Message::is_question) => self.answer(el, true),
+                        7 if self.dialog.as_ref().is_some_and(Message::is_question) => self.answer(el, false),
                         6 => self.dialog = None,
                         10 => self.command(el, Cmd::Sidebar),
                         30 if PAGES[self.selected].kind == Kind::Maint => self.command(el, Cmd::MaintScan),
@@ -1774,6 +1868,8 @@ pub fn run() {
     let inst_settings = rinst::settings::Settings::load(&load("rinst.ini"));
     let selected = pages::index_of(&settings.page);
     let mut shell = Shell {
+        asked: None,
+        approved: None,
         maint: MaintPage::default(),
         startup: StartupPage::new(admin),
         services: ServicesPage::new(admin, data_dir.clone()),
@@ -1824,5 +1920,36 @@ pub fn run() {
     shell.apply_language();
     if let Err(e) = event_loop.run_app(&mut shell) {
         eprintln!("rcare: {e}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_question_is_asked_then_approved_once() {
+        let sys = SystemDialogs { hwnd: std::ptr::null_mut() };
+        let mut d = ShellDialogs { sys, approved: None, asked: None };
+        // First time: noted and answered no.
+        assert!(!d.confirm("Repair", "Start SFC?"));
+        assert_eq!(d.asked.as_ref().map(|(t, _)| t.as_str()), Some("Repair"));
+        // Approved: yes once for the same question, then no again.
+        let mut d = ShellDialogs {
+            sys: SystemDialogs { hwnd: std::ptr::null_mut() },
+            approved: Some(("Repair".into(), "Start SFC?".into())),
+            asked: None,
+        };
+        assert!(d.confirm("Repair", "Start SFC?"));
+        assert!(d.asked.is_none());
+        assert!(!d.confirm("Repair", "Start SFC?"));
+        // Another question is not approved by this one.
+        let mut d = ShellDialogs {
+            sys: SystemDialogs { hwnd: std::ptr::null_mut() },
+            approved: Some(("Repair".into(), "Start SFC?".into())),
+            asked: None,
+        };
+        assert!(!d.confirm("Repair", "Start DISM?"));
+        assert_eq!(d.asked.map(|(_, x)| x), Some("Start DISM?".to_string()));
     }
 }

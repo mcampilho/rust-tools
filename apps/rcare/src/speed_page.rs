@@ -90,6 +90,18 @@ pub struct SpeedPage {
     pub note: Option<String>,
     last_cpu: Option<CpuTimes>,
     next: Option<Instant>,
+    /// Reading memory, processor, Game Mode and the programs, in a thread.
+    reading: crate::bg::Job<Reading>,
+    /// Freeing the standby list: the standby before, and the memory after (or why not).
+    freeing: crate::bg::Job<(u64, Result<Option<Memory>, String>)>,
+}
+
+/// One reading of what the page shows.
+struct Reading {
+    memory: Option<Memory>,
+    cpu: Option<CpuTimes>,
+    game_mode: bool,
+    apps: Vec<OpenApp>,
 }
 
 impl SpeedPage {
@@ -97,33 +109,61 @@ impl SpeedPage {
         SpeedPage { admin, ..SpeedPage::default() }
     }
 
-    /// Reads everything again; the ticks and the selection stay on the same programs.
+    /// Reads everything again, in a thread; `animate` takes it.
     pub fn refresh(&mut self) {
+        self.reading.start(|| Reading {
+            memory: speed::memory(),
+            cpu: speed::cpu_times(),
+            game_mode: speed::game_mode(),
+            apps: speed::open_apps(),
+        });
+        // Shown: read again every two seconds from now on.
+        self.next = Some(Instant::now() + EVERY);
+    }
+
+    /// Takes a reading: the ticks and the selection stay on the same programs.
+    fn apply(&mut self, r: Reading) {
         let sel_pid = self.sel.and_then(|i| self.apps.get(i)).map(|a| a.pid);
-        self.memory = speed::memory();
-        let now = speed::cpu_times();
-        self.cpu = match (self.last_cpu, now) {
+        self.memory = r.memory;
+        self.cpu = match (self.last_cpu, r.cpu) {
             (Some(a), Some(b)) => Some(speed::cpu_percent(a, b)),
             _ => self.cpu,
         };
-        self.last_cpu = now;
-        self.game_mode = speed::game_mode();
-        self.apps = speed::open_apps();
+        self.last_cpu = r.cpu;
+        self.game_mode = r.game_mode;
+        self.apps = r.apps;
         self.ticked.retain(|pid| self.apps.iter().any(|a| a.pid == *pid));
         self.sel = sel_pid.and_then(|p| self.apps.iter().position(|a| a.pid == p));
         self.scroll = self.scroll.min(self.apps.len().saturating_sub(1));
-        self.next = Some(Instant::now() + EVERY);
         self.fx.menus();
         self.fx.redraw();
     }
 
-    /// While shown: the time to read again (every two seconds).
+    /// While shown: takes a reading when it comes, and reads again every two seconds.
     pub fn animate(&mut self) -> Option<Instant> {
+        if let Some(r) = self.reading.take() {
+            self.apply(r);
+        }
+        if let Some((before, res)) = self.freeing.take() {
+            match res {
+                Ok(m) => {
+                    let after = m.and_then(|m| m.standby).unwrap_or(0);
+                    self.memory = m.or(self.memory);
+                    self.note = Some(tf("{} of standby memory freed.", &[&rsize::format::size(before.saturating_sub(after))]));
+                }
+                Err(e) => self.fx.info(&tr("Speed Up"), &tf("Could not free the standby memory: {}", &[&e])),
+            }
+            self.fx.menus();
+            self.fx.redraw();
+        }
+        if self.freeing.busy() {
+            return Some(crate::bg::soon());
+        }
         let due = self.next?;
-        if Instant::now() >= due {
+        if Instant::now() >= due && !self.reading.busy() {
             self.refresh();
         }
-        self.next
+        Some(if self.reading.busy() { crate::bg::soon() } else { self.next.unwrap_or_else(crate::bg::soon) })
     }
 
     /// The page is hidden: it stops reading until shown again.
@@ -134,7 +174,7 @@ impl SpeedPage {
     pub fn enabled(&self, a: Action) -> bool {
         match a {
             Action::GameMode | Action::Refresh => true,
-            Action::FreeStandby => self.admin && self.memory.is_some_and(|m| m.standby.is_some_and(|s| s > 0)),
+            Action::FreeStandby => self.admin && !self.freeing.busy() && self.memory.is_some_and(|m| m.standby.is_some_and(|s| s > 0)),
             Action::CloseTicked => !self.ticked.is_empty(),
         }
     }
@@ -155,15 +195,10 @@ impl SpeedPage {
                 Err(e) => self.fx.info(&tr("Speed Up"), &tf("Could not change it: {}", &[&e])),
             },
             Action::FreeStandby => {
+                // Emptying gigabytes takes a moment: in a thread.
                 let before = self.memory.and_then(|m| m.standby).unwrap_or(0);
-                match speed::purge_standby() {
-                    Ok(()) => {
-                        self.refresh();
-                        let after = self.memory.and_then(|m| m.standby).unwrap_or(0);
-                        self.note = Some(tf("{} of standby memory freed.", &[&rsize::format::size(before.saturating_sub(after))]));
-                    }
-                    Err(e) => self.fx.info(&tr("Speed Up"), &tf("Could not free the standby memory: {}", &[&e])),
-                }
+                self.freeing.start(move || (before, speed::purge_standby().map(|()| speed::memory())));
+                self.note = Some(tr("Freeing…"));
             }
             Action::CloseTicked => {
                 let apps: Vec<OpenApp> = self.apps.iter().filter(|a| self.ticked.contains(&a.pid)).cloned().collect();

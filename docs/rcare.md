@@ -104,6 +104,27 @@ Needed"). "Review" opens the cleaner or the uninstaller; nothing is changed on t
 later phases (privacy sweep in phase 5 — deleting history or cookies is the user's decision, since rclean never does —,
 startup, Windows integrity in phase 6).
 
+## The window keeps answering; questions in the theme (2026-11-23, the user's tests)
+
+The user saw the window freeze (and had to end it) while SFC or DISM ran and other pages were opened, and white
+confirmation boxes in dark mode. Now:
+
+- **Nothing slow on the window's thread.** `bg::Job` runs a function in a thread and the page takes the result in its
+  `animate` (the window calls the shown page's `animate` while it has work). Reading: Startup Optimizer, Program
+  Deactivator (the Service Control Manager can wait on TrustedInstaller while SFC/DISM run), Extensions, the Privacy
+  Sweep's count (also for System Maintenance), Speed Up's two-second reading. Changing: a service's start, the
+  Registry Cleaner's and the Privacy Sweep's cleaning (`reg.exe` once an entry), freeing the standby list. Measured with
+  `SendMessageTimeout` on every page while it loads: after the window's first ~400 ms the window answers in 1 ms or
+  less. Not reproduced with SFC/DISM running (they need administrator rights).
+- **Questions drawn in the window** (`rt_gfx::dialog::draw_panel` with its own buttons, `rt_ui::message::Message::
+  question`): a page's `Dialogs::confirm` goes through `ShellDialogs`, which notes the question and answers no; the
+  window shows it with Yes and No in its theme (Enter Yes, Esc No, screen readers get both buttons); Yes runs the
+  same command again, and the same question is then answered yes once. The small apps' pages in rcare get it too;
+  folder and save dialogs stay Windows' own.
+- **Long operations say so first**: SFC (5–20 minutes), DISM (20 minutes or more, network), chkdsk (minutes to over an
+  hour) and Defender's quick scan ask with how long they take and that the computer and the other pages can be used
+  meanwhile.
+
 ## Repair (phase 6, rcare's own page, last in the sidebar)
 
 Windows' own tools, one at a time (the user's choices): `sfc /scannow`; `DISM /Online /Cleanup-Image /RestoreHealth`;

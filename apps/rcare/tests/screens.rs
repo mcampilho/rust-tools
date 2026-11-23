@@ -189,19 +189,17 @@ fn extensions(g: &mut Gfx, r: Rect, th: &Theme) {
         source,
         folder: None,
     };
-    let mut page = ExtensionsPage {
-        list: vec![
-            e("Bitdefender Anti-tracker", Browser::Chrome, "Miguel", true, Source::Program),
-            e("Bitwarden Password Manager", Browser::Chrome, "Miguel", true, Source::Store),
-            e("Dark Reader", Browser::Chrome, "Miguel", false, Source::Store),
-            e("Google Docs Offline", Browser::Chrome, "Miguel", true, Source::Store),
-            e("Tampermonkey", Browser::Chrome, "Work", false, Source::Store),
-            e("Bitwarden Password Manager", Browser::Brave, "Personal", true, Source::Store),
-            e("uBlock Origin", Browser::Firefox, "default-release", true, Source::Store),
-        ],
-        read: true,
-        ..ExtensionsPage::default()
-    };
+    let mut page = ExtensionsPage::default();
+    page.list = vec![
+        e("Bitdefender Anti-tracker", Browser::Chrome, "Miguel", true, Source::Program),
+        e("Bitwarden Password Manager", Browser::Chrome, "Miguel", true, Source::Store),
+        e("Dark Reader", Browser::Chrome, "Miguel", false, Source::Store),
+        e("Google Docs Offline", Browser::Chrome, "Miguel", true, Source::Store),
+        e("Tampermonkey", Browser::Chrome, "Work", false, Source::Store),
+        e("Bitwarden Password Manager", Browser::Brave, "Personal", true, Source::Store),
+        e("uBlock Origin", Browser::Firefox, "default-release", true, Source::Store),
+    ];
+    page.read = true;
     page.sel = Some(2);
     page.render(g, r, th, 1.0);
 }
@@ -322,6 +320,19 @@ Beginning verification phase of system scan.\r\nVerification 37% complete.\r",
     page.render(g, r, th, 1.0);
 }
 
+/// A question in the window's theme (before SFC starts), over the Repair page.
+fn question(g: &mut Gfx, r: Rect, th: &Theme) {
+    repair(g, r, th);
+    let mut q = rt_ui::message::Message::question(
+        "Repair",
+        "SFC checks every file of Windows: it takes 5 to 20 minutes, and the computer may be slower meanwhile. Start it now?\n\n\
+You can keep using the computer and the other pages meanwhile: the result shows here when it ends.",
+        "Yes",
+        "No",
+    );
+    q.draw(g, r, &th.dialog_style(), 1.0);
+}
+
 #[test]
 #[ignore]
 fn screenshots() {
@@ -361,4 +372,6 @@ fn screenshots() {
     save("sysinfo-dark-smallest.png", shot("sysinfo", true, false, None, 760, 480, &mut sysinfo));
     save("repair-light.png", shot("repair", false, false, None, 1280, 720, &mut repair));
     save("repair-dark-smallest.png", shot("repair", true, false, None, 760, 480, &mut repair));
+    save("question-dark.png", shot("repair", true, false, None, 1180, 720, &mut question));
+    save("question-light.png", shot("repair", false, false, None, 1180, 720, &mut question));
 }

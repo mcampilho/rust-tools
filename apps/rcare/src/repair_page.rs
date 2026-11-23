@@ -279,9 +279,24 @@ impl RepairPage {
         match a {
             Action::Run => {
                 let Some(t) = self.selected() else { return };
-                if t == Task::StartMenu
-                    && !dialogs.confirm(&tr("Repair"), &tr("Start and Search close for a moment and come back on their own. Go on?"))
-                {
+                // What it does, and how long it takes: said before it starts.
+                let meanwhile = tr("You can keep using the computer and the other pages meanwhile: the result shows here when it ends.");
+                let ask = match &t {
+                    Task::StartMenu => tr("Start and Search close for a moment and come back on their own. Go on?"),
+                    Task::Sfc => format!(
+                        "{}\n\n{meanwhile}",
+                        tr("SFC checks every file of Windows: it takes 5 to 20 minutes, and the computer may be slower meanwhile. Start it now?")
+                    ),
+                    Task::Dism => format!(
+                        "{}\n\n{meanwhile}",
+                        tr("DISM repairs Windows' image through Windows Update: it takes 20 minutes or more (sometimes over an hour) and uses the network. Start it now?")
+                    ),
+                    Task::Check(d) | Task::Fix(d) => format!(
+                        "{}\n\n{meanwhile}",
+                        tf("Checking drive {}: takes from a few minutes to over an hour on a large or slow drive. Start it now?", &[&d.to_string()])
+                    ),
+                };
+                if !dialogs.confirm(&tr("Repair"), &ask) {
                     return;
                 }
                 self.start(t);
