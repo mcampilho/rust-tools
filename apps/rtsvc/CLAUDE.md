@@ -31,7 +31,12 @@ Fora do Windows só diz que é só Windows (`platforms = "windows"`).
 - Testes: pipes de nome único, nunca o do serviço instalado. Compilar com `CARGO_INCREMENTAL=0` neste PC.
 - Por experimentar a sério (elevado): `install`, `uninstall`, o serviço como SYSTEM, `ScanVolume` real, `UninstallMsi`.
 - Por fazer: restringir os privilégios do serviço (`SERVICE_CONFIG_REQUIRED_PRIVILEGES_INFO`), tarefas nas janelas do
-  rclean e do rinst, indicador "via serviço" e botão para o ignorar, recursos de versão no `.exe`.
+  rclean e do rinst, indicador "via serviço" e botão para o ignorar.
+
+## Releases
+
+Desde 2026-11-23 tem `build.rs` (ícone `src/appicon.rs`, versão e manifesto pelo `rt-build`) e etiquetas `rtsvc-v*`
+no `release.yml`, com notas próprias de um serviço (`rtsvc install` numa linha de comandos de administrador).
 
 ## Git
 

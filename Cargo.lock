@@ -3068,11 +3068,13 @@ dependencies = [
 name = "rtsvc"
 version = "0.1.0"
 dependencies = [
+ "rt-build",
  "rt-clean",
  "rt-cli",
  "rt-inst",
  "rt-scan",
  "rt-svc",
+ "tiny-skia",
  "windows-sys 0.59.0",
 ]
 

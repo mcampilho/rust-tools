@@ -7,6 +7,9 @@
 
 #![cfg_attr(not(windows), allow(dead_code, unused_imports))]
 
+/// The icon (drawn by build.rs into the .exe); here only for its tests.
+#[cfg(test)]
+mod appicon;
 mod cli;
 #[cfg(windows)]
 mod config;

@@ -7,6 +7,13 @@ ferramentas abertas como administrador. Desenho, protocolo e modelo de ameaças:
 
 [English version](README.md)
 
+## Transferir
+
+Um zip dos [releases](https://github.com/mcampilho/rust-tools/releases) (etiquetas `rtsvc-v…`), Windows 10/11 de 64
+bits, ou `scoop install rtsvc`. Extrai-o e, numa linha de comandos de administrador, corre `rtsvc install`: copia-se
+para uma pasta que só os administradores podem alterar e regista o serviço. É opcional: as ferramentas funcionam sem
+ele.
+
 ## Comandos
 
 | Comando | O que faz |

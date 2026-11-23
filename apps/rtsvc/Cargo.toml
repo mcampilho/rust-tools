@@ -30,3 +30,11 @@ windows-sys = { version = "0.59", features = [
     "Win32_System_Services",
     "Win32_System_Threading",
 ] }
+
+[build-dependencies]
+rt-build = { path = "../../crates/rt-build" }
+# build.rs draws the icon with `src/appicon.rs`.
+tiny-skia = { version = "0.11", default-features = false, features = ["std"] }
+
+[dev-dependencies]
+tiny-skia = { version = "0.11", default-features = false, features = ["std", "png-format"] }

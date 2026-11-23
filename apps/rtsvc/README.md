@@ -7,6 +7,12 @@ started as administrator. Design, protocol and threat model: [docs/service.md](.
 
 [Versão portuguesa](README.pt.md)
 
+## Download
+
+A zip from the [releases](https://github.com/mcampilho/rust-tools/releases) (tags `rtsvc-v…`), Windows 10/11 64-bit,
+or `scoop install rtsvc`. Unzip it and, from an administrator prompt, run `rtsvc install`: it copies itself to a
+folder only administrators can change and registers the service. It is optional: the tools work without it.
+
 ## Commands
 
 | Command | What it does |
