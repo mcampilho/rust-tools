@@ -413,6 +413,40 @@ fn ctxmenu(g: &mut Gfx, r: Rect, th: &Theme) {
     page.render(g, r, th, 1.0);
 }
 
+/// Processes: a restart planned, a few processes (two readings, so the processor use shows), one selected.
+fn procs(g: &mut Gfx, r: Rect, th: &Theme) {
+    use rcare::processes::{Planned, Power, Proc};
+    use rcare::processes_page::ProcessesPage;
+    let mut page = ProcessesPage::new(&std::env::temp_dir().join("rcare-screens-procs"));
+    let cpus = u64::from(rcare::processes::cpus());
+    let list = |t: u64| -> Vec<Proc> {
+        let p = |pid: u32, name: &str, path: Option<&str>, mem: u64, share: f64| Proc {
+            pid,
+            name: name.into(),
+            path: path.map(PathBuf::from),
+            memory: mem << 20,
+            cpu_time: (t as f64 * share * cpus as f64) as u64,
+            created: 1,
+        };
+        vec![
+            p(4, "System", None, 1, 0.012),
+            p(612, "csrss.exe", None, 6, 0.001),
+            p(4120, "explorer.exe", Some(r"C:\Windows\explorer.exe"), 182, 0.008),
+            p(7311, "Code.exe", Some(r"C:\Users\Ana\AppData\Local\Programs\Microsoft VS Code\Code.exe"), 640, 0.163),
+            p(9024, "firefox.exe", Some(r"C:\Program Files\Mozilla Firefox\firefox.exe"), 1210, 0.071),
+            p(10220, "rcare.exe", Some(r"C:\Users\Ana\scoop\apps\rcare\current\rcare.exe"), 38, 0.004),
+            p(11872, "OneDrive.exe", Some(r"C:\Program Files\Microsoft OneDrive\OneDrive.exe"), 96, 0.0),
+            p(12004, "notepad.exe", Some(r"C:\Windows\System32\notepad.exe"), 22, 0.0),
+        ]
+    };
+    page.take(list(0), None);
+    page.take(list(20_000_000), Some(std::time::Duration::from_secs(2)));
+    page.sel = Some(9024);
+    page.power = Power::Restart;
+    page.planned = Some(Planned { power: Power::Restart, at: rcare::processes::unix_now() + 84 * 60 });
+    page.render(g, r, th, 1.0);
+}
+
 /// A question in the window's theme (before SFC starts), over the Repair page.
 fn question(g: &mut Gfx, r: Rect, th: &Theme) {
     repair(g, r, th);
@@ -472,5 +506,7 @@ fn screenshots() {
     save("files-dark-smallest.png", shot("files", true, false, None, 760, 480, &mut files));
     save("ctxmenu-light.png", shot("ctxmenu", false, false, None, 1280, 720, &mut ctxmenu));
     save("ctxmenu-dark-smallest.png", shot("ctxmenu", true, false, None, 760, 480, &mut ctxmenu));
+    save("procs-light.png", shot("processes", false, false, None, 1280, 720, &mut procs));
+    save("procs-dark-smallest.png", shot("processes", true, false, None, 760, 480, &mut procs));
     save("question-light.png", shot("repair", false, false, None, 1180, 720, &mut question));
 }

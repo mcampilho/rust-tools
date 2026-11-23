@@ -42,6 +42,8 @@ pub enum Kind {
     Files,
     /// rcare's own: Context Menu Manager.
     CtxMenu,
+    /// rcare's own: Processes (and Auto Shutdown).
+    Procs,
 }
 
 /// A page in the sidebar.
@@ -96,6 +98,8 @@ pub enum Glyph {
     Folder,
     /// A small menu with its lines: the right-click menu.
     Menu,
+    /// Rows, each with a square and a line: the running processes.
+    Tasks,
 }
 
 pub const PAGES: &[PageInfo] = &[
@@ -116,6 +120,7 @@ pub const PAGES: &[PageInfo] = &[
     PageInfo { id: "repair", kind: Kind::Repair, label: "Repair", glyph: Glyph::Wrench },
     PageInfo { id: "files", kind: Kind::Files, label: "File Tools", glyph: Glyph::Folder },
     PageInfo { id: "ctxmenu", kind: Kind::CtxMenu, label: "Context Menu Manager", glyph: Glyph::Menu },
+    PageInfo { id: "processes", kind: Kind::Procs, label: "Processes", glyph: Glyph::Tasks },
     // System Information and the Scheduler stay the last two (the user's wish, 2026-11-23): new pages go above.
     PageInfo { id: "sysinfo", kind: Kind::Sys, label: "System Information", glyph: Glyph::Monitor },
     PageInfo { id: "schedule", kind: Kind::Schedule, label: "Scheduler", glyph: Glyph::Clock },

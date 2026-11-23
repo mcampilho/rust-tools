@@ -237,6 +237,14 @@ fn draw_glyph(g: &mut Gfx, glyph: Glyph, r: Rect, c: rt_gfx::gfx::Color) {
             }
             g.polyline(&[(r.x, r.y), (r.x + r.w * 0.3, r.y + r.h * 0.12), (r.x + r.w * 0.12, r.y + r.h * 0.3), (r.x, r.y)], 1.4, c, true);
         }
+        Glyph::Tasks => {
+            // Three rows of a list: a square and a line each, the middle one longer.
+            for (k, len) in [0.55f32, 0.8, 0.4].iter().enumerate() {
+                let y = r.y + r.h * (0.14 + 0.3 * k as f32);
+                g.fill_rrect(Rect::new(r.x, y, r.w * 0.2, r.h * 0.2), 1.0, c);
+                g.fill_rect(Rect::new(r.x + r.w * 0.32, y + r.h * 0.07, r.w * 0.68 * len, 1.8), c);
+            }
+        }
         Glyph::Clock => {
             // A dial and its two hands.
             let (cx, cy, rad) = (r.x + r.w / 2.0, r.y + r.h / 2.0, r.w * 0.46);

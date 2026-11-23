@@ -46,6 +46,8 @@ pub enum Cmd {
     Repair(crate::repair_page::Action),
     /// Scheduler: a button of its bar.
     Schedule(crate::schedule_page::Action),
+    /// Processes: a button of its page.
+    Procs(crate::processes_page::Action),
     /// Context Menu Manager: a button of its page.
     CtxMenu(crate::ctxmenu_page::Action),
     /// File Tools: a button of its page.
@@ -172,6 +174,7 @@ impl Cmd {
             Sys(a) => a.label_key(),
             Repair(a) => a.label_key(),
             Schedule(a) => a.label_key(),
+            Procs(a) => a.label_key(),
             CtxMenu(a) => a.label_key(),
             Files(a) => a.label_key(),
             CustomAnalyze => "&Analyze",
@@ -475,6 +478,23 @@ fn page_menus(page: usize) -> Own {
                 rest: vec![(
                     "&Edit",
                     vec![Item::Item(CtxMenu(A::Off)), Item::Item(CtxMenu(A::On)), Item::Sep, Item::Item(CtxMenu(A::Open))],
+                )],
+            }
+        }
+        Some(Kind::Procs) => {
+            use crate::processes_page::Action as A;
+            Own {
+                file: Vec::new(),
+                view: Vec::new(),
+                rest: vec![(
+                    "&Edit",
+                    vec![
+                        Item::Item(Procs(A::End)),
+                        Item::Item(Procs(A::Open)),
+                        Item::Sep,
+                        Item::Item(Procs(A::Start)),
+                        Item::Item(Procs(A::CancelPlan)),
+                    ],
                 )],
             }
         }

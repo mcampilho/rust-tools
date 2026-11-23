@@ -44,6 +44,7 @@ System Information" na lista abaixo fica de propósito para mais tarde.
 | `apps/rcare/src/schedule.rs`, `schedule_page.rs` | Agendador: agendamentos no Agendador de Tarefas do Windows que correm `rcare --run …` (reparos, o lixo marcado), o registo e as últimas execuções |
 | `apps/rcare/src/files.rs`, `files_page.rs` | Ferramentas de ficheiros: pastas vazias (para a Reciclagem) e o File Shredder |
 | `apps/rcare/src/ctxmenu.rs`, `ctxmenu_page.rs` | Context Menu Manager: o que os programas acrescentam ao menu do botão direito do Explorador, desligado e ligado |
+| `apps/rcare/src/processes.rs`, `processes_page.rs` | Processos (processador, memória, programa; terminar um) e Auto Shutdown (`shutdown.exe`) |
 | `apps/rcare/src/bg.rs` | Trabalho fora do fio da janela (`Job`) |
 | `apps/rcare/src/repair.rs`, `repair_page.rs` | Reparar: SFC, DISM, chkdsk /scan por disco NTFS (e /spotfix), o menu Iniciar; o que a ferramenta escreve à medida que chega, com o progresso |
 | `apps/rcare/src/sysinfo.rs`, `sysinfo_page.rs` | System Information: Windows, o computador, gráficos, saúde dos discos, dispositivos com problemas, bateria; Arranque rápido, Aplicações predefinidas, Atualizações de controladores (páginas do Windows); Copiar |
@@ -167,6 +168,24 @@ classe, linhas juntas, as regras da página), um teste a pedido que acrescenta u
 liga e o tira (passou), a leitura neste PC (7-Zip, Bitdefender, OneDrive, IObit, VS Code, Git, Notepad++, rust-tools,
 …), imagens. **Não verificado**: a página no `.exe` a sério, bloquear uma extensão do shell a sério (HKLM,
 administrador).
+
+## Processos e Auto Shutdown (2026-11-23, escolha do utilizador entre o "Depois"; página do próprio rcare, depois do Context Menu Manager)
+
+Process Manager e Auto Shutdown numa só página. `processes.rs`: todos os processos (`CreateToolhelp32Snapshot`; a
+feature `Win32_System_Diagnostics_ToolHelp`) e, de cada um, com `PROCESS_QUERY_LIMITED_INFORMATION`, o programa, o
+working set e o tempo de processador (`GetProcessTimes`); o uso do processador é o tempo gasto entre duas leituras a
+dividir pelo tempo passado e pelos processadores (`cpu_percent`; um processo é o mesmo entre leituras pelo pid e pela
+hora de início). A página lê de novo a cada 2 segundos, só enquanto está à vista (o seu `animate`). Terminar um
+processo (`TerminateProcess`) pergunta antes, e é recusado para os que o Windows não dispensa (System, Registry, smss,
+csrss, wininit, winlogon, services, lsass, …: terminá-los para o computador) e para o próprio rcare. Ordenado por nome,
+pid, processador ou memória (clicar no cabeçalho). **Auto Shutdown**: o `shutdown.exe /s|/r /t <segundos>` do próprio
+Windows — acontece com o rcare fechado e o Windows avisa antes —, daqui a algum tempo (5 min a 8 h) ou a uma hora
+(de 15 em 15 min, amanhã se já passou), depois de perguntar; o `shutdown.exe /a` anula. O que foi pedido fica em
+`shutdown.txt` ao lado das definições, para a página o mostrar quando o rcare abre de novo. A suspensão fica de fora: o
+`shutdown.exe` não a adia, e um temporizador no rcare só funcionaria com o rcare aberto. Verificado: testes (os vitais
+protegidos, uso do processador, os argumentos, o tempo até uma hora, o ficheiro, as regras e o desenho da página, a
+leitura dos processos deste PC), `shutdown.exe /a` sem nada marcado (di-lo, 1116), imagens. **Não verificado**: a
+página no `.exe` a sério, uma contagem a sério, terminar um processo pela página.
 
 ## A janela continua a responder; perguntas no tema (2026-11-23, testes do utilizador)
 

@@ -41,6 +41,7 @@ the list below is deliberately left for later.
 | `apps/rcare/src/schedule.rs`, `schedule_page.rs` | Scheduler: schedules in Windows' Task Scheduler running `rcare --run …` (repairs, the junk ticked), the log and the last runs |
 | `apps/rcare/src/files.rs`, `files_page.rs` | File Tools: empty folders (to the Recycle Bin) and the File Shredder |
 | `apps/rcare/src/ctxmenu.rs`, `ctxmenu_page.rs` | Context Menu Manager: what programs add to Explorer's right-click menu, turned off and on |
+| `apps/rcare/src/processes.rs`, `processes_page.rs` | Processes (processor, memory, program; ending one) and Auto Shutdown (`shutdown.exe`) |
 | `apps/rcare/src/bg.rs` | Work off the window's thread (`Job`) |
 | `apps/rcare/src/repair.rs`, `repair_page.rs` | Repair: SFC, DISM, chkdsk /scan per NTFS drive (and /spotfix), the Start menu; the tool's output as it comes, with its progress |
 | `apps/rcare/src/sysinfo.rs`, `sysinfo_page.rs` | System Information: Windows, the computer, graphics, drives' health, devices with a problem, battery; Fast Startup, Default Apps, Driver Updates (Windows' pages); Copy |
@@ -158,6 +159,23 @@ Explorer would load it. Verified: tests (labels, Windows' own, class ids, rows p
 request that adds a command of its own to `HKCU`, turns it off and on and takes it away (passed), the reading on this
 PC (7-Zip, Bitdefender, OneDrive, IObit, VS Code, Git, Notepad++, rust-tools, …), screenshots. **Not verified**: the
 page in the real `.exe`, blocking a shell extension for real (HKLM, administrator).
+
+## Processes and Auto Shutdown (2026-11-23, the user's choice from "Later"; rcare's own page, after the Context Menu Manager)
+
+Process Manager and Auto Shutdown on one page. `processes.rs`: every process (`CreateToolhelp32Snapshot`; the
+`Win32_System_Diagnostics_ToolHelp` feature), and for each, with `PROCESS_QUERY_LIMITED_INFORMATION`, its program, its
+working set and its processor time (`GetProcessTimes`); the processor use is the time used between two readings over
+the time passed and the processors (`cpu_percent`; a process is the same across readings by pid and start time). The
+page reads again every 2 seconds, only while it is shown (its `animate`). Ending a process (`TerminateProcess`) asks
+first, and is refused for the ones Windows cannot live without (System, Registry, smss, csrss, wininit, winlogon,
+services, lsass, …: ending them stops the computer) and for rcare itself. Sorted by name, pid, processor or memory
+(click the header). **Auto Shutdown**: Windows' own `shutdown.exe /s|/r /t <seconds>` — it happens with rcare closed and
+Windows warns before —, in a while (5 min to 8 h) or at a time (steps of 15 min, tomorrow when it has passed), after a
+question; `shutdown.exe /a` calls it off. What was asked is kept in `shutdown.txt` beside the settings, so the page
+shows it when rcare opens again. Sleep is left out: `shutdown.exe` cannot delay it, and a timer in rcare would only
+work with rcare open. Verified: tests (the vital ones kept, processor use, the arguments, the time to a clock time, the
+file, the page's rules and layout, the reading of this PC's processes), `shutdown.exe /a` with nothing planned (says so,
+1116), screenshots. **Not verified**: the page in the real `.exe`, a countdown for real, ending a process from the page.
 
 ## The window keeps answering; questions in the theme (2026-11-23, the user's tests)
 
