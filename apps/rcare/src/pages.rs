@@ -34,6 +34,8 @@ pub enum Kind {
     Privacy,
     /// rcare's own: the computer and its parts.
     Sys,
+    /// rcare's own: Windows' repair tools.
+    Repair,
 }
 
 /// A page in the sidebar.
@@ -80,6 +82,8 @@ pub enum Glyph {
     Eye,
     /// A screen: the computer.
     Monitor,
+    /// A wrench: repairs.
+    Wrench,
 }
 
 pub const PAGES: &[PageInfo] = &[
@@ -98,6 +102,7 @@ pub const PAGES: &[PageInfo] = &[
     PageInfo { id: "net", kind: Kind::Net, label: "Internet Booster", glyph: Glyph::Globe },
     PageInfo { id: "privacy", kind: Kind::Privacy, label: "Privacy Sweep", glyph: Glyph::Eye },
     PageInfo { id: "sysinfo", kind: Kind::Sys, label: "System Information", glyph: Glyph::Monitor },
+    PageInfo { id: "repair", kind: Kind::Repair, label: "Repair", glyph: Glyph::Wrench },
 ];
 
 /// The index of the page saved as `id`; the first one when it is unknown.

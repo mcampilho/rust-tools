@@ -42,6 +42,8 @@ pub enum Cmd {
     Privacy(crate::privacy_page::Action),
     /// System Information: a button of its bar.
     Sys(crate::sysinfo_page::Action),
+    /// Repair: a button of its bar.
+    Repair(crate::repair_page::Action),
     /// Custom Clean: the junk, duplicates and large files analysed together.
     CustomAnalyze,
     /// Custom Clean: the folder where duplicates and large files are looked for.
@@ -162,6 +164,7 @@ impl Cmd {
             Net(a) => a.label_key(),
             Privacy(a) => a.label_key(),
             Sys(a) => a.label_key(),
+            Repair(a) => a.label_key(),
             CustomAnalyze => "&Analyze",
             CustomFolder => "Change &Folder...",
             Sidebar => "Collapse Side&bar",
@@ -400,6 +403,23 @@ fn page_menus(page: usize) -> Own {
                 )],
             }
         }
+        Some(Kind::Repair) => {
+            use crate::repair_page::Action as A;
+            Own {
+                file: Vec::new(),
+                view: Vec::new(),
+                rest: vec![(
+                    "&Edit",
+                    vec![
+                        Item::Item(Repair(A::Run)),
+                        Item::Item(Repair(A::Fix)),
+                        Item::Sep,
+                        Item::Item(Repair(A::Copy)),
+                        Item::Item(Repair(A::Log)),
+                    ],
+                )],
+            }
+        }
         Some(Kind::Maint) => Own { file: vec![Item::Item(MaintScan)], view: Vec::new(), rest: Vec::new() },
         Some(Kind::Custom) => Own { file: vec![Item::Item(CustomAnalyze), Item::Item(CustomFolder)], view: Vec::new(), rest: Vec::new() },
         Some(Kind::Inst) => own_menus(rinst::commands::menu_tree(), inst_is_window, Cmd::from_inst),
@@ -501,6 +521,7 @@ mod tests {
         assert!(all(at("net")).contains(&Net(crate::net_page::Action::Dns(crate::net::Provider::Quad9))));
         assert!(all(at("privacy")).contains(&Privacy(crate::privacy_page::Action::Sweep)));
         assert!(all(at("sysinfo")).contains(&Sys(crate::sysinfo_page::Action::FastStartup)));
+        assert!(all(at("repair")).contains(&Repair(crate::repair_page::Action::Run)));
         assert!(all(at("speed")).contains(&Speed(crate::speed_page::Action::GameMode)));
         assert!(all(at("clean")).contains(&Clean(CleanCmd::Analyse)));
         assert!(all(at("dups")).contains(&Dups(DupCmd::Search)));

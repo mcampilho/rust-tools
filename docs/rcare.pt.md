@@ -41,6 +41,7 @@ System Information" na lista abaixo fica de propósito para mais tarde.
 | `crates/rt-core/src/i18n.rs` | `add` (tabelas extra), `tr_in_from`/`tr_from`/`tf_from` (uma tabela procurada primeiro) |
 | `crates/rt-core/src/menu.rs` | `M::map` (converter os comandos de um menu noutro tipo) |
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; estado dos discos pelo `Get-Volume` |
+| `apps/rcare/src/repair.rs`, `repair_page.rs` | Reparar: SFC, DISM, chkdsk /scan por disco NTFS (e /spotfix), o menu Iniciar; o que a ferramenta escreve à medida que chega, com o progresso |
 | `apps/rcare/src/sysinfo.rs`, `sysinfo_page.rs` | System Information: Windows, o computador, gráficos, saúde dos discos, dispositivos com problemas, bateria; Arranque rápido, Aplicações predefinidas, Atualizações de controladores (páginas do Windows); Copiar |
 | `apps/rcare/src/privacy.rs`, `privacy_page.rs` | Privacy Sweep: rastos do Windows (documentos recentes, Executar, Explorador, caixas Abrir/Guardar, listas de saltos, área de transferência); os do registo vão antes para um `.reg` |
 | `apps/rcare/src/net.rs`, `net_page.rs` | Internet Booster: os valores TCP do Windows (repostos aos do próprio Windows) e o DNS de cada ligação (Automático, Cloudflare, Quad9, Google), com uma cópia `.cmd` antes de cada alteração |
@@ -109,7 +110,23 @@ neste PC o disco S: diz "Warning / Full Repair Needed"). "Rever" abre o limpador
 muda nada. Mais verificações entram com as fases seguintes (limpeza de privacidade na fase 5 — apagar histórico ou
 cookies é decisão do utilizador, porque o rclean nunca o faz —, arranque, integridade do Windows na fase 6).
 
-## System Information (fase 6, página do próprio rcare, a última da barra lateral)
+## Reparar (fase 6, página do próprio rcare, a última da barra lateral)
+
+As ferramentas do próprio Windows, uma de cada vez (escolhas do utilizador): `sfc /scannow`; `DISM /Online
+/Cleanup-Image /RestoreHealth`; `chkdsk X: /scan` para cada disco NTFS (do `disks::read`; o do sistema até se saberem),
+e quando termina com 3 (erros por corrigir) Corrigir erros corre `chkdsk X: /spotfix` escrevendo `Y` (no disco do
+sistema o Windows fá-lo no próximo arranque; outro disco fica indisponível por um momento — ambos perguntam antes); o
+menu Iniciar (os processos do Iniciar e da pesquisa param, o Windows volta a arrancá-los, e `Add-AppxPackage
+-Register` do `StartMenuExperienceHost`/`ShellExperienceHost`; pergunta antes). O `repair::run_command` corre a
+ferramenta sem janela e lê o que escreve em fios: o `Decoder` distingue UTF-16 (o que o `sfc` escreve) da página de
+código da consola (`MultiByteToWideChar(CP_OEMCP)`: `chkdsk`, `DISM`), o `Output` guarda as linhas (`\r` reescreve a
+linha: progresso) e o `percent` encontra o progresso para a barra. Cada linha diz como terminou da última vez (o chkdsk
+pelo código de saída: 0 sem erros, 1–2 corrigidos, 3 por corrigir). Também Copiar a saída e Abrir o registo
+(`CBS.log`, `dism.log`). Administrador para todas. Verificado: a descodificação, as linhas e o progresso (testes), o
+executor com o `cmd` (saída e código), imagens, a página no `.exe` a sério. **Não verificado**: correr o SFC, o DISM,
+o chkdsk ou a reparação do menu Iniciar a sério (administrador; o SFC e o DISM demoram).
+
+## System Information (fase 6, página do próprio rcare)
 
 Um PowerShell escondido (`sysinfo::SCRIPT`): `Win32_OperatingSystem` (e `DisplayVersion`/`UBR` do registo),
 `Win32_ComputerSystem`, `Win32_BaseBoard`, `Win32_BIOS`, `Win32_Processor`, `Win32_VideoController`,
@@ -332,9 +349,13 @@ ecrã.
 6. ~~Startup Optimizer~~, ~~Speed Up~~, ~~Program Deactivator~~ e ~~Extensions~~ feitos (2026-11-22): a fase 3 está
    completa (o Real-Time TuneUp, um histórico do desempenho, fica para depois). Ver as secções.
 7. ~~Fase 4~~ feita (2026-11-22): Registry Cleaner. ~~Fase 5~~ feita (2026-11-23): Protect System, Internet Booster,
-   Privacy Sweep (ver as secções). Depois a fase 6 (sistema: Arranque rápido, reparar o menu Iniciar, controladores,
-   programas predefinidos, Informações do sistema, saúde do hardware e do software, uma página Reparar com SFC, DISM,
-   chkdsk).
+   Privacy Sweep. ~~Fase 6~~ feita (2026-11-23): System Information (com Arranque rápido, Aplicações predefinidas,
+   Atualizações de controladores) e Reparar (SFC, DISM, chkdsk, menu Iniciar). Ver as secções. A lista do utilizador até
+   System Information está coberta.
+8. A seguir: a Privacy Sweep na verificação de um clique do System Maintenance; o que ficou de fora de propósito ou
+   para depois (ver "Depois" abaixo: Auto Shutdown, Context Menu Manager, File Shredder, Empty Folder Scanner,
+   Process Manager…); o primeiro release `rcare-v0.1.0` (um push e uma etiqueta: perguntar ao utilizador) e o bucket do
+   Scoop.
 
 ## Decisões para a fase 6 (o utilizador escolheu a opção recomendada de cada, 2026-11-23)
 
@@ -443,7 +464,7 @@ Registry Defrag (análise).
 **5. Rede e proteção** ✔ (Protect System, Internet Booster, Privacy Sweep, como decidido) — Internet Booster (TCP, DNS Protector, otimizar browsers); Protect System (Defender,
 Firewall, anti-tracking, proteção do browser, pasta segura, undelete a avaliar).
 
-**6. Sistema** — Fast Startup, reparar o Menu Iniciar, Update Drivers, Set Default Program, System Information, saúde
+**6. Sistema** ✔ (System Information, Reparar) — Fast Startup, reparar o Menu Iniciar, Update Drivers, Set Default Program, System Information, saúde
 do hardware e do software, e uma página de Reparação (SFC, DISM, chkdsk).
 
 ## Regras

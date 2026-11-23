@@ -304,6 +304,23 @@ fast\t1\n",
     page.render(g, r, th, 1.0);
 }
 
+/// Repair while SFC runs (its progress), after a chkdsk scan of E: that found errors.
+fn repair(g: &mut Gfx, r: Rect, th: &Theme) {
+    use rcare::repair::Task;
+    use rcare::repair_page::RepairPage;
+    let mut page = RepairPage::new(true);
+    page.drives = Some(vec!['C', 'E', 'S']);
+    page.results.insert(Task::Check('E'), Ok(3));
+    page.results.insert(Task::Check('C'), Ok(0));
+    page.results.insert(Task::Dism, Ok(0));
+    page.output.feed(
+        "> sfc /scannow\n\nBeginning system scan.  This process will take some time.\r\n\r\n\
+Beginning verification phase of system scan.\r\nVerification 37% complete.\r",
+    );
+    page.sel = 3;
+    page.render(g, r, th, 1.0);
+}
+
 #[test]
 #[ignore]
 fn screenshots() {
@@ -341,4 +358,6 @@ fn screenshots() {
     save("privacy-dark-smallest.png", shot("privacy", true, false, None, 760, 480, &mut privacy));
     save("sysinfo-light.png", shot("sysinfo", false, false, None, 1280, 720, &mut sysinfo));
     save("sysinfo-dark-smallest.png", shot("sysinfo", true, false, None, 760, 480, &mut sysinfo));
+    save("repair-light.png", shot("repair", false, false, None, 1280, 720, &mut repair));
+    save("repair-dark-smallest.png", shot("repair", true, false, None, 760, 480, &mut repair));
 }

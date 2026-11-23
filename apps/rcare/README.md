@@ -40,6 +40,7 @@ Pages so far:
 | Internet Booster | – (rcare's own) | Windows' TCP values, with those changed by other tools put back to Windows' own, and each connection's DNS: automatic or Cloudflare, Quad9, Google. Each change keeps a `.cmd` copy that puts back what was there |
 | Privacy Sweep | – (rcare's own) | The traces Windows keeps: recent documents, the Run box, Explorer's history, the open and save dialogs, jump lists, the clipboard. Registry ones are saved to a `.reg` file first; never the browsers' history, cookies or passwords |
 | System Information | – (rcare's own) | Windows, the computer, graphics, the drives' health, devices with a problem and the battery; Fast Startup, and Windows' own Default Apps and Driver Updates pages; Copy puts it all on the clipboard |
+| Repair | – (rcare's own) | Windows' own repair tools, one at a time, with their output as it comes: SFC, DISM, chkdsk (a scan of each drive, and fixing the errors it finds) and repairing the Start menu |
 | Uninstall Apps | [rinst](../rinst/README.md) | The programs of every user and source, uninstalled one after another, and their leftovers |
 
 Next:

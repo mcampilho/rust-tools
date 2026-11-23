@@ -178,6 +178,20 @@ fn draw_glyph(g: &mut Gfx, glyph: Glyph, r: Rect, c: rt_gfx::gfx::Color) {
             cog(g, r.x + r.w * 0.38, r.y + r.h * 0.6, r.w * 0.4, 8);
             cog(g, r.x + r.w * 0.8, r.y + r.h * 0.22, r.w * 0.24, 6);
         }
+        Glyph::Wrench => {
+            // A handle across, and an open jaw at its top end.
+            let (x0, y0, x1, y1) = (r.x + r.w * 0.16, r.y + r.h * 0.84, r.x + r.w * 0.66, r.y + r.h * 0.34);
+            g.polyline(&[(x0, y0), (x1, y1)], 3.0, c, false);
+            let (cx, cy, rad) = (r.x + r.w * 0.72, r.y + r.h * 0.28, r.w * 0.24);
+            let pts: Vec<(f32, f32)> = (0..=20)
+                .map(|k| {
+                    // The ring open towards the top right.
+                    let a = (80.0 + 280.0 * k as f32 / 20.0).to_radians();
+                    (cx + rad * a.cos(), cy - rad * a.sin())
+                })
+                .collect();
+            g.polyline(&pts, 2.4, c, false);
+        }
         Glyph::Monitor => {
             // A screen on its stand.
             let screen = Rect::new(r.x, r.y + r.h * 0.08, r.w, r.h * 0.62);

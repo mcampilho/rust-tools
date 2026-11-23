@@ -38,6 +38,7 @@ the list below is deliberately left for later.
 | `crates/rt-core/src/i18n.rs` | `add` (extra tables), `tr_in_from`/`tr_from`/`tf_from` (a table searched first) |
 | `crates/rt-core/src/menu.rs` | `M::map` (turn the commands of a menu into another type) |
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; drive health from `Get-Volume` |
+| `apps/rcare/src/repair.rs`, `repair_page.rs` | Repair: SFC, DISM, chkdsk /scan per NTFS drive (and /spotfix), the Start menu; the tool's output as it comes, with its progress |
 | `apps/rcare/src/sysinfo.rs`, `sysinfo_page.rs` | System Information: Windows, the computer, graphics, drives' health, devices with a problem, battery; Fast Startup, Default Apps, Driver Updates (Windows' pages); Copy |
 | `apps/rcare/src/privacy.rs`, `privacy_page.rs` | Privacy Sweep: Windows' traces (recent documents, Run, Explorer, open/save dialogs, jump lists, clipboard); registry ones to a `.reg` first |
 | `apps/rcare/src/net.rs`, `net_page.rs` | Internet Booster: Windows' TCP values (put back to Windows' own) and each connection's DNS (Automatic, Cloudflare, Quad9, Google), with a `.cmd` copy before each change |
@@ -103,7 +104,23 @@ Needed"). "Review" opens the cleaner or the uninstaller; nothing is changed on t
 later phases (privacy sweep in phase 5 — deleting history or cookies is the user's decision, since rclean never does —,
 startup, Windows integrity in phase 6).
 
-## System Information (phase 6, rcare's own page, last in the sidebar)
+## Repair (phase 6, rcare's own page, last in the sidebar)
+
+Windows' own tools, one at a time (the user's choices): `sfc /scannow`; `DISM /Online /Cleanup-Image /RestoreHealth`;
+`chkdsk X: /scan` for each NTFS drive (from `disks::read`; the system drive until they are known), and when it ends
+with 3 (errors that need fixing) Fix Errors runs `chkdsk X: /spotfix` with `Y` typed in (on the system drive Windows
+does it at the next start; another drive goes offline for a moment — both asked first); the Start menu (Start's and
+Search's processes stopped, Windows starts them again, and `Add-AppxPackage -Register` of
+`StartMenuExperienceHost`/`ShellExperienceHost`; asked first). `repair::run_command` runs the tool without a window and
+reads its output in threads: `Decoder` tells UTF-16 (what `sfc` writes) from the console's code page
+(`MultiByteToWideChar(CP_OEMCP)`: `chkdsk`, `DISM`), `Output` keeps the lines (`\r` rewrites the line: progress) and
+`percent` finds the progress for the bar. Each row says how it ended last (chkdsk by its exit code: 0 no errors, 1–2
+fixed, 3 needs fixing). Also Copy the Output and Open the Log (`CBS.log`, `dism.log`). Administrator rights for every
+tool. Verified: the decoding, the lines and the progress (tests), the runner with `cmd` (its output and exit code),
+screenshots, the page in the real `.exe`. **Not verified**: running SFC, DISM, chkdsk or the Start menu repair for real
+(administrator; SFC and DISM take a long time).
+
+## System Information (phase 6, rcare's own page)
 
 One hidden PowerShell (`sysinfo::SCRIPT`): `Win32_OperatingSystem` (and `DisplayVersion`/`UBR` from the registry),
 `Win32_ComputerSystem`, `Win32_BaseBoard`, `Win32_BIOS`, `Win32_Processor`, `Win32_VideoController`,
@@ -318,8 +335,12 @@ connection to the privileged service `rtsvc` from rcare (the pages use it as the
 6. ~~Startup Optimizer~~, ~~Speed Up~~, ~~Program Deactivator~~ and ~~Extensions~~ done (2026-11-22): phase 3 is
    complete (Real-Time TuneUp, a performance history, stays for later). See their sections.
 7. ~~Phase 4~~ done (2026-11-22): Registry Cleaner. ~~Phase 5~~ done (2026-11-23): Protect System, Internet
-   Booster, Privacy Sweep (see their sections). Then phase 6 (system: Fast Startup, Start menu repair, drivers, default
-   programs, System Information, hardware and software health, a Repair page with SFC, DISM, chkdsk).
+   Booster, Privacy Sweep. ~~Phase 6~~ done (2026-11-23): System Information (with Fast Startup, Default Apps, Driver
+   Updates) and Repair (SFC, DISM, chkdsk, Start menu). See their sections. The user's list up to System Information is
+   covered.
+8. Next: the Privacy Sweep in System Maintenance's one-click check; what was left out on purpose or for later (see
+   "Later" below: Auto Shutdown, Context Menu Manager, File Shredder, Empty Folder Scanner, Process Manager…); the
+   first release `rcare-v0.1.0` (a push and a tag: ask the user) and the Scoop bucket.
 
 ## Decisions for phase 6 (the user chose the recommended option of each, 2026-11-23)
 
@@ -425,7 +446,7 @@ cleaning, restore by opening it); Registry Defrag (sizes only).
 **5. Network and protection** ✔ (Protect System, Internet Booster, Privacy Sweep, as decided) — Internet Booster (TCP, DNS Protector, browser optimize); Protect System (Defender,
 Firewall, anti-tracking, browser protection, safe folder, undelete to be assessed).
 
-**6. System** — Fast Startup, repair Start Menu, Update Drivers, Set Default Program, System Information, hardware
+**6. System** ✔ (System Information, Repair) — Fast Startup, repair Start Menu, Update Drivers, Set Default Program, System Information, hardware
 and software health, and a Repair page (SFC, DISM, chkdsk).
 
 ## Rules
