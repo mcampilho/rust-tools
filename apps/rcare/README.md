@@ -75,4 +75,6 @@ drives (or `--register` / `--unregister`).
 
 ## Not yet
 
-Check for Updates for real (there is no release yet) and the Scoop bucket.
+Nothing from the plan: see what was left for later in [docs/rcare.md](../../docs/rcare.md).
+
+Released since 0.1.0 (2026-11-23), also in the Scoop bucket: `scoop install rcare`.

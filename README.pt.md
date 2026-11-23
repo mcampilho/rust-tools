@@ -78,6 +78,15 @@ Para publicar uma versão, define-a em `apps/<ferramenta>/Cargo.toml` e envia um
 como `rview-v1.1.0`. O [workflow de release](.github/workflows/release.yml) testa e
 compila essa ferramenta e publica-a com a soma SHA-256 e a proveniência da compilação.
 
+O `./release.ps1` fá-lo para várias ferramentas de uma vez: sobe o patch de cada uma
+(`x.y.z` → `x.y.z+1`; uma versão já subida à mão, ou um primeiro release, fica como
+está), faz um commit, envia o `master` e depois as tags de três em três (o GitHub não
+arranca os workflows de mais de três tags de um só envio). Por omissão escolhe as
+ferramentas alteradas desde o último release; `-Apps rcare,rpad` ou `-All` escolhem,
+`-DryRun` só mostra o plano, `-Wait` espera pelos releases de cada grupo. Pergunta
+antes de mudar alguma coisa. Depois, `./dev.ps1 dist` atualiza as compilações locais e
+`checkver.ps1 -Dir bucket -Update` o bucket do Scoop.
+
 ### Com o Scoop
 
 O repositório é também um bucket do [Scoop](https://scoop.sh) (a pasta `bucket`):

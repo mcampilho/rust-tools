@@ -77,6 +77,15 @@ To publish a version, set it in `apps/<tool>/Cargo.toml` and push a tag such as
 `rview-v1.1.0`. The [release workflow](.github/workflows/release.yml) then tests
 and builds that tool, and publishes it with its SHA-256 sum and build provenance.
 
+`./release.ps1` does it for several tools at once: it raises the patch of each
+(`x.y.z` → `x.y.z+1`; a version already raised by hand, or a first release, is
+kept), makes one commit, pushes `master` and then the tags three at a time
+(GitHub starts the workflows of no more than three tags of one push). By default
+it takes the tools changed since their last release; `-Apps rcare,rpad` or `-All`
+choose, `-DryRun` only shows the plan, `-Wait` waits for each group's releases.
+It asks before changing anything. Afterwards, `./dev.ps1 dist` updates the local
+builds and `checkver.ps1 -Dir bucket -Update` the Scoop bucket.
+
 ### With Scoop
 
 The repository is also a [Scoop](https://scoop.sh) bucket (the `bucket` folder):

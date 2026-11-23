@@ -75,4 +75,6 @@ Integração com o Windows › Menu do Explorador acrescenta "Analisar com o rca
 
 ## Por fazer
 
-"Procurar atualizações…" a sério (ainda não há release) e o bucket do Scoop.
+Nada do plano: ver o que ficou para depois em [docs/rcare.pt.md](../../docs/rcare.pt.md).
+
+Publicado desde a 0.1.0 (2026-11-23), também no bucket do Scoop: `scoop install rcare`.

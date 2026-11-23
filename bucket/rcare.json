@@ -1,0 +1,35 @@
+{
+    "version": "0.1.0",
+    "description": "Windows maintenance in one window: cleaner, duplicates, large files, uninstaller, repairs, a scheduler and more",
+    "homepage": "https://github.com/mcampilho/rust-tools/tree/master/apps/rcare",
+    "license": "MIT",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/mcampilho/rust-tools/releases/download/rcare-v0.1.0/rcare-0.1.0-windows-x86_64.zip",
+            "hash": "f0f478228a3eebe7aa33ffbaae76f917758ed3b263afbc1b94efce3b0f116e94",
+            "extract_dir": "rcare-0.1.0-windows-x86_64"
+        }
+    },
+    "bin": "rcare.exe",
+    "shortcuts": [
+        [
+            "rcare.exe",
+            "rcare"
+        ]
+    ],
+    "checkver": {
+        "url": "https://api.github.com/repos/mcampilho/rust-tools/releases",
+        "regex": "\"tag_name\":\\s*\"rcare-v([\\d.]+)\""
+    },
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/mcampilho/rust-tools/releases/download/rcare-v$version/rcare-$version-windows-x86_64.zip",
+                "extract_dir": "rcare-$version-windows-x86_64"
+            }
+        },
+        "hash": {
+            "url": "$baseurl/SHA256SUMS.txt"
+        }
+    }
+}

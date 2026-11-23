@@ -382,7 +382,7 @@ connection to the privileged service `rtsvc` from rcare (the pages use it as the
 8. ~~The Privacy Sweep in System Maintenance's one-click check~~ done (2026-11-23): a sixth row, counting the traces
    ticked in the Privacy Sweep (the scan runs it too), its button opens that page. Next: what was left out on purpose or for later (see
    "Later" below: Auto Shutdown, Context Menu Manager, File Shredder, Empty Folder Scanner, Process Manager…); the
-   first release `rcare-v0.1.0` (a push and a tag: ask the user) and the Scoop bucket.
+   ~~first release~~ `rcare-v0.1.0` published (2026-11-23), with `bucket/rcare.json`.
 
 ## Decisions for phase 6 (the user chose the recommended option of each, 2026-11-23)
 

@@ -396,8 +396,7 @@ ecrã.
 8. ~~A Privacy Sweep na verificação de um clique do System Maintenance~~ feita (2026-11-23): uma sexta linha, com os
    rastos marcados na Privacy Sweep (a verificação corre-a também), o botão abre essa página. A seguir: o que ficou de fora de propósito ou
    para depois (ver "Depois" abaixo: Auto Shutdown, Context Menu Manager, File Shredder, Empty Folder Scanner,
-   Process Manager…); o primeiro release `rcare-v0.1.0` (um push e uma etiqueta: perguntar ao utilizador) e o bucket do
-   Scoop.
+   Process Manager…); ~~o primeiro release~~ `rcare-v0.1.0` publicado (2026-11-23), com o `bucket/rcare.json`.
 
 ## Decisões para a fase 6 (o utilizador escolheu a opção recomendada de cada, 2026-11-23)
 

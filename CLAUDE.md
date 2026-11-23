@@ -40,6 +40,7 @@ Cada aplicação tem o seu `CLAUDE.md` com arquitetura e regras próprias.
 ./dev.ps1 dist                               # todas, com o perfil certo, em dist\
 ./dev.ps1 test --workspace
 ./dev.ps1 clippy --workspace --all-targets
+./release.ps1 -DryRun                        # releases: o patch sobe, tags de 3 em 3 (ver o script)
 ```
 
 O `dev.ps1` carrega o MSVC portátil (`RUST_TOOLS_MSVC_ENV`, ou `\Portable\Tools\dev\msvc\devcmd.ps1`
@@ -91,7 +92,7 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
 `.github/workflows/release.yml` corre com tags `<app>-v<versão>` (ex.: `rview-v1.1.0`). A versão da
 tag tem de ser igual à de `apps/<app>/Cargo.toml`. Todas são publicadas para Windows e Linux (o rsize desde a
 0.1.0, em 2026-11-07, e a 0.1.1 em 2026-11-08 com a correção do "Mostrar no Explorador" com espaços; o rdup desde a
-0.1.0, em 2026-11-08). Em 2026-11-09 saíram rcalc 1.2.1, rpad 1.2.0, rview 1.2.1, rsize 0.1.2 e rdup 0.1.1 (ajuda na
+0.1.0, em 2026-11-08). Em 2026-11-23 saiu o rcare 0.1.0 (o primeiro; manifesto `bucket/rcare.json`). Em 2026-11-09 saíram rcalc 1.2.1, rpad 1.2.0, rview 1.2.1, rsize 0.1.2 e rdup 0.1.1 (ajuda na
 consola ou num diálogo, modo residente e menus do Explorador).
 
 ## Testar em Linux
@@ -138,7 +139,10 @@ chega pelo pipe). O desenho, o protocolo e o modelo de ameaças estão em `docs/
 atualizações continuam em cada aplicação. Feito: o esqueleto (pipe com DACL próprio, níveis User/Elevated, verificação do
 servidor pelo cliente, `install`/`uninstall`/`status`/`console`, verificação de pasta segura) e `ScanVolume` (o
 `rt_scan::scan_with` usa o serviço antes de ler o NTFS por si, se a aplicação não está elevada; `rt_scan::wire`
-leva a árvore). Fotografias (tsvc/src/snapshots.rs: Store, 	ick do agendador, ficheiros .snap numa pasta só para administradores; kinds.rs; idle.rs: parado = CPU < 33 % e na corrente, porque a sessão 0 não vê o teclado; watch.rs: o registo dos programas marca a fotografia como suja): programs (t_inst::snapshot, filtrada pelo nível: um utilizador vê a máquina e o que é seu) e clean (t_clean::snapshot: só tamanhos dos alvos dmin). O rinst usa-a na primeira leitura se não está elevado; o rclean mostra tamanhos nas linhas que precisam de administrador (Item::known). Sem indicador na janela de que veio do serviço, nem botão para a ignorar (as leituras seguintes são ao vivo). Os motores do rclean e do rinst passaram para crates/rt-clean e crates/rt-inst. Tarefas (`jobs.rs`/`work.rs`, só `Elevated`: `Clean` por id de alvos `admin` de ficheiros, `UninstallMsi` por código de produto da máquina; cliente em `rt_svc::client::Client::submit_job`), sem uso ainda nas janelas do rclean e do rinst. Endurecimento: `crates/rt-svc/tests/fuzz.rs` (descodificadores com bytes aleatórios e mutações); por fazer: restringir os privilégios do serviço e experimentar `install`/`uninstall`/o serviço como SYSTEM numa máquina elevada. O `apps/rtsvc/CLAUDE.md` tem os módulos.
+leva a árvore). Fotografias (
+tsvc/src/snapshots.rs: Store, 	ick do agendador, ficheiros .snap numa pasta só para administradores; kinds.rs; idle.rs: parado = CPU < 33 % e na corrente, porque a sessão 0 não vê o teclado; watch.rs: o registo dos programas marca a fotografia como suja): programs (
+t_inst::snapshot, filtrada pelo nível: um utilizador vê a máquina e o que é seu) e clean (
+t_clean::snapshot: só tamanhos dos alvos dmin). O rinst usa-a na primeira leitura se não está elevado; o rclean mostra tamanhos nas linhas que precisam de administrador (Item::known). Sem indicador na janela de que veio do serviço, nem botão para a ignorar (as leituras seguintes são ao vivo). Os motores do rclean e do rinst passaram para crates/rt-clean e crates/rt-inst. Tarefas (`jobs.rs`/`work.rs`, só `Elevated`: `Clean` por id de alvos `admin` de ficheiros, `UninstallMsi` por código de produto da máquina; cliente em `rt_svc::client::Client::submit_job`), sem uso ainda nas janelas do rclean e do rinst. Endurecimento: `crates/rt-svc/tests/fuzz.rs` (descodificadores com bytes aleatórios e mutações); por fazer: restringir os privilégios do serviço e experimentar `install`/`uninstall`/o serviço como SYSTEM numa máquina elevada. O `apps/rtsvc/CLAUDE.md` tem os módulos.
 - Testes do pipe em `crates/rt-svc/tests/pipe.rs` (servidor e cliente no mesmo processo, pipes de nome único);
   `rtsvc console` corre o serviço como o utilizador no pipe de desenvolvimento. `install`/`uninstall`/serviço real
   só se experimentam elevados (não foram corridos em máquina nenhuma ainda).
