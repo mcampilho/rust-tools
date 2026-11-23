@@ -92,7 +92,7 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
 `.github/workflows/release.yml` corre com tags `<app>-v<versão>` (ex.: `rview-v1.1.0`). A versão da
 tag tem de ser igual à de `apps/<app>/Cargo.toml`. Todas são publicadas para Windows e Linux (o rsize desde a
 0.1.0, em 2026-11-07, e a 0.1.1 em 2026-11-08 com a correção do "Mostrar no Explorador" com espaços; o rdup desde a
-0.1.0, em 2026-11-08). Em 2026-11-23 saiu o rcare 0.1.0 (o primeiro; manifesto `bucket/rcare.json`). Em 2026-11-09 saíram rcalc 1.2.1, rpad 1.2.0, rview 1.2.1, rsize 0.1.2 e rdup 0.1.1 (ajuda na
+0.1.0, em 2026-11-08). Em 2026-11-23 saíram o rcare 0.1.0 e o rtsvc 0.1.0 (os primeiros; manifestos `bucket/rcare.json` e `bucket/rtsvc.json`; o rtsvc pelo `release.ps1`). Em 2026-11-09 saíram rcalc 1.2.1, rpad 1.2.0, rview 1.2.1, rsize 0.1.2 e rdup 0.1.1 (ajuda na
 consola ou num diálogo, modo residente e menus do Explorador).
 
 ## Testar em Linux
