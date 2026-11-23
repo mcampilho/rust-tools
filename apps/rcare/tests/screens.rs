@@ -364,6 +364,55 @@ fn files(g: &mut Gfx, r: Rect, th: &Theme) {
     page.render(g, r, th, 1.0);
 }
 
+/// Context Menu Manager: commands and shell extensions, one turned off, one needing administrator rights.
+fn ctxmenu(g: &mut Gfx, r: Rect, th: &Theme) {
+    use rcare::ctxmenu::{How, Item};
+    use rcare::ctxmenu_page::CtxMenuPage;
+    let mut page = CtxMenuPage::new(false);
+    let it = |name: &str, places: Vec<&'static str>, how: How, on: bool, company: Option<&str>, prog: &str| Item {
+        name: name.into(),
+        program: Some(PathBuf::from(prog)),
+        places,
+        how,
+        enabled: on,
+        missing: false,
+        company: company.map(String::from),
+    };
+    let verb = |k: &str| How::Verb(vec![(false, k.into())]);
+    let ext = How::Handler("{23170F69-40C1-278A-1000-000100020000}".into());
+    page.items = vec![
+        it("7-Zip", vec!["Files", "Folders"], ext.clone(), true, Some("Igor Pavlov"), r"C:\Program Files\7-Zip\7-zip.dll"),
+        it("Open Git Bash here", vec!["Folders", "Folder background"], verb("a"), true, None, r"C:\Program Files\Git\git-bash.exe"),
+        it(
+            "Open with Code",
+            vec!["Files", "Folders", "Folder background"],
+            verb("b"),
+            false,
+            Some("Microsoft Corporation"),
+            r"C:\Users\Ana\AppData\Local\Programs\Microsoft VS Code\Code.exe",
+        ),
+        it(
+            "Open with Notepad++",
+            vec!["Files"],
+            verb("c"),
+            true,
+            Some("Don HO don.h@free.fr"),
+            r"C:\Program Files\Notepad++\notepad++.exe",
+        ),
+        it(
+            "Scan with Antivirus",
+            vec!["Files", "Folders", "Drives"],
+            ext,
+            true,
+            Some("Example Security"),
+            r"C:\Program Files\Example\shellext.dll",
+        ),
+    ];
+    page.read = true;
+    page.sel = Some(2);
+    page.render(g, r, th, 1.0);
+}
+
 /// A question in the window's theme (before SFC starts), over the Repair page.
 fn question(g: &mut Gfx, r: Rect, th: &Theme) {
     repair(g, r, th);
@@ -421,5 +470,7 @@ fn screenshots() {
     save("scheduler-dark-smallest.png", shot("schedule", true, false, None, 760, 480, &mut scheduler));
     save("files-light.png", shot("files", false, false, None, 1280, 720, &mut files));
     save("files-dark-smallest.png", shot("files", true, false, None, 760, 480, &mut files));
+    save("ctxmenu-light.png", shot("ctxmenu", false, false, None, 1280, 720, &mut ctxmenu));
+    save("ctxmenu-dark-smallest.png", shot("ctxmenu", true, false, None, 760, 480, &mut ctxmenu));
     save("question-light.png", shot("repair", false, false, None, 1180, 720, &mut question));
 }

@@ -227,6 +227,16 @@ fn draw_glyph(g: &mut Gfx, glyph: Glyph, r: Rect, c: rt_gfx::gfx::Color) {
             let body = Rect::new(r.x, r.y + r.h * 0.26, r.w, r.h * 0.62);
             g.stroke_rrect(body, 2.0, 1.6, c);
         }
+        Glyph::Menu => {
+            // A menu opened from a corner: its box, three lines, the pointer at its corner.
+            let body = Rect::new(r.x + r.w * 0.22, r.y + r.h * 0.14, r.w * 0.74, r.h * 0.78);
+            g.stroke_rrect(body, 2.0, 1.6, c);
+            for k in 0..3 {
+                let y = body.y + body.h * (0.27 + 0.23 * k as f32);
+                g.fill_rect(Rect::new(body.x + body.w * 0.2, y - 0.8, body.w * 0.6, 1.6), c);
+            }
+            g.polyline(&[(r.x, r.y), (r.x + r.w * 0.3, r.y + r.h * 0.12), (r.x + r.w * 0.12, r.y + r.h * 0.3), (r.x, r.y)], 1.4, c, true);
+        }
         Glyph::Clock => {
             // A dial and its two hands.
             let (cx, cy, rad) = (r.x + r.w / 2.0, r.y + r.h / 2.0, r.w * 0.46);

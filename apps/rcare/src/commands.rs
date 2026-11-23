@@ -46,6 +46,8 @@ pub enum Cmd {
     Repair(crate::repair_page::Action),
     /// Scheduler: a button of its bar.
     Schedule(crate::schedule_page::Action),
+    /// Context Menu Manager: a button of its page.
+    CtxMenu(crate::ctxmenu_page::Action),
     /// File Tools: a button of its page.
     Files(crate::files_page::Action),
     /// Custom Clean: the junk, duplicates and large files analysed together.
@@ -170,6 +172,7 @@ impl Cmd {
             Sys(a) => a.label_key(),
             Repair(a) => a.label_key(),
             Schedule(a) => a.label_key(),
+            CtxMenu(a) => a.label_key(),
             Files(a) => a.label_key(),
             CustomAnalyze => "&Analyze",
             CustomFolder => "Change &Folder...",
@@ -461,6 +464,17 @@ fn page_menus(page: usize) -> Own {
                         Item::Item(Files(A::Clear)),
                         Item::Item(Files(A::Shred)),
                     ],
+                )],
+            }
+        }
+        Some(Kind::CtxMenu) => {
+            use crate::ctxmenu_page::Action as A;
+            Own {
+                file: vec![Item::Item(CtxMenu(A::Refresh))],
+                view: Vec::new(),
+                rest: vec![(
+                    "&Edit",
+                    vec![Item::Item(CtxMenu(A::Off)), Item::Item(CtxMenu(A::On)), Item::Sep, Item::Item(CtxMenu(A::Open))],
                 )],
             }
         }

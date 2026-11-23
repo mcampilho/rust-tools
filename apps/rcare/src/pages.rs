@@ -40,6 +40,8 @@ pub enum Kind {
     Schedule,
     /// rcare's own: File Tools.
     Files,
+    /// rcare's own: Context Menu Manager.
+    CtxMenu,
 }
 
 /// A page in the sidebar.
@@ -92,6 +94,8 @@ pub enum Glyph {
     Clock,
     /// A folder: the file tools.
     Folder,
+    /// A small menu with its lines: the right-click menu.
+    Menu,
 }
 
 pub const PAGES: &[PageInfo] = &[
@@ -111,6 +115,7 @@ pub const PAGES: &[PageInfo] = &[
     PageInfo { id: "privacy", kind: Kind::Privacy, label: "Privacy Sweep", glyph: Glyph::Eye },
     PageInfo { id: "repair", kind: Kind::Repair, label: "Repair", glyph: Glyph::Wrench },
     PageInfo { id: "files", kind: Kind::Files, label: "File Tools", glyph: Glyph::Folder },
+    PageInfo { id: "ctxmenu", kind: Kind::CtxMenu, label: "Context Menu Manager", glyph: Glyph::Menu },
     // System Information and the Scheduler stay the last two (the user's wish, 2026-11-23): new pages go above.
     PageInfo { id: "sysinfo", kind: Kind::Sys, label: "System Information", glyph: Glyph::Monitor },
     PageInfo { id: "schedule", kind: Kind::Schedule, label: "Scheduler", glyph: Glyph::Clock },

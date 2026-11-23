@@ -43,6 +43,7 @@ System Information" na lista abaixo fica de propósito para mais tarde.
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; estado dos discos pelo `Get-Volume` |
 | `apps/rcare/src/schedule.rs`, `schedule_page.rs` | Agendador: agendamentos no Agendador de Tarefas do Windows que correm `rcare --run …` (reparos, o lixo marcado), o registo e as últimas execuções |
 | `apps/rcare/src/files.rs`, `files_page.rs` | Ferramentas de ficheiros: pastas vazias (para a Reciclagem) e o File Shredder |
+| `apps/rcare/src/ctxmenu.rs`, `ctxmenu_page.rs` | Context Menu Manager: o que os programas acrescentam ao menu do botão direito do Explorador, desligado e ligado |
 | `apps/rcare/src/bg.rs` | Trabalho fora do fio da janela (`Job`) |
 | `apps/rcare/src/repair.rs`, `repair_page.rs` | Reparar: SFC, DISM, chkdsk /scan por disco NTFS (e /spotfix), o menu Iniciar; o que a ferramenta escreve à medida que chega, com o progresso |
 | `apps/rcare/src/sysinfo.rs`, `sysinfo_page.rs` | System Information: Windows, o computador, gráficos, saúde dos discos, dispositivos com problemas, bateria; Arranque rápido, Aplicações predefinidas, Atualizações de controladores (páginas do Windows); Copiar |
@@ -147,6 +148,25 @@ Acrescentar uma pasta…, Limpar, Destruir…; o trabalho em `bg::Job`. A barra 
 escolhida sempre à vista, esbatido nas pontas), porque 19 entradas já não cabem numa janela baixa. Verificado: os
 testes (ramos vazios, ligações, destruição com um ficheiro só de leitura e uma pasta, nada fica com outro nome),
 imagens. **Não verificado**: a página no `.exe` a sério.
+
+## Context Menu Manager (2026-11-23, escolha do utilizador entre o "Depois"; página do próprio rcare, depois das Ferramentas de ficheiros)
+
+O `ctxmenu.rs` lê, nas classes da máquina e do utilizador (`HKLM`/`HKCU\Software\Classes`), as classes `*`,
+`AllFilesystemObjects`, `Directory`, `Folder`, `Directory\Background`, `DesktopBackground` e `Drive`: **comandos**
+(`shell\<verbo>` com um `command`, ou uma classe `ExplorerCommandHandler`/`DelegateExecute`) e **extensões do shell**
+(`shellex\ContextMenuHandlers`, uma classe COM e o seu `InprocServer32`). As do próprio Windows ficam de fora: o
+programa está na pasta do Windows, ou é um programa sem pasta que o System32 tem (`cmd.exe`, `wsl.exe`). O mesmo comando
+em várias classes (mesmo nome e programa) é uma só linha, e a mesma extensão também; a empresa vem da informação de
+versão do programa (`services::company`). Os nomes guardados como `@ficheiro.dll,-id` leem-se com
+`SHLoadIndirectString` (a feature `Win32_UI_Shell`). Desligar **não apaga nada**, por isso em vez de uma cópia `.reg`
+(a primeira ideia do plano) é um interruptor, como no Startup Optimizer: um comando recebe um valor `LegacyDisable` vazio
+em cada uma das suas chaves (tirado para o ligar); uma extensão do shell fica nomeada em `HKLM\…\Shell
+Extensions\Blocked`, como faz o ShellExView (tirada do HKLM e do HKCU para a ligar) — o que precisa de administrador e
+bloqueia essa classe em todo o lado onde o Explorador a carregaria. Verificado: testes (nomes, as do Windows, ids de
+classe, linhas juntas, as regras da página), um teste a pedido que acrescenta um comando próprio ao `HKCU`, o desliga e
+liga e o tira (passou), a leitura neste PC (7-Zip, Bitdefender, OneDrive, IObit, VS Code, Git, Notepad++, rust-tools,
+…), imagens. **Não verificado**: a página no `.exe` a sério, bloquear uma extensão do shell a sério (HKLM,
+administrador).
 
 ## A janela continua a responder; perguntas no tema (2026-11-23, testes do utilizador)
 

@@ -4,6 +4,7 @@
 //! the duplicates or the disk space, each the page of a small app.
 
 use rcare::commands::{self, Cmd};
+use rcare::ctxmenu_page::CtxMenuPage;
 use rcare::custom::{self, CustomPage, Part, Status};
 use rcare::extensions_page::ExtensionsPage;
 use rcare::files_page::FilesPage;
@@ -118,6 +119,10 @@ macro_rules! page {
                 let $p = &mut $s.schedule;
                 $e
             }
+            Kind::CtxMenu => {
+                let $p = &mut $s.ctxmenu;
+                $e
+            }
             Kind::Files => {
                 let $p = &mut $s.files;
                 $e
@@ -212,6 +217,8 @@ struct Shell {
     repair: RepairPage,
     /// Scheduler: rcare's own page, the slow work at a set time.
     schedule: SchedulePage,
+    /// Context Menu Manager: rcare's own page.
+    ctxmenu: CtxMenuPage,
     /// File Tools: rcare's own page.
     files: FilesPage,
     /// What Windows said about the drives, the last time it was asked.
@@ -323,6 +330,7 @@ impl Shell {
             self.sys.fx.take(),
             self.repair.fx.take(),
             self.schedule.fx.take(),
+            self.ctxmenu.fx.take(),
             self.files.fx.take(),
             self.maint.fx.take(),
             self.custom.fx.take(),
@@ -448,6 +456,7 @@ impl Shell {
             Kind::Sys => self.sys.refresh(),
             Kind::Repair => self.repair.refresh(),
             Kind::Schedule => self.schedule.refresh(),
+            Kind::CtxMenu => self.ctxmenu.refresh(),
             Kind::Files => {}
             Kind::Speed => self.speed.refresh(),
             Kind::Clean => self.clean.analyse(),
@@ -709,6 +718,12 @@ impl Shell {
                 self.ask_if(d, cmd);
                 self.after_page();
             }
+            Cmd::CtxMenu(a) => {
+                let mut d = self.dialogs();
+                self.ctxmenu.act(a, &mut d);
+                self.ask_if(d, cmd);
+                self.after_page();
+            }
             Cmd::Schedule(a) => {
                 let mut d = self.dialogs();
                 self.schedule.act(a, &mut d);
@@ -797,6 +812,7 @@ impl Shell {
                     | Kind::Sys
                     | Kind::Repair
                     | Kind::Schedule
+                    | Kind::CtxMenu
                     | Kind::Files => String::new(),
                 };
                 if rt_sys::win::restart_elevated(&args) {
@@ -849,7 +865,7 @@ impl Shell {
                         tr("Space"),
                         rt_core::i18n::strip_mnemonic(&tr("&Close the Ticked Programs...")).trim_end_matches("...")
                     ),
-                    Kind::Startup | Kind::Services => format!(
+                    Kind::Startup | Kind::Services | Kind::CtxMenu => format!(
                         "F5\t{}\n{}\t{}\n↑ ↓  PgUp PgDn  Home End\t{}",
                         rt_core::i18n::strip_mnemonic(&tr("&Refresh")),
                         tr("Space"),
@@ -912,6 +928,7 @@ impl Shell {
             Cmd::Sys(a) => self.sys.enabled(a),
             Cmd::Repair(a) => self.repair.enabled(a),
             Cmd::Schedule(a) => self.schedule.enabled(a),
+            Cmd::CtxMenu(a) => self.ctxmenu.enabled(a),
             Cmd::Files(a) => self.files.enabled(a),
             Cmd::Speed(a) => self.speed.enabled(a),
             Cmd::RestartAdmin => match PAGES[self.selected].kind {
@@ -922,6 +939,7 @@ impl Shell {
                 | Kind::Sys
                 | Kind::Repair
                 | Kind::Schedule
+                | Kind::CtxMenu
                 | Kind::Files
                 | Kind::Custom
                 | Kind::Maint
@@ -1170,6 +1188,7 @@ impl Shell {
             Kind::Sys => self.sys.render(&mut self.gfx, rest, &theme, s),
             Kind::Repair => self.repair.render(&mut self.gfx, rest, &theme, s),
             Kind::Schedule => self.schedule.render(&mut self.gfx, rest, &theme, s),
+            Kind::CtxMenu => self.ctxmenu.render(&mut self.gfx, rest, &theme, s),
             Kind::Files => self.files.render(&mut self.gfx, rest, &theme, s),
             Kind::Speed => self.speed.render(&mut self.gfx, rest, &theme, s),
             Kind::Custom => self.custom.render(&mut self.gfx, rest, &theme, s),
@@ -1226,6 +1245,7 @@ impl Shell {
             Kind::Sys => self.sys.accessibility(&mut nodes, &mut children),
             Kind::Repair => self.repair.accessibility(&mut nodes, &mut children),
             Kind::Schedule => self.schedule.accessibility(&mut nodes, &mut children),
+            Kind::CtxMenu => self.ctxmenu.accessibility(&mut nodes, &mut children),
             Kind::Files => self.files.accessibility(&mut nodes, &mut children),
             Kind::Speed => self.speed.accessibility(&mut nodes, &mut children),
             Kind::Custom => self.custom.accessibility(&mut nodes, &mut children),
@@ -1325,6 +1345,7 @@ impl Shell {
             }
             Kind::Repair => self.repair.key(&logical).map(Cmd::Repair),
             Kind::Schedule => self.schedule.key(&logical).map(Cmd::Schedule),
+            Kind::CtxMenu => self.ctxmenu.key(&logical).map(Cmd::CtxMenu),
             Kind::Files => self.files.key(&logical).map(Cmd::Files),
             Kind::Clean => self.clean.key(ctrl, shift, alt, logical).map(Cmd::from_clean),
             Kind::Dups => self.dups.key(event, mods).map(Cmd::from_dups),
@@ -1384,6 +1405,13 @@ impl Shell {
                 self.after_page();
                 if let Some(a) = a {
                     self.command(el, Cmd::Files(a));
+                }
+            }
+            Kind::CtxMenu => {
+                let a = self.ctxmenu.press();
+                self.after_page();
+                if let Some(a) = a {
+                    self.command(el, Cmd::CtxMenu(a));
                 }
             }
             Kind::Schedule => {
@@ -1502,6 +1530,7 @@ impl Shell {
             | Kind::Sys
             | Kind::Repair
             | Kind::Schedule
+            | Kind::CtxMenu
             | Kind::Files => {}
             Kind::Clean => {
                 if self.clean.dragging {
@@ -1530,6 +1559,7 @@ impl Shell {
             | Kind::Sys
             | Kind::Repair
             | Kind::Schedule
+            | Kind::CtxMenu
             | Kind::Files
             | Kind::Clean => {}
             Kind::Dups => {
@@ -1576,6 +1606,7 @@ impl Shell {
             Kind::Registry => self.registry.wheel(delta, self.cursor),
             Kind::Protect | Kind::Net | Kind::Privacy | Kind::Sys => {}
             Kind::Repair => self.repair.wheel(delta),
+            Kind::CtxMenu => self.ctxmenu.wheel(delta),
             Kind::Schedule | Kind::Files => {}
             Kind::Speed => self.speed.wheel(delta),
             Kind::Clean => self.clean.wheel(&mut self.gfx, s, delta, self.cursor),
@@ -1603,6 +1634,7 @@ impl Shell {
             Kind::Sys => self.sys.animate(),
             Kind::Repair => self.repair.animate(),
             Kind::Schedule => self.schedule.animate(),
+            Kind::CtxMenu => self.ctxmenu.animate(),
             Kind::Files => self.files.animate(),
             Kind::Speed => self.speed.animate(),
             Kind::Clean => self.clean.animate().then(|| Instant::now() + Duration::from_millis(40)),
@@ -1771,6 +1803,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     | Kind::Sys
                     | Kind::Repair
                     | Kind::Schedule
+                    | Kind::CtxMenu
                     | Kind::Files
                     | Kind::Clean
                     | Kind::Inst => {}
@@ -1973,6 +2006,7 @@ pub fn run() {
         sys: SysPage::new(admin),
         repair: RepairPage::new(admin),
         schedule: SchedulePage::new(admin, data_dir.clone()),
+        ctxmenu: CtxMenuPage::new(admin),
         files: FilesPage::default(),
         speed: SpeedPage::new(admin),
         volumes: None,

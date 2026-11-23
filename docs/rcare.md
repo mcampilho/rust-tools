@@ -40,6 +40,7 @@ the list below is deliberately left for later.
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; drive health from `Get-Volume` |
 | `apps/rcare/src/schedule.rs`, `schedule_page.rs` | Scheduler: schedules in Windows' Task Scheduler running `rcare --run …` (repairs, the junk ticked), the log and the last runs |
 | `apps/rcare/src/files.rs`, `files_page.rs` | File Tools: empty folders (to the Recycle Bin) and the File Shredder |
+| `apps/rcare/src/ctxmenu.rs`, `ctxmenu_page.rs` | Context Menu Manager: what programs add to Explorer's right-click menu, turned off and on |
 | `apps/rcare/src/bg.rs` | Work off the window's thread (`Job`) |
 | `apps/rcare/src/repair.rs`, `repair_page.rs` | Repair: SFC, DISM, chkdsk /scan per NTFS drive (and /spotfix), the Start menu; the tool's output as it comes, with its progress |
 | `apps/rcare/src/sysinfo.rs`, `sysinfo_page.rs` | System Information: Windows, the computer, graphics, drives' health, devices with a problem, battery; Fast Startup, Default Apps, Driver Updates (Windows' pages); Copy |
@@ -139,6 +140,24 @@ dialog), Scan, Remove…; Add Files… (`Dialogs::open_files`, new in `rt-ui`, s
 the work in `bg::Job`s. The sidebar now scrolls (wheel, the selected entry kept in sight, a fade at the edges) because
 19 entries no longer fit a low window. Verified: the tests (empty branches, links, shredding with a read-only file and
 a folder, nothing left under another name), screenshots. **Not verified**: the page in the real `.exe`.
+
+## Context Menu Manager (2026-11-23, the user's choice from "Later"; rcare's own page, after File Tools)
+
+`ctxmenu.rs` reads, under the machine's and the user's classes (`HKLM`/`HKCU\Software\Classes`), the classes `*`,
+`AllFilesystemObjects`, `Directory`, `Folder`, `Directory\Background`, `DesktopBackground` and `Drive`:
+**commands** (`shell\<verb>` with a `command`, or an `ExplorerCommandHandler`/`DelegateExecute` class) and **shell
+extensions** (`shellex\ContextMenuHandlers`, a COM class and its `InprocServer32`). Windows' own are left out: the
+program in the Windows folder, or a program without a folder that System32 has (`cmd.exe`, `wsl.exe`). The same command
+in several classes (same name and program) is one row, as is the same shell extension; the company comes from the
+program's version information (`services::company`). The labels kept as `@file.dll,-id` are read with
+`SHLoadIndirectString` (the `Win32_UI_Shell` feature). Turning off **deletes nothing**, so instead of a `.reg` copy (the
+plan's first idea) it is a switch, as in the Startup Optimizer: a command gets an empty `LegacyDisable` value in each of
+its keys (taken away to turn it on); a shell extension is named under `HKLM\…\Shell Extensions\Blocked`, as ShellExView
+does (taken away from HKLM and HKCU to turn it on) — which needs administrator rights and blocks that class wherever
+Explorer would load it. Verified: tests (labels, Windows' own, class ids, rows put together, the page's rules), a test on
+request that adds a command of its own to `HKCU`, turns it off and on and takes it away (passed), the reading on this
+PC (7-Zip, Bitdefender, OneDrive, IObit, VS Code, Git, Notepad++, rust-tools, …), screenshots. **Not verified**: the
+page in the real `.exe`, blocking a shell extension for real (HKLM, administrator).
 
 ## The window keeps answering; questions in the theme (2026-11-23, the user's tests)
 

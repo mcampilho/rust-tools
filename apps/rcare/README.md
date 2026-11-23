@@ -42,6 +42,7 @@ Pages so far:
 | System Information | – (rcare's own) | Windows, the computer, graphics, the drives' health, devices with a problem and the battery; Fast Startup, and Windows' own Default Apps and Driver Updates pages; Copy puts it all on the clipboard |
 | Repair | – (rcare's own) | Windows' own repair tools, one at a time, with their output as it comes: SFC, DISM, chkdsk (a scan of each drive, and fixing the errors it finds) and repairing the Start menu |
 | Scheduler | – (rcare's own) | SFC, DISM, a check of the drives and cleaning the junk ticked, daily, weekly or monthly at a set time, through Windows' Task Scheduler (even with rcare closed); the last runs and a log |
+| Context Menu Manager | – (rcare's own) | What programs add to Explorer's right-click menu (commands and shell extensions), each with a switch: turning one off deletes nothing, so it can be turned on again. Windows' own entries are left out |
 | File Tools | – (rcare's own) | The empty folders under a folder, sent to the Recycle Bin; and the File Shredder: files overwritten with random bytes, renamed and deleted, so undelete tools find nothing (on an SSD it is not a guarantee) |
 | Uninstall Apps | [rinst](../rinst/README.md) | The programs of every user and source, uninstalled one after another, and their leftovers |
 
