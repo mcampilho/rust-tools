@@ -30,3 +30,5 @@ pub mod start;
 pub mod startup;
 pub mod startup_page;
 pub mod storage;
+pub mod sysinfo;
+pub mod sysinfo_page;

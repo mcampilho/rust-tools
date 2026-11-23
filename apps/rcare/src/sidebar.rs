@@ -35,10 +35,10 @@ pub fn layout(area: Rect, pages: usize, s: f32) -> Layout {
     let row = (40.0 * s).round();
     let toggle = Rect::new(area.x + pad, area.y + (8.0 * s).round(), area.w - 2.0 * pad, row);
     let mut y = toggle.bottom() + (10.0 * s).round();
-    // Many pages in a low window: the entries get shorter (down to 28 px) so all of them show.
+    // Many pages in a low window: the entries get shorter (down to 22 px, the icon's height) so all of them show.
     let gap = (2.0 * s).round();
     let room = area.bottom() - y - pad;
-    let item = if pages == 0 { row } else { ((room / pages as f32) - gap).floor().clamp((28.0 * s).round(), row) };
+    let item = if pages == 0 { row } else { ((room / pages as f32) - gap).floor().clamp((22.0 * s).round(), row) };
     let items = (0..pages)
         .map(|_| {
             let r = Rect::new(area.x + pad, y, area.w - 2.0 * pad, item);
@@ -177,6 +177,14 @@ fn draw_glyph(g: &mut Gfx, glyph: Glyph, r: Rect, c: rt_gfx::gfx::Color) {
             };
             cog(g, r.x + r.w * 0.38, r.y + r.h * 0.6, r.w * 0.4, 8);
             cog(g, r.x + r.w * 0.8, r.y + r.h * 0.22, r.w * 0.24, 6);
+        }
+        Glyph::Monitor => {
+            // A screen on its stand.
+            let screen = Rect::new(r.x, r.y + r.h * 0.08, r.w, r.h * 0.62);
+            g.stroke_rrect(screen, 2.0, 1.6, c);
+            let cx = r.x + r.w / 2.0;
+            g.fill_rrect(Rect::new(cx - 1.0, screen.bottom(), 2.0, r.h * 0.16), 1.0, c);
+            g.fill_rrect(Rect::new(cx - r.w * 0.25, r.y + r.h * 0.88, r.w * 0.5, 2.0), 1.0, c);
         }
         Glyph::Eye => {
             // An eye's outline and its pupil.

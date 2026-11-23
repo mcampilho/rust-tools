@@ -32,6 +32,8 @@ pub enum Kind {
     Net,
     /// rcare's own: the traces Windows keeps.
     Privacy,
+    /// rcare's own: the computer and its parts.
+    Sys,
 }
 
 /// A page in the sidebar.
@@ -76,6 +78,8 @@ pub enum Glyph {
     Globe,
     /// An eye: privacy.
     Eye,
+    /// A screen: the computer.
+    Monitor,
 }
 
 pub const PAGES: &[PageInfo] = &[
@@ -93,6 +97,7 @@ pub const PAGES: &[PageInfo] = &[
     PageInfo { id: "protect", kind: Kind::Protect, label: "Protect System", glyph: Glyph::Shield },
     PageInfo { id: "net", kind: Kind::Net, label: "Internet Booster", glyph: Glyph::Globe },
     PageInfo { id: "privacy", kind: Kind::Privacy, label: "Privacy Sweep", glyph: Glyph::Eye },
+    PageInfo { id: "sysinfo", kind: Kind::Sys, label: "System Information", glyph: Glyph::Monitor },
 ];
 
 /// The index of the page saved as `id`; the first one when it is unknown.

@@ -38,6 +38,7 @@ the list below is deliberately left for later.
 | `crates/rt-core/src/i18n.rs` | `add` (extra tables), `tr_in_from`/`tr_from`/`tf_from` (a table searched first) |
 | `crates/rt-core/src/menu.rs` | `M::map` (turn the commands of a menu into another type) |
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; drive health from `Get-Volume` |
+| `apps/rcare/src/sysinfo.rs`, `sysinfo_page.rs` | System Information: Windows, the computer, graphics, drives' health, devices with a problem, battery; Fast Startup, Default Apps, Driver Updates (Windows' pages); Copy |
 | `apps/rcare/src/privacy.rs`, `privacy_page.rs` | Privacy Sweep: Windows' traces (recent documents, Run, Explorer, open/save dialogs, jump lists, clipboard); registry ones to a `.reg` first |
 | `apps/rcare/src/net.rs`, `net_page.rs` | Internet Booster: Windows' TCP values (put back to Windows' own) and each connection's DNS (Automatic, Cloudflare, Quad9, Google), with a `.cmd` copy before each change |
 | `apps/rcare/src/protect.rs`, `protect_page.rs`, `ps.rs` | Protect System: antivirus and firewall products, Defender, Controlled folder access, the Windows Firewall's profiles; Windows' own actions. `ps.rs` runs PowerShell and tools without a window |
@@ -101,6 +102,19 @@ one with `chkdsk X: /f` or the drive's Properties › Tools › Check — on thi
 Needed"). "Review" opens the cleaner or the uninstaller; nothing is changed on this page. More checks join with the
 later phases (privacy sweep in phase 5 — deleting history or cookies is the user's decision, since rclean never does —,
 startup, Windows integrity in phase 6).
+
+## System Information (phase 6, rcare's own page, last in the sidebar)
+
+One hidden PowerShell (`sysinfo::SCRIPT`): `Win32_OperatingSystem` (and `DisplayVersion`/`UBR` from the registry),
+`Win32_ComputerSystem`, `Win32_BaseBoard`, `Win32_BIOS`, `Win32_Processor`, `Win32_VideoController`,
+`Get-PhysicalDisk` (health), `Win32_Battery`, `Get-PnpDevice` with `Status` Error (`Problem`: `CM_PROB_…`, said in
+words by `problem_text`), `HiberbootEnabled` (absent = on). Six cards (Windows, Computer — the board when the maker
+left "System Product Name" —, Graphics, Drives, Devices with a problem, Battery); in a small window each line goes on
+one row. Actions: Refresh, Copy (all as text), Fast Startup (a switch, `HiberbootEnabled`, administrator), Default
+Apps (`ms-settings:defaultapps`: Windows does not let programs set them) and Driver Updates
+(`ms-settings:windowsupdate-optionalupdates`). Here: Windows 10 Pro N 22H2 19045.6466, i7-6700K, 32 GB, GTX 960, three
+healthy drives, the Genesys card reader that could not start, Fast Startup on. Verified: that reading, screenshots,
+the page in the real `.exe`. **Not verified**: turning Fast Startup off and on for real (administrator).
 
 ## Starting as administrator (2026-11-23, the user's request)
 
@@ -306,6 +320,15 @@ connection to the privileged service `rtsvc` from rcare (the pages use it as the
 7. ~~Phase 4~~ done (2026-11-22): Registry Cleaner. ~~Phase 5~~ done (2026-11-23): Protect System, Internet
    Booster, Privacy Sweep (see their sections). Then phase 6 (system: Fast Startup, Start menu repair, drivers, default
    programs, System Information, hardware and software health, a Repair page with SFC, DISM, chkdsk).
+
+## Decisions for phase 6 (the user chose the recommended option of each, 2026-11-23)
+
+- **Update Drivers**: no network in rcare: list the devices with a problem and open Windows Update's optional updates,
+  where Windows itself finds and installs drivers.
+- **chkdsk** (Repair page): `chkdsk /scan` (online, no restart); when it finds errors, offer `/spotfix` (on the system
+  drive it is scheduled for the next start). Together with SFC and DISM.
+- **Repair Start Menu**: restart Start's and Search's processes and register Windows' own Start menu package again
+  (`Add-AppxPackage -Register`); nothing is deleted.
 
 ## Decisions for phase 5 (the user chose the recommended option of each, 2026-11-22)
 

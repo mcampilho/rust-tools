@@ -257,3 +257,43 @@ The ticked traces were swept.		Die markierten Spuren wurden entfernt.	Se borraro
 {} traces removed.		{} Spuren entfernt.	{} rastros quitados.	{} traces supprimées.	{} tracce rimosse.	{} 個の痕跡を削除しました。	{} rastros removidos.	{} rastos removidos.	已删除 {} 个痕迹。
 The traces Windows keeps of what was done. Never the browsers' history, cookies or passwords.		Die Spuren, die Windows von der Arbeit aufbewahrt. Nie Verlauf, Cookies oder Kennwörter der Browser.	Los rastros que Windows guarda de lo que se hizo. Nunca el historial, las cookies ni las contraseñas de los navegadores.	Les traces que Windows garde de ce qui a été fait. Jamais l'historique, les cookies ni les mots de passe des navigateurs.	Le tracce che Windows conserva di ciò che è stato fatto. Mai cronologia, cookie o password dei browser.	Windows が残している操作の痕跡。ブラウザーの履歴、Cookie、パスワードには触れません。	Os rastros que o Windows guarda do que foi feito. Nunca o histórico, os cookies nem as senhas dos navegadores.	Os rastos que o Windows guarda do que foi feito. Nunca o histórico, os cookies nem as palavras-passe dos browsers.	Windows 保留的操作痕迹。绝不涉及浏览器的历史记录、Cookie 或密码。
 Traces ticked to sweep: {}.		Zum Entfernen markierte Spuren: {}.	Rastros marcados para borrar: {}.	Traces cochées à effacer : {}.	Tracce selezionate da eliminare: {}.	消去にチェックした痕跡: {}。	Rastros marcados para apagar: {}.	Rastos marcados para apagar: {}.	勾选清除的痕迹：{}。
+System Information		Systeminformationen	Información del sistema	Informations système	Informazioni di sistema	システム情報	Informações do sistema	Informações do sistema	系统信息
+&Copy		&Kopieren	&Copiar	&Copier	&Copia	コピー(&C)	&Copiar	&Copiar	复制(&C)
+Fast &Startup		&Schnellstart	&Inicio rápido	Démarrage &rapide	Avvio &rapido	高速スタートアップ(&S)	&Inicialização rápida	A&rranque rápido	快速启动(&S)
+&Default Apps		Standard-&Apps	Aplicaciones pre&determinadas	Applications par &défaut	App pre&definite	既定のアプリ(&D)	Aplicativos &padrão	Aplicações &predefinidas	默认应用(&D)
+Driver &Updates		&Treiberupdates	Act&ualizaciones de controladores	Mises à jour des &pilotes	Aggiornamenti dei dr&iver	ドライバーの更新(&U)	Atu&alizações de drivers	At&ualizações de controladores	驱动程序更新(&U)
+Changing Fast Startup needs administrator rights: restart rcare as administrator (File menu).		Zum Ändern des Schnellstarts sind Administratorrechte nötig: rcare als Administrator neu starten (Menü Datei).	Cambiar el inicio rápido requiere derechos de administrador: reinicie rcare como administrador (menú Archivo).	Modifier le démarrage rapide nécessite les droits d'administrateur : redémarrez rcare en tant qu'administrateur (menu Fichier).	Per cambiare l'avvio rapido servono i diritti di amministratore: riavvia rcare come amministratore (menu File).	高速スタートアップを変更するには管理者権限が必要です。rcare を管理者として再起動してください ([ファイル] メニュー)。	Alterar a inicialização rápida requer direitos de administrador: reinicie o rcare como administrador (menu Arquivo).	Alterar o arranque rápido precisa de direitos de administrador: reinicie o rcare como administrador (menu Ficheiro).	更改快速启动需要管理员权限：请以管理员身份重新启动 rcare（“文件”菜单）。
+Copied to the clipboard.		In die Zwischenablage kopiert.	Copiado al portapapeles.	Copié dans le presse-papiers.	Copiato negli appunti.	クリップボードにコピーしました。	Copiado para a área de transferência.	Copiado para a área de transferência.	已复制到剪贴板。
+The clipboard could not be used.		Die Zwischenablage konnte nicht verwendet werden.	No se pudo usar el portapapeles.	Le presse-papiers n'a pas pu être utilisé.	Non è stato possibile usare gli appunti.	クリップボードを使用できませんでした。	Não foi possível usar a área de transferência.	Não foi possível usar a área de transferência.	无法使用剪贴板。
+Fast Startup is on.		Der Schnellstart ist eingeschaltet.	El inicio rápido está activado.	Le démarrage rapide est activé.	L'avvio rapido è attivo.	高速スタートアップはオンです。	A inicialização rápida está ativada.	O arranque rápido está ligado.	快速启动已打开。
+Fast Startup is off: Windows starts from scratch each time.		Der Schnellstart ist aus: Windows startet jedes Mal von Grund auf.	El inicio rápido está desactivado: Windows arranca desde cero cada vez.	Le démarrage rapide est désactivé : Windows démarre de zéro à chaque fois.	L'avvio rapido è disattivato: Windows parte da zero ogni volta.	高速スタートアップはオフです。Windows は毎回最初から起動します。	A inicialização rápida está desativada: o Windows inicia do zero toda vez.	O arranque rápido está desligado: o Windows arranca do zero de cada vez.	快速启动已关闭：Windows 每次都从头启动。
+Edition		Edition	Edición	Édition	Edizione	エディション	Edição	Edição	版本
+Version		Version	Versión	Version	Versione	バージョン	Versão	Versão	版本号
+Installed		Installiert	Instalado	Installé	Installato	インストール日	Instalado	Instalado	安装于
+{} hours		{} Stunden	{} horas	{} heures	{} ore	{} 時間	{} horas	{} horas	{} 小时
+{} days		{} Tage	{} días	{} jours	{} giorni	{} 日	{} dias	{} dias	{} 天
+Running for		Läuft seit	En marcha desde hace	En marche depuis	In funzione da	稼働時間	Ligado há	Ligado há	已运行
+Fast Startup		Schnellstart	Inicio rápido	Démarrage rapide	Avvio rapido	高速スタートアップ	Inicialização rápida	Arranque rápido	快速启动
+Model		Modell	Modelo	Modèle	Modello	モデル	Modelo	Modelo	型号
+Driver {}		Treiber {}	Controlador {}	Pilote {}	Driver {}	ドライバー {}	Driver {}	Controlador {}	驱动程序 {}
+Healthy		Fehlerfrei	Correcto	Sain	Integro	正常	Íntegro	Saudável	正常
+Every device works.		Alle Geräte funktionieren.	Todos los dispositivos funcionan.	Tous les périphériques fonctionnent.	Tutti i dispositivi funzionano.	すべてのデバイスが動作しています。	Todos os dispositivos funcionam.	Todos os dispositivos funcionam.	所有设备都正常工作。
+No battery: this computer runs on mains power.		Kein Akku: Dieser Computer läuft am Stromnetz.	Sin batería: este equipo funciona con la red eléctrica.	Pas de batterie : cet ordinateur fonctionne sur secteur.	Nessuna batteria: questo computer è alimentato dalla rete.	バッテリーなし: このコンピューターは電源に接続して動作します。	Sem bateria: este computador funciona ligado à tomada.	Sem bateria: este computador funciona ligado à corrente.	没有电池：这台计算机使用交流电源。
+Computer		Computer	Equipo	Ordinateur	Computer	コンピューター	Computador	Computador	计算机
+Graphics		Grafik	Gráficos	Graphismes	Grafica	グラフィックス	Gráficos	Gráficos	显卡
+Drives		Laufwerke	Unidades	Lecteurs	Unità	ドライブ	Unidades	Discos	驱动器
+Devices with a problem		Geräte mit Problemen	Dispositivos con problemas	Périphériques avec un problème	Dispositivi con un problema	問題のあるデバイス	Dispositivos com problema	Dispositivos com problemas	有问题的设备
+Battery		Akku	Batería	Batterie	Batteria	バッテリー	Bateria	Bateria	电池
+What this computer is and how its parts are, as Windows reports it.		Was dieser Computer ist und wie es seinen Teilen geht, wie Windows es meldet.	Qué es este equipo y cómo están sus piezas, según Windows.	Ce qu'est cet ordinateur et l'état de ses composants, selon Windows.	Che cos'è questo computer e come stanno i suoi componenti, secondo Windows.	Windows が報告する、このコンピューターの構成と各部品の状態。	O que é este computador e como estão as peças dele, segundo o Windows.	O que é este computador e como estão as peças dele, segundo o Windows.	按 Windows 的报告，这台计算机的配置及各部件状态。
+Devices with a problem: {}.		Geräte mit Problemen: {}.	Dispositivos con problemas: {}.	Périphériques avec un problème : {}.	Dispositivi con un problema: {}.	問題のあるデバイス: {}。	Dispositivos com problema: {}.	Dispositivos com problemas: {}.	有问题的设备：{}。
+It could not start		Es konnte nicht starten	No pudo iniciarse	Il n'a pas pu démarrer	Non è riuscito ad avviarsi	開始できませんでした	Não pôde iniciar	Não conseguiu arrancar	无法启动
+Turned off		Ausgeschaltet	Desactivado	Désactivé	Disattivato	無効	Desativado	Desligado	已禁用
+Its driver is not installed		Sein Treiber ist nicht installiert	Su controlador no está instalado	Son pilote n'est pas installé	Il suo driver non è installato	ドライバーがインストールされていません	O driver dele não está instalado	O controlador dele não está instalado	未安装其驱动程序
+Its driver did not load		Sein Treiber wurde nicht geladen	Su controlador no se cargó	Son pilote ne s'est pas chargé	Il suo driver non è stato caricato	ドライバーが読み込まれませんでした	O driver dele não foi carregado	O controlador dele não carregou	其驱动程序未加载
+Not connected		Nicht verbunden	No conectado	Non connecté	Non collegato	接続されていません	Não conectado	Não ligado	未连接
+It has a problem		Es hat ein Problem	Tiene un problema	Il a un problème	Ha un problema	問題があります	Tem um problema	Tem um problema	存在问题
+cores		Kerne	núcleos	cœurs	core	コア	núcleos	núcleos	核心
+threads		Threads	hilos	threads	thread	スレッド	threads	threads	线程
+Motherboard		Hauptplatine	Placa base	Carte mère	Scheda madre	マザーボード	Placa-mãe	Placa principal	主板
+Drive		Laufwerk	Unidad	Lecteur	Unità	ドライブ	Unidade	Disco	驱动器
+Device with a problem		Gerät mit Problem	Dispositivo con problema	Périphérique avec un problème	Dispositivo con un problema	問題のあるデバイス	Dispositivo com problema	Dispositivo com problema	有问题的设备

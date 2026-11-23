@@ -286,6 +286,24 @@ fn privacy(g: &mut Gfx, r: Rect, th: &Theme) {
     page.render(g, r, th, 1.0);
 }
 
+/// System Information as this PC reported it, a drive with a warning added.
+fn sysinfo(g: &mut Gfx, r: Rect, th: &Theme) {
+    use rcare::sysinfo_page::SysPage;
+    let mut page = SysPage::new(true);
+    page.info = Some(rcare::sysinfo::parse(
+        "os\tMicrosoft Windows 10 Pro N\t22H2\t19045.6466\t64-bit\t2026-10-14\t38\n\
+pc\tMCDESK1\tSystem manufacturer\tSystem Product Name\tASUSTeK COMPUTER INC. MAXIMUS VIII HERO\t1402 2016-01-07\t34267713536\n\
+cpu\tIntel(R) Core(TM) i7-6700K CPU @ 4.00GHz\t4\t8\t4001\n\
+gpu\tNVIDIA GeForce GTX 960\t32.0.15.8278\n\
+disk\tSamsung SSD 970 EVO 1TB\tSSD\tNVMe\t1000204886016\tHealthy\n\
+disk\tST3500418AS\tHDD\tSATA\t500107862016\tWarning\n\
+disk\tST1000DX001-1NS162\tHDD\tSATA\t1000204886016\tHealthy\n\
+device\tGenesys Logic USB2.0 Card Reader\tUSB\tCM_PROB_FAILED_START\n\
+fast\t1\n",
+    ));
+    page.render(g, r, th, 1.0);
+}
+
 #[test]
 #[ignore]
 fn screenshots() {
@@ -321,4 +339,6 @@ fn screenshots() {
     save("net-dark-smallest.png", shot("net", true, false, None, 760, 480, &mut net));
     save("privacy-light.png", shot("privacy", false, false, None, 1280, 720, &mut privacy));
     save("privacy-dark-smallest.png", shot("privacy", true, false, None, 760, 480, &mut privacy));
+    save("sysinfo-light.png", shot("sysinfo", false, false, None, 1280, 720, &mut sysinfo));
+    save("sysinfo-dark-smallest.png", shot("sysinfo", true, false, None, 760, 480, &mut sysinfo));
 }

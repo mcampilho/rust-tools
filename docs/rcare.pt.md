@@ -41,6 +41,7 @@ System Information" na lista abaixo fica de propósito para mais tarde.
 | `crates/rt-core/src/i18n.rs` | `add` (tabelas extra), `tr_in_from`/`tr_from`/`tf_from` (uma tabela procurada primeiro) |
 | `crates/rt-core/src/menu.rs` | `M::map` (converter os comandos de um menu noutro tipo) |
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; estado dos discos pelo `Get-Volume` |
+| `apps/rcare/src/sysinfo.rs`, `sysinfo_page.rs` | System Information: Windows, o computador, gráficos, saúde dos discos, dispositivos com problemas, bateria; Arranque rápido, Aplicações predefinidas, Atualizações de controladores (páginas do Windows); Copiar |
 | `apps/rcare/src/privacy.rs`, `privacy_page.rs` | Privacy Sweep: rastos do Windows (documentos recentes, Executar, Explorador, caixas Abrir/Guardar, listas de saltos, área de transferência); os do registo vão antes para um `.reg` |
 | `apps/rcare/src/net.rs`, `net_page.rs` | Internet Booster: os valores TCP do Windows (repostos aos do próprio Windows) e o DNS de cada ligação (Automático, Cloudflare, Quad9, Google), com uma cópia `.cmd` antes de cada alteração |
 | `apps/rcare/src/protect.rs`, `protect_page.rs`, `ps.rs` | Protect System: produtos antivírus e firewall, Defender, Acesso controlado a pastas, perfis da Firewall do Windows; as ações do próprio Windows. O `ps.rs` corre o PowerShell e ferramentas sem janela |
@@ -107,6 +108,20 @@ Detalhes mostram cada disco e como reparar um com `chkdsk X: /f` ou Propriedades
 neste PC o disco S: diz "Warning / Full Repair Needed"). "Rever" abre o limpador ou o desinstalador; nesta página não se
 muda nada. Mais verificações entram com as fases seguintes (limpeza de privacidade na fase 5 — apagar histórico ou
 cookies é decisão do utilizador, porque o rclean nunca o faz —, arranque, integridade do Windows na fase 6).
+
+## System Information (fase 6, página do próprio rcare, a última da barra lateral)
+
+Um PowerShell escondido (`sysinfo::SCRIPT`): `Win32_OperatingSystem` (e `DisplayVersion`/`UBR` do registo),
+`Win32_ComputerSystem`, `Win32_BaseBoard`, `Win32_BIOS`, `Win32_Processor`, `Win32_VideoController`,
+`Get-PhysicalDisk` (saúde), `Win32_Battery`, `Get-PnpDevice` com `Status` Error (`Problem`: `CM_PROB_…`, dito por
+palavras pelo `problem_text`), `HiberbootEnabled` (ausente = ligado). Seis caixas (Windows, Computador — a placa
+quando o fabricante deixou "System Product Name" —, Gráficos, Discos, Dispositivos com problemas, Bateria); numa
+janela pequena cada linha vai numa só fila. Ações: Atualizar, Copiar (tudo em texto), Arranque rápido (um
+interruptor, `HiberbootEnabled`, administrador), Aplicações predefinidas (`ms-settings:defaultapps`: o Windows não
+deixa os programas defini-las) e Atualizações de controladores (`ms-settings:windowsupdate-optionalupdates`). Aqui:
+Windows 10 Pro N 22H2 19045.6466, i7-6700K, 32 GB, GTX 960, três discos saudáveis, o leitor de cartões Genesys que não
+arrancou, Arranque rápido ligado. Verificado: essa leitura, imagens, a página no `.exe` a sério. **Não verificado**:
+desligar e ligar o Arranque rápido a sério (administrador).
 
 ## Arranque como administrador (2026-11-23, pedido do utilizador)
 
@@ -320,6 +335,15 @@ ecrã.
    Privacy Sweep (ver as secções). Depois a fase 6 (sistema: Arranque rápido, reparar o menu Iniciar, controladores,
    programas predefinidos, Informações do sistema, saúde do hardware e do software, uma página Reparar com SFC, DISM,
    chkdsk).
+
+## Decisões para a fase 6 (o utilizador escolheu a opção recomendada de cada, 2026-11-23)
+
+- **Update Drivers**: sem rede no rcare: listar os dispositivos com problemas e abrir as atualizações opcionais do
+  Windows Update, onde o próprio Windows procura e instala controladores.
+- **chkdsk** (página Reparar): `chkdsk /scan` (com o disco em uso, sem reiniciar); se encontrar erros, oferecer
+  `/spotfix` (no disco do sistema fica marcado para o próximo arranque). Junto com SFC e DISM.
+- **Repair Start Menu**: reiniciar os processos do Iniciar e da pesquisa e voltar a registar o pacote do menu Iniciar do
+  próprio Windows (`Add-AppxPackage -Register`); não apaga nada.
 
 ## Decisões para a fase 5 (o utilizador escolheu a opção recomendada de cada, 2026-11-22)
 

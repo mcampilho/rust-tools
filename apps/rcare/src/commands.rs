@@ -40,6 +40,8 @@ pub enum Cmd {
     Net(crate::net_page::Action),
     /// Privacy Sweep: a button of its bar.
     Privacy(crate::privacy_page::Action),
+    /// System Information: a button of its bar.
+    Sys(crate::sysinfo_page::Action),
     /// Custom Clean: the junk, duplicates and large files analysed together.
     CustomAnalyze,
     /// Custom Clean: the folder where duplicates and large files are looked for.
@@ -159,6 +161,7 @@ impl Cmd {
             Protect(a) => a.label_key(),
             Net(a) => a.label_key(),
             Privacy(a) => a.label_key(),
+            Sys(a) => a.label_key(),
             CustomAnalyze => "&Analyze",
             CustomFolder => "Change &Folder...",
             Sidebar => "Collapse Side&bar",
@@ -212,7 +215,8 @@ pub fn shortcut(cmd: Cmd) -> Option<&'static str> {
         | Registry(crate::registry_page::Action::Scan)
         | Protect(crate::protect_page::Action::Refresh)
         | Net(crate::net_page::Action::Refresh)
-        | Privacy(crate::privacy_page::Action::Scan) => Some("F5"),
+        | Privacy(crate::privacy_page::Action::Scan)
+        | Sys(crate::sysinfo_page::Action::Refresh) => Some("F5"),
         c => BINDINGS.iter().find(|(_, x)| *x == c).map(|(k, _)| *k),
     }
 }
@@ -378,6 +382,24 @@ fn page_menus(page: usize) -> Own {
                 rest: vec![("&Edit", vec![Item::Item(Privacy(A::Sweep)), Item::Sep, Item::Item(Privacy(A::Copies))])],
             }
         }
+        Some(Kind::Sys) => {
+            use crate::sysinfo_page::Action as A;
+            Own {
+                file: vec![Item::Item(Sys(A::Refresh))],
+                view: Vec::new(),
+                rest: vec![(
+                    "&Edit",
+                    vec![
+                        Item::Item(Sys(A::Copy)),
+                        Item::Sep,
+                        Item::Item(Sys(A::FastStartup)),
+                        Item::Sep,
+                        Item::Item(Sys(A::DefaultApps)),
+                        Item::Item(Sys(A::Drivers)),
+                    ],
+                )],
+            }
+        }
         Some(Kind::Maint) => Own { file: vec![Item::Item(MaintScan)], view: Vec::new(), rest: Vec::new() },
         Some(Kind::Custom) => Own { file: vec![Item::Item(CustomAnalyze), Item::Item(CustomFolder)], view: Vec::new(), rest: Vec::new() },
         Some(Kind::Inst) => own_menus(rinst::commands::menu_tree(), inst_is_window, Cmd::from_inst),
@@ -478,6 +500,7 @@ mod tests {
         assert!(all(at("protect")).contains(&Protect(crate::protect_page::Action::QuickScan)));
         assert!(all(at("net")).contains(&Net(crate::net_page::Action::Dns(crate::net::Provider::Quad9))));
         assert!(all(at("privacy")).contains(&Privacy(crate::privacy_page::Action::Sweep)));
+        assert!(all(at("sysinfo")).contains(&Sys(crate::sysinfo_page::Action::FastStartup)));
         assert!(all(at("speed")).contains(&Speed(crate::speed_page::Action::GameMode)));
         assert!(all(at("clean")).contains(&Clean(CleanCmd::Analyse)));
         assert!(all(at("dups")).contains(&Dups(DupCmd::Search)));
