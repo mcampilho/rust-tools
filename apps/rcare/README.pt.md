@@ -59,8 +59,13 @@ existe lá um ficheiro `rcare.portable`.
 
 Perfil `release`: não é feito para ocupar pouco.
 
-Linha de comandos: `rcare [--tray] [--new-window] [pasta]`. Uma pasta abre a
-Custom Clean nela, analisada. `--tray` fica na área de notificação (Ficheiro ›
+O rcare arranca como administrador: o Windows pergunta primeiro, porque a maior parte das correções precisa
+disso. `--user` arranca-o sem perguntar (e se o pedido do Windows for recusado, o rcare arranca também sem
+os direitos); Ficheiro › Reiniciar como administrador dá-os depois. Como administrador, o Windows não deixa
+largar ficheiros do Explorador na janela: use as caixas de escolher pastas, ou `--user`.
+
+Linha de comandos: `rcare [--user] [--tray] [--new-window] [pasta]`. Uma pasta abre a
+Custom Clean nela, analisada. `--tray` fica na área de notificação, sem administrador (sem pedido a cada início de sessão; Ficheiro ›
 Integração com o Windows › Iniciar com o Windows arranca-o assim); Ficheiro ›
 Integração com o Windows › Menu do Explorador acrescenta "Analisar com o rcare"
 às pastas e discos (ou `--register` / `--unregister`).

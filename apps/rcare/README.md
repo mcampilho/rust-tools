@@ -59,8 +59,13 @@ are in `%APPDATA%\rcare`, or next to the program when a file named
 
 Profile `release`: it is not built for size.
 
-Command line: `rcare [--tray] [--new-window] [folder]`. A folder opens Custom
-Clean on it, analysed. `--tray` stays in the notification area (File ›
+rcare starts as administrator: Windows asks first, since most fixes need it. `--user` starts it
+without asking (and if Windows' prompt is refused, rcare starts without the rights too); File › Restart
+as Administrator gives them later. As administrator, Windows does not let files be dropped on the window
+from Explorer: use the folder dialogs, or `--user`.
+
+Command line: `rcare [--user] [--tray] [--new-window] [folder]`. A folder opens Custom
+Clean on it, analysed. `--tray` stays in the notification area, without administrator rights (no prompt at every sign-in; File ›
 Windows Integration › Start with Windows starts it this way); File › Windows
 Integration › Explorer Context Menu adds "Analyze with rcare" to folders and
 drives (or `--register` / `--unregister`).

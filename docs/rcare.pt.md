@@ -108,6 +108,18 @@ neste PC o disco S: diz "Warning / Full Repair Needed"). "Rever" abre o limpador
 muda nada. Mais verificações entram com as fases seguintes (limpeza de privacidade na fase 5 — apagar histórico ou
 cookies é decisão do utilizador, porque o rclean nunca o faz —, arranque, integridade do Windows na fase 6).
 
+## Arranque como administrador (2026-11-23, pedido do utilizador)
+
+O rcare arranca como administrador por omissão (`start.rs`): depois do `hand_off` (um rcare residente mostra-se
+primeiro), se não está elevado e não veio nenhum de `--user`, `--tray`, `--help`, `--register`, `--unregister`,
+arranca-se outra vez com `runas` (`rt_sys::win::restart_elevated`, os mesmos argumentos, com aspas pelo
+`relaunch_args`) e termina; se o pedido do Windows for recusado, continua sem os direitos. `--user` arranca sem
+perguntar. `--tray` nunca pergunta (é o que o Iniciar com o Windows corre: um pedido a cada início de sessão seria
+errado); o Ficheiro › Reiniciar como administrador fica. Como administrador o Windows bloqueia o arrastar e largar
+do Explorador (UIPI): as caixas de escolher pastas funcionam. Verificado: a decisão e as aspas (testes), o `--user` a
+arrancar sem pedido. **Não verificado**: aceitar o pedido (é o ecrã do utilizador); o verbo do Explorador agora
+também pede.
+
 ## Privacy Sweep (fase 5, página do próprio rcare, a última da barra lateral)
 
 Só rastos do Windows (escolha do utilizador): documentos recentes (os ficheiros de

@@ -102,6 +102,17 @@ Needed"). "Review" opens the cleaner or the uninstaller; nothing is changed on t
 later phases (privacy sweep in phase 5 — deleting history or cookies is the user's decision, since rclean never does —,
 startup, Windows integrity in phase 6).
 
+## Starting as administrator (2026-11-23, the user's request)
+
+rcare starts as administrator by default (`start.rs`): after `hand_off` (a resident rcare shows itself first), if it
+is not elevated and none of `--user`, `--tray`, `--help`, `--register`, `--unregister` was given, it starts itself
+again with `runas` (`rt_sys::win::restart_elevated`, the same arguments, quoted by `relaunch_args`) and ends; if
+Windows' prompt is refused it goes on without the rights. `--user` starts it without asking. `--tray` never asks (it
+is what Start with Windows runs: a prompt at every sign-in would be wrong); File › Restart as Administrator stays.
+As administrator Windows blocks drag and drop from Explorer (UIPI): the folder dialogs work. Verified: the decision
+and the quoting (tests), `--user` starting without a prompt. **Not verified**: accepting the prompt (it is the
+user's screen); the Explorer verb now prompts too.
+
 ## Privacy Sweep (phase 5, rcare's own page, last in the sidebar)
 
 Only Windows' traces (the user's choice): recent documents (the files in `%APPDATA%\Microsoft\Windows\Recent`, not

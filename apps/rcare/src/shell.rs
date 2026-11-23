@@ -1587,7 +1587,7 @@ fn integrate(on: bool) -> Result<String, String> {
     rt_ui::explorer::set_folders("rcare", on, &texts)
 }
 
-const USAGE: &str = "rcare [--tray] [--new-window] [folder]
+const USAGE: &str = "rcare [--user] [--tray] [--new-window] [folder]
 
   Windows maintenance in one window. The sidebar chooses the page: System
   Maintenance (the checks in one go), Custom Clean (junk, duplicates and
@@ -1597,8 +1597,13 @@ const USAGE: &str = "rcare [--tray] [--new-window] [folder]
   other tools join them.
 
   folder        Open Custom Clean on this folder (or drive) and analyse it.
+  --user        Start without administrator rights (by default rcare asks
+                Windows for them: most fixes need them). If Windows' prompt
+                is refused, rcare starts without them too.
   --tray        Stay resident in the notification area: closing the window
                 hides it, and the icon (or starting rcare again) shows it.
+                Resident, rcare starts without administrator rights (no
+                prompt at every sign-in): File > Restart as Administrator.
                 Exit from the icon's menu or File > Exit. File > Windows
                 Integration > Start with Windows starts it this way.
   --new-window  Open a separate window even when rcare is resident.
@@ -1636,6 +1641,10 @@ pub fn run() {
     let new_window = raw.iter().any(|a| a == "--new-window") || help;
     // A resident rcare shows itself (and analyses the folder) instantly.
     if !new_window && rt_sys::win::hand_off(&IDENT, &folders, false, false) {
+        return;
+    }
+    // As administrator by default: Windows asks, and that rcare starts instead. Refused: on without the rights.
+    if rcare::start::wants_elevation(&raw, rt_sys::win::elevated()) && rt_sys::win::restart_elevated(&rcare::start::relaunch_args(&raw)) {
         return;
     }
     // SAFETY: only changes how this process reports a missing disc or card:
