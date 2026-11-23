@@ -38,6 +38,7 @@ the list below is deliberately left for later.
 | `crates/rt-core/src/i18n.rs` | `add` (extra tables), `tr_in_from`/`tr_from`/`tf_from` (a table searched first) |
 | `crates/rt-core/src/menu.rs` | `M::map` (turn the commands of a menu into another type) |
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; drive health from `Get-Volume` |
+| `apps/rcare/src/net.rs`, `net_page.rs` | Internet Booster: Windows' TCP values (put back to Windows' own) and each connection's DNS (Automatic, Cloudflare, Quad9, Google), with a `.cmd` copy before each change |
 | `apps/rcare/src/protect.rs`, `protect_page.rs`, `ps.rs` | Protect System: antivirus and firewall products, Defender, Controlled folder access, the Windows Firewall's profiles; Windows' own actions. `ps.rs` runs PowerShell and tools without a window |
 | `apps/rcare/src/registry_page.rs` | Registry Cleaner: the cleaner's registry categories (ticked, `.reg` copy, cleaned), COM classes and services only reported, the registry's file sizes |
 | `apps/rcare/src/extensions.rs`, `extensions_page.rs` | Extensions: what is added to Chrome, Edge, Brave, Vivaldi, Opera, Chromium and Firefox, by profile; opens the browser's own extensions page. Changes nothing |
@@ -100,7 +101,24 @@ Needed"). "Review" opens the cleaner or the uninstaller; nothing is changed on t
 later phases (privacy sweep in phase 5 — deleting history or cookies is the user's decision, since rclean never does —,
 startup, Windows integrity in phase 6).
 
-## Protect System (phase 5, rcare's own page, last in the sidebar)
+## Internet Booster (phase 5, rcare's own page, last in the sidebar)
+
+One hidden PowerShell (`net::SCRIPT`): `Get-NetTCPSetting -SettingName Internet` and `Get-NetOffloadGlobalSetting`
+(PowerShell's own words, the same in every language: `netsh` prints in the system's language), and for each adapter
+that is up its IPv4 and IPv6 servers (`Get-DnsClientServerAddress`) and whether they were set by hand (`NameServer`
+under `Tcpip`/`Tcpip6\Parameters\Interfaces\{guid}`; the `fec0:` placeholders left out). TCP card: the values, those
+that differ from Windows' own marked (only auto-tuning Normal, RSS and RSC Enabled are compared: ECN, timestamps and
+the initial timeout change with Windows' version, so they are only shown); "Restore Windows' TCP Values…"
+(`netsh int tcp set global autotuninglevel=normal rss=enabled rsc=enabled ecncapability=default timestamps=default`).
+DNS card: the connections (servers; Automatic, by hand or the known service) and four choices for the one selected:
+Automatic (`Set-DnsClientServerAddress -ResetServerAddresses`), Cloudflare, Quad9, Google (IPv4 and IPv6 together).
+Each change asks, needs administrator rights, and first writes `backups\network <date>\tcp.cmd` or `dns-<index>.cmd`
+with the `netsh` lines that put back what was there (if the copy cannot be written nothing changes); then it reads
+again. Here: Windows' own TCP values, Ethernet on the router's DNS (IPv4 and IPv6). Verified: that reading,
+screenshots, the page in the real `.exe`. **Not verified**: the changes for real and running a `.cmd` copy (they need
+administrator rights).
+
+## Protect System (phase 5, rcare's own page)
 
 One hidden PowerShell (`protect::SCRIPT`, a fact a line, read by `parse`): `root/SecurityCenter2` `AntiVirusProduct` and
 `FirewallProduct` (`productState`: the middle byte's 0x10 = on, the last byte 0 = definitions up to date; Defender's

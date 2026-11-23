@@ -28,6 +28,8 @@ pub enum Kind {
     Registry,
     /// rcare's own: the antivirus, the firewall and Defender.
     Protect,
+    /// rcare's own: TCP values and the DNS.
+    Net,
 }
 
 /// A page in the sidebar.
@@ -68,6 +70,8 @@ pub enum Glyph {
     Blocks,
     /// A shield: protection.
     Shield,
+    /// A globe: the network.
+    Globe,
 }
 
 pub const PAGES: &[PageInfo] = &[
@@ -83,6 +87,7 @@ pub const PAGES: &[PageInfo] = &[
     PageInfo { id: "extensions", kind: Kind::Extensions, label: "Extensions", glyph: Glyph::Puzzle },
     PageInfo { id: "registry", kind: Kind::Registry, label: "Registry Cleaner", glyph: Glyph::Blocks },
     PageInfo { id: "protect", kind: Kind::Protect, label: "Protect System", glyph: Glyph::Shield },
+    PageInfo { id: "net", kind: Kind::Net, label: "Internet Booster", glyph: Glyph::Globe },
 ];
 
 /// The index of the page saved as `id`; the first one when it is unknown.

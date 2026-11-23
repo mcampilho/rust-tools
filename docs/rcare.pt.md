@@ -41,6 +41,7 @@ System Information" na lista abaixo fica de propósito para mais tarde.
 | `crates/rt-core/src/i18n.rs` | `add` (tabelas extra), `tr_in_from`/`tr_from`/`tf_from` (uma tabela procurada primeiro) |
 | `crates/rt-core/src/menu.rs` | `M::map` (converter os comandos de um menu noutro tipo) |
 | `apps/rcare/src/maint.rs`, `disks.rs` | System Maintenance: `MaintPage`, `Check`, `View`, `disks_text`; estado dos discos pelo `Get-Volume` |
+| `apps/rcare/src/net.rs`, `net_page.rs` | Internet Booster: os valores TCP do Windows (repostos aos do próprio Windows) e o DNS de cada ligação (Automático, Cloudflare, Quad9, Google), com uma cópia `.cmd` antes de cada alteração |
 | `apps/rcare/src/protect.rs`, `protect_page.rs`, `ps.rs` | Protect System: produtos antivírus e firewall, Defender, Acesso controlado a pastas, perfis da Firewall do Windows; as ações do próprio Windows. O `ps.rs` corre o PowerShell e ferramentas sem janela |
 | `apps/rcare/src/registry_page.rs` | Registry Cleaner: as categorias do registo do limpador (marcadas, cópia `.reg`, limpas), classes COM e serviços só mostrados, o tamanho dos ficheiros do registo |
 | `apps/rcare/src/extensions.rs`, `extensions_page.rs` | Extensions: o que está acrescentado ao Chrome, Edge, Brave, Vivaldi, Opera, Chromium e Firefox, por perfil; abre a página de extensões do próprio browser. Não altera nada |
@@ -106,7 +107,24 @@ neste PC o disco S: diz "Warning / Full Repair Needed"). "Rever" abre o limpador
 muda nada. Mais verificações entram com as fases seguintes (limpeza de privacidade na fase 5 — apagar histórico ou
 cookies é decisão do utilizador, porque o rclean nunca o faz —, arranque, integridade do Windows na fase 6).
 
-## Protect System (fase 5, página do próprio rcare, a última da barra lateral)
+## Internet Booster (fase 5, página do próprio rcare, a última da barra lateral)
+
+Um PowerShell escondido (`net::SCRIPT`): `Get-NetTCPSetting -SettingName Internet` e `Get-NetOffloadGlobalSetting` (as
+palavras do próprio PowerShell, iguais em todas as línguas: o `netsh` escreve na língua do sistema) e, por adaptador
+ligado, os servidores IPv4 e IPv6 (`Get-DnsClientServerAddress`) e se foram postos à mão (`NameServer` em
+`Tcpip`/`Tcpip6\Parameters\Interfaces\{guid}`; sem os marcadores `fec0:`). Caixa TCP: os valores, marcados os que
+diferem dos do Windows (só se comparam o auto-tuning Normal e o RSS e RSC Enabled: o ECN, as marcas temporais e o
+tempo inicial mudam com a versão do Windows, por isso só se mostram); "Repor os valores TCP do Windows…"
+(`netsh int tcp set global autotuninglevel=normal rss=enabled rsc=enabled ecncapability=default timestamps=default`).
+Caixa DNS: as ligações (servidores; Automático, à mão ou o serviço conhecido) e quatro escolhas para a selecionada:
+Automático (`Set-DnsClientServerAddress -ResetServerAddresses`), Cloudflare, Quad9, Google (IPv4 e IPv6 juntos). Cada
+alteração pergunta, precisa de administrador e escreve antes `backups\network <data>\tcp.cmd` ou
+`dns-<índice>.cmd` com as linhas `netsh` que repõem o que estava (se a cópia não se escreve, nada muda); depois volta
+a ler. Aqui: os valores TCP do próprio Windows, a Ethernet com o DNS do router (IPv4 e IPv6). Verificado: essa leitura,
+imagens, a página no `.exe` a sério. **Não verificado**: as alterações a sério e correr uma cópia `.cmd` (precisam de
+administrador).
+
+## Protect System (fase 5, página do próprio rcare)
 
 Um PowerShell escondido (`protect::SCRIPT`, um facto por linha, lido pelo `parse`): `AntiVirusProduct` e
 `FirewallProduct` de `root/SecurityCenter2` (`productState`: 0x10 no byte do meio = ligado, último byte 0 = definições

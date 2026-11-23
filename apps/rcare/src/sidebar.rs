@@ -178,6 +178,21 @@ fn draw_glyph(g: &mut Gfx, glyph: Glyph, r: Rect, c: rt_gfx::gfx::Color) {
             cog(g, r.x + r.w * 0.38, r.y + r.h * 0.6, r.w * 0.4, 8);
             cog(g, r.x + r.w * 0.8, r.y + r.h * 0.22, r.w * 0.24, 6);
         }
+        Glyph::Globe => {
+            // A circle, its equator and a meridian's two halves.
+            let (cx, cy, rad) = (r.x + r.w / 2.0, r.y + r.h / 2.0, r.w * 0.46);
+            let ring = |rx: f32| -> Vec<(f32, f32)> {
+                (0..=32)
+                    .map(|k| {
+                        let a = std::f32::consts::TAU * k as f32 / 32.0;
+                        (cx + rx * a.cos(), cy + rad * a.sin())
+                    })
+                    .collect()
+            };
+            g.polyline(&ring(rad), 1.6, c, false);
+            g.polyline(&ring(rad * 0.42), 1.4, c, false);
+            g.polyline(&[(cx - rad, cy), (cx + rad, cy)], 1.4, c, false);
+        }
         Glyph::Shield => {
             // A shield's outline, and a tick in it.
             let (x, y, w, h) = (r.x + r.w * 0.12, r.y, r.w * 0.76, r.h);

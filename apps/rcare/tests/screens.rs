@@ -261,6 +261,18 @@ fn protect_defender(g: &mut Gfx, r: Rect, th: &Theme) {
     page.render(g, r, th, 1.0);
 }
 
+/// Internet Booster: auto-tuning changed by another tool, two connections (one on Cloudflare), the first selected.
+fn net(g: &mut Gfx, r: Rect, th: &Theme) {
+    use rcare::net_page::NetPage;
+    let mut page = NetPage::new(true, std::env::temp_dir());
+    page.net = Some(rcare::net::parse(
+        "tcp\tDisabled\tDisabled\tDisabled\t1000\tCUBIC\tEnabled\tEnabled\n\
+dns\t14\tEthernet\tIntel(R) Ethernet Connection (2) I219-V\tFalse\t192.168.1.1\t2a01:11:8020:f870::1\n\
+dns\t7\tWi-Fi\tIntel(R) Wi-Fi 6 AX201\tTrue\t1.1.1.1,1.0.0.1\t2606:4700:4700::1111,2606:4700:4700::1001\n",
+    ));
+    page.render(g, r, th, 1.0);
+}
+
 #[test]
 #[ignore]
 fn screenshots() {
@@ -292,4 +304,6 @@ fn screenshots() {
     save("protect-light.png", shot("protect", false, false, None, 1280, 720, &mut protect));
     save("protect-defender-dark.png", shot("protect", true, false, None, 1180, 720, &mut protect_defender));
     save("protect-smallest.png", shot("protect", false, false, None, 760, 480, &mut protect));
+    save("net-light.png", shot("net", false, false, None, 1280, 720, &mut net));
+    save("net-dark-smallest.png", shot("net", true, false, None, 760, 480, &mut net));
 }

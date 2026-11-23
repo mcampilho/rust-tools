@@ -37,6 +37,7 @@ Pages so far:
 | Extensions | – (rcare's own) | What is added to Chrome, Edge, Brave, Vivaldi, Opera, Chromium and Firefox, by profile, on or off, and who installed it; opens the browser's own extensions page, where it is turned off or removed. Changes nothing itself |
 | Registry Cleaner | – (rcare's own, with rclean's engine) | Registry entries that name what is gone, by category, saved to a `.reg` file before they are deleted; COM classes and services only shown; the size of the registry's files |
 | Protect System | – (rcare's own) | The antivirus and firewall as Windows reports them (other companies' included), Microsoft Defender and the Windows Firewall's profiles; a quick scan, new definitions and turning on what is off, all through Windows' own tools |
+| Internet Booster | – (rcare's own) | Windows' TCP values, with those changed by other tools put back to Windows' own, and each connection's DNS: automatic or Cloudflare, Quad9, Google. Each change keeps a `.cmd` copy that puts back what was there |
 | Uninstall Apps | [rinst](../rinst/README.md) | The programs of every user and source, uninstalled one after another, and their leftovers |
 
 Next:

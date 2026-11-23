@@ -11,6 +11,8 @@ pub mod extensions;
 pub mod extensions_page;
 pub mod i18n;
 pub mod maint;
+pub mod net;
+pub mod net_page;
 pub mod pages;
 pub mod protect;
 pub mod protect_page;
