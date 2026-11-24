@@ -289,7 +289,7 @@ fn privacy(g: &mut Gfx, r: Rect, th: &Theme) {
 /// System Information as this PC reported it, a drive with a warning added.
 fn sysinfo(g: &mut Gfx, r: Rect, th: &Theme) {
     use rcare::sysinfo_page::SysPage;
-    let mut page = SysPage::new(true);
+    let mut page = SysPage::new(true, std::env::temp_dir().join("rcare-screens-sys"));
     page.info = Some(rcare::sysinfo::parse(
         "os\tMicrosoft Windows 10 Pro N\t22H2\t19045.6466\t64-bit\t2026-10-14\t38\n\
 pc\tMCDESK1\tSystem manufacturer\tSystem Product Name\tASUSTeK COMPUTER INC. MAXIMUS VIII HERO\t1402 2016-01-07\t34267713536\n\

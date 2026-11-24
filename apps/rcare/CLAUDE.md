@@ -9,7 +9,7 @@ decisões e o que fica de fora de propósito (antivírus próprio, defrag do reg
 
 ```powershell
 ./dev.ps1 build --release -p rcare
-./dev.ps1 test -p rcare                                     # 96 testes (mais 1 no binário)
+./dev.ps1 test -p rcare                                     # 98 testes (mais 1 no binário)
 ./dev.ps1 clippy -p rcare --all-targets
 ./dev.ps1 test -p rcare --test screens '--' --ignored       # apps/rcare/target/screens/*.png
 ./dev.ps1 test -p rcare --lib picture '--' --ignored        # o ícone

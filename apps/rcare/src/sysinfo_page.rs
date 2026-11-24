@@ -9,6 +9,7 @@ use crate::sysinfo::{self, Info};
 use rt_gfx::gfx::{Align, FontId, Gfx, Rect};
 use rt_ui::page::Effects;
 use rt_ui::theme::Theme;
+use std::path::PathBuf;
 use std::sync::mpsc::{channel, Receiver};
 use std::time::{Duration, Instant};
 use winit::window::CursorIcon;
@@ -62,26 +63,59 @@ pub struct SysPage {
     /// What the page asks of the window (see `rt_ui::page`).
     pub fx: Effects,
     pub note: Option<String>,
-    reading: Option<Receiver<Option<Info>>>,
+    /// Where the last reading is kept (`sysinfo.cache`); None: it is not kept.
+    cache: Option<PathBuf>,
+    /// The text of the reading shown (what the script printed), and when it was read (seconds since 1970).
+    raw: Option<String>,
+    read_at: Option<u64>,
+    reading: Option<Receiver<Option<String>>>,
 }
 
 impl SysPage {
-    pub fn new(admin: bool) -> SysPage {
-        SysPage { admin, ..SysPage::default() }
+    /// The page; the last reading is kept in `sysinfo.cache` in `data_dir`.
+    pub fn new(admin: bool, data_dir: PathBuf) -> SysPage {
+        SysPage { admin, cache: Some(data_dir.join("sysinfo.cache")), ..SysPage::default() }
     }
 
-    /// Asks Windows again, in a thread.
+    /// The first time the page is shown: the kept reading at once; Windows is asked only
+    /// when there is none, or it is older than a day (then in the background, the old one shown meanwhile).
     pub fn refresh(&mut self) {
+        let kept = self.cache.as_ref().and_then(|f| std::fs::read_to_string(f).ok()).and_then(|t| sysinfo::parse_cache(&t));
+        match kept {
+            Some((text, at)) => {
+                self.info = Some(sysinfo::info_of(&text));
+                self.raw = Some(text);
+                self.read_at = Some(at);
+                self.failed = false;
+                self.fx.menus();
+                self.fx.redraw();
+                if sysinfo::unix_age(at) > sysinfo::MAX_AGE {
+                    self.reload();
+                }
+            }
+            None => self.reload(),
+        }
+    }
+
+    /// Asks Windows again, in a thread (Refresh, F5).
+    pub fn reload(&mut self) {
         if self.reading.is_some() {
             return;
         }
         let (send, recv) = channel();
         std::thread::spawn(move || {
-            let _ = send.send(sysinfo::read());
+            let _ = send.send(sysinfo::read_text());
         });
         self.reading = Some(recv);
         self.fx.menus();
         self.fx.redraw();
+    }
+
+    /// Keeps the reading shown, for the next time.
+    fn keep(&self) {
+        if let (Some(file), Some(text), Some(at)) = (&self.cache, &self.raw, self.read_at) {
+            let _ = std::fs::write(file, sysinfo::cache_text(text, at));
+        }
     }
 
     /// While reading: takes what arrived, and when to look again.
@@ -92,9 +126,18 @@ impl SysPage {
             Err(std::sync::mpsc::TryRecvError::Disconnected) => Some(None),
             Err(_) => None,
         };
-        if let Some(i) = got {
-            self.failed = i.is_none();
-            self.info = i;
+        if let Some(text) = got {
+            match text {
+                Some(text) => {
+                    self.info = Some(sysinfo::info_of(&text));
+                    self.failed = false;
+                    self.raw = Some(text);
+                    self.read_at = Some(sysinfo::unix_now());
+                    self.keep();
+                }
+                // Asked and not answered: a reading kept stays; without one, it failed.
+                None => self.failed = self.info.is_none(),
+            }
             self.reading = None;
             self.fx.menus();
             self.fx.redraw();
@@ -128,7 +171,7 @@ impl SysPage {
         }
         self.note = None;
         match a {
-            Action::Refresh => self.refresh(),
+            Action::Refresh => self.reload(),
             Action::Copy => {
                 if let Some(i) = &self.info {
                     let text = i.text(tr);
@@ -148,6 +191,11 @@ impl SysPage {
                     Ok(()) => {
                         if let Some(i) = &mut self.info {
                             i.fast_startup = Some(on);
+                        }
+                        // The kept reading follows what was changed.
+                        if let Some(t) = &self.raw {
+                            self.raw = Some(sysinfo::with_fast_startup(t, on));
+                            self.keep();
                         }
                         self.note = Some(if on {
                             tr("Fast Startup is on.")
@@ -339,7 +387,11 @@ impl SysPage {
         // Status bar.
         g.fill_rect(l.status, th.status);
         g.fill_rect(Rect::new(l.status.x, l.status.y, l.status.w, 1.0), th.border);
+        let age = self.read_at.map_or(0, sysinfo::unix_age);
         let left = self.note.clone().unwrap_or_else(|| match &self.info {
+            Some(_) if self.reading.is_some() => tr("Asking Windows…"),
+            // A reading kept from earlier: it says how old it is.
+            Some(_) if age >= 3600 => tf("Read {} ago. Refresh asks Windows again.", &[&age_text(age)]),
             Some(i) if !i.devices.is_empty() => tf("Devices with a problem: {}.", &[&i.devices.len().to_string()]),
             Some(_) => tr("Every device works."),
             None if self.reading.is_some() => tr("Asking Windows…"),
@@ -385,7 +437,7 @@ impl SysPage {
     pub fn key(&mut self, key: &winit::keyboard::Key) {
         use winit::keyboard::{Key, NamedKey};
         if matches!(key, Key::Named(NamedKey::F5)) {
-            self.refresh();
+            self.reload();
         }
     }
 
@@ -410,6 +462,16 @@ impl SysPage {
     pub fn accessibility_click(&mut self, _i: usize) {}
 }
 
+/// How old a reading is, as people say it: "5 hours", "3 days".
+fn age_text(secs: u64) -> String {
+    let h = secs / 3600;
+    if h < 48 {
+        tf("{} hours", &[&h.max(1).to_string()])
+    } else {
+        tf("{} days", &[&(h / 24).to_string()])
+    }
+}
+
 /// Opens one of Windows' Settings pages.
 fn open(uri: &str) {
     #[cfg(windows)]
@@ -430,7 +492,7 @@ cpu\tIntel i7-6700K\t4\t8\t4001\ndevice\tCard Reader\tUSB\tCM_PROB_FAILED_START\
 
     #[test]
     fn cards_and_options() {
-        let mut p = SysPage::new(false);
+        let mut p = SysPage::new(false, std::env::temp_dir().join("rcare-sys-cards"));
         assert!(p.cards().is_empty() && !p.enabled(Action::Copy));
         p.info = Some(sysinfo::parse(HERE));
         let cards = p.cards();
@@ -442,6 +504,44 @@ cpu\tIntel i7-6700K\t4\t8\t4001\ndevice\tCard Reader\tUSB\tCM_PROB_FAILED_START\
         assert!(p.fx.take().info.is_some(), "without rights it says why");
         p.admin = true;
         assert!(p.enabled(Action::FastStartup));
+    }
+
+    #[test]
+    fn a_kept_reading_is_shown_at_once() {
+        let dir = std::env::temp_dir().join(format!("rcare-sys-kept-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        // Read an hour ago: shown without asking Windows, and says how old it is.
+        let hour_ago = sysinfo::unix_now() - 2 * 3600;
+        std::fs::write(dir.join("sysinfo.cache"), sysinfo::cache_text(HERE, hour_ago)).unwrap();
+        let mut p = SysPage::new(true, dir.clone());
+        p.refresh();
+        assert!(p.reading.is_none(), "nothing asked: the reading is from today");
+        assert_eq!(p.info.as_ref().map(|i| i.computer.name.as_str()), Some("MCDESK1"));
+        assert_eq!(p.read_at, Some(hour_ago));
+        // The uptime is the clock's.
+        if let Some(h) = sysinfo::uptime_hours() {
+            assert_eq!(p.info.as_ref().unwrap().windows.uptime_hours, Some(h));
+        }
+        // Fast Startup, changed, is kept: another start shows it.
+        p.raw = Some(sysinfo::with_fast_startup(HERE, false));
+        p.keep();
+        let mut q = SysPage::new(true, dir.clone());
+        q.refresh();
+        assert_eq!(q.info.as_ref().unwrap().fast_startup, Some(false));
+        assert_eq!(q.read_at, Some(hour_ago), "keeping it does not make it newer");
+        // A reading older than a day is shown and asked again meanwhile.
+        std::fs::write(dir.join("sysinfo.cache"), sysinfo::cache_text(HERE, sysinfo::unix_now() - 2 * 86_400)).unwrap();
+        let mut old = SysPage::new(true, dir.clone());
+        old.refresh();
+        assert!(old.info.is_some() && old.reading.is_some());
+        // Nothing kept, or a file that is not ours: Windows is asked.
+        std::fs::write(dir.join("sysinfo.cache"), "garbage").unwrap();
+        let mut none = SysPage::new(true, dir.clone());
+        none.refresh();
+        assert!(none.info.is_none() && none.reading.is_some());
+        assert_eq!(age_text(5 * 3600), "5 hours");
+        assert_eq!(age_text(3 * 86_400), "3 days");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

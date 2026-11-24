@@ -478,3 +478,4 @@ Reading the processes…		Prozesse werden gelesen…	Leyendo los procesos…	Lec
 {} h		{} h	{} h	{} h	{} h	{} 時間	{} h	{} h	{} 小时
 {} h {} min		{} h {} min	{} h {} min	{} h {} min	{} h {} min	{} 時間 {} 分	{} h {} min	{} h {} min	{} 小时 {} 分钟
 Delete		Entf	Supr	Suppr	Canc	Delete	Delete	Delete	Delete
+Read {} ago. Refresh asks Windows again.		Vor {} gelesen. „Aktualisieren“ fragt Windows erneut.	Leído hace {}. «Actualizar» vuelve a preguntar a Windows.	Lu il y a {}. « Actualiser » interroge de nouveau Windows.	Letto {} fa. «Aggiorna» interroga di nuovo Windows.	{}前に読み取りました。[更新] で Windows にもう一度問い合わせます。	Lido há {}. "Atualizar" pergunta ao Windows de novo.	Lido há {}. "Atualizar" volta a perguntar ao Windows.	{}前读取。“刷新”会再次询问 Windows。

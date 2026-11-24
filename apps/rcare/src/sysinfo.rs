@@ -1,8 +1,15 @@
 //! System Information: what the computer is and how its parts are, as
-//! Windows reports it (one hidden PowerShell: CIM, `Get-PhysicalDisk`,
-//! `Get-PnpDevice`), and Fast Startup (`HiberbootEnabled`). Drivers are
-//! not looked for online: devices with a problem are listed and Windows
-//! Update's optional updates are opened (the user's choice, 2026-11-23).
+//! Windows reports it (one hidden PowerShell: CIM, the storage CIM class
+//! behind `Get-PhysicalDisk` — the cmdlet alone takes 3 s —, `Get-PnpDevice`),
+//! and Fast Startup (`HiberbootEnabled`). Drivers are not looked for online:
+//! devices with a problem are listed and Windows Update's optional updates
+//! are opened (the user's choice, 2026-11-23).
+//!
+//! The answer takes about 3 seconds and hardly changes, so the last one is
+//! kept in `sysinfo.cache` (the script's own text, after a line with the
+//! time it was read) and shown at once; it is asked again only when it is
+//! older than a day, or when the user presses Refresh. How long the computer
+//! has been on is not kept: it is read from the system clock each time.
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Windows {
@@ -153,11 +160,12 @@ $cv=Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
 $c=Get-CimInstance Win32_ComputerSystem
 $b=Get-CimInstance Win32_BaseBoard; $bi=Get-CimInstance Win32_BIOS
 "pc`t$($c.Name)`t$($c.Manufacturer)`t$($c.Model)`t$($b.Manufacturer) $($b.Product)`t$($bi.SMBIOSBIOSVersion) $(if($bi.ReleaseDate){$bi.ReleaseDate.ToString('yyyy-MM-dd')})`t$($c.TotalPhysicalMemory)"
-foreach($p in Get-CimInstance Win32_Processor){ "cpu`t$($p.Name.Trim())`t$($p.NumberOfCores)`t$($p.NumberOfLogicalProcessors)`t$($p.MaxClockSpeed)" }
+foreach($p in Get-CimInstance Win32_Processor -Property Name,NumberOfCores,NumberOfLogicalProcessors,MaxClockSpeed){ "cpu`t$($p.Name.Trim())`t$($p.NumberOfCores)`t$($p.NumberOfLogicalProcessors)`t$($p.MaxClockSpeed)" }
 foreach($g in Get-CimInstance Win32_VideoController){ "gpu`t$($g.Name)`t$($g.DriverVersion)" }
-foreach($k in Get-PhysicalDisk){ "disk`t$($k.FriendlyName)`t$($k.MediaType)`t$($k.BusType)`t$($k.Size)`t$($k.HealthStatus)" }
+foreach($k in Get-CimInstance -Namespace root/microsoft/windows/storage -ClassName MSFT_PhysicalDisk){ $mt=switch([int]$k.MediaType){3{'HDD'}4{'SSD'}5{'SCM'}default{'Unspecified'}}; $bt=switch([int]$k.BusType){1{'SCSI'}3{'ATA'}7{'USB'}8{'RAID'}10{'SAS'}11{'SATA'}12{'SD'}13{'MMC'}16{'Spaces'}17{'NVMe'}default{"$($k.BusType)"}}; $hs=switch([int]$k.HealthStatus){0{'Healthy'}1{'Warning'}2{'Unhealthy'}default{'Unknown'}}; "disk`t$($k.FriendlyName)`t$mt`t$bt`t$($k.Size)`t$hs" }
 foreach($x in Get-CimInstance Win32_Battery){ "battery`t$($x.Name)`t$($x.EstimatedChargeRemaining)" }
-foreach($v in Get-PnpDevice -PresentOnly | Where-Object Status -eq 'Error'){ "device`t$($v.FriendlyName)`t$($v.Class)`t$($v.Problem)" }
+$pn=@{1='CM_PROB_NOT_CONFIGURED';10='CM_PROB_FAILED_START';18='CM_PROB_REINSTALL';22='CM_PROB_DISABLED';28='CM_PROB_FAILED_INSTALL';38='CM_PROB_DRIVER_FAILED_PRIOR_UNLOAD';39='CM_PROB_DRIVER_FAILED_LOAD';45='CM_PROB_PHANTOM'}
+foreach($v in Get-CimInstance Win32_PnPEntity -Filter 'ConfigManagerErrorCode <> 0' -Property Name,PNPClass,ConfigManagerErrorCode){ $pc=[int]$v.ConfigManagerErrorCode; "device`t$($v.Name)`t$($v.PNPClass)`t$(if($pn.ContainsKey($pc)){$pn[$pc]}else{'CM_PROB_'+$pc})" }
 "fast`t$((Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power').HiberbootEnabled)""#;
 
 /// What `SCRIPT` printed, read.
@@ -217,7 +225,65 @@ pub fn parse(text: &str) -> Info {
 
 /// Asks Windows. None: PowerShell could not be run.
 pub fn read() -> Option<Info> {
-    crate::ps::run(SCRIPT).map(|t| parse(&t))
+    read_text().map(|t| parse(&t))
+}
+
+/// What the script printed (the text that is kept), or None when PowerShell could not be run.
+pub fn read_text() -> Option<String> {
+    crate::ps::run(SCRIPT)
+}
+
+/// How long the computer has been on, in whole hours (the system clock, not PowerShell).
+#[cfg(windows)]
+pub fn uptime_hours() -> Option<u64> {
+    // SAFETY: GetTickCount64 takes no arguments and only reads the clock.
+    Some(unsafe { windows_sys::Win32::System::SystemInformation::GetTickCount64() } / 3_600_000)
+}
+
+#[cfg(not(windows))]
+pub fn uptime_hours() -> Option<u64> {
+    None
+}
+
+/// The text read, as `Info`, with the uptime of now.
+pub fn info_of(text: &str) -> Info {
+    let mut i = parse(text);
+    if let Some(h) = uptime_hours() {
+        i.windows.uptime_hours = Some(h);
+    }
+    i
+}
+
+/// Seconds since 1970 now.
+pub fn unix_now() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs())
+}
+
+/// How many seconds ago `at` (seconds since 1970) was; 0 for a time that has not come (a clock set back).
+pub fn unix_age(at: u64) -> u64 {
+    unix_now().saturating_sub(at)
+}
+
+/// How old a kept reading can be before it is asked again: a day.
+pub const MAX_AGE: u64 = 24 * 3600;
+
+/// The text kept: the time (seconds since 1970) on the first line, then what the script printed.
+pub fn cache_text(text: &str, now: u64) -> String {
+    format!("{now}\n{text}")
+}
+
+/// What a kept file says: the text and when it was read. None: not a reading of ours (or empty).
+pub fn parse_cache(file: &str) -> Option<(String, u64)> {
+    let (first, rest) = file.split_once('\n')?;
+    let at: u64 = first.trim().parse().ok()?;
+    rest.lines().any(|l| l.starts_with("os\t")).then(|| (rest.to_string(), at))
+}
+
+/// The same text with Fast Startup set (the kept reading follows what the user changed).
+pub fn with_fast_startup(text: &str, on: bool) -> String {
+    let mut out: Vec<String> = text.lines().filter(|l| !l.starts_with("fast\t") && *l != "fast").map(String::from).collect();
+    out.push(format!("fast\t{}", u8::from(on)));
+    out.join("\n") + "\n"
 }
 
 /// Turns Fast Startup on or off (administrator rights).
@@ -285,10 +351,29 @@ fast\t1\r\n";
         assert_eq!(parse("fast\t\n").fast_startup, Some(true), "absent: Windows' default, on");
     }
 
-    /// What this PC says.
+    #[test]
+    fn the_kept_reading() {
+        let kept = cache_text(HERE, 1_000);
+        let (text, at) = parse_cache(&kept).unwrap();
+        assert_eq!((at, parse(&text)), (1_000, parse(HERE)));
+        assert!(parse_cache("").is_none() && parse_cache("abc\nos\tx").is_none() && parse_cache("5\nnothing useful\n").is_none());
+        // Fast Startup follows what the user changed, once.
+        let off = with_fast_startup(HERE, false);
+        assert_eq!(parse(&off).fast_startup, Some(false));
+        assert_eq!(off.matches("fast").count(), 1);
+        assert_eq!(parse(&with_fast_startup(&off, true)).fast_startup, Some(true));
+        // The uptime is the clock's, not the kept text's.
+        if let Some(h) = uptime_hours() {
+            assert_eq!(info_of(HERE).windows.uptime_hours, Some(h));
+        }
+    }
+
+    /// What this PC says, and how long it takes.
     #[test]
     #[ignore]
     fn here() {
-        println!("{:#?}", read());
+        let t = std::time::Instant::now();
+        let i = read();
+        println!("{:?}\n{:#?}", t.elapsed(), i);
     }
 }

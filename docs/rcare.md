@@ -227,6 +227,21 @@ Apps (`ms-settings:defaultapps`: Windows does not let programs set them) and Dri
 healthy drives, the Genesys card reader that could not start, Fast Startup on. Verified: that reading, screenshots,
 the page in the real `.exe`. **Not verified**: turning Fast Startup off and on for real (administrator).
 
+**Faster and kept (2026-11-24, the user's report: rcare opened slowly and the page asked every time).** The user's saved
+page was System Information, so every start waited for a 4.4 s PowerShell (measured with the ignored `sysinfo::tests::here`):
+`Get-PhysicalDisk` alone is 2.9 s, `Win32_Processor` 1.2 s without `-Property` (it also asks for the load) and
+`Get-PnpDevice` 0.6 s. Now the drives come from the storage CIM class under it (`MSFT_PhysicalDisk`, its numbers said as
+`SSD`/`NVMe`/`Healthy`…), the processor is asked with `-Property`, and the devices with a problem from `Win32_PnPEntity`
+(`ConfigManagerErrorCode` → `CM_PROB_…`): **1.1 s**. And the answer is kept: `sysinfo.cache` beside the settings, a line
+with the time (seconds since 1970) and the script's own text; the page shows it at once (`SysPage::refresh`) and asks
+Windows only without one or when it is older than a day (then in the background, the old one shown meanwhile); Refresh
+(and F5) always asks. The uptime is never kept: it comes from `GetTickCount64`. Fast Startup, changed from the page,
+is changed in the kept text too. The status bar says how old a kept reading is from an hour on. Verified: tests (the
+file, a reading from today, from 2 days ago, garbage, Fast Startup kept), the real `.exe` (first start: PowerShell runs
+and the file appears; second: no PowerShell and the file untouched), the opening of the window itself measured at
+about 85 ms for every saved page, so the window was never the slow part. **Not verified**: the mapping of problem codes
+other than the ones in `problem_text` (this PC has no device with a problem).
+
 ## Starting as administrator (2026-11-23, the user's request)
 
 rcare starts as administrator by default (`start.rs`): after `hand_off` (a resident rcare shows itself first), if it

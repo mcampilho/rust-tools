@@ -238,6 +238,22 @@ Windows 10 Pro N 22H2 19045.6466, i7-6700K, 32 GB, GTX 960, três discos saudáv
 arrancou, Arranque rápido ligado. Verificado: essa leitura, imagens, a página no `.exe` a sério. **Não verificado**:
 desligar e ligar o Arranque rápido a sério (administrador).
 
+**Mais rápido e guardado (2026-11-24, queixa do utilizador: o rcare abria devagar e a página perguntava sempre).** A
+página guardada do utilizador era o System Information, por isso cada arranque esperava por um PowerShell de 4,4 s
+(medido com o `sysinfo::tests::here`, a pedido): só o `Get-PhysicalDisk` leva 2,9 s, o `Win32_Processor` 1,2 s sem
+`-Property` (pergunta também a carga) e o `Get-PnpDevice` 0,6 s. Agora os discos vêm da classe CIM de armazenamento que
+está por baixo (`MSFT_PhysicalDisk`, os números ditos como `SSD`/`NVMe`/`Healthy`…), o processador pede-se com
+`-Property` e os dispositivos com problema vêm do `Win32_PnPEntity` (`ConfigManagerErrorCode` → `CM_PROB_…`): **1,1 s**.
+E a resposta fica guardada: `sysinfo.cache` ao lado das definições, uma linha com a hora (segundos desde 1970) e o
+texto do próprio script; a página mostra-o logo (`SysPage::refresh`) e só pergunta ao Windows se não houver, ou se tiver
+mais de um dia (então em segundo plano, com o antigo à vista); Atualizar (e F5) pergunta sempre. O tempo ligado nunca se
+guarda: vem do `GetTickCount64`. O Arranque rápido, mudado na página, muda também no texto guardado. A barra de estado
+diz há quanto tempo foi a leitura guardada, a partir de uma hora. Verificado: testes (o ficheiro, uma leitura de hoje,
+de há 2 dias, lixo, Arranque rápido guardado), o `.exe` a sério (primeiro arranque: corre o PowerShell e aparece o
+ficheiro; segundo: sem PowerShell e o ficheiro intacto), a abertura da janela medida em cerca de 85 ms para qualquer
+página guardada, por isso a janela nunca foi a parte lenta. **Não verificado**: os códigos de problema que não estão no
+`problem_text` (este PC não tem nenhum dispositivo com problema).
+
 ## Arranque como administrador (2026-11-23, pedido do utilizador)
 
 O rcare arranca como administrador por omissão (`start.rs`): depois do `hand_off` (um rcare residente mostra-se

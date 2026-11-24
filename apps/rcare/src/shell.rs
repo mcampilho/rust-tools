@@ -2042,7 +2042,7 @@ pub fn run() {
         protect: ProtectPage::new(admin),
         net: NetPage::new(admin, data_dir.clone()),
         privacy: PrivacyPage::new(data_dir.clone()),
-        sys: SysPage::new(admin),
+        sys: SysPage::new(admin, data_dir.clone()),
         repair: RepairPage::new(admin),
         schedule: SchedulePage::new(admin, data_dir.clone()),
         procs: ProcessesPage::new(&data_dir),
