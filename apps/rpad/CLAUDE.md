@@ -50,8 +50,14 @@ Correm na raiz do repositório. Saída: `target\release-small\rpad.exe`. Rust 1.
   1 s que a janela fique visível e é o processo acabado de arrancar pelo clique do utilizador que a traz para a frente
   (restaura e `SetForegroundWindow`); `Shell::open_files` também restaura a janela minimizada. **Não verificado a sério**
   (o utilizador tem o rpad aberto e as instâncias reconhecem-se todas pela mesma janela): o `trace.rs` fica até ele confirmar.
-- Substituir o Bloco de Notas (2026-11-24, pedido do utilizador, só Windows): `Command::ReplaceNotepad` (Ficheiro ›
-  Integração com o Windows), no estilo do Notepad3: `rt_sys::win::notepad` põe o valor `Debugger` =
+- Substituir o Bloco de Notas (2026-11-24, pedido do utilizador, só Windows), duas maneiras em Ficheiro › Integração
+  com o Windows. **Leve** (`Command::ReplaceNotepad`, a recomendada): `rt_sys::win::notepad::user_replace` põe o valor
+  predefinido de `HKCU\Software\Microsoft\Windows\CurrentVersion\App Paths\notepad.exe` = caminho do rpad.exe (sem
+  administrador, sem flag: a linha chega como foi escrita; `--unregister` também a tira); o ShellExecute (Win+R, Iniciar,
+  muitos programas) respeita-o, testado nesta máquina também com um caminho com espaços; `CreateProcess` direto e a linha
+  de comandos não. Foi acrescentada porque o Bitdefender (Advanced Threat Defense) classificou como malware o rpad.exe
+  elevado a escrever o IFEO — nem a chave ficou escrita e o `rpad.exe` instalado foi para a quarentena. **Da máquina**
+  (`Command::ReplaceNotepadAll`), no estilo do Notepad3: `rt_sys::win::notepad` põe o valor `Debugger` =
   `"<rpad.exe>" --from-notepad` em `HKLM\…\Image File Execution Options\notepad.exe` (vistas de 64 e 32 bits; `state`
   lê-se sem direitos; `restore` só tira o valor se for o nosso e apaga a chave se ficar vazia; testado em chaves de
   `HKCU\Software\rust-tools-test`, nunca no HKLM). Como HKLM pede administrador, `Shell::replace_notepad` pergunta

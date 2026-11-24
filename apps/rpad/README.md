@@ -103,19 +103,34 @@ point the entries at the new location.
 
 ### Replacing Windows Notepad
 
-*Replace Windows Notepad* (File › Windows Integration) makes rpad open
-whenever Windows or a program starts `notepad.exe` (Win+R, a shortcut, "Edit"
-in another program), as Notepad3 and Notepad++ can. Unlike the entries above
-it is a **machine-wide** setting (the Image File Execution Options key of
-`notepad.exe` in HKLM, 64- and 32-bit views), so Windows asks for administrator
-rights (a copy of rpad is started for that: `--replace-notepad`). rpad first
-asks you to confirm. Notepad's command line is understood: its switches (`/p`…)
+Two ways, both under File › Windows Integration:
+
+- *Replace Windows Notepad* is the light one: for the **current user only, no
+  administrator rights**. It sets the default value of
+  `HKCU\…\App Paths\notepad.exe` to `rpad.exe`, which is where Windows looks
+  first when something asks the shell to open "notepad": Win+R, the Start
+  menu, and most programs' "open with Notepad". A program that starts
+  `C:\Windows\notepad.exe` by its path, and the command line, still get
+  Notepad. Choosing it again gives Notepad back (so does `--unregister`).
+  It is a plain per-user registration, the kind antivirus programs do not mind.
+- *Replace Notepad for All Programs (Administrator)* catches those too, as
+  Notepad3 and Notepad++ can. It is a **machine-wide** setting (the Image File
+  Execution Options key of `notepad.exe` in HKLM, 64- and 32-bit views), so
+  Windows asks for administrator rights (a copy of rpad is started for that:
+  `--replace-notepad`), and rpad first asks you to confirm. **Antivirus
+  programs with behaviour monitoring may block it**: it is a technique
+  malware uses too, and rpad is not signed (Bitdefender's Advanced Threat
+  Defense did block it and put `rpad.exe` in quarantine; it needs an
+  exception). Use the light one unless you need this.
+
+Notepad's command line is understood in both: its switches (`/p`…)
 are ignored, the rest of the line is the file (spaces and all), a name without
 extension opens `name.txt` if that exists, and a file that does not exist opens
-as an empty tab to create. Choosing the item again (or `--restore-notepad`, which
-also asks for rights) gives Notepad back and removes the key; another editor's
-setting is never touched. If you move or delete `rpad.exe`, **Notepad will not
-start** until you restore it or choose the item again from the new place.
+as an empty tab to create. Choosing an item again (or `--restore-notepad` for
+the machine-wide one, which also asks for rights) gives Notepad back and removes
+the key; another editor's setting is never touched. If you move or delete
+`rpad.exe`, **Notepad will not start from there** (with the machine-wide one,
+not at all) until you restore it or choose the item again from the new place.
 
 ### Interface language
 

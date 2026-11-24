@@ -105,21 +105,35 @@ as entradas apontarem para o novo local.
 
 ### Substituir o Bloco de Notas do Windows
 
-*Substituir o Bloco de Notas do Windows* (Ficheiro › Integração com o Windows)
-faz o rpad abrir sempre que o Windows ou um programa inicia o `notepad.exe`
-(Win+R, um atalho, «Editar» noutro programa), como o Notepad3 e o Notepad++
-podem fazer. Ao contrário das entradas acima é uma definição **da máquina**
-(a chave Image File Execution Options do `notepad.exe` em HKLM, vistas de 64 e
-32 bits), por isso o Windows pede direitos de administrador (arranca-se uma cópia
-do rpad para isso: `--replace-notepad`). O rpad pede primeiro a tua confirmação.
-A linha de comandos do Bloco de Notas é entendida: as opções (`/p`…) são
+Duas maneiras, ambas em Ficheiro › Integração com o Windows:
+
+- *Substituir o Bloco de Notas do Windows* é a leve: **só para o utilizador atual,
+  sem direitos de administrador**. Põe o valor predefinido de
+  `HKCU\…\App Paths\notepad.exe` a apontar para o `rpad.exe`, que é onde o Windows
+  procura primeiro quando algo pede à shell para abrir «notepad»: Win+R, o menu
+  Iniciar e o «abrir com o Bloco de Notas» da maior parte dos programas. Um
+  programa que arranque o `C:\Windows\notepad.exe` pelo caminho, e a linha de
+  comandos, continuam a obter o Bloco de Notas. Escolhê-lo outra vez devolve o
+  Bloco de Notas (o `--unregister` também). É um registo simples por utilizador,
+  do género com que os antivírus não se importam.
+- *Substituir o Bloco de Notas para todos os programas (Administrador)* apanha
+  esses também, como o Notepad3 e o Notepad++. É uma definição **da máquina** (a
+  chave Image File Execution Options do `notepad.exe` em HKLM, vistas de 64 e 32
+  bits), por isso o Windows pede direitos de administrador (arranca-se uma cópia
+  do rpad para isso: `--replace-notepad`) e o rpad pede primeiro a tua confirmação.
+  **Os antivírus com vigilância de comportamento podem bloqueá-la**: é uma técnica
+  que o malware também usa e o rpad não está assinado (o Advanced Threat Defense
+  do Bitdefender bloqueou-a e pôs o `rpad.exe` em quarentena; precisa de uma
+  exceção). Usa a leve, a menos que precises desta.
+
+A linha de comandos do Bloco de Notas é entendida nas duas: as opções (`/p`…) são
 ignoradas, o resto da linha é o ficheiro (com espaços e tudo), um nome sem
 extensão abre `nome.txt` se existir, e um ficheiro que não existe abre como um
-separador vazio para o criar. Escolher o item outra vez (ou `--restore-notepad`,
-que também pede direitos) devolve o Bloco de Notas e tira a chave; a definição
-de outro editor nunca é tocada. Se moveres ou apagares o `rpad.exe`, **o Bloco de
-Notas deixa de arrancar** até o restaurares ou escolheres o item outra vez a
-partir do novo local.
+separador vazio para o criar. Escolher um item outra vez (ou `--restore-notepad`
+no da máquina, que também pede direitos) devolve o Bloco de Notas e tira a chave;
+a definição de outro editor nunca é tocada. Se moveres ou apagares o `rpad.exe`,
+**o Bloco de Notas deixa de arrancar por aí** (com a da máquina, de todo) até o
+restaurares ou escolheres o item outra vez a partir do novo local.
 
 ### Idioma da interface
 

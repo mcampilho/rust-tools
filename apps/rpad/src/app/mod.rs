@@ -182,8 +182,10 @@ pub struct App {
     /// "Edit with rpad" is on the Explorer context menu, for this rpad.exe
     /// (Windows; set by the window).
     pub explorer_menu: bool,
-    /// rpad runs in place of Windows Notepad (Windows).
+    /// rpad runs in place of Windows Notepad for every program and user (Windows, administrator).
     pub notepad_replaced: bool,
+    /// rpad opens when this user asks for Notepad by name (Windows).
+    pub notepad_user: bool,
     /// rpad starts with the session (`rpad --tray`; set by the window).
     pub autostart: bool,
     pub fullscreen_request: bool,
@@ -235,6 +237,7 @@ impl App {
             close_window: false,
             explorer_menu: false,
             notepad_replaced: false,
+            notepad_user: false,
             autostart: false,
             fullscreen_request: false,
             font_dirty: true,
@@ -1059,7 +1062,7 @@ impl App {
                 None => host.info(&tr("Settings folder"), &tr("No settings folder is available on this system.")),
             },
             // The window does these (Windows only).
-            ExplorerMenu | DefaultEditor | Autostart | CheckUpdates | Print | ReplaceNotepad => {}
+            ExplorerMenu | DefaultEditor | Autostart | CheckUpdates | Print | ReplaceNotepad | ReplaceNotepadAll => {}
             Shortcuts => host.info(&tr("Keyboard shortcuts"), &shortcuts_text()),
             About => host.info(
                 &tr("About rpad"),
@@ -1113,7 +1116,8 @@ impl App {
             LastTabKeep => s.last_tab_close == LastTabClose::KeepEmpty,
             LastTabCloseWindow => s.last_tab_close == LastTabClose::CloseWindow,
             ExplorerMenu => self.explorer_menu,
-            ReplaceNotepad => self.notepad_replaced,
+            ReplaceNotepad => self.notepad_user,
+            ReplaceNotepadAll => self.notepad_replaced,
             Autostart => self.autostart,
             _ => false,
         }

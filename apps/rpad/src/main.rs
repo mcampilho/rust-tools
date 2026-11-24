@@ -309,6 +309,10 @@ impl Shell {
                 return self.after_action(el);
             }
             if cmd == Command::ReplaceNotepad {
+                self.replace_notepad_user();
+                return self.after_action(el);
+            }
+            if cmd == Command::ReplaceNotepadAll {
                 self.replace_notepad();
                 return self.after_action(el);
             }
@@ -336,7 +340,24 @@ impl Shell {
         self.after_action(el);
     }
 
-    /// File › Windows Integration › Replace Windows Notepad: asks first, then Windows asks for administrator rights
+    /// File › Windows Integration › Replace Windows Notepad: for this user, by the registry of this user (no
+    /// administrator rights, nothing to ask).
+    #[cfg(windows)]
+    fn replace_notepad_user(&mut self) {
+        let Ok(exe) = std::env::current_exe() else { return };
+        let on = !self.app.notepad_user;
+        let result = if on { rt_sys::win::notepad::user_replace(&exe) } else { rt_sys::win::notepad::user_restore(&exe) };
+        self.app.notepad_user = notepad_user();
+        self.app.menu_dirty = true;
+        match result {
+            Ok(()) => {
+                self.app.notify(i18n::tr(if on { "rpad now opens in place of Windows Notepad." } else { "Windows Notepad is back." }))
+            }
+            Err(e) => self.host.info("rpad", &i18n::tf("Cannot change Notepad: {}", &[&e])),
+        }
+    }
+
+    /// File › Windows Integration › Replace Notepad for All Programs: asks first, then Windows asks for administrator rights
     /// (on a thread: the question can stay open); the answer comes back as `UserEvent::Notepad`.
     #[cfg(windows)]
     fn replace_notepad(&mut self) {
@@ -913,6 +934,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             #[cfg(windows)]
             UserEvent::Notepad(on, result) => {
                 self.app.notepad_replaced = notepad_replaced();
+                self.app.notepad_user = notepad_user();
                 self.app.menu_dirty = true;
                 match result {
                     Ok(()) => self.app.notify(i18n::tr(if on {
@@ -1112,6 +1134,8 @@ fn integrate(action: Integration) -> Result<String, String> {
         }
         Integration::Unregister => {
             assoc::unregister().map_err(failed)?;
+            // The per-user Notepad replacement is the user's own registry too.
+            let _ = rt_sys::win::notepad::user_restore(Path::new(&exe));
             Ok(tr("rpad was removed from Explorer and from the file associations."))
         }
         Integration::Associate => {
@@ -1170,6 +1194,12 @@ to the program when a file named rpad.portable exists there (portable mode).";
 #[cfg(windows)]
 fn notepad_replaced() -> bool {
     std::env::current_exe().is_ok_and(|exe| rt_sys::win::notepad::state(&exe) == rt_sys::win::notepad::State::Ours)
+}
+
+/// Whether this rpad opens when this user asks for Notepad by name.
+#[cfg(windows)]
+fn notepad_user() -> bool {
+    std::env::current_exe().is_ok_and(|exe| rt_sys::win::notepad::user_state(&exe) == rt_sys::win::notepad::State::Ours)
 }
 
 /// Changes who runs in place of Notepad: directly if rpad has administrator rights, else through a copy of rpad
@@ -1322,6 +1352,7 @@ fn main() {
     {
         app.explorer_menu = integrated_here();
         app.notepad_replaced = notepad_replaced();
+        app.notepad_user = notepad_user();
     }
     let proxy = Arc::new(Mutex::new(event_loop.create_proxy()));
     app.waker = Some(Arc::new(move || {
