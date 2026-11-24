@@ -45,9 +45,11 @@ Correm na raiz do repositório. Saída: `target\release\rview.exe`. Rust 1.88+, 
 - `rich/math.rs` (2026-11-24, pedido do utilizador): fórmulas `$…$` e `$$…$$` (`Options::ENABLE_MATH`, eventos
   `InlineMath`/`DisplayMath`; a de bloco é um parágrafo centrado) como texto estilizado, sem motor de composição: gregos
   e símbolos em Unicode (o `rt-gfx` cai no `seguisym.ttf`), variáveis em itálico, `^`/`_` com `valign` (aninhados ficam
-  todos ao mesmo nível), `\frac` = `a/b` (com parênteses se preciso), `\sqrt` = `√`, `\text`, `\mathbb`/`\mathbf`,
-  acentos por caracteres combinantes, `matrix`/`cases`/`aligned` em linhas. Nada fica empilhado nem desenhado
-  (frações empilhadas, raízes com barra e limites por cima de ∑ exigiriam novos itens de layout).
+  todos ao mesmo nível), `\sqrt` = `√`, `\text`, `\mathbb`/`\mathbf`, acentos por caracteres combinantes,
+  `matrix`/`cases`/`aligned` em linhas. `convert_delimiters` passa `\(…\)` e `\[…\]` a `$…$` e `$$…$$` antes de ler
+  (fora do código). `\frac`/`\over` ao nível de cima são `Inline::Frac` (só texto), desenhado empilhado pelo
+  `Atom::Frac` do layout (barra no eixo, itens de texto para cima e para baixo, por isso a seleção funciona); dentro de
+  expoentes e de outras frações é `a/b`, com parênteses se preciso. Por fazer: raízes com barra e limites por cima de ∑.
 - `linux/` — Clipboard (arboard: texto com HTML, ou imagem), e o resto de `rt-sys`: diálogo Abrir (zenity ou
   kdialog), tema, links, e o modo residente com socket Unix e ícone StatusNotifierItem.
 - `ui/menu.rs` — menus desenhados na janela (`rt-gfx`), só fora do Windows. Em Linux, `cfg(not(windows))`

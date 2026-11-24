@@ -213,10 +213,11 @@ only, and the status bar says so.
   (Segoe UI Emoji); `^sup^` and `~sub~`; `++inserted++` and `==marked==`;
   definition lists; abbreviations (`*[HTML]: …`, underlined); and `::: warning`
   containers (also `info`, `tip`, `danger`). LaTeX maths (`$…$` inline, `$$…$$`
-  centred) is written as text, not typeset: Greek letters and symbols,
-  raised and lowered scripts, `a/b` for `\frac`, `√` for `\sqrt`, matrices and
-  `cases` as lines; nothing is stacked. Follows the light/dark theme. Images are only those next to the file (nothing is
-  downloaded).
+  centred; also `\( … \)` and `\[ … \]`) is not fully typeset: Greek letters
+  and symbols, raised and lowered scripts, stacked fractions (`\frac`, `\over`),
+  `√` for `\sqrt` (no bar over it), matrices and `cases` as lines; sums and
+  integrals keep their limits beside them. Follows the light/dark theme. Images
+  are only those next to the file (nothing is downloaded).
 - **HTML:** documents are shown on a white page like a browser. Supported:
   headings, paragraphs, lists (nested, numbered with `start`), tables
   (with `colspan`), `pre`/`code`, quotes, links and anchors, local and

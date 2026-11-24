@@ -65,6 +65,8 @@ pub enum Inline {
     },
     /// Target of `#name` links.
     Anchor(String),
+    /// A stacked fraction (maths): numerator over denominator, text runs only.
+    Frac(Vec<Inline>, Vec<Inline>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -200,6 +202,11 @@ pub fn plain_text(blocks: &[Block]) -> String {
                 Inline::Break => out.push('\n'),
                 Inline::Image { alt, .. } => out.push_str(alt),
                 Inline::Anchor(_) => {}
+                Inline::Frac(n, d) => {
+                    inl(n, out);
+                    out.push('/');
+                    inl(d, out);
+                }
             }
         }
     }

@@ -208,6 +208,8 @@ struct P {
     out: Vec<Inline>,
     last: Last,
     font: Font,
+    /// Inside the numerator or denominator of a stacked fraction: further fractions are written `a/b`.
+    in_frac: bool,
 }
 
 /// The maths in `src` as inline runs, drawn in `base`.
@@ -216,6 +218,88 @@ pub fn render(src: &str, base: Style) -> Vec<Inline> {
     let mut p = P::new(c, Font::Math);
     p.seq(base, false);
     merge(p.out)
+}
+
+/// `\( … \)` and `\[ … \]` (what chat tools write) as `$ … $` and `$$ … $$`, which the Markdown parser reads.
+/// Code (fences and spans) is left alone; the spaces inside the delimiters go, because `$ x $` is not maths.
+pub fn convert_delimiters(src: &str) -> String {
+    if !src.contains("\\(") && !src.contains("\\[") {
+        return src.to_string();
+    }
+    let mut out = String::with_capacity(src.len());
+    let mut fence: Option<String> = None;
+    for line in src.split_inclusive('\n') {
+        let t = line.trim_start();
+        let mark = if t.starts_with("```") {
+            Some("```")
+        } else if t.starts_with("~~~") {
+            Some("~~~")
+        } else {
+            None
+        };
+        match (&fence, mark) {
+            (None, Some(m)) => fence = Some(m.to_string()),
+            (Some(f), Some(m)) if f == m => fence = None,
+            _ => {}
+        }
+        if fence.is_some() || mark.is_some() {
+            out.push_str(line);
+            continue;
+        }
+        let c: Vec<char> = line.chars().collect();
+        let mut i = 0;
+        let mut ticks = 0usize;
+        while i < c.len() {
+            match c[i] {
+                '`' => {
+                    let run = c[i..].iter().take_while(|&&x| x == '`').count();
+                    ticks = if ticks == 0 {
+                        run
+                    } else if ticks == run {
+                        0
+                    } else {
+                        ticks
+                    };
+                    out.extend(std::iter::repeat_n('`', run));
+                    i += run;
+                }
+                '\\' if i + 1 < c.len() && ticks == 0 => {
+                    let n = c[i + 1];
+                    let (open, inline) = match n {
+                        '(' => (true, true),
+                        ')' => (false, true),
+                        '[' => (true, false),
+                        ']' => (false, false),
+                        _ => {
+                            out.push('\\');
+                            out.push(n);
+                            i += 2;
+                            continue;
+                        }
+                    };
+                    let d = if inline { "$" } else { "$$" };
+                    if open {
+                        out.push_str(d);
+                        i += 2;
+                        while i < c.len() && (c[i] == ' ' || c[i] == '\t') {
+                            i += 1;
+                        }
+                    } else {
+                        while out.ends_with([' ', '\t']) {
+                            out.pop();
+                        }
+                        out.push_str(d);
+                        i += 2;
+                    }
+                }
+                x => {
+                    out.push(x);
+                    i += 1;
+                }
+            }
+        }
+    }
+    out
 }
 
 /// Neighbouring runs with the same style become one.
@@ -232,16 +316,17 @@ fn merge(v: Vec<Inline>) -> Vec<Inline> {
 
 fn text_of(v: &[Inline]) -> String {
     v.iter()
-        .filter_map(|i| match i {
-            Inline::Text(t, _) => Some(t.as_str()),
-            _ => None,
+        .map(|i| match i {
+            Inline::Text(t, _) => t.clone(),
+            Inline::Frac(n, d) => format!("{}/{}", text_of(n), text_of(d)),
+            _ => String::new(),
         })
         .collect()
 }
 
 impl P {
     fn new(c: Vec<char>, font: Font) -> P {
-        P { c, i: 0, out: Vec::new(), last: Last::Start, font }
+        P { c, i: 0, out: Vec::new(), last: Last::Start, font, in_frac: false }
     }
 
     fn peek(&self) -> Option<char> {
@@ -307,9 +392,18 @@ impl P {
 
     /// Everything up to the end of the source, or up to the `}` that closes the group being read.
     fn seq(&mut self, st: Style, in_group: bool) {
+        let first = self.out.len();
         while let Some(ch) = self.peek() {
             match ch {
                 '}' if in_group => break,
+                // `a \over b`: everything before is the numerator, everything after the denominator.
+                '\\' if self.at_over() => {
+                    self.i += 5;
+                    let num = self.out.split_off(first);
+                    let den = self.capture(st, |p, s| p.seq(s, in_group));
+                    self.fraction(num, den, st);
+                    break;
+                }
                 '}' => self.i += 1,
                 '{' => {
                     self.i += 1;
@@ -396,12 +490,34 @@ impl P {
         s
     }
 
-    /// A value in a fraction or root: bare when it is one word or number, else in parentheses.
-    fn wrap(&mut self, v: Vec<Inline>, st: Style) {
+    fn at_over(&self) -> bool {
+        let w: Vec<char> = "\\over".chars().collect();
+        self.c[self.i..].starts_with(&w) && !self.c.get(self.i + 5).is_some_and(|c| c.is_ascii_alphabetic())
+    }
+
+    /// A fraction: stacked (`Inline::Frac`), or `a/b` inside scripts and other fractions.
+    fn fraction(&mut self, num: Vec<Inline>, den: Vec<Inline>, st: Style) {
+        let text_only = |v: &[Inline]| v.iter().all(|i| matches!(i, Inline::Text(..)));
+        if st.valign == 0 && !self.in_frac && text_only(&num) && text_only(&den) {
+            self.out.push(Inline::Frac(merge(num), merge(den)));
+        } else {
+            self.wrap(num, st, false);
+            let plain = self.plain(st);
+            self.put("/", plain, Last::Op);
+            self.wrap(den, st, true);
+        }
+        self.last = Last::Operand;
+    }
+
+    /// A value in a fraction or root: bare when it is one word or number (a denominator: one character or a
+    /// number, so that `1/(2m)` is not read as `(1/2)m`), else in parentheses.
+    fn wrap(&mut self, v: Vec<Inline>, st: Style, strict: bool) {
         let plain = text_of(&v);
-        if plain.chars().count() <= 1 || plain.chars().all(char::is_alphanumeric) {
+        let only_text = v.iter().all(|i| matches!(i, Inline::Text(..)));
+        let bare = plain.chars().count() <= 1 || plain.chars().all(|c| if strict { c.is_ascii_digit() } else { c.is_alphanumeric() });
+        if (!only_text && v.len() == 1) || (only_text && bare) {
             self.out.extend(v);
-        } else if !plain.is_empty() {
+        } else if !v.is_empty() {
             let st = self.plain(st);
             self.put("(", st, Last::Start);
             self.out.extend(v);
@@ -467,11 +583,12 @@ impl P {
         let name: String = self.c[start..self.i].iter().collect();
         match name.as_str() {
             "frac" | "dfrac" | "tfrac" | "cfrac" => {
-                let a = self.capture(st, |p, s| p.atom(s));
-                let b = self.capture(st, |p, s| p.atom(s));
-                self.wrap(a, st);
-                self.put("/", plain, Last::Op);
-                self.wrap(b, st);
+                let was = std::mem::replace(&mut self.in_frac, true);
+                let small = Style { size: st.size * 0.92, ..st };
+                let a = self.capture(small, |p, s| p.atom(s));
+                let b = self.capture(small, |p, s| p.atom(s));
+                self.in_frac = was;
+                self.fraction(a, b, st);
             }
             "binom" => {
                 let a = self.capture(st, |p, s| p.atom(s));
@@ -500,7 +617,7 @@ impl P {
                     self.put(&index, Style { valign: 1, size: st.size * 0.6, ..plain }, Last::Operand);
                 }
                 self.put("√", plain, Last::Op);
-                self.wrap(body, st);
+                self.wrap(body, st, false);
             }
             "text" | "textrm" | "textnormal" | "mbox" | "mathrm" | "operatorname" | "textit" | "textbf" => {
                 let t = self.raw_group();
@@ -711,9 +828,24 @@ mod tests {
     #[test]
     fn fractions_and_roots() {
         assert_eq!(text(r"\frac{a}{b}"), "a/b");
-        assert_eq!(text(r"\frac{a+b}{2}"), format!("(a{THIN}+{THIN}b)/2"));
+        assert_eq!(text(r"\frac{a+b}{2}"), format!("a{THIN}+{THIN}b/2"));
+        // Stacked at the top level; written `a/b` in scripts, in other fractions, with parentheses as needed.
+        assert!(matches!(render(r"\frac{a}{b}", Style::default())[0], Inline::Frac(..)));
+        assert!(matches!(render(r"a \over b", Style::default())[..], [Inline::Frac(..)]));
+        assert_eq!(text(r"x^{\frac{1}{2m}}"), "x1/(2m)");
+        let v = render(r"\frac{\frac{1}{2}}{3}", Style::default());
+        assert!(matches!(&v[..], [Inline::Frac(n, _)] if n.iter().all(|i| matches!(i, Inline::Text(..)))), "{v:?}");
+        assert_eq!(text(r"\sqrt{\frac{a}{b}}"), "√a/b");
         assert_eq!(text(r"\sqrt{x}"), "√x");
         assert_eq!(text(r"\sqrt{x^2+1}"), format!("√(x2{THIN}+{THIN}1)"));
+    }
+
+    #[test]
+    fn latex_delimiters_become_dollars() {
+        assert_eq!(convert_delimiters(r"Inline \( a^2 + b \) and \\(not\\)"), r"Inline $a^2 + b$ and \\(not\\)");
+        assert_eq!(convert_delimiters("x\n\\[ \\frac{a}{b} \\]\ny"), "x\n$$\\frac{a}{b}$$\ny");
+        let code = "`\\(x\\)`\n```\n\\[y\\]\n```\n";
+        assert_eq!(convert_delimiters(code), code);
     }
 
     #[test]
