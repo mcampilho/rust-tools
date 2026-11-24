@@ -65,8 +65,12 @@ pub enum Inline {
     },
     /// Target of `#name` links.
     Anchor(String),
-    /// A stacked fraction (maths): numerator over denominator, text runs only.
+    /// A stacked fraction (maths): numerator over denominator.
     Frac(Vec<Inline>, Vec<Inline>),
+    /// A radical sign with a bar over its contents (maths).
+    Root(Vec<Inline>),
+    /// An operator with limits above and below: top, the operator, bottom (maths).
+    Limits(Vec<Inline>, Vec<Inline>, Vec<Inline>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -206,6 +210,12 @@ pub fn plain_text(blocks: &[Block]) -> String {
                     inl(n, out);
                     out.push('/');
                     inl(d, out);
+                }
+                Inline::Root(b) => inl(b, out),
+                Inline::Limits(t, b, u) => {
+                    inl(b, out);
+                    inl(u, out);
+                    inl(t, out);
                 }
             }
         }

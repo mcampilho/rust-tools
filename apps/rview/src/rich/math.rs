@@ -189,6 +189,9 @@ const FUNCTIONS: &[&str] = &[
     "lim", "limsup", "liminf", "max", "min", "sup", "inf", "det", "dim", "ker", "gcd", "lcm", "deg", "arg", "Pr", "mod", "hom",
 ];
 
+/// Operators whose limits go above and below in display maths (`\int` keeps them beside, as in TeX).
+const STACKED: &[&str] = &["sum", "prod", "coprod", "bigcup", "bigcap", "lim", "limsup", "liminf", "max", "min", "sup", "inf"];
+
 fn double_struck(c: char) -> char {
     match c {
         'C' => 'ℂ',
@@ -208,14 +211,22 @@ struct P {
     out: Vec<Inline>,
     last: Last,
     font: Font,
-    /// Inside the numerator or denominator of a stacked fraction: further fractions are written `a/b`.
-    in_frac: bool,
+    /// Display maths (`$$…$$`): the limits of sums and the like go above and below, not beside.
+    display: bool,
 }
 
-/// The maths in `src` as inline runs, drawn in `base`.
+/// The maths in `src` as inline runs, drawn in `base` (`$…$`).
 pub fn render(src: &str, base: Style) -> Vec<Inline> {
-    let c: Vec<char> = src.chars().collect();
-    let mut p = P::new(c, Font::Math);
+    run(src, base, false)
+}
+
+/// The same for `$$…$$`.
+pub fn render_display(src: &str, base: Style) -> Vec<Inline> {
+    run(src, base, true)
+}
+
+fn run(src: &str, base: Style, display: bool) -> Vec<Inline> {
+    let mut p = P::new(src.chars().collect(), Font::Math, display);
     p.seq(base, false);
     merge(p.out)
 }
@@ -319,14 +330,16 @@ fn text_of(v: &[Inline]) -> String {
         .map(|i| match i {
             Inline::Text(t, _) => t.clone(),
             Inline::Frac(n, d) => format!("{}/{}", text_of(n), text_of(d)),
+            Inline::Root(b) => format!("√{}", text_of(b)),
+            Inline::Limits(t, b, u) => format!("{}{}{}", text_of(b), text_of(u), text_of(t)),
             _ => String::new(),
         })
         .collect()
 }
 
 impl P {
-    fn new(c: Vec<char>, font: Font) -> P {
-        P { c, i: 0, out: Vec::new(), last: Last::Start, font, in_frac: false }
+    fn new(c: Vec<char>, font: Font, display: bool) -> P {
+        P { c, i: 0, out: Vec::new(), last: Last::Start, font, display }
     }
 
     fn peek(&self) -> Option<char> {
@@ -495,10 +508,43 @@ impl P {
         self.c[self.i..].starts_with(&w) && !self.c.get(self.i + 5).is_some_and(|c| c.is_ascii_alphabetic())
     }
 
-    /// A fraction: stacked (`Inline::Frac`), or `a/b` inside scripts and other fractions.
+    /// `\sum_{i=1}^n` in display maths: the operator with its limits above and below. False (nothing read)
+    /// when no `_` or `^` follows.
+    fn limits(&mut self, name: &str, st: Style) -> bool {
+        self.skip_ws();
+        if !matches!(self.peek(), Some('_' | '^')) {
+            return false;
+        }
+        let small = Style { size: st.size * 0.75, ..st };
+        let (mut top, mut bottom) = (Vec::new(), Vec::new());
+        loop {
+            self.skip_ws();
+            match self.peek() {
+                Some('_') if bottom.is_empty() => {
+                    self.i += 1;
+                    bottom = self.capture(small, |p, s| p.atom(s));
+                }
+                Some('^') if top.is_empty() => {
+                    self.i += 1;
+                    top = self.capture(small, |p, s| p.atom(s));
+                }
+                _ => break,
+            }
+        }
+        // Big operators are drawn larger than the text; `lim`, `max`... are words.
+        let (text, style) = match SYMBOLS.iter().find(|(g, _, _)| *g == name) {
+            Some((_, s, _)) => (s.to_string(), Style { size: st.size * 1.35, italic: false, ..st }),
+            None => (name.to_string(), Style { italic: false, ..st }),
+        };
+        self.out.push(Inline::Limits(merge(top), vec![Inline::Text(text, style)], merge(bottom)));
+        self.last = Last::Operand;
+        true
+    }
+
+    /// A fraction: stacked (`Inline::Frac`), or `a/b` inside scripts (too small to stack).
     fn fraction(&mut self, num: Vec<Inline>, den: Vec<Inline>, st: Style) {
-        let text_only = |v: &[Inline]| v.iter().all(|i| matches!(i, Inline::Text(..)));
-        if st.valign == 0 && !self.in_frac && text_only(&num) && text_only(&den) {
+        let flat = |v: &[Inline]| v.iter().all(|i| !matches!(i, Inline::Break | Inline::Limits(..)));
+        if st.valign == 0 && flat(&num) && flat(&den) {
             self.out.push(Inline::Frac(merge(num), merge(den)));
         } else {
             self.wrap(num, st, false);
@@ -583,11 +629,12 @@ impl P {
         let name: String = self.c[start..self.i].iter().collect();
         match name.as_str() {
             "frac" | "dfrac" | "tfrac" | "cfrac" => {
-                let was = std::mem::replace(&mut self.in_frac, true);
+                // Inside a fraction the limits of a sum stay beside it, as in TeX.
+                let display = std::mem::replace(&mut self.display, false);
                 let small = Style { size: st.size * 0.92, ..st };
                 let a = self.capture(small, |p, s| p.atom(s));
                 let b = self.capture(small, |p, s| p.atom(s));
-                self.in_frac = was;
+                self.display = display;
                 self.fraction(a, b, st);
             }
             "binom" => {
@@ -612,12 +659,20 @@ impl P {
                         index.push(c);
                     }
                 }
+                let display = std::mem::replace(&mut self.display, false);
                 let body = self.capture(st, |p, s| p.atom(s));
+                self.display = display;
                 if !index.is_empty() {
                     self.put(&index, Style { valign: 1, size: st.size * 0.6, ..plain }, Last::Operand);
                 }
-                self.put("√", plain, Last::Op);
-                self.wrap(body, st, false);
+                if st.valign == 0 && !body.is_empty() && body.iter().all(|i| !matches!(i, Inline::Break | Inline::Limits(..))) {
+                    // The sign and the bar are drawn by the layout.
+                    self.out.push(Inline::Root(merge(body)));
+                    self.last = Last::Operand;
+                } else {
+                    self.put("√", plain, Last::Op);
+                    self.wrap(body, st, false);
+                }
             }
             "text" | "textrm" | "textnormal" | "mbox" | "mathrm" | "operatorname" | "textit" | "textbf" => {
                 let t = self.raw_group();
@@ -684,6 +739,7 @@ impl P {
                 self.last = Last::Operand;
             }
             "underline" | "underbrace" | "overbrace" | "boxed" | "cancel" | "phantom" | "hphantom" | "vphantom" => self.atom(st),
+            n if self.display && st.valign == 0 && STACKED.contains(&n) && self.limits(n, st) => {}
             n => {
                 if let Some((_, s)) = GREEK.iter().find(|(g, _)| *g == n) {
                     let style = if s.chars().next().is_some_and(char::is_lowercase) { self.var(st) } else { plain };
@@ -743,7 +799,7 @@ impl P {
                 if k > 0 && !aligned {
                     self.put(&NBSP.repeat(3), plain, Last::Start);
                 }
-                let mut q = P::new(cell, self.font);
+                let mut q = P::new(cell, self.font, self.display);
                 q.seq(st, false);
                 self.out.extend(q.out);
             }
@@ -834,10 +890,30 @@ mod tests {
         assert!(matches!(render(r"a \over b", Style::default())[..], [Inline::Frac(..)]));
         assert_eq!(text(r"x^{\frac{1}{2m}}"), "x1/(2m)");
         let v = render(r"\frac{\frac{1}{2}}{3}", Style::default());
-        assert!(matches!(&v[..], [Inline::Frac(n, _)] if n.iter().all(|i| matches!(i, Inline::Text(..)))), "{v:?}");
+        assert!(matches!(&v[..], [Inline::Frac(n, _)] if matches!(n[..], [Inline::Frac(..)])), "{v:?}");
+        // A root is a box with a bar; in a script it is `√(…)`.
+        assert!(matches!(render(r"\sqrt{x}", Style::default())[..], [Inline::Root(_)]));
         assert_eq!(text(r"\sqrt{\frac{a}{b}}"), "√a/b");
-        assert_eq!(text(r"\sqrt{x}"), "√x");
-        assert_eq!(text(r"\sqrt{x^2+1}"), format!("√(x2{THIN}+{THIN}1)"));
+        assert_eq!(text(r"\sqrt{x^2+1}"), format!("√x2{THIN}+{THIN}1"));
+        assert_eq!(text(r"e^{\sqrt{x^2+1}}"), "e√(x2+1)");
+    }
+
+    #[test]
+    fn limits_go_above_and_below_in_display_maths_only() {
+        let st = Style::default();
+        let d = render_display(r"\sum_{i=1}^{n} i", st);
+        assert!(
+            matches!(&d[0], Inline::Limits(top, base, bottom)
+            if text_of(top) == "n" && text_of(base) == "∑" && text_of(bottom).starts_with("i")),
+            "{d:?}"
+        );
+        // Inline maths, integrals and fractions keep the limits beside the operator.
+        assert!(render(r"\sum_{i=1}^{n} i", st).iter().all(|i| !matches!(i, Inline::Limits(..))));
+        assert!(render_display(r"\int_0^1 x", st).iter().all(|i| !matches!(i, Inline::Limits(..))));
+        assert!(render_display(r"\frac{\sum_i i}{n}", st).iter().all(|i| !matches!(i, Inline::Limits(..))));
+        // `lim` has its limit below, and a bare `\sum` stays a symbol.
+        assert!(matches!(render_display(r"\lim_{n\to\infty} a", st)[0], Inline::Limits(..)));
+        assert_eq!(text_of(&render_display(r"\sum x", st)), "∑x");
     }
 
     #[test]

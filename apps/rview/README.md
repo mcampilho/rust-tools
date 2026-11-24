@@ -215,9 +215,10 @@ only, and the status bar says so.
   containers (also `info`, `tip`, `danger`). LaTeX maths (`$…$` inline, `$$…$$`
   centred; also `\( … \)` and `\[ … \]`) is not fully typeset: Greek letters
   and symbols, raised and lowered scripts, stacked fractions (`\frac`, `\over`),
-  `√` for `\sqrt` (no bar over it), matrices and `cases` as lines; sums and
-  integrals keep their limits beside them. Follows the light/dark theme. Images
-  are only those next to the file (nothing is downloaded).
+  roots with a bar (`\sqrt`), limits above and below `\sum`, `\prod`, `\lim`…
+  in `$$…$$` (integrals keep theirs beside, as in TeX), and matrices and `cases`
+  as lines. Follows the light/dark theme. Images are only those next to the file
+  (nothing is downloaded).
 - **HTML:** documents are shown on a white page like a browser. Supported:
   headings, paragraphs, lists (nested, numbered with `start`), tables
   (with `colspan`), `pre`/`code`, quotes, links and anchors, local and

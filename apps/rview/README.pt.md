@@ -222,10 +222,11 @@ como texto simples, e a barra de estado indica-o.
   (`*[HTML]: …`, sublinhadas); e contentores `::: warning` (também `info`, `tip`,
   `danger`). As fórmulas LaTeX (`$…$` na linha, `$$…$$` centradas; também
   `\( … \)` e `\[ … \]`) não são compostas por completo: letras gregas e
-  símbolos, expoentes e índices, frações empilhadas (`\frac`, `\over`), `√` para
-  `\sqrt` (sem barra por cima), matrizes e `cases` em linhas; somas e integrais
-  ficam com os limites ao lado. Segue o tema claro/escuro. As imagens são só as
-  que estão ao lado do ficheiro (nada é descarregado).
+  símbolos, expoentes e índices, frações empilhadas (`\frac`, `\over`), raízes
+  com barra (`\sqrt`), limites por cima e por baixo de `\sum`, `\prod`, `\lim`…
+  em `$$…$$` (os integrais ficam com os seus ao lado, como no TeX), e matrizes e
+  `cases` em linhas. Segue o tema claro/escuro. As imagens são só as que estão
+  ao lado do ficheiro (nada é descarregado).
 - **HTML:** os documentos são mostrados numa página branca, como num navegador.
   Suportado: títulos, parágrafos, listas (aninhadas, numeradas com `start`),
   tabelas (com `colspan`), `pre`/`code`, citações, ligações e âncoras, imagens

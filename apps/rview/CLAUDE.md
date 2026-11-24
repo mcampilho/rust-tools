@@ -10,7 +10,7 @@ Detalhes por formato, atalhos e limitações estão no `README.md`.
 
 ```powershell
 ./dev.ps1 build --release -p rview
-./dev.ps1 test -p rview       # 95 testes; os do código partilhado estão nos crates
+./dev.ps1 test -p rview       # 97 testes; os do código partilhado estão nos crates
 ./dev.ps1 clippy -p rview --all-targets
 ```
 
@@ -45,11 +45,15 @@ Correm na raiz do repositório. Saída: `target\release\rview.exe`. Rust 1.88+, 
 - `rich/math.rs` (2026-11-24, pedido do utilizador): fórmulas `$…$` e `$$…$$` (`Options::ENABLE_MATH`, eventos
   `InlineMath`/`DisplayMath`; a de bloco é um parágrafo centrado) como texto estilizado, sem motor de composição: gregos
   e símbolos em Unicode (o `rt-gfx` cai no `seguisym.ttf`), variáveis em itálico, `^`/`_` com `valign` (aninhados ficam
-  todos ao mesmo nível), `\sqrt` = `√`, `\text`, `\mathbb`/`\mathbf`, acentos por caracteres combinantes,
-  `matrix`/`cases`/`aligned` em linhas. `convert_delimiters` passa `\(…\)` e `\[…\]` a `$…$` e `$$…$$` antes de ler
-  (fora do código). `\frac`/`\over` ao nível de cima são `Inline::Frac` (só texto), desenhado empilhado pelo
-  `Atom::Frac` do layout (barra no eixo, itens de texto para cima e para baixo, por isso a seleção funciona); dentro de
-  expoentes e de outras frações é `a/b`, com parênteses se preciso. Por fazer: raízes com barra e limites por cima de ∑.
+  todos ao mesmo nível), `\text`, `\mathbb`/`\mathbf`, acentos por caracteres combinantes, `matrix`/`cases`/`aligned`
+  em linhas. `convert_delimiters` passa `\(…\)` e `\[…\]` a `$…$` e `$$…$$` antes de ler (fora do código). Três
+  `Inline` de fórmulas são caixas desenhadas por `rich/layout/mathbox.rs` (filho do `layout`, vê o `Ctx`): `Frac`
+  (`\frac`, `\over`), `Root` (`\sqrt`: sinal escalado à altura do conteúdo e barra por cima) e `Limits` (`\sum`, `\prod`,
+  `\lim`, `\max`…: limites por cima e por baixo, só em `$$…$$`; `\int` fica com eles ao lado, como no TeX; dentro de
+  frações e raízes também ao lado). Cada caixa é medida uma vez (`Row` = textos e caixas na mesma linha de base) e
+  desenhada com itens de texto e filetes, por isso a seleção e a cópia funcionam; frações e raízes aninham. Dentro de
+  expoentes e índices (já pequenos) a fração é `a/b` e a raiz `√(…)`. Os números (0,78 de altura, 0,22 de descida, eixo
+  a 0,3) são estimativas dos tipos de letra: verificados à vista, não medidos.
 - `linux/` — Clipboard (arboard: texto com HTML, ou imagem), e o resto de `rt-sys`: diálogo Abrir (zenity ou
   kdialog), tema, links, e o modo residente com socket Unix e ícone StatusNotifierItem.
 - `ui/menu.rs` — menus desenhados na janela (`rt-gfx`), só fora do Windows. Em Linux, `cfg(not(windows))`

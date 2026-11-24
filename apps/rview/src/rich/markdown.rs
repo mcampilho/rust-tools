@@ -508,7 +508,7 @@ impl Builder {
             Event::DisplayMath(t) => {
                 // Alone on its lines, centred.
                 b.flush();
-                let v = super::math::render(&t, Style { size: b.style().size * 1.1, ..b.style() });
+                let v = super::math::render_display(&t, Style { size: b.style().size * 1.1, ..b.style() });
                 b.push_block(Block { align: Align::Center, ..Block::para(v) });
             }
             Event::Html(t) => b.html.push_str(&t),

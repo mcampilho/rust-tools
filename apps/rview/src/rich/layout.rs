@@ -7,6 +7,9 @@ use crate::clip::Tag;
 use crate::ui::gfx::{Color, FontId, Gfx, Rect};
 use std::collections::HashMap;
 
+mod mathbox;
+use mathbox::Boxed;
+
 /// Base text size in CSS pixels at 100 % zoom.
 pub const BASE_PX: f32 = 15.0;
 
@@ -323,17 +326,19 @@ enum Atom {
     Image(String, String, Style, f32, f32),
     Break,
     Anchor(String),
-    /// A stacked fraction: numerator and denominator runs with their widths, the whole width and the size
-    /// of the text around it.
-    Frac {
-        num: Vec<(String, Style, f32)>,
-        nw: f32,
-        den: Vec<(String, Style, f32)>,
-        dw: f32,
-        w: f32,
-        px: f32,
-        style: Style,
-    },
+    /// Maths drawn as a box: stacked fraction, root, operator with limits.
+    Math(Boxed),
+}
+
+impl Atom {
+    /// Width of what is drawn (words, images, maths boxes).
+    fn width(&self) -> f32 {
+        match self {
+            Atom::Word(_, _, w) | Atom::Image(_, _, _, w, _) | Atom::Space(w) => *w,
+            Atom::Math(b) => b.width(),
+            Atom::Break | Atom::Anchor(_) => 0.0,
+        }
+    }
 }
 
 pub struct Ctx<'a> {
@@ -420,20 +425,6 @@ impl Ctx<'_> {
         (key, size)
     }
 
-    /// The text runs of one side of a fraction, with their total width.
-    fn frac_runs(&mut self, v: &[Inline]) -> (Vec<(String, Style, f32)>, f32) {
-        let mut runs = Vec::new();
-        let mut total = 0.0;
-        for i in v {
-            if let Inline::Text(t, s) = i {
-                let w = self.g.measure(t, self.px(s), font_of(s));
-                total += w;
-                runs.push((t.clone(), *s, w));
-            }
-        }
-        (runs, total)
-    }
-
     fn atoms(&mut self, inl: &[Inline], nowrap: bool, avail: f32) -> Vec<Atom> {
         let mut out = Vec::new();
         for i in inl {
@@ -488,14 +479,7 @@ impl Ctx<'_> {
                 }
                 Inline::Break => out.push(Atom::Break),
                 Inline::Anchor(a) => out.push(Atom::Anchor(a.clone())),
-                Inline::Frac(n, d) => {
-                    let (num, nw) = self.frac_runs(n);
-                    let (den, dw) = self.frac_runs(d);
-                    let style = n.iter().chain(d).find_map(|i| if let Inline::Text(_, s) = i { Some(*s) } else { None });
-                    let style = Style { valign: 0, ..style.unwrap_or_default() };
-                    let px = self.px(&style);
-                    out.push(Atom::Frac { num, nw, den, dw, w: nw.max(dw) + px * 0.3, px, style });
-                }
+                Inline::Frac(..) | Inline::Root(_) | Inline::Limits(..) => out.extend(self.math_atom(i).map(Atom::Math)),
                 Inline::Image { src, alt, width, height, style } => match self.image_size(src, *width, *height, avail) {
                     (key, Some((w, h))) => out.push(Atom::Image(key, alt.clone(), *style, w, h)),
                     (_, None) => {
@@ -569,7 +553,8 @@ impl Ctx<'_> {
                     }
                 }
                 Atom::Anchor(_) => line.push((i, cur)),
-                Atom::Word(_, _, aw) | Atom::Image(_, _, _, aw, _) | Atom::Frac { w: aw, .. } => {
+                Atom::Word(..) | Atom::Image(..) | Atom::Math(_) => {
+                    let aw = atom.width();
                     if !nowrap && cur + pending_space + aw > w && !line.is_empty() {
                         y = self.flush_line(&all, &mut line, x, w, y, align, first_style, false);
                         self.lead_space = pending_space > 0.0;
@@ -631,10 +616,10 @@ impl Ctx<'_> {
                     width = width.max(ax + iw);
                     has_content = true;
                 }
-                Atom::Frac { w, px, .. } => {
-                    asc = asc.max(px * 1.3);
-                    desc = desc.max(px * 0.9);
-                    width = width.max(ax + w);
+                Atom::Math(b) => {
+                    asc = asc.max(b.asc());
+                    desc = desc.max(b.desc());
+                    width = width.max(ax + b.width());
                     has_content = true;
                 }
                 _ => {}
@@ -704,36 +689,10 @@ impl Ctx<'_> {
                     }
                     k += 1;
                 }
-                Atom::Frac { num, nw, den, dw, w, px, style } => {
-                    // The bar sits on the maths axis; the numerator above it and the denominator below.
-                    let (px, left) = (*px, x + off + ax);
-                    let bar = (baseline - px * 0.3).round();
-                    let thick = (px / 14.0).max(1.0).round();
-                    let color = self.color(style);
-                    self.out.push(Item::Fill { r: Rect::new(left + px * 0.08, bar, *w - px * 0.16, thick), color });
-                    let sides = [(num, *nw, baseline - px * 0.55, false), (den, *dw, baseline + px * 0.62, true)];
-                    for (runs, rw, base, lower) in sides {
-                        let mut rx = left + (*w - rw) / 2.0;
-                        for (n, (t, s, tw)) in runs.iter().enumerate() {
-                            let (spx, font) = (self.px(s), font_of(s));
-                            let by = base - s.valign as f32 * spx * 0.35;
-                            let color = self.color(s);
-                            let idx = self.out.push(Item::Text { x: rx, y: by, s: t.clone(), px: spx, font, color });
-                            let first = n == 0;
-                            let wrapped = first && !lower && std::mem::take(&mut self.lead_space);
-                            self.out.meta[idx] = Meta {
-                                node: self.node,
-                                style: *s,
-                                w: *tw,
-                                wrapped,
-                                space: first && (lower || wrapped || prev_end.is_some_and(|e| ax - e > 0.01)),
-                                breaks: if first && !lower { std::mem::take(&mut self.lead_breaks) } else { 0 },
-                                ..Meta::default()
-                            };
-                            rx += tw;
-                        }
-                    }
-                    prev_end = Some(ax + *w);
+                Atom::Math(b) => {
+                    let gap = prev_end.is_some_and(|e| ax - e > 0.01);
+                    self.emit_boxed(b, x + off + ax, baseline, gap);
+                    prev_end = Some(ax + b.width());
                     k += 1;
                 }
                 Atom::Word(_, s, _) => {
@@ -931,8 +890,9 @@ impl Ctx<'_> {
         let (mut min, mut max, mut line) = (0.0f32, 0.0f32, 0.0f32);
         for a in &atoms {
             match a {
-                Atom::Word(_, _, w) | Atom::Image(_, _, _, w, _) | Atom::Frac { w, .. } => {
-                    min = min.max(*w);
+                Atom::Word(..) | Atom::Image(..) | Atom::Math(_) => {
+                    let w = a.width();
+                    min = min.max(w);
                     line += w;
                 }
                 Atom::Space(w) => line += w,
