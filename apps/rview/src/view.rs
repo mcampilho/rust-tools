@@ -99,6 +99,8 @@ pub struct Viewer {
     pdf: Pdf,
     /// Show HTML and PDF pages dark in the dark theme.
     pub dark_pages: bool,
+    /// Images that are on the Internet may be downloaded (View › Show Online Images; off by default).
+    pub remote_images: bool,
     /// Syntax highlighting of the text document.
     hl: Option<crate::syntax::Highlighter>,
     sel: Option<Sel>,
@@ -156,7 +158,7 @@ fn base64(s: &str) -> Option<Vec<u8>> {
 }
 
 /// Resolves an image `src` to its cache key: an absolute file path, a data
-/// URI, or the remote URL itself (never fetched).
+/// URI, or the remote URL itself (fetched only if the user turned online images on).
 pub fn image_key(base: &Path, src: &str) -> String {
     let src = src.trim();
     if src.starts_with("data:") || src.contains("://") && !src.starts_with("file:") || src.starts_with("//") {
@@ -169,6 +171,49 @@ pub fn image_key(base: &Path, src: &str) -> String {
     let path = Path::new(&p);
     let full = if path.is_absolute() { path.to_path_buf() } else { base.join(path) };
     full.to_string_lossy().into_owned()
+}
+
+/// Most images downloaded for one document.
+const MAX_ONLINE_IMAGES: usize = 48;
+
+/// An image address on the Internet (as `image_key` leaves it).
+pub fn is_remote(key: &str) -> bool {
+    !key.starts_with("data:") && (key.contains("://") && !key.starts_with("file:") || key.starts_with("//"))
+}
+
+/// The web address to ask for, if it may be asked for: `http(s)` only, and not a name or number of this PC or
+/// of a private network (a document must not make rview knock on the doors of the local network).
+pub fn fetchable(key: &str) -> bool {
+    let url = if key.starts_with("//") { format!("https:{key}") } else { key.to_string() };
+    let Some(u) = rt_sys::net::split_url(&url) else { return false };
+    let host = u.host.trim_start_matches('[').trim_end_matches(']').to_ascii_lowercase();
+    if host == "localhost"
+        || host.ends_with(".localhost")
+        || host.ends_with(".local")
+        || host.ends_with(".internal")
+        || !host.contains('.') && !host.contains(':')
+    {
+        return false;
+    }
+    match host.parse::<std::net::IpAddr>() {
+        Ok(std::net::IpAddr::V4(a)) => {
+            !(a.is_loopback()
+                || a.is_private()
+                || a.is_link_local()
+                || a.is_unspecified()
+                || a.is_broadcast()
+                || a.octets()[0] == 100 && (64..128).contains(&a.octets()[1]))
+        }
+        Ok(std::net::IpAddr::V6(a)) => {
+            let seg = a.segments();
+            !(a.is_loopback()
+                || a.is_unspecified()
+                || seg[0] & 0xfe00 == 0xfc00
+                || seg[0] & 0xffc0 == 0xfe80
+                || a.to_ipv4_mapped().is_some())
+        }
+        Err(_) => true,
+    }
 }
 
 /// Truncates `s` with an ellipsis to fit `max` pixels.
@@ -217,6 +262,7 @@ impl Viewer {
             img_gen: 0,
             pdf: Pdf::default(),
             dark_pages: true,
+            remote_images: false,
             hl: None,
             sel: None,
             text_geom: TextGeom::default(),
@@ -956,10 +1002,29 @@ impl Viewer {
         }
     }
 
+    /// The option to show online images was switched: forget the images that are on the Internet (the
+    /// ones that failed or were never fetched, or all of them when it went off) and lay out again.
+    pub fn remote_images_changed(&mut self) {
+        self.images.retain(|k, _| !is_remote(k));
+        self.img_gen += 1;
+    }
+
     fn request_images(&mut self, media: &Media) {
         let Some(l) = &self.rich else { return };
         let keys: Vec<String> = l.images.iter().filter(|k| !self.images.contains_key(*k)).cloned().collect();
+        let mut online: Vec<String> = Vec::new();
         for k in keys {
+            if is_remote(&k) {
+                // Only when the user turned it on, and never to this PC or the local network.
+                if self.remote_images && fetchable(&k) && online.len() < MAX_ONLINE_IMAGES {
+                    self.images.insert(k.clone(), Img { state: ImgState::Pending, pix: None });
+                    online.push(k);
+                } else {
+                    self.images.insert(k, Img { state: ImgState::Failed, pix: None });
+                    self.img_gen += 1;
+                }
+                continue;
+            }
             let bytes = if let Some(data) = k.strip_prefix("data:") {
                 // data:[mime][;base64],payload
                 data.split_once(',').and_then(|(meta, payload)| {
@@ -969,8 +1034,6 @@ impl Viewer {
                         Some(percent_decode(payload).into_bytes())
                     }
                 })
-            } else if k.contains("://") || k.starts_with("//") {
-                None // remote images are never fetched
             } else {
                 std::fs::metadata(&k).ok().filter(|m| m.is_file() && m.len() < 64 << 20).and_then(|_| std::fs::read(&k).ok())
             };
@@ -984,6 +1047,9 @@ impl Viewer {
                     self.img_gen += 1;
                 }
             }
+        }
+        if !online.is_empty() {
+            media.fetch_images(online);
         }
     }
 
@@ -1226,6 +1292,32 @@ fn column_widths(g: &mut Gfx, doc: &CsvDoc, px: f32, pad: f32) -> Vec<f32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn online_images_only_from_the_internet() {
+        assert!(is_remote("https://example.com/a.png") && is_remote("//cdn.example.com/a.png") && is_remote("ftp://x/y"));
+        assert!(!is_remote("data:image/png;base64,AAAA") && !is_remote("C:\\docs\\a.png") && !is_remote("/home/a.png"));
+        assert!(fetchable("https://markdown-here.com/img/icon256.png") && fetchable("//cdn.example.com/a.png"));
+        assert!(fetchable("http://93.184.216.34/a.png") && fetchable("https://[2606:2800:220:1::1]/a.png"));
+        for local in [
+            "http://localhost/a.png",
+            "http://127.0.0.1:8080/a.png",
+            "http://10.0.0.5/a.png",
+            "http://192.168.1.1/a.png",
+            "http://172.16.0.1/a.png",
+            "http://169.254.169.254/latest/meta-data",
+            "http://100.64.0.1/a.png",
+            "http://[::1]/a.png",
+            "http://[fe80::1]/a.png",
+            "http://[fd00::1]/a.png",
+            "http://nas/a.png",
+            "http://printer.local/a.png",
+            "http://user@example.com/a.png",
+            "ftp://example.com/a.png",
+        ] {
+            assert!(!fetchable(local), "{local}");
+        }
+    }
 
     #[test]
     fn image_keys() {

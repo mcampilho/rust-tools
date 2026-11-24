@@ -2,7 +2,7 @@
 
 Visualizador para Windows (~4,4 MB, um só `.exe`) e Linux de PDF, Markdown, HTML, texto
 e CSV, com zoom, seleção e cópia para o Clipboard (com formatos ou só texto).
-Sem rede, sem telemetria, nunca executa scripts.
+Sem rede (só se o utilizador ligar Ver › Mostrar imagens da web: ver abaixo), sem telemetria, nunca executa scripts.
 Integração opcional com o Explorador (`--register`, `--associate`, `--unregister`).
 Detalhes por formato, atalhos e limitações estão no `README.md`.
 
@@ -68,6 +68,18 @@ Correm na raiz do repositório. Saída: `target\release\rview.exe`. Rust 1.88+, 
   arestas ficam como código. O desenho: camadas pelo caminho mais longo (ciclos cortados nas arestas de retorno), ordem
   por baricentro, posições puxadas para os vizinhos, linhas retas entre os contornos, tudo em `Item::Shape` (polígono
   cheio ou contorno) e texto (seleção e cópia funcionam); se for mais largo que a coluna refaz-se mais pequeno.
+- Duas opções do menu Ver, ambas desligadas por omissão e guardadas em `settings.ini` (2026-11-24, pedido do
+  utilizador): `remote_images` e `expand_date`. **Imagens da web** (exceção à regra de rede aprovada nesse dia):
+  `Viewer::request_images` só pede as chaves `http(s)` se `Viewer::remote_images`, e só as que `view::fetchable`
+  deixa (não vai a `localhost`, nomes sem ponto, `.local`/`.internal`, IP de loopback, privado, de ligação local ou
+  CGNAT, nem a endereços com `user@`; um nome que resolva para um IP privado não se apanha), no máximo 48 por
+  documento; `Media::fetch_images` descarrega em até 3 threads com `rt_sys::net::get` (GET, 24 MB, sem cookies,
+  agente `rview`) e entrega os bytes à fila do trabalhador como uma imagem local; falha → `Done::Image` sem bitmap.
+  Ligar ou desligar chama `remote_images_changed` (esquece as chaves remotas e refaz o layout). **`$(date)`**:
+  `rich/date.rs`, aplicado por `markdown::parse` ao texto (fora de código) se `date::enabled()` (um `AtomicBool`
+  posto pelo menu e no arranque); só `date`, `+FORMATO` (`%Y %y %m %d %e %H %I %M %S %p %j %A %a %B %b %F %T %R %D`,
+  nomes em en/pt/es pela língua da interface) e `-I`; sem argumentos entendidos o texto fica como está; nada é
+  executado. Mudar a opção volta a ler o documento Markdown aberto.
 - O `rt-gfx` não desenha nem mede selectores de variação e juntadores (`U+FE0F`, `U+200D`…): `⚠️` já não leva um
   quadrado.
 - `linux/` — Clipboard (arboard: texto com HTML, ou imagem), e o resto de `rt-sys`: diálogo Abrir (zenity ou
@@ -78,7 +90,8 @@ Correm na raiz do repositório. Saída: `target\release\rview.exe`. Rust 1.88+, 
 
 ## Regras
 
-- HTML é um subconjunto de documento, não um browser: sem JS, sem recursos remotos.
+- HTML é um subconjunto de documento, não um browser: sem JS, sem folhas de estilo remotas; imagens remotas só com a
+  opção Mostrar imagens da web ligada (desligada por omissão).
 - Links `http`/`https`/`mailto` abrem no programa por omissão; links nunca podem lançar programas.
 - Integração com o Explorador escreve só em HKCU, não sobrepõe defaults escolhidos pelo
   utilizador e `--unregister` repõe o estado anterior; os testes usam uma chave de registo temporária.

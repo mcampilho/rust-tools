@@ -280,6 +280,19 @@ impl Shell {
                 self.status_note = self.viewer.pdf_text_pending().then(|| tr("Reading the text of this PDF…"));
             }
             Command::DarkPages => self.settings.dark_pages = !self.settings.dark_pages,
+            Command::RemoteImages => {
+                self.settings.remote_images = !self.settings.remote_images;
+                self.viewer.remote_images = self.settings.remote_images;
+                self.viewer.remote_images_changed();
+            }
+            Command::ExpandDate => {
+                self.settings.expand_date = !self.settings.expand_date;
+                rich::date::set_enabled(self.settings.expand_date);
+                // The date is written when the document is read: read it again, where it was.
+                if let Some(p) = self.viewer.path.clone().filter(|_| self.viewer.kind == doc::Kind::Markdown) {
+                    self.open(&p, true, None);
+                }
+            }
             Command::ZoomIn => self.viewer.zoom_step(1, None),
             Command::ZoomOut => self.viewer.zoom_step(-1, None),
             Command::ZoomReset => self.viewer.zoom_reset(),
@@ -475,6 +488,8 @@ impl Shell {
         match c {
             Command::WordWrap => self.settings.wrap,
             Command::DarkPages => self.settings.dark_pages,
+            Command::RemoteImages => self.settings.remote_images,
+            Command::ExpandDate => self.settings.expand_date,
             #[cfg(windows)]
             Command::ExplorerMenu => self.integrated,
             Command::FitWidth => self.viewer.fit && self.viewer.kind == doc::Kind::Pdf,
@@ -1065,6 +1080,7 @@ fn main() {
     let mut location = storage::detect();
     let store = location.load();
     let settings = Settings::load(&store);
+    rich::date::set_enabled(settings.expand_date);
     let gfx = match Gfx::new() {
         Ok(mut g) => {
             g.set_mono_names(ui::gfx::RVIEW_MONO);

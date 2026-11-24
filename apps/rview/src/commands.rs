@@ -25,6 +25,10 @@ pub enum Command {
     FullScreen,
     /// Dark document pages in the dark theme (off: pages stay light).
     DarkPages,
+    /// Fetch the images that are on the Internet (off by default: nothing leaves the PC).
+    RemoteImages,
+    /// Show the current date where a Markdown document has `$(date)`.
+    ExpandDate,
     /// 0 system, 1 light, 2 dark.
     Theme(u8),
     /// 0 follows Windows, 1.. index into `Lang::ALL` + 1.
@@ -76,6 +80,8 @@ impl Command {
             WordWrap => "Word W&rap",
             FullScreen => "&Full Screen",
             DarkPages => "Dark &Pages in Dark Theme",
+            RemoteImages => "Show Online I&mages",
+            ExpandDate => "Replace $(date) with the &Date",
             Theme(0) => "Use &System Setting",
             Theme(1) => "&Light",
             Theme(_) => "&Dark",
@@ -176,6 +182,8 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
                 Sep,
                 Sub("T&heme", vec![Item(Theme(0)), Item(Theme(1)), Item(Theme(2))]),
                 Item(DarkPages),
+                Item(RemoteImages),
+                Item(ExpandDate),
                 Sub("Display &Language", langs),
             ],
         ),

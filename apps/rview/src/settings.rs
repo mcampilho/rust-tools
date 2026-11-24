@@ -14,6 +14,10 @@ pub struct Settings {
     pub wrap: bool,
     /// Show HTML and PDF pages dark in the dark theme.
     pub dark_pages: bool,
+    /// Download the images of Markdown and HTML documents that are on the Internet (off: nothing is fetched).
+    pub remote_images: bool,
+    /// Write the current date in place of `$(date)` in Markdown (off: shown as written).
+    pub expand_date: bool,
     /// Last folder used in the Open dialog.
     pub last_dir: String,
     /// Window size (logical pixels) and maximized state.
@@ -22,7 +26,16 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Settings {
-        Settings { theme: 0, language: None, wrap: true, dark_pages: true, last_dir: String::new(), window: None }
+        Settings {
+            theme: 0,
+            language: None,
+            wrap: true,
+            dark_pages: true,
+            remote_images: false,
+            expand_date: false,
+            last_dir: String::new(),
+            window: None,
+        }
     }
 }
 
@@ -38,6 +51,9 @@ impl Settings {
             language: s.get("language").and_then(Lang::from_tag),
             wrap: s.get("wrap").map_or(d.wrap, |v| v != "0"),
             dark_pages: s.get("dark_pages").map_or(d.dark_pages, |v| v != "0"),
+            // These two are off unless the file says "1".
+            remote_images: s.get("remote_images") == Some("1"),
+            expand_date: s.get("expand_date") == Some("1"),
             last_dir: s.get("last_dir").unwrap_or("").to_string(),
             window: s.get("window").and_then(|v| {
                 let mut it = v.split(',');
@@ -55,6 +71,8 @@ impl Settings {
         s.set("language", self.language.map_or("", |l| l.tag()));
         s.set("wrap", if self.wrap { "1" } else { "0" });
         s.set("dark_pages", if self.dark_pages { "1" } else { "0" });
+        s.set("remote_images", if self.remote_images { "1" } else { "0" });
+        s.set("expand_date", if self.expand_date { "1" } else { "0" });
         s.set("last_dir", self.last_dir.clone());
         if let Some((w, h, max)) = self.window {
             s.set("window", format!("{w:.0},{h:.0},{}", if max { "max" } else { "normal" }));
@@ -74,6 +92,8 @@ mod tests {
             language: Some(Lang::JaJP),
             wrap: false,
             dark_pages: false,
+            remote_images: true,
+            expand_date: true,
             last_dir: "C:\\docs".into(),
             window: Some((900.0, 700.0, true)),
         };

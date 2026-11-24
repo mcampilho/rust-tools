@@ -102,6 +102,40 @@ impl Media {
         }
     }
 
+    /// Downloads images from the Internet (only when the user turned that on; the addresses have been vetted by
+    /// `view::fetchable`) on up to three threads, and hands each to the worker to decode like a local one. An
+    /// image that cannot be had is reported as one that failed.
+    pub fn fetch_images(&self, keys: Vec<String>) {
+        /// Largest download for one image.
+        const LIMIT: usize = 24 << 20;
+        let keys = Arc::new(Mutex::new(keys.into_iter().rev().collect::<Vec<_>>()));
+        for _ in 0..3 {
+            let (keys, queue, tx, wake) = (keys.clone(), self.queue.clone(), self.tx.clone(), self.wake.clone());
+            let work = move || {
+                while let Some(key) = keys.lock().ok().and_then(|mut k| k.pop()) {
+                    let url = if key.starts_with("//") { format!("https:{key}") } else { key.clone() };
+                    match rt_sys::net::get(&url, LIMIT, "rview").map(|r| r.body) {
+                        Ok(bytes) if !bytes.is_empty() => {
+                            let (m, cv) = &*queue;
+                            if let Ok(mut q) = m.lock() {
+                                q.push_back(Job::Image { key, bytes });
+                                cv.notify_one();
+                            }
+                        }
+                        _ => {
+                            if tx.send(Done::Image { key, bmp: None }).is_ok() {
+                                wake();
+                            }
+                        }
+                    }
+                }
+            };
+            if std::thread::Builder::new().name("images".into()).spawn(work).is_err() {
+                break;
+            }
+        }
+    }
+
     /// Replaces all pending page renders with `pages` (page, width), in order.
     pub fn request_pages(&self, gen: u64, pages: &[(u32, u32)]) {
         let (m, cv) = &*self.queue;

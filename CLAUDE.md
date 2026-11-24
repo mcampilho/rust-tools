@@ -69,7 +69,9 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
   meteorologia da Open-Meteo para o widget de meteorologia. E, desde 2026-11-17, "Procurar atualizações…" em todas
   (pedido do utilizador): só quando o utilizador escolhe, GET à API de releases do GitHub e ao pacote e ao
   `SHA256SUMS.txt` do release (`rt_sys::update`, `rt_sys::net` — o cliente HTTPS que era do rwall —,
-  `rt_ui::update` para os diálogos; instalado pelo Scoop → `scoop update <app>`). Nenhuma outra.
+  `rt_ui::update` para os diálogos; instalado pelo Scoop → `scoop update <app>`). E, desde 2026-11-24 (pedido do
+  utilizador), o rview descarrega as imagens `http(s)` de um documento, só se ele ligar Ver › Mostrar imagens da web
+  (desligado por omissão; GET simples por `rt_sys::net`, nunca a `localhost` nem a redes privadas). Nenhuma outra.
 - Bucket do Scoop na pasta `bucket/` (desde 2026-11-17): um manifesto por app com release (rpack, rinst e rclean
   entram com o primeiro), `checkver` pelo `tag_name` dos releases e `autoupdate` com a soma do `SHA256SUMS.txt`;
   depois de um release, `checkver.ps1 -Dir bucket -Update`.

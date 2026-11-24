@@ -616,7 +616,8 @@ impl Builder {
 
 /// Parses Markdown into a rich document.
 pub fn parse(src: &str) -> RichDoc {
-    let (src, abbrs) = super::extras::take_abbreviations(&super::math::convert_delimiters(src));
+    let src = super::date::apply(src);
+    let (src, abbrs) = super::extras::take_abbreviations(&super::math::convert_delimiters(&src));
     let mut b = Builder {
         stack: vec![Frame::Root(Vec::new())],
         inlines: Vec::new(),

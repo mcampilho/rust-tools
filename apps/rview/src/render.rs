@@ -20,6 +20,7 @@ impl Shell {
         let bar = area.take_top((28.0 * s).round());
         let status = area.take_bottom((24.0 * s).round());
         self.viewer.dark_pages = self.settings.dark_pages;
+        self.viewer.remote_images = self.settings.remote_images;
         self.viewer.draw(&mut self.gfx, area, &theme, s, &self.media);
         // Status bar.
         let g = &mut self.gfx;

@@ -11,7 +11,8 @@ na raiz do repositório.
 
 O `rview.exe` é um único executável de 4,4 MB: sem instalador, sem runtime,
 sem DLL além das que vêm com o Windows e sem escrever no registo, a não ser
-que peça a integração com o Explorador. Não faz ligações de rede, não tem
+que peça a integração com o Explorador. Não faz ligações de rede, a não ser
+que ligue Ver › Mostrar imagens da web (desligado por omissão), não tem
 telemetria e nunca executa scripts.
 
 ## Linux
@@ -231,8 +232,16 @@ como texto simples, e a barra de estado indica-o.
   (` ```mermaid ` com `graph TD`, `flowchart LR`…: caixas, losangos, círculos e
   outras formas; setas cheias, a tracejado e grossas, com texto) são desenhados;
   os outros tipos de diagrama Mermaid ficam como código. Segue o tema
-  claro/escuro. As imagens são só as que estão ao lado do ficheiro (nada é
-  descarregado).
+  claro/escuro. As imagens são as que estão ao lado do ficheiro, em endereços
+  `data:` e, só se ligar **Ver › Mostrar imagens da web** (desligado por
+  omissão; a escolha fica guardada), as que estão na Internet: descarregamentos
+  `http(s)` simples das imagens que o documento nomeia (até 48 por documento,
+  24 MB cada), nunca para este PC nem para uma rede privada e sem cookies; com
+  a opção desligada mostram o texto alternativo e nada é pedido. **Ver ›
+  Substituir $(date) pela data** (também desligado) escreve a data atual onde um
+  documento Markdown tem `$(date)` (ou `$(date +%d/%m/%Y)` com os campos
+  habituais `%Y %m %d %H %M %S %A %B…`, nomes de dias e meses na língua da
+  interface); o código fica como está e nada é executado.
 - **HTML:** os documentos são mostrados numa página branca, como num navegador.
   Suportado: títulos, parágrafos, listas (aninhadas, numeradas com `start`),
   tabelas (com `colspan`), `pre`/`code`, citações, ligações e âncoras, imagens
@@ -334,8 +343,8 @@ direita para a esquerda.
 - Windows 10 ou posterior (PDF e imagens usam os motores do Windows).
 - O HTML é um subconjunto de documento, não um navegador: sem JavaScript, sem
   floats, flexbox, grid ou posicionamento absoluto, sem tipos de letra web, sem
-  consultas `@media` com larguras; imagens e folhas de estilo remotas nunca são
-  obtidas. As páginas feitas para ler (relatórios, documentos exportados, artigos
+  consultas `@media` com larguras; as folhas de estilo remotas nunca são obtidas
+  (as imagens remotas só se ligar Mostrar imagens da web). As páginas feitas para ler (relatórios, documentos exportados, artigos
   guardados) ficam bem; aplicações web complexas não.
 - O texto é desenhado sem composição complexa: escritas da direita para a
   esquerda e escritas que precisam de composição (árabe, devanágari, tailandês)

@@ -12,8 +12,9 @@ repository root.
 
 `rview.exe` is a single 4.4 MB executable: no installer, no runtime, no
 DLLs beyond those that ship with Windows, and no registry writes unless you
-ask for Explorer integration. It makes no network connections, has no
-telemetry and never runs scripts.
+ask for Explorer integration. It makes no network connections unless you turn
+on View › Show Online Images (off by default), has no telemetry and never runs
+scripts.
 
 ## Linux
 
@@ -222,8 +223,16 @@ only, and the status bar says so.
   summary line opens and closes them. Mermaid flowcharts (` ```mermaid ` with
   `graph TD`, `flowchart LR`…: boxes, diamonds, circles and other shapes;
   solid, dotted and thick arrows with labels) are drawn; other kinds of Mermaid
-  diagram stay as code. Follows the light/dark theme. Images are only those next
-  to the file (nothing is downloaded).
+  diagram stay as code. Follows the light/dark theme. Images are the ones next
+  to the file, in `data:` addresses and, only if you turn on **View › Show
+  Online Images** (off by default; the setting is kept), the ones on the
+  Internet: plain `http(s)` downloads of the images the document names (up to
+  48 per document, 24 MB each), never to this PC or a private network and never
+  with cookies; with it off they show their alt text and nothing is requested.
+  **View › Replace $(date) with the Date** (also off) writes the current date
+  where a Markdown document has `$(date)` (or `$(date +%d/%m/%Y)` with the usual
+  `%Y %m %d %H %M %S %A %B…` fields, day and month names in the interface
+  language); code is left alone, and nothing is ever run.
 - **HTML:** documents are shown on a white page like a browser. Supported:
   headings, paragraphs, lists (nested, numbered with `start`), tables
   (with `colspan`), `pre`/`code`, quotes, links and anchors, local and
@@ -318,7 +327,8 @@ large or password-protected PDFs, right-to-left documents.
 - Windows 10 or later (PDF and images use Windows' engines).
 - HTML is a document subset, not a browser: no JavaScript, no floats,
   flexbox, grid or absolute positioning, no web fonts, no `@media` queries
-  with widths; remote images and style sheets are never fetched. Pages
+  with widths; remote style sheets are never fetched (remote images only if
+  you turn on Show Online Images). Pages
   made for reading (reports, exported docs, saved articles) look right;
   complex web applications will not.
 - Text is drawn without complex shaping: right-to-left scripts and

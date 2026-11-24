@@ -2,7 +2,8 @@
 //! nothing to ship), the `curl` program on Linux.
 //!
 //! The tools stay off the network. The exceptions are rwall (the picture
-//! services and the weather the user turned on) and checking for updates
+//! services and the weather the user turned on), rview (the pictures of a
+//! document, only with View › Show Online Images on) and checking for updates
 //! when the user asks (`crate::update`). Only GET requests, no cookies, no
 //! account, no telemetry.
 
