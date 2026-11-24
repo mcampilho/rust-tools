@@ -10,7 +10,7 @@ Detalhes por formato, atalhos e limitações estão no `README.md`.
 
 ```powershell
 ./dev.ps1 build --release -p rview
-./dev.ps1 test -p rview       # 97 testes; os do código partilhado estão nos crates
+./dev.ps1 test -p rview       # 105 testes; os do código partilhado estão nos crates
 ./dev.ps1 clippy -p rview --all-targets
 ```
 
@@ -53,7 +53,23 @@ Correm na raiz do repositório. Saída: `target\release\rview.exe`. Rust 1.88+, 
   frações e raízes também ao lado). Cada caixa é medida uma vez (`Row` = textos e caixas na mesma linha de base) e
   desenhada com itens de texto e filetes, por isso a seleção e a cópia funcionam; frações e raízes aninham. Dentro de
   expoentes e índices (já pequenos) a fração é `a/b` e a raiz `√(…)`. Os números (0,78 de altura, 0,22 de descida, eixo
-  a 0,3) são estimativas dos tipos de letra: verificados à vista, não medidos.
+  a 0,3) são estimativas dos tipos de letra: verificados à vista, não medidos. `Inline::Matrix` (`matrix`, `cases`,
+  `aligned`…) é uma grelha (`Boxed::Matrix`: colunas, linhas, parênteses retos por filetes e `( ) { }` por glifos
+  escalados à altura). `convert_delimiters` também junta cada bloco `$$…$$` de várias linhas numa só linha: o
+  parser de Markdown vê a estrutura de blocos primeiro e uma linha `=` ou `-` da fórmula seria um título ou lista.
+- `<details>` (2026-11-24, pedido do utilizador): `Kind::Details` (sumário, corpo, `open`); a ligação `rview:details:N`
+  da linha do sumário (N = o seu número de ligação, que também é a identidade do bloco) é tratada em `Viewer::follow`:
+  alterna `RichDoc::flipped`, invalida o layout e mantém o scroll (`keep_scroll`). No Markdown o `<details>` abre e
+  fecha em blocos HTML separados à volta de Markdown: `Builder::flush_html` parte o HTML nas etiquetas e usa
+  `Frame::Details`; em HTML (`html.rs`) é o ramo `"details"` do conversor.
+- `rich/mermaid.rs` + `rich/layout/diagram.rs` (2026-11-24, pedido do utilizador): só fluxogramas (`graph`/`flowchart`,
+  direções TD/TB/BT/LR/RL; formas `[] () ([]) (()) {} {{}} [[]] [()]`, setas `--> --- -.-> ==>` com texto `|x|` ou
+  `-- x -->`, cadeias e `&`; `subgraph`, `classDef`, `style`… são ignorados). Outros tipos, mais de 150 nós ou 400
+  arestas ficam como código. O desenho: camadas pelo caminho mais longo (ciclos cortados nas arestas de retorno), ordem
+  por baricentro, posições puxadas para os vizinhos, linhas retas entre os contornos, tudo em `Item::Shape` (polígono
+  cheio ou contorno) e texto (seleção e cópia funcionam); se for mais largo que a coluna refaz-se mais pequeno.
+- O `rt-gfx` não desenha nem mede selectores de variação e juntadores (`U+FE0F`, `U+200D`…): `⚠️` já não leva um
+  quadrado.
 - `linux/` — Clipboard (arboard: texto com HTML, ou imagem), e o resto de `rt-sys`: diálogo Abrir (zenity ou
   kdialog), tema, links, e o modo residente com socket Unix e ícone StatusNotifierItem.
 - `ui/menu.rs` — menus desenhados na janela (`rt-gfx`), só fora do Windows. Em Linux, `cfg(not(windows))`

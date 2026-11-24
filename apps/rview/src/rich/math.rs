@@ -3,7 +3,7 @@
 //! `a/b` (with parentheses when needed), `\sqrt` is `√`, and matrices and `cases` are lines of cells.
 //! Nothing is stacked or drawn: what does not fit that model is left as plain text.
 
-use super::{Inline, Style};
+use super::{Inline, MatAlign, MathMatrix, Style};
 
 #[derive(Clone, Copy, PartialEq)]
 enum Last {
@@ -234,6 +234,48 @@ fn run(src: &str, base: Style, display: bool) -> Vec<Inline> {
 /// `\( … \)` and `\[ … \]` (what chat tools write) as `$ … $` and `$$ … $$`, which the Markdown parser reads.
 /// Code (fences and spans) is left alone; the spaces inside the delimiters go, because `$ x $` is not maths.
 pub fn convert_delimiters(src: &str) -> String {
+    join_display_blocks(&latex_delimiters(src))
+}
+
+/// A `$$` block over several lines on one line: the parser sees block structure first, and a line of the
+/// maths such as `=` or `-` would otherwise be taken for a heading underline or a list.
+fn join_display_blocks(src: &str) -> String {
+    if !src.contains("$$") {
+        return src.to_string();
+    }
+    let lines: Vec<&str> = src.split_inclusive('\n').collect();
+    let mut out = String::with_capacity(src.len());
+    let mut fence = false;
+    let mut i = 0;
+    while i < lines.len() {
+        let line = lines[i];
+        let t = line.trim_start();
+        if t.starts_with("```") || t.starts_with("~~~") {
+            fence = !fence;
+        }
+        // Opens a block: `$$` first on the line and not closed on it.
+        let opens = !fence && t.starts_with("$$") && !t[2..].contains("$$");
+        let close = if opens { (i + 1..lines.len().min(i + 200)).find(|&j| lines[j].contains("$$")) } else { None };
+        let Some(close) = close else {
+            out.push_str(line);
+            i += 1;
+            continue;
+        };
+        let mut joined = String::new();
+        for l in &lines[i..=close] {
+            if !joined.is_empty() {
+                joined.push(' ');
+            }
+            joined.push_str(l.trim());
+        }
+        out.push_str(&joined);
+        out.push('\n');
+        i = close + 1;
+    }
+    out
+}
+
+fn latex_delimiters(src: &str) -> String {
     if !src.contains("\\(") && !src.contains("\\[") {
         return src.to_string();
     }
@@ -331,6 +373,7 @@ fn text_of(v: &[Inline]) -> String {
             Inline::Text(t, _) => t.clone(),
             Inline::Frac(n, d) => format!("{}/{}", text_of(n), text_of(d)),
             Inline::Root(b) => format!("√{}", text_of(b)),
+            Inline::Matrix(m) => m.rows.iter().flatten().map(|c| text_of(c)).collect::<Vec<_>>().join(" "),
             Inline::Limits(t, b, u) => format!("{}{}{}", text_of(b), text_of(u), text_of(t)),
             _ => String::new(),
         })
@@ -782,6 +825,31 @@ impl P {
         };
         let aligned = matches!(name.trim_end_matches('*'), "aligned" | "align" | "split" | "gathered" | "gather" | "equation");
         let plain = self.plain(st);
+        if st.valign == 0 {
+            // A grid with tall brackets, drawn by the layout.
+            let cells: Vec<Vec<Vec<Inline>>> = split_top(&body, true)
+                .iter()
+                .map(|row| {
+                    split_top(row, false)
+                        .into_iter()
+                        .map(|cell| {
+                            let mut q = P::new(cell, self.font, false);
+                            q.seq(st, false);
+                            merge(q.out)
+                        })
+                        .collect()
+                })
+                .collect();
+            let first = |s: &str| s.chars().next().unwrap_or('\0');
+            let align = match name.trim_end_matches('*') {
+                "cases" => MatAlign::Left,
+                _ if aligned => MatAlign::Aligned,
+                _ => MatAlign::Center,
+            };
+            self.out.push(Inline::Matrix(MathMatrix { rows: cells, open: first(open), close: first(close), align }));
+            self.last = Last::Operand;
+            return;
+        }
         // Matrices: each row in its own brackets (one bracket cannot span lines); `cases`: one brace in front.
         let per_row = !close.is_empty();
         if !open.is_empty() && !per_row {
@@ -925,6 +993,18 @@ mod tests {
     }
 
     #[test]
+    fn display_blocks_are_joined_into_one_line() {
+        let src = "a\n\n$$\n\\begin{bmatrix}\na & b \\\\\nc & d\n\\end{bmatrix}\n=\nx\n$$\n\nafter\n```\n$$\nkept\n```\n";
+        let got = convert_delimiters(src);
+        assert!(got.contains("$$ \\begin{bmatrix} a & b \\\\ c & d \\end{bmatrix} = x $$\n"), "{got}");
+        assert!(got.ends_with("```\n$$\nkept\n```\n"), "{got}");
+        // A heading underline inside the maths no longer makes a heading.
+        let d = crate::rich::markdown::parse("$$\na\n=\nb\n$$\n");
+        assert!(d.blocks.iter().all(|b| b.heading == 0));
+        assert_eq!(convert_delimiters("$$ x $$\n"), "$$ x $$\n");
+    }
+
+    #[test]
     fn text_fonts_and_functions() {
         assert_eq!(text(r"\text{if } x"), "if x");
         assert_eq!(text(r"\mathbb{R}"), "ℝ");
@@ -932,11 +1012,16 @@ mod tests {
     }
 
     #[test]
-    fn matrices_become_lines() {
-        let v = render(r"\begin{pmatrix} a & b \\ c & d \end{pmatrix}", Style::default());
-        assert_eq!(v.iter().filter(|i| matches!(i, Inline::Break)).count(), 1);
-        let t = text_of(&v);
-        assert!(t.starts_with('(') && t.ends_with(')') && t.contains('a') && t.contains('d'));
+    fn matrices_are_grids() {
+        let v = render(r"\begin{pmatrix} a & b \\ c & d \end{pmatrix} \times \begin{bmatrix} x \\ y \end{bmatrix}", Style::default());
+        let Inline::Matrix(m) = &v[0] else { panic!("{v:?}") };
+        assert_eq!((m.open, m.close, m.rows.len(), m.rows[0].len()), ('(', ')', 2, 2));
+        assert!(matches!(&v[2], Inline::Matrix(m) if m.open == '[' && m.rows.len() == 2 && m.rows[1].len() == 1));
+        let cases = render(r"\begin{cases} x & y \\ z & w \end{cases}", Style::default());
+        assert!(matches!(&cases[0], Inline::Matrix(m) if m.open == '{' && m.close == '\0'));
+        // Inside a script it has no room: written as text on lines.
+        let v = render(r"x^{\begin{pmatrix} a & b \end{pmatrix}}", Style::default());
+        assert!(text_of(&v).contains('('));
     }
 
     #[test]

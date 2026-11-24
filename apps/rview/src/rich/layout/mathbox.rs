@@ -3,7 +3,7 @@
 //! selection and copying keep working. A row is text runs and nested boxes side by side on one baseline.
 
 use super::{font_of, Ctx, Item, Meta};
-use crate::rich::{Inline, Style};
+use crate::rich::{Inline, MatAlign, MathMatrix, Style};
 use crate::ui::gfx::{FontId, Rect};
 
 /// A piece of text with its style and width.
@@ -53,10 +53,33 @@ pub struct Limits {
     base_desc: f32,
 }
 
+/// Rows of cells in columns, with brackets of the grid's height at the sides.
+pub struct Matrix {
+    cells: Vec<Vec<Row>>,
+    /// Left edge of each column and its width, from the start of the cells.
+    cols: Vec<(f32, f32)>,
+    /// Room above and below the baseline of each row.
+    rows: Vec<(f32, f32)>,
+    row_gap: f32,
+    open: char,
+    close: char,
+    /// Width of the bracket on each side.
+    bw_open: f32,
+    bw_close: f32,
+    inner_w: f32,
+    h: f32,
+    w: f32,
+    px: f32,
+    sign_px: f32,
+    style: Style,
+    align: MatAlign,
+}
+
 pub enum Boxed {
     Frac(Frac),
     Root(Box<Root>),
     Limits(Box<Limits>),
+    Matrix(Box<Matrix>),
 }
 
 impl Frac {
@@ -95,12 +118,23 @@ impl Row {
     }
 }
 
+impl Matrix {
+    fn asc(&self) -> f32 {
+        self.px * 0.3 + self.h / 2.0
+    }
+
+    fn desc(&self) -> f32 {
+        (self.h / 2.0 - self.px * 0.3).max(0.0)
+    }
+}
+
 impl Boxed {
     pub fn width(&self) -> f32 {
         match self {
             Boxed::Frac(f) => f.w,
             Boxed::Root(r) => r.w,
             Boxed::Limits(l) => l.w,
+            Boxed::Matrix(m) => m.w,
         }
     }
 
@@ -109,6 +143,7 @@ impl Boxed {
             Boxed::Frac(f) => f.asc(),
             Boxed::Root(r) => r.asc(),
             Boxed::Limits(l) => l.base_asc + l.top.extra(l.px),
+            Boxed::Matrix(m) => m.asc(),
         }
     }
 
@@ -117,6 +152,7 @@ impl Boxed {
             Boxed::Frac(f) => f.desc(),
             Boxed::Root(r) => r.row.desc,
             Boxed::Limits(l) => l.base_desc + l.bottom.extra(l.px),
+            Boxed::Matrix(m) => m.desc(),
         }
     }
 }
@@ -127,6 +163,7 @@ fn first_style(v: &[Inline]) -> Option<Style> {
         Inline::Frac(a, b) => first_style(a).or_else(|| first_style(b)),
         Inline::Root(b) => first_style(b),
         Inline::Limits(t, b, u) => first_style(b).or_else(|| first_style(t)).or_else(|| first_style(u)),
+        Inline::Matrix(m) => m.rows.iter().flatten().find_map(|c| first_style(c)),
         _ => None,
     })
 }
@@ -138,7 +175,70 @@ impl Ctx<'_> {
             Inline::Frac(n, d) => Some(Boxed::Frac(self.frac(n, d))),
             Inline::Root(b) => Some(Boxed::Root(Box::new(self.root(b)))),
             Inline::Limits(t, b, u) => self.limits(t, b, u).map(|l| Boxed::Limits(Box::new(l))),
+            Inline::Matrix(m) => Some(Boxed::Matrix(Box::new(self.matrix(m)))),
             _ => None,
+        }
+    }
+
+    fn matrix(&mut self, m: &MathMatrix) -> Matrix {
+        let style = Style { valign: 0, ..m.rows.iter().flatten().find_map(|c| first_style(c)).unwrap_or_default() };
+        let px = self.px(&style);
+        let cells: Vec<Vec<Row>> = m.rows.iter().map(|r| r.iter().map(|c| self.row_of(c)).collect()).collect();
+        let ncols = cells.iter().map(Vec::len).max().unwrap_or(0);
+        let widths: Vec<f32> = (0..ncols).map(|c| cells.iter().filter_map(|r| r.get(c)).map(|x| x.w).fold(0.0, f32::max)).collect();
+        // Columns: apart, except in aligned equations where each right-hand column touches its left one.
+        let mut cols = Vec::with_capacity(ncols);
+        let mut x = 0.0;
+        for (c, w) in widths.iter().enumerate() {
+            cols.push((x, *w));
+            let gap = if m.align == MatAlign::Aligned && c % 2 == 0 {
+                px * 0.1
+            } else if m.align == MatAlign::Aligned {
+                px * 1.5
+            } else {
+                px
+            };
+            x += w + gap;
+        }
+        let inner_w = if ncols == 0 {
+            0.0
+        } else {
+            x - if m.align == MatAlign::Aligned && (ncols - 1) % 2 == 0 {
+                px * 0.1
+            } else if m.align == MatAlign::Aligned {
+                px * 1.5
+            } else {
+                px
+            }
+        };
+        let rows: Vec<(f32, f32)> =
+            cells.iter().map(|r| r.iter().fold((px * 0.78, px * 0.22), |(a, d), c| (a.max(c.asc), d.max(c.desc)))).collect();
+        let row_gap = px * 0.35;
+        let h = rows.iter().map(|(a, d)| a + d).sum::<f32>() + row_gap * rows.len().saturating_sub(1) as f32;
+        // Brackets of the grid's height: rules for `[ ] | ‖`, a scaled glyph for `( ) { }`.
+        let sign_px = h.max(px);
+        let bw = |c: char| match c {
+            '\0' => 0.0,
+            '(' | ')' | '{' | '}' => (sign_px * 0.4).max(px * 0.35),
+            _ => px * 0.4,
+        };
+        let (bw_open, bw_close) = (bw(m.open), bw(m.close));
+        Matrix {
+            cells,
+            cols,
+            rows,
+            row_gap,
+            open: m.open,
+            close: m.close,
+            bw_open,
+            bw_close,
+            inner_w,
+            h,
+            w: bw_open + inner_w + bw_close + px * 0.2,
+            px,
+            sign_px,
+            style,
+            align: m.align,
         }
     }
 
@@ -276,6 +376,76 @@ impl Ctx<'_> {
         }
     }
 
+    /// The opening or closing bracket of a matrix whose cells start at `x0`, from `top` down the grid's height.
+    fn emit_bracket(&mut self, m: &Matrix, opening: bool, x0: f32, top: f32, lead: &mut Option<bool>, sep: bool) {
+        let (ch, bw) = if opening { (m.open, m.bw_open) } else { (m.close, m.bw_close) };
+        let x = if opening { x0 - bw } else { x0 + m.inner_w };
+        let t = (m.px / 14.0).max(1.0).round();
+        let color = self.color(&m.style);
+        let bar = |this: &mut Self, bx: f32| this.out.push(Item::Fill { r: Rect::new(bx.round(), top.round(), t, m.h.round()), color });
+        let serif = |this: &mut Self, from: f32, to: f32, y: f32| {
+            this.out.push(Item::Fill { r: Rect::new(from.min(to).round(), y.round(), (to - from).abs().max(1.0), t), color })
+        };
+        match ch {
+            '[' | ']' => {
+                let (stem, tip) = if ch == '[' { (x + bw * 0.2, x + bw * 0.75) } else { (x + bw * 0.8 - t, x + bw * 0.25) };
+                bar(self, stem);
+                serif(self, stem, tip, top);
+                serif(self, stem, tip, top + m.h - t);
+            }
+            '|' => {
+                bar(self, x + bw * 0.5);
+            }
+            '‖' => {
+                bar(self, x + bw * 0.3);
+                bar(self, x + bw * 0.6);
+            }
+            '(' | ')' | '{' | '}' => {
+                let s = m.sign_px;
+                let style = Style { size: m.style.size * s / m.px, italic: false, bold: false, ..m.style };
+                let gw = self.g.measure(&ch.to_string(), self.px(&style), FontId::Regular);
+                let run = (ch.to_string(), style, gw);
+                self.emit_run(&run, x + (bw - gw) / 2.0, top + m.h / 2.0 + s * 0.26, lead, sep);
+            }
+            _ => {}
+        }
+    }
+
+    fn emit_matrix(&mut self, m: &Matrix, left: f32, baseline: f32, lead: &mut Option<bool>) {
+        let top = baseline - m.px * 0.3 - m.h / 2.0;
+        let left = left + m.px * 0.1;
+        let mut sep = false;
+        let x0 = left + m.bw_open;
+        if m.open != '\0' {
+            self.emit_bracket(m, true, x0, top, lead, false);
+            sep = true;
+        }
+        let mut y = top;
+        for (r, row) in m.cells.iter().enumerate() {
+            let (asc, desc) = m.rows[r];
+            for (c, cell) in row.iter().enumerate() {
+                let (cx, cw) = m.cols[c];
+                let dx = match m.align {
+                    MatAlign::Center => (cw - cell.w) / 2.0,
+                    MatAlign::Left => 0.0,
+                    MatAlign::Aligned => {
+                        if c % 2 == 0 {
+                            cw - cell.w
+                        } else {
+                            0.0
+                        }
+                    }
+                };
+                self.emit_row(cell, x0 + cx + dx, y + asc, lead, sep && (r > 0 || c > 0 || m.open != '\0'));
+                sep = true;
+            }
+            y += asc + desc + m.row_gap;
+        }
+        if m.close != '\0' {
+            self.emit_bracket(m, false, x0, top, lead, true);
+        }
+    }
+
     /// Draws a box with its left edge at `left`; `gap` tells whether a space separates it from the previous item.
     pub fn emit_boxed(&mut self, b: &Boxed, left: f32, baseline: f32, gap: bool) {
         let mut lead = Some(gap);
@@ -283,6 +453,7 @@ impl Ctx<'_> {
             Boxed::Frac(f) => self.emit_frac(f, left, baseline, &mut lead, false),
             Boxed::Root(r) => self.emit_root(r, left, baseline, &mut lead, false),
             Boxed::Limits(l) => self.emit_limits(l, left, baseline, &mut lead),
+            Boxed::Matrix(m) => self.emit_matrix(m, left, baseline, &mut lead),
         }
     }
 }

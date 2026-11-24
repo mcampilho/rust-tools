@@ -5,7 +5,7 @@
 //! Scripts never run and nothing is fetched from the network.
 
 use super::css::{self, Elem, Sheet};
-use super::{Align, Block, Cell, Inline, Kind, Length, List, ListItem, RichDoc, Row, Style, Table};
+use super::{Align, Block, Cell, Details, Inline, Kind, Length, List, ListItem, RichDoc, Row, Style, Table, DETAILS_HREF};
 use crate::ui::gfx::Color;
 use std::path::Path;
 
@@ -1054,6 +1054,26 @@ impl Converter<'_> {
                 b.kind = Kind::List(list);
                 b.margin_top = 0.6;
                 b.margin_bottom = 0.6;
+            }
+            "details" => {
+                // The summary (its first child) is the clickable line; the rest is the body.
+                let mut blocks = Vec::new();
+                self.flow(n, comp, &mut blocks);
+                let first = self.dom.nodes[n].children.iter().find(|&&c| !self.dom.nodes[c].tag.is_empty());
+                let mut summary = Vec::new();
+                if first.is_some_and(|&c| self.dom.nodes[c].tag == "summary") && !blocks.is_empty() {
+                    flatten(blocks.remove(0), &mut summary);
+                }
+                if summary.is_empty() {
+                    summary.push(Inline::Text("Details".to_string(), Style::default()));
+                }
+                self.links.push(String::new());
+                let link = self.links.len() as u32;
+                self.links[link as usize - 1] = format!("{DETAILS_HREF}:{link}");
+                let open = self.dom.nodes[n].attr("open").is_some();
+                b.kind = Kind::Details(Details { link, open, summary, body: blocks });
+                b.margin_top = 0.4;
+                b.margin_bottom = 0.8;
             }
             "table" => {
                 let mut table = Table::default();

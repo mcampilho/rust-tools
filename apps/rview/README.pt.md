@@ -224,9 +224,15 @@ como texto simples, e a barra de estado indica-o.
   `\( … \)` e `\[ … \]`) não são compostas por completo: letras gregas e
   símbolos, expoentes e índices, frações empilhadas (`\frac`, `\over`), raízes
   com barra (`\sqrt`), limites por cima e por baixo de `\sum`, `\prod`, `\lim`…
-  em `$$…$$` (os integrais ficam com os seus ao lado, como no TeX), e matrizes e
-  `cases` em linhas. Segue o tema claro/escuro. As imagens são só as que estão
-  ao lado do ficheiro (nada é descarregado).
+  em `$$…$$` (os integrais ficam com os seus ao lado, como no TeX), e matrizes,
+  `cases` e equações alinhadas em grelha, com parênteses da sua altura. Os
+  blocos `<details>` / `<summary>` começam fechados (ou abertos com `open`) e um
+  clique na linha do sumário abre-os e fecha-os. Os fluxogramas Mermaid
+  (` ```mermaid ` com `graph TD`, `flowchart LR`…: caixas, losangos, círculos e
+  outras formas; setas cheias, a tracejado e grossas, com texto) são desenhados;
+  os outros tipos de diagrama Mermaid ficam como código. Segue o tema
+  claro/escuro. As imagens são só as que estão ao lado do ficheiro (nada é
+  descarregado).
 - **HTML:** os documentos são mostrados numa página branca, como num navegador.
   Suportado: títulos, parágrafos, listas (aninhadas, numeradas com `start`),
   tabelas (com `colspan`), `pre`/`code`, citações, ligações e âncoras, imagens

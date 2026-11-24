@@ -7,6 +7,7 @@ use crate::clip::Tag;
 use crate::ui::gfx::{Color, FontId, Gfx, Rect};
 use std::collections::HashMap;
 
+mod diagram;
 mod mathbox;
 use mathbox::Boxed;
 
@@ -118,6 +119,13 @@ pub enum Item {
         r: Rect,
         key: String,
     },
+    /// A polygon (diagrams): filled when `width` is 0, else its outline of that width (`close` joins the ends).
+    Shape {
+        pts: Vec<(f32, f32)>,
+        color: Color,
+        width: f32,
+        close: bool,
+    },
 }
 
 /// A place in the text of a layout: inside text item `item` (an index into
@@ -176,6 +184,10 @@ impl Layout {
         let span = match &it {
             Item::Text { y, px, .. } => (y - px * 1.1, y + px * 0.4),
             Item::Fill { r, .. } | Item::Image { r, .. } => (r.y, r.bottom()),
+            Item::Shape { pts, width, .. } => {
+                let (a, b) = pts.iter().fold((f32::MAX, f32::MIN), |(a, b), p| (a.min(p.1), b.max(p.1)));
+                (a - width, b + width)
+            }
         };
         self.items.push(it);
         self.spans.push(span);
@@ -238,7 +250,7 @@ impl Layout {
                 at
             }
             Item::Image { r, .. } => usize::from(x > r.x + r.w / 2.0),
-            Item::Fill { .. } => 0,
+            Item::Fill { .. } | Item::Shape { .. } => 0,
         };
         Some(Pos { item: i as u32, byte: byte as u32 })
     }
@@ -248,7 +260,7 @@ impl Layout {
         match &self.items[i] {
             Item::Text { s, .. } => s.len(),
             Item::Image { .. } => 1,
-            Item::Fill { .. } => 0,
+            Item::Fill { .. } | Item::Shape { .. } => 0,
         }
     }
 
@@ -281,7 +293,7 @@ impl Layout {
                 Item::Text { s, .. } if i == p.item as usize => n += visible(&s[..(p.byte as usize).min(s.len())]),
                 Item::Text { s, .. } => n += visible(s),
                 Item::Image { .. } => n += usize::from(i != p.item as usize || p.byte > 0),
-                Item::Fill { .. } => {}
+                Item::Fill { .. } | Item::Shape { .. } => {}
             }
         }
         n
@@ -313,7 +325,7 @@ impl Layout {
                     left -= 1;
                     end = Pos { item: i as u32, byte: 1 };
                 }
-                Item::Fill { .. } => {}
+                Item::Fill { .. } | Item::Shape { .. } => {}
             }
         }
         end
@@ -357,6 +369,8 @@ pub struct Ctx<'a> {
     lead_space: bool,
     /// Between the previous line and the next item: hard line breaks.
     lead_breaks: u8,
+    /// The `<details>` the user has toggled.
+    flipped: &'a std::collections::HashSet<u32>,
 }
 
 fn font_of(s: &Style) -> FontId {
@@ -479,7 +493,9 @@ impl Ctx<'_> {
                 }
                 Inline::Break => out.push(Atom::Break),
                 Inline::Anchor(a) => out.push(Atom::Anchor(a.clone())),
-                Inline::Frac(..) | Inline::Root(_) | Inline::Limits(..) => out.extend(self.math_atom(i).map(Atom::Math)),
+                Inline::Frac(..) | Inline::Root(_) | Inline::Limits(..) | Inline::Matrix(_) => {
+                    out.extend(self.math_atom(i).map(Atom::Math))
+                }
                 Inline::Image { src, alt, width, height, style } => match self.image_size(src, *width, *height, avail) {
                     (key, Some((w, h))) => out.push(Atom::Image(key, alt.clone(), *style, w, h)),
                     (_, None) => {
@@ -824,6 +840,22 @@ impl Ctx<'_> {
                 self.para(inl, cx, cw, y, b.align, true)
             }
             Kind::Group(children) => self.blocks(children, cx, cw, y),
+            Kind::Diagram(d) => self.diagram(d, cx, cw, y),
+            Kind::Details(d) => {
+                // The whole summary line is the link that opens and closes it.
+                let open = d.open != self.flipped.contains(&d.link);
+                let mut line = vec![Inline::Text(if open { "▼ " } else { "▶ " }.to_string(), Style { size: 0.75, ..Style::default() })];
+                line.extend(d.summary.iter().cloned());
+                self.enter(para_tag(false));
+                let end = self.para(&line, cx, cw, y, Align::Left, false);
+                self.out.links.push((Rect::new(cx, y, cw, end - y), d.link));
+                if open && !d.body.is_empty() {
+                    let ind = em * 1.2;
+                    self.blocks(&d.body, cx + ind, cw - ind, end + em * 0.4)
+                } else {
+                    end
+                }
+            }
             Kind::Rule => {
                 let h = (em / 10.0).max(1.0).round();
                 let r = Rect::new(cx, y + em * 0.4, cw, h);
@@ -940,6 +972,12 @@ impl Ctx<'_> {
                     }
                     m
                 }
+                Kind::Details(d) => {
+                    let (mi, ma) = self.measure_inlines(&d.summary, false);
+                    let body = self.measure_blocks(&d.body);
+                    (mi.max(body.0), ma.max(body.1))
+                }
+                Kind::Diagram(_) => (self.em * 10.0, self.em * 24.0),
                 Kind::Rule | Kind::Empty => (0.0, 0.0),
             };
             r = (r.0.max(mi + extra), r.1.max(ma + extra));
@@ -1072,6 +1110,7 @@ pub fn layout(doc: &RichDoc, g: &mut Gfx, width: f32, em: f32, pal: Palette, img
         node: 0,
         lead_space: false,
         lead_breaks: 0,
+        flipped: &doc.flipped,
     };
     ctx.out.nodes.push(Node { parent: 0, tag: Tag::Quote }); // the root; never written out
     let bottom = ctx.blocks(&doc.blocks, x, col, pad);

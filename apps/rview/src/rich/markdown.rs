@@ -13,7 +13,18 @@ enum Frame {
     Quote(Vec<Block>),
     Footnote(String, Vec<Block>),
     List(List),
-    Table { table: Table, aligns: Vec<Alignment>, head: bool },
+    Table {
+        table: Table,
+        aligns: Vec<Alignment>,
+        head: bool,
+    },
+    /// Between `<details>` and `</details>` (they arrive as separate HTML blocks around Markdown).
+    Details {
+        link: u32,
+        open: bool,
+        summary: Vec<Inline>,
+        blocks: Vec<Block>,
+    },
 }
 
 struct Builder {
@@ -24,6 +35,8 @@ struct Builder {
     heading: Option<(usize, Option<String>)>,
     code: Option<String>,
     code_lang: crate::syntax::Lang,
+    /// The code block being read is fenced as `mermaid`.
+    mermaid: bool,
     image: Option<(String, String)>,
     html: String,
     html_tags: Vec<String>,
@@ -81,7 +94,7 @@ impl Builder {
     /// The block most recently added to the frame being built.
     fn last_block_mut(&mut self) -> Option<&mut Block> {
         match self.stack.last_mut() {
-            Some(Frame::Root(v) | Frame::Quote(v) | Frame::Footnote(_, v)) => v.last_mut(),
+            Some(Frame::Root(v) | Frame::Quote(v) | Frame::Footnote(_, v) | Frame::Details { blocks: v, .. }) => v.last_mut(),
             Some(Frame::List(l)) => l.items.last_mut().and_then(|i| i.blocks.last_mut()),
             _ => None,
         }
@@ -89,7 +102,7 @@ impl Builder {
 
     fn push_block(&mut self, b: Block) {
         match self.stack.last_mut() {
-            Some(Frame::Root(v) | Frame::Quote(v) | Frame::Footnote(_, v)) => v.push(b),
+            Some(Frame::Root(v) | Frame::Quote(v) | Frame::Footnote(_, v) | Frame::Details { blocks: v, .. }) => v.push(b),
             Some(Frame::List(l)) => {
                 if l.items.is_empty() {
                     l.items.push(ListItem::default());
@@ -118,8 +131,65 @@ impl Builder {
             return;
         }
         let src = std::mem::take(&mut self.html);
-        for b in html::fragment(&src, &mut self.links) {
+        // `<details>` opens and closes across Markdown blocks: cut the HTML at its tags.
+        let lower = src.to_ascii_lowercase();
+        let mut at = 0;
+        while let Some(rel) = lower[at..].find("<details").or_else(|| lower[at..].find("</details")) {
+            let tag = at + rel;
+            self.html_blocks(&src[at..tag]);
+            let end = lower[tag..].find('>').map_or(src.len(), |e| tag + e + 1);
+            if lower[tag..].starts_with("</") {
+                self.close_details();
+                at = end;
+            } else {
+                let open = lower[tag..end].split_whitespace().skip(1).any(|a| a.trim_end_matches('>') == "open");
+                // The summary comes first, if there is one.
+                let rest = &lower[end..];
+                let (summary, next) = match rest.trim_start().strip_prefix("<summary") {
+                    Some(s) => {
+                        let s0 = end + (rest.len() - rest.trim_start().len()) + "<summary".len();
+                        let open_end = lower[s0..].find('>').map_or(src.len(), |e| s0 + e + 1);
+                        let close = lower[open_end..].find("</summary>").map_or(src.len(), |e| open_end + e);
+                        let _ = s;
+                        (src[open_end..close].to_string(), (close + "</summary>".len()).min(src.len()))
+                    }
+                    None => (String::new(), end),
+                };
+                let mut inl = Vec::new();
+                for b in html::fragment(&summary, &mut self.links) {
+                    if let Kind::Para(v) | Kind::Pre(v) = b.kind {
+                        inl.extend(v);
+                    }
+                }
+                if inl.is_empty() {
+                    inl.push(Inline::Text("Details".to_string(), Style::default()));
+                }
+                self.links.push(String::new());
+                let link = self.links.len() as u32;
+                self.links[link as usize - 1] = format!("{}:{link}", super::DETAILS_HREF);
+                self.stack.push(Frame::Details { link, open, summary: inl, blocks: Vec::new() });
+                at = next;
+            }
+        }
+        self.html_blocks(&src[at..]);
+    }
+
+    fn html_blocks(&mut self, src: &str) {
+        if src.trim().is_empty() {
+            return;
+        }
+        for b in html::fragment(src, &mut self.links) {
             self.push_block(b);
+        }
+    }
+
+    /// `</details>`: the blocks since `<details>` become one block (a stray one is ignored).
+    fn close_details(&mut self) {
+        self.flush();
+        if matches!(self.stack.last(), Some(Frame::Details { .. })) {
+            let Some(Frame::Details { link, open, summary, blocks }) = self.stack.pop() else { return };
+            let details = super::Details { link, open, summary, body: blocks };
+            self.push_block(Block { kind: Kind::Details(details), margin_top: 0.4, margin_bottom: 0.8, ..Block::default() });
         }
     }
 
@@ -249,6 +319,7 @@ impl Builder {
             }
             Tag::CodeBlock(kind) => {
                 self.flush();
+                self.mermaid = matches!(&kind, CodeBlockKind::Fenced(info) if info.split_whitespace().next().is_some_and(|w| w.eq_ignore_ascii_case("mermaid")));
                 self.code_lang = match kind {
                     CodeBlockKind::Fenced(info) => crate::syntax::from_tag(&info),
                     CodeBlockKind::Indented => crate::syntax::Lang::Plain,
@@ -348,6 +419,13 @@ impl Builder {
                 let mut code = self.code.take().unwrap_or_default();
                 if code.ends_with('\n') {
                     code.pop();
+                }
+                // A Mermaid flowchart is drawn; any other Mermaid diagram stays as code.
+                if std::mem::take(&mut self.mermaid) {
+                    if let Some(d) = super::mermaid::parse(&code) {
+                        self.push_block(Block { kind: Kind::Diagram(d), margin_bottom: 0.8, ..Block::default() });
+                        return;
+                    }
                 }
                 let style = Style { mono: true, size: 0.9, ..Style::default() };
                 let inlines = super::code_inlines(self.code_lang, code, style);
@@ -547,6 +625,7 @@ pub fn parse(src: &str) -> RichDoc {
         heading: None,
         code: None,
         code_lang: crate::syntax::Lang::Plain,
+        mermaid: false,
         image: None,
         html: String::new(),
         html_tags: Vec::new(),
@@ -565,7 +644,7 @@ pub fn parse(src: &str) -> RichDoc {
     // stay safe).
     while b.stack.len() > 1 {
         let kind = match b.stack.pop() {
-            Some(Frame::Quote(v) | Frame::Footnote(_, v) | Frame::Root(v)) => Kind::Group(v),
+            Some(Frame::Quote(v) | Frame::Footnote(_, v) | Frame::Root(v) | Frame::Details { blocks: v, .. }) => Kind::Group(v),
             Some(Frame::List(l)) => Kind::List(l),
             Some(Frame::Table { table, .. }) => Kind::Table(table),
             None => Kind::Empty,
@@ -597,6 +676,8 @@ mod tests {
                 Kind::Group(_) => "group",
                 Kind::Rule => "hr",
                 Kind::Table(_) => "table",
+                Kind::Details(_) => "details",
+                Kind::Diagram(_) => "diagram",
                 Kind::Empty => "empty",
             })
             .collect()
@@ -666,6 +747,28 @@ plain
         assert_eq!(d.blocks.len(), 2, "the abbreviation line is not shown");
         let Kind::Para(v) = &d.blocks[1].kind else { panic!() };
         assert!(v.iter().any(|i| matches!(i, Inline::Text(t, s) if t == "HTML" && s.underline)));
+    }
+
+    #[test]
+    fn mermaid_flowcharts_are_diagrams_and_other_kinds_stay_code() {
+        let d = parse("```mermaid\ngraph TD\nA --> B\n```\n\n```mermaid\nsequenceDiagram\nA->>B: hi\n```\n");
+        assert_eq!(kinds(&d), ["diagram", "pre"]);
+        let Kind::Diagram(g) = &d.blocks[0].kind else { panic!() };
+        assert_eq!((g.nodes.len(), g.edges.len()), (2, 1));
+    }
+
+    #[test]
+    fn details_hold_the_markdown_up_to_their_end() {
+        let src = "before\n\n<details>\n<summary>Click <b>me</b></summary>\n\nHidden text.\n\n- one\n- two\n\n```js\nlet x;\n```\n</details>\n\nafter\n\n<details open><summary>Shown</summary>inline body</details>\n";
+        let d = parse(src);
+        assert_eq!(kinds(&d), ["p", "details", "p", "details"], "{d:?}");
+        let Kind::Details(a) = &d.blocks[1].kind else { panic!() };
+        assert!(!a.open && super::super::plain_text(&a.body).contains("let x;") && a.body.len() == 3, "{a:?}");
+        assert!(super::super::plain_text(&[Block::para(a.summary.clone())]).contains("Click me"));
+        assert_eq!(d.links[a.link as usize - 1], format!("rview:details:{}", a.link));
+        let Kind::Details(b) = &d.blocks[3].kind else { panic!() };
+        assert!(b.open && super::super::plain_text(&b.body).contains("inline body"));
+        assert_ne!(a.link, b.link);
     }
 
     #[test]

@@ -272,7 +272,7 @@ fn rich_events(l: &Layout, doc: &RichDoc, a: Pos, b: Pos) -> Vec<Ev> {
             Item::Text { s, .. } if m.marker => evs.push(Ev::Marker(s.clone())),
             Item::Text { s, .. } => clip::push_run(&mut evs, &s[from..to], fmt_of(&m.style, doc)),
             Item::Image { key, .. } => evs.push(Ev::Image { src: image_url(key), alt: m.alt.as_deref().unwrap_or("").to_string() }),
-            Item::Fill { .. } => {}
+            Item::Fill { .. } | Item::Shape { .. } => {}
         }
     }
     evs.extend(std::iter::repeat_n(Ev::Exit, open.len()));

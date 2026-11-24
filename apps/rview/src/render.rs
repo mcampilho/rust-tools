@@ -34,6 +34,7 @@ impl Shell {
             .viewer
             .hover_link
             .clone()
+            .filter(|l| !l.starts_with(crate::rich::DETAILS_HREF))
             .or_else(|| self.status_note.clone())
             .or_else(|| self.viewer.path.as_ref().map(|p| p.display().to_string()))
             .unwrap_or_default();

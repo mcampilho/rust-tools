@@ -216,9 +216,14 @@ only, and the status bar says so.
   centred; also `\( … \)` and `\[ … \]`) is not fully typeset: Greek letters
   and symbols, raised and lowered scripts, stacked fractions (`\frac`, `\over`),
   roots with a bar (`\sqrt`), limits above and below `\sum`, `\prod`, `\lim`…
-  in `$$…$$` (integrals keep theirs beside, as in TeX), and matrices and `cases`
-  as lines. Follows the light/dark theme. Images are only those next to the file
-  (nothing is downloaded).
+  in `$$…$$` (integrals keep theirs beside, as in TeX), and matrices, `cases`
+  and aligned equations as grids with brackets of their height. `<details>` /
+  `<summary>` blocks start closed (or open with `open`) and a click on the
+  summary line opens and closes them. Mermaid flowcharts (` ```mermaid ` with
+  `graph TD`, `flowchart LR`…: boxes, diamonds, circles and other shapes;
+  solid, dotted and thick arrows with labels) are drawn; other kinds of Mermaid
+  diagram stay as code. Follows the light/dark theme. Images are only those next
+  to the file (nothing is downloaded).
 - **HTML:** documents are shown on a white page like a browser. Supported:
   headings, paragraphs, lists (nested, numbered with `start`), tables
   (with `colspan`), `pre`/`code`, quotes, links and anchors, local and

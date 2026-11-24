@@ -161,6 +161,11 @@ const EMOJI: u8 = 9;
 const EMOJI_FONTS: &[&str] = &["seguiemj.ttf"];
 
 /// Emoji (the pictographs from U+1F000 up): drawn in colour from the emoji font when there is one.
+/// Characters that change how their neighbours look but draw nothing: variation selectors, joiners.
+fn is_invisible(c: char) -> bool {
+    matches!(c as u32, 0x200C | 0x200D | 0x2060 | 0xFE00..=0xFE0F | 0xE0100..=0xE01EF)
+}
+
 fn is_emoji(c: char) -> bool {
     matches!(c as u32, 0x1F000..=0x1FAFF)
 }
@@ -475,6 +480,9 @@ impl Gfx {
 
     /// Horizontal advance of `c` in font `f` at `px`.
     pub fn advance(&mut self, c: char, px: f32, f: FontId) -> f32 {
+        if is_invisible(c) {
+            return 0.0;
+        }
         let (fi, g) = self.fonts.resolve(Self::font_index(f), c);
         let font = self.fonts.get(fi);
         font.h_advance_unscaled(g) * Self::units_scale(font, px)
@@ -651,6 +659,10 @@ impl Gfx {
         let mut x = 0.0;
         let mut prev: Option<(u8, GlyphId)> = None;
         for c in s.chars() {
+            // Variation selectors and joiners have no glyph of their own.
+            if is_invisible(c) {
+                continue;
+            }
             let (fi, g) = self.fonts.resolve(primary, c);
             let font = self.fonts.get(fi);
             let k = Self::units_scale(font, px);
@@ -673,6 +685,9 @@ impl Gfx {
         let size_q = (px * 4.0).round().clamp(1.0, 65535.0) as u16;
         let baseline = y.round() as i32;
         for ch in s.chars() {
+            if is_invisible(ch) {
+                continue;
+            }
             let (fi, g) = self.fonts.resolve(primary, ch);
             if self.fonts.cjk_changed {
                 self.fonts.cjk_changed = false;
@@ -855,5 +870,12 @@ mod tests {
         let mut out = vec![0u32; 200 * 40];
         g.copy_to(&mut out);
         assert_eq!(out[0], 0xFFFFFF);
+    }
+
+    #[test]
+    fn variation_selectors_take_no_room() {
+        let Ok(mut g) = Gfx::new() else { return };
+        assert_eq!(g.measure("⚠\u{fe0f}", 16.0, FontId::Regular), g.measure("⚠", 16.0, FontId::Regular));
+        assert_eq!(g.advance('\u{fe0f}', 16.0, FontId::Regular), 0.0);
     }
 }

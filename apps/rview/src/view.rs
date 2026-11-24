@@ -89,6 +89,8 @@ pub struct Viewer {
     restore: Option<f32>,
     rich: Option<Layout>,
     rich_key: (i32, i32, u64, bool),
+    /// Lay the document out again without moving the scroll position (a `<details>` was toggled).
+    keep_scroll: bool,
     rich_pal: Option<Palette>,
     wrap_idx: Option<WrapIndex>,
     csv_cols: Option<(f32, Vec<f32>)>,
@@ -207,6 +209,7 @@ impl Viewer {
             restore: None,
             rich: None,
             rich_key: (0, 0, 0, false),
+            keep_scroll: false,
             rich_pal: None,
             wrap_idx: None,
             csv_cols: None,
@@ -465,6 +468,18 @@ impl Viewer {
 
     pub fn follow(&mut self, href: &str) -> LinkAction {
         let href = href.trim();
+        // A `<details>` summary: open or close it, keeping the scroll position.
+        if let Some(n) = href.strip_prefix(super::rich::DETAILS_HREF).and_then(|s| s.strip_prefix(':')).and_then(|s| s.parse::<u32>().ok())
+        {
+            if let State::Ready(Content::Rich(d)) = &mut self.state {
+                if !d.flipped.remove(&n) {
+                    d.flipped.insert(n);
+                }
+            }
+            self.rich_key = (0, 0, 0, false);
+            self.keep_scroll = true;
+            return LinkAction::Scrolled;
+        }
         if let Some(frag) = href.strip_prefix('#') {
             self.jump_to(&percent_decode(frag));
             return LinkAction::Scrolled;
@@ -865,7 +880,9 @@ impl Viewer {
                 (k, state)
             };
             let old_h = self.content.1;
-            let frac = if old_h > 0.0 && self.rich.is_some() { Some(self.scroll.1 / old_h) } else { None };
+            // After opening or closing a `<details>` the scroll stays where it is.
+            let keep = std::mem::take(&mut self.keep_scroll);
+            let frac = if old_h > 0.0 && self.rich.is_some() && !keep { Some(self.scroll.1 / old_h) } else { None };
             let l = layout::layout(doc, g, width, em, pal, &resolve);
             let ordinals = self.sel_ordinals();
             self.rich = Some(l);
@@ -916,6 +933,14 @@ impl Viewer {
                     g.text(s, (x + ox).round(), y + oy, *px, *font, *color);
                 }
                 Item::Fill { r, color } => g.fill_rect(Rect::new(r.x + ox, r.y + oy, r.w, r.h), *color),
+                Item::Shape { pts, color, width, close } => {
+                    let pts: Vec<(f32, f32)> = pts.iter().map(|p| (p.0 + ox, p.1 + oy)).collect();
+                    if *width > 0.0 {
+                        g.polyline(&pts, *width, *color, *close);
+                    } else {
+                        g.fill_polygon(&pts, *color);
+                    }
+                }
                 Item::Image { r, key } => {
                     let dest = Rect::new(r.x + ox, r.y + oy, r.w, r.h);
                     match self.images.get(key).and_then(|i| i.pix.as_ref()) {

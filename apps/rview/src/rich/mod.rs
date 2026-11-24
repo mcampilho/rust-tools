@@ -8,6 +8,7 @@ pub mod html;
 pub mod layout;
 pub mod markdown;
 pub mod math;
+pub mod mermaid;
 
 use crate::ui::gfx::Color;
 use std::path::PathBuf;
@@ -71,6 +72,27 @@ pub enum Inline {
     Root(Vec<Inline>),
     /// An operator with limits above and below: top, the operator, bottom (maths).
     Limits(Vec<Inline>, Vec<Inline>, Vec<Inline>),
+    /// A matrix, `cases` or aligned equations (maths).
+    Matrix(MathMatrix),
+}
+
+/// Rows of cells, with the brackets drawn at the sides (`'\0'` for none).
+#[derive(Clone, Debug, PartialEq)]
+pub struct MathMatrix {
+    pub rows: Vec<Vec<Vec<Inline>>>,
+    pub open: char,
+    pub close: char,
+    pub align: MatAlign,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MatAlign {
+    /// Matrices: cells centred in their columns.
+    Center,
+    /// `cases`: cells flush left.
+    Left,
+    /// `aligned`: columns alternately flush right and left, as around `=`.
+    Aligned,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -119,7 +141,24 @@ pub enum Kind {
     Group(Vec<Block>),
     Rule,
     Table(Table),
+    /// `<details>`: a summary line that opens and closes the body when clicked.
+    Details(Details),
+    /// A Mermaid flowchart.
+    Diagram(mermaid::Diagram),
 }
+
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct Details {
+    /// Index + 1 into `RichDoc::links` of the `rview:details` link of the summary line; also the block's identity.
+    pub link: u32,
+    /// Open when the document is loaded (`<details open>`).
+    pub open: bool,
+    pub summary: Vec<Inline>,
+    pub body: Vec<Block>,
+}
+
+/// Link target of the summary line of a `<details>`.
+pub const DETAILS_HREF: &str = "rview:details";
 
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct List {
@@ -166,6 +205,8 @@ pub struct RichDoc {
     /// Maximum text column width in em (Markdown reads better narrower).
     pub max_width: Option<f32>,
     pub encoding: String,
+    /// `<details>` blocks (by their link number) the user has toggled since the document was loaded.
+    pub flipped: std::collections::HashSet<u32>,
 }
 
 impl Block {
@@ -178,6 +219,7 @@ impl Block {
             Kind::Empty => true,
             Kind::Para(v) => v.iter().all(|i| matches!(i, Inline::Text(t, _) if t.trim().is_empty())),
             Kind::Group(b) => b.iter().all(Block::is_empty) && self.bg.is_none(),
+            Kind::Details(_) | Kind::Diagram(_) => false,
             _ => false,
         }
     }
@@ -212,6 +254,19 @@ pub fn plain_text(blocks: &[Block]) -> String {
                     inl(d, out);
                 }
                 Inline::Root(b) => inl(b, out),
+                Inline::Matrix(m) => {
+                    for (r, row) in m.rows.iter().enumerate() {
+                        if r > 0 {
+                            out.push('\n');
+                        }
+                        for (k, cell) in row.iter().enumerate() {
+                            if k > 0 {
+                                out.push(' ');
+                            }
+                            inl(cell, out);
+                        }
+                    }
+                }
                 Inline::Limits(t, b, u) => {
                     inl(b, out);
                     inl(u, out);
@@ -229,6 +284,17 @@ pub fn plain_text(blocks: &[Block]) -> String {
                 }
                 Kind::List(l) => l.items.iter().for_each(|i| walk(&i.blocks, out)),
                 Kind::Group(g) => walk(g, out),
+                Kind::Details(d) => {
+                    inl(&d.summary, out);
+                    out.push('\n');
+                    walk(&d.body, out);
+                }
+                Kind::Diagram(d) => {
+                    for n in &d.nodes {
+                        out.push_str(&n.label);
+                        out.push('\n');
+                    }
+                }
                 Kind::Table(t) => {
                     for r in &t.rows {
                         for c in &r.cells {
