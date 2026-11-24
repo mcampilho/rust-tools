@@ -17,6 +17,8 @@ mod links;
 #[cfg(not(windows))]
 mod linux;
 mod menus;
+#[cfg(windows)]
+mod notepad;
 mod render;
 mod search;
 mod storage;
@@ -57,6 +59,9 @@ enum UserEvent {
     /// A print job ended: the document's name, and the pages printed or why not.
     #[cfg(windows)]
     Printed(String, Result<u32, String>),
+    /// The change of who runs in place of Notepad ended: what was asked (on) and how it went.
+    #[cfg(windows)]
+    Notepad(bool, Result<(), String>),
     #[cfg(windows)]
     Win(win::WinMsg),
     #[cfg(not(windows))]
@@ -303,6 +308,10 @@ impl Shell {
                 self.print_active();
                 return self.after_action(el);
             }
+            if cmd == Command::ReplaceNotepad {
+                self.replace_notepad();
+                return self.after_action(el);
+            }
             if cmd == Command::DefaultEditor {
                 self.assoc = Some(rt_ui::assoc::AssocPanel::new(win::assoc::spec(), &i18n::tr("Edit with rpad")));
                 self.editor_drag = false;
@@ -325,6 +334,21 @@ impl Shell {
         }
         self.app.dispatch(cmd, &self.host);
         self.after_action(el);
+    }
+
+    /// File › Windows Integration › Replace Windows Notepad: asks first, then Windows asks for administrator rights
+    /// (on a thread: the question can stay open); the answer comes back as `UserEvent::Notepad`.
+    #[cfg(windows)]
+    fn replace_notepad(&mut self) {
+        use crate::app::Host;
+        let on = !self.app.notepad_replaced;
+        if on && !self.host.confirm(&i18n::tr("Windows Integration"), &i18n::tr("rpad will open whenever Windows or a program starts Notepad (notepad.exe), for every user of this PC. Windows will ask for administrator rights. If you move or delete rpad, Notepad will not start until you choose this again from rpad's new place (or run rpad --restore-notepad). You can give Notepad back from this same menu. Continue?")) {
+            return;
+        }
+        let proxy = self.proxy.clone();
+        std::thread::spawn(move || {
+            let _ = proxy.send_event(UserEvent::Notepad(on, change_notepad(on)));
+        });
     }
 
     /// File › Print: the active document with its highlighting and line numbers, on white paper.
@@ -886,6 +910,22 @@ impl ApplicationHandler<UserEvent> for Shell {
                 }
                 self.redraw();
             }
+            #[cfg(windows)]
+            UserEvent::Notepad(on, result) => {
+                self.app.notepad_replaced = notepad_replaced();
+                self.app.menu_dirty = true;
+                match result {
+                    Ok(()) => self.app.notify(i18n::tr(if on {
+                        "rpad now opens in place of Windows Notepad."
+                    } else {
+                        "Windows Notepad is back."
+                    })),
+                    // The user said no to Windows' question: nothing to report.
+                    Err(e) if e == "cancelled" => {}
+                    Err(e) => self.host.info("rpad", &i18n::tf("Cannot change Notepad: {}", &[&e])),
+                }
+                self.redraw();
+            }
             #[cfg(not(windows))]
             UserEvent::Shell(linux::shell::Msg::Open(paths)) => self.open_files(el, &paths),
             #[cfg(not(windows))]
@@ -1117,12 +1157,40 @@ Windows only:
   --unregister   Remove everything --register and --associate added and
                  restore the previous defaults.
   These change only the current user's settings (no administrator rights).
+  --replace-notepad   Make rpad run whenever Windows or a program starts
+                 Notepad (notepad.exe), for every user of this PC.
+  --restore-notepad   Give Notepad back.
+  These two need administrator rights (Windows asks); File > Windows
+  Integration > Replace Windows Notepad does the same.
 
 Settings are stored in %APPDATA%\\rpad (~/.config/rpad on Linux), or next
 to the program when a file named rpad.portable exists there (portable mode).";
 
+/// Whether this rpad is what runs in place of Windows Notepad.
+#[cfg(windows)]
+fn notepad_replaced() -> bool {
+    std::env::current_exe().is_ok_and(|exe| rt_sys::win::notepad::state(&exe) == rt_sys::win::notepad::State::Ours)
+}
+
+/// Changes who runs in place of Notepad: directly if rpad has administrator rights, else through a copy of rpad
+/// that Windows asks the user about. `Err("cancelled")` when the user said no.
+#[cfg(windows)]
+fn change_notepad(on: bool) -> Result<(), String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    if rt_sys::win::elevated() {
+        return if on { rt_sys::win::notepad::replace(&exe) } else { rt_sys::win::notepad::restore(&exe) };
+    }
+    match rt_sys::win::run_elevated_wait(if on { "--replace-notepad" } else { "--restore-notepad" })? {
+        0 => Ok(()),
+        _ => Err(i18n::tr("it did not work; Notepad is as it was").to_string()),
+    }
+}
+
 fn main() {
     let raw: Vec<String> = std::env::args().skip(1).collect();
+    // Started by Windows in place of Notepad: Notepad's command line follows the flag.
+    #[cfg(windows)]
+    let raw = notepad::normalize(&raw);
     // What an update left behind.
     rt_sys::update::clean_old();
     // The help goes to the console it was asked from; without one, rpad
@@ -1140,6 +1208,24 @@ fn main() {
     #[cfg(windows)]
     {
         let flag = |f: &str| raw.iter().any(|a| a == f);
+        // The copy of rpad that Windows started with administrator rights (File › Windows Integration).
+        if flag("--replace-notepad") || flag("--restore-notepad") {
+            let on = flag("--replace-notepad");
+            let mut location = storage::detect();
+            let settings = Settings::load(&location.load());
+            i18n::set_lang(settings.language.unwrap_or_else(i18n::system_lang));
+            let done = std::env::current_exe().map_err(|e| e.to_string()).and_then(|exe| {
+                if on {
+                    rt_sys::win::notepad::replace(&exe)
+                } else {
+                    rt_sys::win::notepad::restore(&exe)
+                }
+            });
+            if let Err(e) = &done {
+                rt_sys::win::report(&i18n::tr("Windows Integration"), &i18n::tf("Cannot change Notepad: {}", &[e]));
+            }
+            std::process::exit(i32::from(done.is_err()));
+        }
         let action = if flag("--unregister") {
             Some(Integration::Unregister)
         } else if flag("--associate") {
@@ -1235,6 +1321,7 @@ fn main() {
     #[cfg(windows)]
     {
         app.explorer_menu = integrated_here();
+        app.notepad_replaced = notepad_replaced();
     }
     let proxy = Arc::new(Mutex::new(event_loop.create_proxy()));
     app.waker = Some(Arc::new(move || {

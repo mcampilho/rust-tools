@@ -50,6 +50,20 @@ Correm na raiz do repositório. Saída: `target\release-small\rpad.exe`. Rust 1.
   1 s que a janela fique visível e é o processo acabado de arrancar pelo clique do utilizador que a traz para a frente
   (restaura e `SetForegroundWindow`); `Shell::open_files` também restaura a janela minimizada. **Não verificado a sério**
   (o utilizador tem o rpad aberto e as instâncias reconhecem-se todas pela mesma janela): o `trace.rs` fica até ele confirmar.
+- Substituir o Bloco de Notas (2026-11-24, pedido do utilizador, só Windows): `Command::ReplaceNotepad` (Ficheiro ›
+  Integração com o Windows), no estilo do Notepad3: `rt_sys::win::notepad` põe o valor `Debugger` =
+  `"<rpad.exe>" --from-notepad` em `HKLM\…\Image File Execution Options\notepad.exe` (vistas de 64 e 32 bits; `state`
+  lê-se sem direitos; `restore` só tira o valor se for o nosso e apaga a chave se ficar vazia; testado em chaves de
+  `HKCU\Software\rust-tools-test`, nunca no HKLM). Como HKLM pede administrador, `Shell::replace_notepad` pergunta
+  (`Host::confirm`) e numa thread corre `change_notepad`: elevado → direto; senão `rt_sys::win::run_elevated_wait`
+  (`--replace-notepad`/`--restore-notepad`, tratados cedo no `main`, que saem com 0 ou 1) e `UserEvent::Notepad`
+  volta com o resultado ("cancelled" = o utilizador disse não ao UAC, sem mensagem). O Windows lança
+  `rpad --from-notepad <linha de comandos do Bloco de Notas>`: `notepad::normalize` (primeira coisa no `main`) tira
+  a flag, o caminho do notepad.exe e as opções `/x`, junta o resto como um só ficheiro se existir (o Bloco de Notas
+  toma a linha toda) e dá `.txt` a um nome sem extensão. Não verificado de verdade no HKLM nem com o UAC (a máquina
+  de desenvolvimento não deu administrador a esta sessão): só o registo em chaves de teste e o arranque simulado
+  (`rpad --new-window --from-notepad C:\Windows\System32\notepad.exe /p "…\my notes.txt"` abre só esse ficheiro).
+  Se o rpad.exe se mexe ou apaga, o Bloco de Notas deixa de arrancar até restaurar (README).
 - Imprimir (2026-11-24, pedido do utilizador, só Windows): `Command::Print` (Ficheiro › Imprimir, Ctrl+P) é tratado
   no `main.rs` (`Shell::print_active`): monta um `rt_ui::print::TextJob` (linhas coloridas por `highlighted_lines` com as
   cores do tema claro, números de linha e largura de tabulação das definições, quebra de linhas, 10 pt) e chama

@@ -182,6 +182,8 @@ pub struct App {
     /// "Edit with rpad" is on the Explorer context menu, for this rpad.exe
     /// (Windows; set by the window).
     pub explorer_menu: bool,
+    /// rpad runs in place of Windows Notepad (Windows).
+    pub notepad_replaced: bool,
     /// rpad starts with the session (`rpad --tray`; set by the window).
     pub autostart: bool,
     pub fullscreen_request: bool,
@@ -232,6 +234,7 @@ impl App {
             menu: crate::ui::menu::Menu::default(),
             close_window: false,
             explorer_menu: false,
+            notepad_replaced: false,
             autostart: false,
             fullscreen_request: false,
             font_dirty: true,
@@ -1056,7 +1059,7 @@ impl App {
                 None => host.info(&tr("Settings folder"), &tr("No settings folder is available on this system.")),
             },
             // The window does these (Windows only).
-            ExplorerMenu | DefaultEditor | Autostart | CheckUpdates | Print => {}
+            ExplorerMenu | DefaultEditor | Autostart | CheckUpdates | Print | ReplaceNotepad => {}
             Shortcuts => host.info(&tr("Keyboard shortcuts"), &shortcuts_text()),
             About => host.info(
                 &tr("About rpad"),
@@ -1110,6 +1113,7 @@ impl App {
             LastTabKeep => s.last_tab_close == LastTabClose::KeepEmpty,
             LastTabCloseWindow => s.last_tab_close == LastTabClose::CloseWindow,
             ExplorerMenu => self.explorer_menu,
+            ReplaceNotepad => self.notepad_replaced,
             Autostart => self.autostart,
             _ => false,
         }

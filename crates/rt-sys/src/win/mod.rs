@@ -12,6 +12,7 @@ pub mod darkmode;
 pub mod dialogs;
 pub mod icon;
 pub mod menu;
+pub mod notepad;
 pub mod print;
 pub mod reg;
 pub mod tray;
@@ -284,6 +285,41 @@ pub fn restart_elevated(args: &str) -> bool {
         )
     };
     r as usize > 32
+}
+
+/// Runs this program with administrator rights and `args` and waits for it: its exit code (Windows asks the user
+/// first). `Err` when it did not start or the user said no.
+pub fn run_elevated_wait(args: &str) -> Result<u32, String> {
+    use windows_sys::Win32::Foundation::{CloseHandle, ERROR_CANCELLED};
+    use windows_sys::Win32::System::Threading::{GetExitCodeProcess, WaitForSingleObject, INFINITE};
+    use windows_sys::Win32::UI::Shell::{ShellExecuteExW, SEE_MASK_NOASYNC, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW};
+    use windows_sys::Win32::UI::WindowsAndMessaging::SW_HIDE;
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let (verb, file, params) = (wide("runas"), wide(&exe.to_string_lossy()), wide(args));
+    // SAFETY: SHELLEXECUTEINFOW is plain data; zeroed is a valid start.
+    let mut info: SHELLEXECUTEINFOW = unsafe { std::mem::zeroed() };
+    info.cbSize = std::mem::size_of::<SHELLEXECUTEINFOW>() as u32;
+    info.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC;
+    info.lpVerb = verb.as_ptr();
+    info.lpFile = file.as_ptr();
+    info.lpParameters = params.as_ptr();
+    info.nShow = SW_HIDE;
+    // SAFETY: the strings outlive the call; `info` is filled as documented.
+    if unsafe { ShellExecuteExW(&mut info) } == 0 {
+        let e = std::io::Error::last_os_error();
+        return Err(if e.raw_os_error() == Some(ERROR_CANCELLED as i32) { "cancelled".to_string() } else { e.to_string() });
+    }
+    if info.hProcess.is_null() {
+        return Ok(0);
+    }
+    let mut code = 0u32;
+    // SAFETY: our own process handle, closed once.
+    unsafe {
+        WaitForSingleObject(info.hProcess, INFINITE);
+        GetExitCodeProcess(info.hProcess, &mut code);
+        CloseHandle(info.hProcess);
+    }
+    Ok(code)
 }
 
 /// Moves `path` (a file, or a folder with what it holds) to the Recycle Bin.

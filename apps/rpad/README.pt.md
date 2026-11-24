@@ -103,6 +103,24 @@ para o utilizador atual (sem direitos de administrador) e aponta para o
 Se moveres o `rpad.exe`, o item do menu aparece desmarcado; marca-o de novo para
 as entradas apontarem para o novo local.
 
+### Substituir o Bloco de Notas do Windows
+
+*Substituir o Bloco de Notas do Windows* (Ficheiro › Integração com o Windows)
+faz o rpad abrir sempre que o Windows ou um programa inicia o `notepad.exe`
+(Win+R, um atalho, «Editar» noutro programa), como o Notepad3 e o Notepad++
+podem fazer. Ao contrário das entradas acima é uma definição **da máquina**
+(a chave Image File Execution Options do `notepad.exe` em HKLM, vistas de 64 e
+32 bits), por isso o Windows pede direitos de administrador (arranca-se uma cópia
+do rpad para isso: `--replace-notepad`). O rpad pede primeiro a tua confirmação.
+A linha de comandos do Bloco de Notas é entendida: as opções (`/p`…) são
+ignoradas, o resto da linha é o ficheiro (com espaços e tudo), um nome sem
+extensão abre `nome.txt` se existir, e um ficheiro que não existe abre como um
+separador vazio para o criar. Escolher o item outra vez (ou `--restore-notepad`,
+que também pede direitos) devolve o Bloco de Notas e tira a chave; a definição
+de outro editor nunca é tocada. Se moveres ou apagares o `rpad.exe`, **o Bloco de
+Notas deixa de arrancar** até o restaurares ou escolheres o item outra vez a
+partir do novo local.
+
 ### Idioma da interface
 
 A interface existe em alemão (de-DE), inglês (en-GB, en-US), espanhol (es-ES),

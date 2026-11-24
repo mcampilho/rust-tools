@@ -19,6 +19,8 @@ pub enum Command {
     SaveAll,
     /// Prints the active document (done by the window, Windows only).
     Print,
+    /// Makes rpad run in place of Windows Notepad, or gives Notepad back (done by the window, Windows only).
+    ReplaceNotepad,
     Reload,
     ReopenWithEncoding(u8),
     LocalHistory,
@@ -183,6 +185,7 @@ impl Command {
             CloseAll => "Close A&ll",
             CopyPath => "Cop&y Full Path",
             Print => "&Print...",
+            ReplaceNotepad => "Replace Windows &Notepad",
             RevealInExplorer => {
                 if cfg!(windows) {
                     "Show in &Explorer"
@@ -632,7 +635,7 @@ pub fn menu_tree(recent: &[std::path::PathBuf]) -> Vec<(&'static str, Vec<M>)> {
                 // Every letter of "Start with Windows" is taken in this menu:
                 // it goes in this submenu (in Preferences on Linux).
                 #[cfg(windows)]
-                Sub("Windows Inte&gration", vec![Item(ExplorerMenu), Item(DefaultEditor), Sep, Item(Autostart)]),
+                Sub("Windows Inte&gration", vec![Item(ExplorerMenu), Item(DefaultEditor), Item(ReplaceNotepad), Sep, Item(Autostart)]),
                 #[cfg(windows)]
                 Sep,
                 Item(Exit),
