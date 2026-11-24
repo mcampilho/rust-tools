@@ -108,7 +108,7 @@ pub struct Viewer {
     csv_geom: CsvGeom,
 }
 
-fn pixmap(b: crate::media::Bitmap) -> Option<Pixmap> {
+pub(crate) fn pixmap(b: crate::media::Bitmap) -> Option<Pixmap> {
     Pixmap::from_vec(b.rgba, tiny_skia::IntSize::from_wh(b.w, b.h)?)
 }
 

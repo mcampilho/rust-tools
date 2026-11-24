@@ -149,6 +149,13 @@ impl Media {
     }
 }
 
+/// An image decoded on the calling thread (for the manual printing test).
+#[cfg(all(windows, test))]
+pub fn decode_here(bytes: &[u8]) -> Option<Bitmap> {
+    winrt::init();
+    winrt::decode_bytes(bytes, MAX_EDGE).ok()
+}
+
 /// A PDF opened for printing on the thread that prints (File › Print), not through the media worker.
 #[cfg(windows)]
 pub struct PdfSource {

@@ -176,9 +176,12 @@ o HTML são dispostos para a página (a coluna tão larga quanto as margens
 deixam, `<details>` abertos, imagens e fórmulas como no ecrã) e cortados entre
 linhas; o CSV imprime-se como tabela; o texto como linhas realçadas num tipo de
 letra de largura fixa; um PDF página a página, o maior que o papel deixar. Cada
-página leva em cima o nome do ficheiro e a data e em baixo «Página n de N». As
-páginas são desenhadas à resolução da impressora até 300 ppp. Ainda não em
-Linux.
+página leva em cima o nome do ficheiro e a data e em baixo «Página n de N». O
+papel é branco e as imagens mantêm as cores, seja qual for o tema da janela (um
+PDF impresso pelo rview só parece escuro quando é aberto no rview com as páginas
+escuras ligadas). Uma imagem que não cabe no que resta de uma página vai inteira
+para a seguinte. As páginas são desenhadas à resolução da impressora até
+300 ppp. Ainda não em Linux.
 
 ## Selecionar e copiar
 

@@ -111,8 +111,9 @@ pub fn page_ranges(boxes: &[(f32, f32)], top: f32, bottom: f32, page_h: f32) -> 
             }
             e = crossing;
         }
-        // Something taller than the page, or a page with one line on it: cut where the page ends.
-        if e <= y + page_h * 0.3 {
+        // Only what is taller than a page (the break moved back to the very top of this one) is cut through,
+        // where the page ends; anything that fits goes whole to the next page, however little is left here.
+        if e <= y + 1.0 {
             e = hard;
         }
         out.push((y, e));
@@ -155,12 +156,14 @@ fn print_rich(title: &str, mut doc: RichDoc, images: &Images, printer: &Printer)
     printer.print(title, total, &mut |n, pixels| {
         let (y0, y1) = pages[n as usize];
         rt_ui::print::draw_frame(&mut g, &frame, (w, h), title, &date, n, total);
-        let body = Rect::new(frame.margin, body_top, content_w, body_h);
+        // Only this page's slice: a page that ends early (above a picture that goes to the next page) must not
+        // show the top of what the next one prints whole.
+        let body = Rect::new(frame.margin, body_top, content_w, (y1 - y0).min(body_h));
         g.set_clip(Some(body));
         // Layout x of the column's left edge is `pad`; its top at page `y0` goes to the top of the body.
         let (ox, oy) = (frame.margin - pad, body_top - y0);
         for (item, &(a, b)) in l.items.iter().zip(&l.spans) {
-            if b < y0 || a > y1 {
+            if b <= y0 || a >= y1 {
                 continue;
             }
             match item {
@@ -242,6 +245,15 @@ mod tests {
     }
 
     #[test]
+    fn a_picture_that_does_not_fit_goes_whole_to_the_next_page() {
+        // A line, then a picture 40 tall from 20 to 60, on pages 50 tall.
+        let boxes = [(0.0, 10.0), (20.0, 60.0)];
+        let r = page_ranges(&boxes, 0.0, 70.0, 50.0);
+        assert_eq!(r[0], (0.0, 20.0), "the first page ends above the picture, with room to spare");
+        assert!(r[1].0 <= 20.0 && r[1].1 >= 60.0, "the picture is whole on the second: {r:?}");
+    }
+
+    #[test]
     fn something_taller_than_the_page_is_cut_where_the_page_ends() {
         let r = page_ranges(&[(0.0, 500.0)], 0.0, 500.0, 100.0);
         assert_eq!(r.len(), 5);
@@ -286,7 +298,15 @@ mod tests {
         let job = match content {
             crate::doc::Content::Rich(mut d) => {
                 d.base = path.parent().map(std::path::Path::to_path_buf).unwrap_or_default();
-                Job::Rich { title, doc: Box::new(d), images: HashMap::new() }
+                // RVIEW_PRINT_IMG: the images (relative to the document) to print as pictures.
+                let mut images = Images::new();
+                for src in std::env::var("RVIEW_PRINT_IMG").unwrap_or_default().split(';').filter(|s| !s.is_empty()) {
+                    let key = crate::view::image_key(&d.base, src);
+                    let bmp = crate::media::decode_here(&std::fs::read(&key).expect("image")).expect("decoded");
+                    let pix = crate::view::pixmap(bmp).expect("pixmap");
+                    images.insert(key, (ImgState::Ready(pix.width(), pix.height()), Some(pix)));
+                }
+                Job::Rich { title, doc: Box::new(d), images }
             }
             crate::doc::Content::Csv(d) => Job::Rich { title, doc: Box::new(csv_doc(&d)), images: HashMap::new() },
             crate::doc::Content::Pdf => Job::Pdf { title, path: path.to_path_buf() },

@@ -172,8 +172,11 @@ usable. Markdown and HTML are laid out for the page (the column as wide as the
 margins allow, `<details>` opened, images and formulas as on screen) and cut
 between lines; CSV prints as a table; text as highlighted lines of a
 fixed-width font; a PDF page by page, as large as the paper allows. Every page
-has the file name and the date on top and "Page n of N" below. Pages are drawn
-at the printer's resolution up to 300 dpi. Not on Linux yet.
+has the file name and the date on top and "Page n of N" below. Paper is white
+and images keep their colours whatever the theme of the window (a PDF printed
+from rview looks dark only when opened in rview with Dark Pages on). A picture
+that does not fit in what is left of a page goes whole to the next one. Pages
+are drawn at the printer's resolution up to 300 dpi. Not on Linux yet.
 
 ## Selecting and copying
 

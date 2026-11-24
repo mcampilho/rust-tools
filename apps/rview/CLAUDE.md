@@ -85,7 +85,8 @@ Correm na raiz do repositório. Saída: `target\release\rview.exe`. Rust 1.88+, 
   PDF) e `Shell::print` chama `rt_ui::print::start`: o diálogo do Windows na janela, o resto numa thread própria (o fim
   volta por `UserEvent::Printed`). `print.rs`: o Markdown/HTML é disposto para a largura da página (`max_width` tirado,
   `<details>` abertos, 10,5 pt) e cortado por `page_ranges` entre linhas (texto, imagens e formas não se cortam; o que
-  é mais alto que a página corta-se no fim dela); cada página usa `Item` como o ecrã, num clip do corpo, com o
+  é mais alto que a página corta-se no fim dela; o que cabe numa página vai inteiro para a seguinte, e o clip de cada
+  página é só a sua fatia `y1 - y0`, senão o topo do que vai na página seguinte aparecia também no fim desta); cada página usa `Item` como o ecrã, num clip do corpo, com o
   cabeçalho e o rodapé de `rt_ui::print::draw_frame`; PDF pelo `media::PdfSource` (a página mais larga que o papel
   deixa, sobre branco). Ver o `rt-ui` e o `rt-sys::win::print` abaixo. Teste manual sem diálogo:
   `RVIEW_PRINT_IN=doc.md RVIEW_PRINT_OUT=out.pdf ./dev.ps1 test -p rview '--' --ignored prints_a_file` (usa a
