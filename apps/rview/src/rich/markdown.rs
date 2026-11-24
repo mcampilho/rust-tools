@@ -453,7 +453,8 @@ impl Builder {
             | Options::ENABLE_HEADING_ATTRIBUTES
             | Options::ENABLE_SUPERSCRIPT
             | Options::ENABLE_SUBSCRIPT
-            | Options::ENABLE_DEFINITION_LIST;
+            | Options::ENABLE_DEFINITION_LIST
+            | Options::ENABLE_MATH;
         for ev in Parser::new_ext(src, opts) {
             self.event(ev);
         }
@@ -500,6 +501,16 @@ impl Builder {
                 let s = Style { mono: true, code: true, ..b.style() };
                 b.inlines.push(Inline::Text(t.to_string(), s));
             }
+            Event::InlineMath(t) => {
+                let v = super::math::render(&t, b.style());
+                b.inlines.extend(v);
+            }
+            Event::DisplayMath(t) => {
+                // Alone on its lines, centred.
+                b.flush();
+                let v = super::math::render(&t, Style { size: b.style().size * 1.1, ..b.style() });
+                b.push_block(Block { align: Align::Center, ..Block::para(v) });
+            }
             Event::Html(t) => b.html.push_str(&t),
             Event::InlineHtml(t) => b.inline_html(&t),
             Event::SoftBreak => b.text(" "),
@@ -521,7 +532,6 @@ impl Builder {
                 let s = Style { valign: 1, size: b.style().size * 0.8, link: n, ..b.style() };
                 b.inlines.push(Inline::Text(format!("[{label}]"), s));
             }
-            _ => {}
         }
     }
 }
@@ -656,6 +666,16 @@ plain
         assert_eq!(d.blocks.len(), 2, "the abbreviation line is not shown");
         let Kind::Para(v) = &d.blocks[1].kind else { panic!() };
         assert!(v.iter().any(|i| matches!(i, Inline::Text(t, s) if t == "HTML" && s.underline)));
+    }
+
+    #[test]
+    fn maths_inline_and_display() {
+        let d = parse("Euler: $e^{i\\pi} + 1 = 0$, costs $5 and $6.\n\n$$\\int_0^1 x\\,dx = \\frac{1}{2}$$\n\nafter");
+        let text = super::super::plain_text(&d.blocks);
+        assert!(text.contains('π') && text.contains('∫') && text.contains("1/2"), "{text}");
+        assert!(!text.contains("\\pi") && !text.contains("$$"), "{text}");
+        let centred = d.blocks.iter().filter(|b| b.align == Align::Center).count();
+        assert_eq!(centred, 1);
     }
 
     #[test]

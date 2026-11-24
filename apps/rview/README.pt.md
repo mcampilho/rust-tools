@@ -220,7 +220,10 @@ como texto simples, e a barra de estado indica-o.
   (`:-)`), a cores (Segoe UI Emoji); `^sobrescrito^` e `~subscrito~`;
   `++inserido++` e `==marcado==`; listas de definições; abreviaturas
   (`*[HTML]: …`, sublinhadas); e contentores `::: warning` (também `info`, `tip`,
-  `danger`). Ainda não: fórmulas (`$…$`). Segue o tema claro/escuro. As imagens
+  `danger`). As fórmulas LaTeX (`$…$` na linha, `$$…$$` centradas) são escritas
+  como texto, não compostas: letras gregas e símbolos, expoentes e índices,
+  `a/b` para `\frac`, `√` para `\sqrt`, matrizes e `cases` em linhas; nada fica
+  empilhado. Segue o tema claro/escuro. As imagens
   são só as que estão ao lado do ficheiro (nada é descarregado).
 - **HTML:** os documentos são mostrados numa página branca, como num navegador.
   Suportado: títulos, parágrafos, listas (aninhadas, numeradas com `start`),

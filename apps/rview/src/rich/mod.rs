@@ -7,6 +7,7 @@ pub mod extras;
 pub mod html;
 pub mod layout;
 pub mod markdown;
+pub mod math;
 
 use crate::ui::gfx::Color;
 use std::path::PathBuf;

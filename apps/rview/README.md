@@ -212,8 +212,10 @@ only, and the status bar says so.
   extras: emoji shortcodes (`:wink:`) and emoticons (`:-)`), shown in colour
   (Segoe UI Emoji); `^sup^` and `~sub~`; `++inserted++` and `==marked==`;
   definition lists; abbreviations (`*[HTML]: …`, underlined); and `::: warning`
-  containers (also `info`, `tip`, `danger`). Not yet: maths (`$…$`). Follows
-  the light/dark theme. Images are only those next to the file (nothing is
+  containers (also `info`, `tip`, `danger`). LaTeX maths (`$…$` inline, `$$…$$`
+  centred) is written as text, not typeset: Greek letters and symbols,
+  raised and lowered scripts, `a/b` for `\frac`, `√` for `\sqrt`, matrices and
+  `cases` as lines; nothing is stacked. Follows the light/dark theme. Images are only those next to the file (nothing is
   downloaded).
 - **HTML:** documents are shown on a white page like a browser. Supported:
   headings, paragraphs, lists (nested, numbered with `start`), tables

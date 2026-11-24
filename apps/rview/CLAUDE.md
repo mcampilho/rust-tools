@@ -10,7 +10,7 @@ Detalhes por formato, atalhos e limitações estão no `README.md`.
 
 ```powershell
 ./dev.ps1 build --release -p rview
-./dev.ps1 test -p rview       # 81 testes (80 em Linux); os do código partilhado estão nos crates
+./dev.ps1 test -p rview       # 95 testes; os do código partilhado estão nos crates
 ./dev.ps1 clippy -p rview --all-targets
 ```
 
@@ -41,7 +41,13 @@ Correm na raiz do repositório. Saída: `target\release\rview.exe`. Rust 1.88+, 
 - `rich/extras.rs` (2026-11-24, pedido do utilizador): o que o pulldown-cmark não tem e o markdown-it tem: emojis
   (`:wink:`, emoticons; a cores pelo `rt-gfx`, camadas COLR do `seguiemj.ttf`), `^sup^`, `~sub~` (o parser não os lê
   dentro de palavras), `++ins++`, `==mark==`, abreviaturas (`*[X]: …`, tiradas da fonte antes de ler) e contentores
-  `::: aviso` (a fonte parte-se neles). Fórmulas (`$…$`) por fazer.
+  `::: aviso` (a fonte parte-se neles).
+- `rich/math.rs` (2026-11-24, pedido do utilizador): fórmulas `$…$` e `$$…$$` (`Options::ENABLE_MATH`, eventos
+  `InlineMath`/`DisplayMath`; a de bloco é um parágrafo centrado) como texto estilizado, sem motor de composição: gregos
+  e símbolos em Unicode (o `rt-gfx` cai no `seguisym.ttf`), variáveis em itálico, `^`/`_` com `valign` (aninhados ficam
+  todos ao mesmo nível), `\frac` = `a/b` (com parênteses se preciso), `\sqrt` = `√`, `\text`, `\mathbb`/`\mathbf`,
+  acentos por caracteres combinantes, `matrix`/`cases`/`aligned` em linhas. Nada fica empilhado nem desenhado
+  (frações empilhadas, raízes com barra e limites por cima de ∑ exigiriam novos itens de layout).
 - `linux/` — Clipboard (arboard: texto com HTML, ou imagem), e o resto de `rt-sys`: diálogo Abrir (zenity ou
   kdialog), tema, links, e o modo residente com socket Unix e ícone StatusNotifierItem.
 - `ui/menu.rs` — menus desenhados na janela (`rt-gfx`), só fora do Windows. Em Linux, `cfg(not(windows))`
