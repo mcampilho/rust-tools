@@ -34,6 +34,10 @@ Correm na raiz do repositório. Saída: `target\release\rview.exe`. Rust 1.88+, 
   `rt_ui::assoc::AssocPanel` (2026-11-14, pedido do utilizador): tipos a marcar, quem abre cada um (e se é
   escolha do utilizador, `UserChoice`, que nunca se muda), "Abrir com…" (`SHOpenWithDialog`), Aplicar
   (`set_defaults`); `Shell::assoc`, `modal()`. O `--associate` continua a fazer todos.
+- Uma janela mostra um só documento (2026-11-24, pedido do utilizador): a instância residente que recebe ficheiros
+  (`Shell::open_incoming`) abre o primeiro na própria janela só se estiver escondida ou vazia; se já mostra um
+  documento, cada ficheiro abre noutra janela (`rview --new-window <ficheiro>`), e antes dá o direito de
+  primeiro plano (`allow_any_foreground`). Antes só abria o primeiro e substituía o que estava aberto.
 - `linux/` — Clipboard (arboard: texto com HTML, ou imagem), e o resto de `rt-sys`: diálogo Abrir (zenity ou
   kdialog), tema, links, e o modo residente com socket Unix e ícone StatusNotifierItem.
 - `ui/menu.rs` — menus desenhados na janela (`rt-gfx`), só fora do Windows. Em Linux, `cfg(not(windows))`

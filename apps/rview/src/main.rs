@@ -186,6 +186,30 @@ impl Shell {
         self.redraw();
     }
 
+    /// Files sent by another launch to this (resident) instance. One window shows one document: if this
+    /// one is on screen with a document, each file opens in a window of its own (as `--new-window`),
+    /// otherwise the first fills this window and the rest get their own.
+    fn open_incoming(&mut self, el: &ActiveEventLoop, paths: &[PathBuf]) {
+        let busy = !self.hidden && self.viewer.path.is_some();
+        self.show(el);
+        let mut rest = paths;
+        if !busy {
+            if let Some((first, more)) = paths.split_first() {
+                self.open(first, false, None);
+                rest = more;
+            }
+        }
+        if rest.is_empty() {
+            return;
+        }
+        #[cfg(windows)]
+        win::allow_foreground();
+        let Ok(exe) = std::env::current_exe() else { return };
+        for p in rest {
+            let _ = std::process::Command::new(&exe).arg("--new-window").arg(p).spawn();
+        }
+    }
+
     fn update_title(&self) {
         let Some(w) = &self.win else { return };
         let title = match &self.viewer.path {
@@ -624,12 +648,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.redraw();
             }
             #[cfg(not(windows))]
-            UserEvent::Shell(linux::shell::Msg::Open(paths)) => {
-                self.show(el);
-                if let Some(p) = paths.first() {
-                    self.open(p, false, None);
-                }
-            }
+            UserEvent::Shell(linux::shell::Msg::Open(paths)) => self.open_incoming(el, &paths),
             #[cfg(not(windows))]
             UserEvent::Shell(linux::shell::Msg::Quit) => self.quit(el),
             #[cfg(windows)]
@@ -649,12 +668,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 }
             }
             #[cfg(windows)]
-            UserEvent::Win(win::WinMsg::OpenFiles(paths)) => {
-                self.show(el);
-                if let Some(p) = paths.first() {
-                    self.open(p, false, None);
-                }
-            }
+            UserEvent::Win(win::WinMsg::OpenFiles(paths)) => self.open_incoming(el, &paths),
             #[cfg(windows)]
             UserEvent::Win(win::WinMsg::Tray(win::tray::TrayEvent::Activate)) => self.show(el),
             #[cfg(windows)]

@@ -206,6 +206,15 @@ pub fn instance_state(ident: &Ident, any: bool) -> Option<(u32, bool, bool)> {
     }
 }
 
+/// Lets the process started next bring its window forward. For an instance that was just handed
+/// a file by the user's click and starts another window for it.
+pub fn allow_any_foreground() {
+    // SAFETY: plain call; ASFW_ANY (u32::MAX) grants the right to any process.
+    unsafe {
+        AllowSetForegroundWindow(u32::MAX);
+    }
+}
+
 /// True if a resident (tray) instance is running.
 pub fn resident_running(ident: &Ident) -> bool {
     !find_instance(ident, true).is_null()

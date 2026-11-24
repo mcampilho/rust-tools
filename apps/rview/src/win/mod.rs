@@ -33,6 +33,11 @@ pub fn hand_off_to_resident(paths: &[PathBuf]) -> bool {
     rt_sys::win::hand_off(&IDENT, paths, false, false)
 }
 
+/// Lets the window of the process started next come to the front.
+pub fn allow_foreground() {
+    rt_sys::win::allow_any_foreground();
+}
+
 /// Opens a web or mail link; nothing else (see `rt_sys::open_url`).
 pub fn open_url(url: &str) -> bool {
     rt_sys::open_url(url)

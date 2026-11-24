@@ -192,6 +192,9 @@ struct Shell {
     last_autoscroll: Instant,
     /// Redraw once edits settle (folds and outline are recomputed lazily).
     idle_redraw: Option<Instant>,
+    /// Files arrived from another launch: draw once the window is ready (visible, not minimized, with a
+    /// size), or at this time at the latest.
+    ready_redraw: Option<Instant>,
     seen_edit: Instant,
     ime_rect: Option<Rect>,
     cursor_icon: CursorIcon,
@@ -488,10 +491,17 @@ impl Shell {
         }
         if !paths.is_empty() {
             // The window may still be coming out of the tray or the taskbar: the frame drawn now can be
-            // lost (zero size, not yet visible) and the new tab would only show after a click. Draw again.
-            self.idle_redraw = Some(Instant::now() + Duration::from_millis(150));
+            // lost (zero size, not yet visible) and the new tab would only show after a click. Draw again
+            // as soon as the window is ready (see `timers`).
+            self.ready_redraw = Some(Instant::now() + Duration::from_secs(2));
         }
         self.after_action(el);
+        if !paths.is_empty() && !self.hidden {
+            // The files come in through a message sent by another process, and the event loop can stay
+            // asleep afterwards (neither the paint request nor the timers ran until the next click:
+            // handoff.log, 2026-11-24). Draw now, here, instead of waiting for a message.
+            self.render();
+        }
     }
 
     // ------------------------------------------------------------ actions
@@ -620,6 +630,9 @@ impl Shell {
         if let Some(t) = self.idle_redraw {
             at(t);
         }
+        if self.ready_redraw.is_some() {
+            at(now + Duration::from_millis(10));
+        }
         if self.app.fif_running() || self.app.find.counting {
             at(now + Duration::from_millis(100));
         }
@@ -636,6 +649,25 @@ impl Shell {
         if let Some(t) = self.idle_redraw {
             if now >= t {
                 self.idle_redraw = None;
+                self.app.menu_dirty = true;
+                self.redraw();
+            }
+        }
+        if let Some(limit) = self.ready_redraw {
+            let state = self.win.as_ref().map(|w| {
+                let size = w.window.inner_size();
+                let visible = w.window.is_visible().unwrap_or(true);
+                let minimized = w.window.is_minimized().unwrap_or(false);
+                (visible, minimized, size.width, size.height)
+            });
+            let ready = state.is_some_and(|(v, m, w, h)| v && !m && w > 0 && h > 0);
+            if ready || now >= limit || self.win.is_none() {
+                self.ready_redraw = None;
+                let log = self.app.location.dir.clone();
+                trace::note(
+                    log.as_deref(),
+                    &format!("redraw after hand-off: ready {ready}, (visible, minimized, w, h) {state:?}, hidden {}", self.hidden),
+                );
                 self.app.menu_dirty = true;
                 self.redraw();
             }
@@ -1204,6 +1236,7 @@ fn main() {
         focused: true,
         last_autoscroll: now,
         idle_redraw: None,
+        ready_redraw: None,
         ime_rect: None,
         cursor_icon: CursorIcon::Default,
         args: files,
