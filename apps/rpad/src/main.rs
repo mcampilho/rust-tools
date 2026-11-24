@@ -486,6 +486,11 @@ impl Shell {
         if let Some(w) = &self.win {
             w.window.focus_window();
         }
+        if !paths.is_empty() {
+            // The window may still be coming out of the tray or the taskbar: the frame drawn now can be
+            // lost (zero size, not yet visible) and the new tab would only show after a click. Draw again.
+            self.idle_redraw = Some(Instant::now() + Duration::from_millis(150));
+        }
         self.after_action(el);
     }
 
