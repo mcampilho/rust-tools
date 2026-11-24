@@ -3005,6 +3005,7 @@ dependencies = [
  "ab_glyph",
  "rt-core",
  "tiny-skia",
+ "ttf-parser",
 ]
 
 [[package]]

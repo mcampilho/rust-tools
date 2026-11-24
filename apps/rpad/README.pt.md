@@ -252,6 +252,8 @@ mas isso não foi experimentado.
   e pode ser mudada na barra de estado. Os ficheiros desconhecidos são texto simples.
 - Dobragem de código (chavetas, etiquetas, indentação, títulos de Markdown) e realce do
   parêntese correspondente.
+- As ligações web e de correio (`http://`, `https://`, `mailto:`, `www.`) aparecem
+  sublinhadas; um duplo clique abre-as no navegador (Ctrl+clique continua a juntar um cursor).
 
 **Ferramentas de texto** (menu Ferramentas; seleção ou documento inteiro; tudo anulável)
 - Maiúsculas e minúsculas: MAIÚSCULAS, minúsculas, Título, Frase, iNVERTER.

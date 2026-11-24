@@ -50,6 +50,8 @@ Correm na raiz do repositório. Saída: `target\release-small\rpad.exe`. Rust 1.
   1 s que a janela fique visível e é o processo acabado de arrancar pelo clique do utilizador que a traz para a frente
   (restaura e `SetForegroundWindow`); `Shell::open_files` também restaura a janela minimizada. **Não verificado a sério**
   (o utilizador tem o rpad aberto e as instâncias reconhecem-se todas pela mesma janela): o `trace.rs` fica até ele confirmar.
+- `links.rs` (2026-11-24, pedido do utilizador): ligações `http(s)://`, `mailto:` e `www.` por linha; o `ui/view.rs`
+  sublinha-as e o duplo clique (`App::mouse_down`) abre-as com `rt_sys::open_url` (o Ctrl+clique é multi-cursor).
 - `Host::info` não abre caixa do sistema: a mensagem (About, `--help` sem consola...) é desenhada na janela,
   com o tema (`Shell::dialog`, `rt_gfx::dialog::draw_message`). `--tray` com a janela maximizada da última
   vez: maximiza só ao mostrar (`maximize_on_show`), porque maximizar mostra a janela no Windows.

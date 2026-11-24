@@ -696,6 +696,15 @@ impl App {
         }
         match count {
             2 => {
+                // A double click on a link opens it in the browser (the word is not selected).
+                let line = b.line_of(pos);
+                let chars: Vec<char> = b.line_text(line).chars().collect();
+                let idx = pos - b.line_start(line);
+                if let Some(url) = crate::links::at(&chars, idx) {
+                    self.input.last_click = None;
+                    rt_sys::open_url(&url);
+                    return;
+                }
                 let (s, e) = b.word_at(pos).unwrap_or((pos, pos));
                 b.set_sels(vec![Sel::new(s, e)], 0);
                 self.input.drag = Some(Drag::Select { anchor: s, unit: 2, word: (s, e) });

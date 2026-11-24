@@ -28,6 +28,21 @@ struct Builder {
     html: String,
     html_tags: Vec<String>,
     slugs: HashMap<String, usize>,
+    /// `*[HTML]: …` definitions: the abbreviations underlined in the text.
+    abbrs: Vec<(String, String)>,
+    /// Text of the current run, not yet added to `inlines` (see `flush_text`).
+    pending: String,
+}
+
+/// Look of a `::: kind` container: title colour and background.
+fn container_look(kind: &str) -> (&'static str, u32, u32) {
+    match kind.split_whitespace().next().unwrap_or("").to_ascii_lowercase().as_str() {
+        "warning" | "caution" | "attention" => ("⚠ ", 0xD9480F, 0xFFF4EC),
+        "danger" | "error" | "failure" | "bug" => ("⛔ ", 0xC92A2A, 0xFFF0F0),
+        "tip" | "hint" | "success" | "check" => ("✔ ", 0x2B8A3E, 0xEEF9F0),
+        "info" | "note" | "abstract" | "important" => ("ℹ ", 0x1C7ED6, 0xEDF5FF),
+        _ => ("", 0x495057, 0xF1F3F5),
+    }
 }
 
 /// GitHub-style heading anchor: lowercase, punctuation dropped, spaces to `-`.
@@ -60,6 +75,15 @@ impl Builder {
     fn pop_style(&mut self) {
         if self.styles.len() > 1 {
             self.styles.pop();
+        }
+    }
+
+    /// The block most recently added to the frame being built.
+    fn last_block_mut(&mut self) -> Option<&mut Block> {
+        match self.stack.last_mut() {
+            Some(Frame::Root(v) | Frame::Quote(v) | Frame::Footnote(_, v)) => v.last_mut(),
+            Some(Frame::List(l)) => l.items.last_mut().and_then(|i| i.blocks.last_mut()),
+            _ => None,
         }
     }
 
@@ -105,8 +129,24 @@ impl Builder {
         } else if let Some((_, alt)) = &mut self.image {
             alt.push_str(t);
         } else {
-            let s = self.style();
-            self.inlines.push(Inline::Text(t.to_string(), s));
+            // Kept until something else comes: the parser cuts the text at `^`, `~`..., and the extras
+            // (19^th^) need the whole run.
+            self.pending.push_str(t);
+        }
+    }
+
+    /// Adds the text waiting in `pending` to the inlines, with emoji, ^sup^, ~sub~, ++ins++, ==mark== and
+    /// abbreviations. Links keep their text as written.
+    fn flush_text(&mut self) {
+        if self.pending.is_empty() {
+            return;
+        }
+        let t = std::mem::take(&mut self.pending);
+        let s = self.style();
+        if s.link == 0 {
+            self.inlines.extend(super::extras::decorate(&t, s, &self.abbrs));
+        } else {
+            self.inlines.push(Inline::Text(t, s));
         }
     }
 
@@ -249,6 +289,20 @@ impl Builder {
             Tag::Emphasis => self.push_style(|s| s.italic = true),
             Tag::Strong => self.push_style(|s| s.bold = true),
             Tag::Strikethrough => self.push_style(|s| s.strike = true),
+            Tag::Superscript => self.push_style(|s| {
+                s.valign = 1;
+                s.size *= 0.8;
+            }),
+            Tag::Subscript => self.push_style(|s| {
+                s.valign = -1;
+                s.size *= 0.8;
+            }),
+            Tag::DefinitionList => self.flush(),
+            Tag::DefinitionListTitle => self.flush(),
+            Tag::DefinitionListDefinition => {
+                self.flush();
+                self.stack.push(Frame::Quote(Vec::new()));
+            }
             Tag::Link { dest_url, .. } => {
                 self.links.push(dest_url.to_string());
                 let n = self.links.len() as u32;
@@ -358,7 +412,26 @@ impl Builder {
                     self.push_block(Block { kind: Kind::Table(table), margin_bottom: 0.8, ..Block::default() });
                 }
             }
-            TagEnd::Emphasis | TagEnd::Strong | TagEnd::Strikethrough | TagEnd::Link => self.pop_style(),
+            TagEnd::Emphasis | TagEnd::Strong | TagEnd::Strikethrough | TagEnd::Link | TagEnd::Superscript | TagEnd::Subscript => {
+                self.pop_style()
+            }
+            TagEnd::DefinitionList => self.flush(),
+            TagEnd::DefinitionListTitle => {
+                // The term: a paragraph of its own, kept close to its definition.
+                let had = !self.inlines.is_empty();
+                self.flush();
+                if had {
+                    if let Some(b) = self.last_block_mut() {
+                        b.margin_bottom = 0.3;
+                    }
+                }
+            }
+            TagEnd::DefinitionListDefinition => {
+                self.flush();
+                if let Some(Frame::Quote(blocks)) = self.stack.pop() {
+                    self.push_block(Block { kind: Kind::Group(blocks), indent: 1.5, margin_bottom: 0.6, ..Block::default() });
+                }
+            }
             TagEnd::Image => {
                 if let Some((src, alt)) = self.image.take() {
                     let style = self.style();
@@ -370,27 +443,52 @@ impl Builder {
     }
 }
 
-/// Parses Markdown into a rich document.
-pub fn parse(src: &str) -> RichDoc {
-    let opts = Options::ENABLE_TABLES
-        | Options::ENABLE_STRIKETHROUGH
-        | Options::ENABLE_TASKLISTS
-        | Options::ENABLE_FOOTNOTES
-        | Options::ENABLE_HEADING_ATTRIBUTES;
-    let mut b = Builder {
-        stack: vec![Frame::Root(Vec::new())],
-        inlines: Vec::new(),
-        styles: vec![Style::default()],
-        links: Vec::new(),
-        heading: None,
-        code: None,
-        code_lang: crate::syntax::Lang::Plain,
-        image: None,
-        html: String::new(),
-        html_tags: Vec::new(),
-        slugs: HashMap::new(),
-    };
-    for ev in Parser::new_ext(src, opts) {
+impl Builder {
+    /// Reads one stretch of Markdown source into the frame being built.
+    fn run(&mut self, src: &str) {
+        let opts = Options::ENABLE_TABLES
+            | Options::ENABLE_STRIKETHROUGH
+            | Options::ENABLE_TASKLISTS
+            | Options::ENABLE_FOOTNOTES
+            | Options::ENABLE_HEADING_ATTRIBUTES
+            | Options::ENABLE_SUPERSCRIPT
+            | Options::ENABLE_SUBSCRIPT
+            | Options::ENABLE_DEFINITION_LIST;
+        for ev in Parser::new_ext(src, opts) {
+            self.event(ev);
+        }
+        self.flush_text();
+        self.flush();
+    }
+
+    /// A `::: kind` container: its inside read as Markdown, in a box with a title.
+    fn container(&mut self, kind: &str, body: &str) {
+        self.flush();
+        let (icon, fg, bg) = container_look(kind);
+        let name = kind.trim();
+        let title = if name.is_empty() { String::new() } else { format!("{icon}{}", name.to_uppercase()) };
+        self.stack.push(Frame::Quote(Vec::new()));
+        self.run(body);
+        let Some(Frame::Quote(mut blocks)) = self.stack.pop() else { return };
+        if !title.is_empty() {
+            let style = Style { bold: true, size: 0.9, color: Some(crate::ui::gfx::Color::rgb(fg)), ..Style::default() };
+            blocks.insert(0, Block { margin_bottom: 0.4, ..Block::para(vec![Inline::Text(title, style)]) });
+        }
+        self.push_block(Block {
+            kind: Kind::Group(blocks),
+            bg: Some(crate::ui::gfx::Color::rgb(bg)),
+            bar: true,
+            padding: 0.8,
+            margin_bottom: 0.8,
+            ..Block::default()
+        });
+    }
+
+    fn event(&mut self, ev: Event) {
+        let b = self;
+        if !matches!(ev, Event::Text(_) | Event::SoftBreak) {
+            b.flush_text();
+        }
         if !matches!(ev, Event::Html(_)) {
             b.flush_html();
         }
@@ -424,6 +522,32 @@ pub fn parse(src: &str) -> RichDoc {
                 b.inlines.push(Inline::Text(format!("[{label}]"), s));
             }
             _ => {}
+        }
+    }
+}
+
+/// Parses Markdown into a rich document.
+pub fn parse(src: &str) -> RichDoc {
+    let (src, abbrs) = super::extras::take_abbreviations(src);
+    let mut b = Builder {
+        stack: vec![Frame::Root(Vec::new())],
+        inlines: Vec::new(),
+        styles: vec![Style::default()],
+        links: Vec::new(),
+        heading: None,
+        code: None,
+        code_lang: crate::syntax::Lang::Plain,
+        image: None,
+        html: String::new(),
+        html_tags: Vec::new(),
+        slugs: HashMap::new(),
+        abbrs,
+        pending: String::new(),
+    };
+    for part in super::extras::split_containers(&src) {
+        match part {
+            super::extras::Part::Text(t) => b.run(&t),
+            super::extras::Part::Container(kind, body) => b.container(&kind, &body),
         }
     }
     b.flush();
@@ -514,6 +638,36 @@ plain
         assert!(toks.contains(&(crate::syntax::Tok::Comment as u8 + 1)));
         let Kind::Pre(v) = &d.blocks[1].kind else { panic!() };
         assert_eq!(v.len(), 1);
+    }
+
+    #[test]
+    fn extras_of_markdown_it() {
+        let d = parse("H~2~O and 19^th^ :wink: ++new++ ==hi==\n\n*[HTML]: Hyper Text Markup Language\n\nUse HTML.");
+        let Kind::Para(v) = &d.blocks[0].kind else { panic!() };
+        let sub = v.iter().find_map(|i| match i {
+            Inline::Text(t, s) if t == "2" => Some(s.valign),
+            _ => None,
+        });
+        assert_eq!(sub, Some(-1));
+        assert!(v.iter().any(|i| matches!(i, Inline::Text(t, s) if t == "th" && s.valign == 1)));
+        assert!(v.iter().any(|i| matches!(i, Inline::Text(t, _) if t == "😉")));
+        assert!(v.iter().any(|i| matches!(i, Inline::Text(t, s) if t == "new" && s.underline)));
+        assert!(v.iter().any(|i| matches!(i, Inline::Text(t, s) if t == "hi" && s.bg.is_some())));
+        assert_eq!(d.blocks.len(), 2, "the abbreviation line is not shown");
+        let Kind::Para(v) = &d.blocks[1].kind else { panic!() };
+        assert!(v.iter().any(|i| matches!(i, Inline::Text(t, s) if t == "HTML" && s.underline)));
+    }
+
+    #[test]
+    fn definition_lists_and_containers() {
+        let d = parse("Term 1\n: Definition 1\n\nTerm 2\n: Definition 2\n\n::: warning\nhere be dragons\n:::\n\nafter");
+        let text = super::super::plain_text(&d.blocks);
+        for want in ["Term 1", "Definition 1", "Term 2", "Definition 2", "WARNING", "here be dragons", "after"] {
+            assert!(text.contains(want), "{want}: {text}");
+        }
+        assert!(!text.contains(": Definition") && !text.contains(":::"), "{text}");
+        let boxed = d.blocks.iter().find(|b| b.bg.is_some() && b.bar).expect("container");
+        assert!(matches!(&boxed.kind, Kind::Group(g) if g.len() == 2));
     }
 
     #[test]

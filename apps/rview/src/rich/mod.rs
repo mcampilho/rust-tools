@@ -3,6 +3,7 @@
 //! positioned drawing items for a given width and zoom.
 
 pub mod css;
+pub mod extras;
 pub mod html;
 pub mod layout;
 pub mod markdown;

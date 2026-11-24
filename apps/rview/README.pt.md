@@ -215,8 +215,13 @@ como texto simples, e a barra de estado indica-o.
   colunas calculadas por amostragem de todo o ficheiro.
 - **Markdown:** CommonMark com tabelas GitHub, listas de tarefas, texto riscado
   e notas de rodapé; os títulos têm âncoras ao estilo do GitHub, por isso as
-  ligações `#` funcionam; o HTML embebido é desenhado pelo motor de HTML. Segue
-  o tema claro/escuro.
+  ligações `#` funcionam; o HTML embebido é desenhado pelo motor de HTML. Também
+  os extras habituais do markdown-it: códigos de emojis (`:wink:`) e emoticons
+  (`:-)`), a cores (Segoe UI Emoji); `^sobrescrito^` e `~subscrito~`;
+  `++inserido++` e `==marcado==`; listas de definições; abreviaturas
+  (`*[HTML]: …`, sublinhadas); e contentores `::: warning` (também `info`, `tip`,
+  `danger`). Ainda não: fórmulas (`$…$`). Segue o tema claro/escuro. As imagens
+  são só as que estão ao lado do ficheiro (nada é descarregado).
 - **HTML:** os documentos são mostrados numa página branca, como num navegador.
   Suportado: títulos, parágrafos, listas (aninhadas, numeradas com `start`),
   tabelas (com `colspan`), `pre`/`code`, citações, ligações e âncoras, imagens

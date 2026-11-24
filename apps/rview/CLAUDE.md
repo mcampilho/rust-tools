@@ -38,6 +38,10 @@ Correm na raiz do repositório. Saída: `target\release\rview.exe`. Rust 1.88+, 
   (`Shell::open_incoming`) abre o primeiro na própria janela só se estiver escondida ou vazia; se já mostra um
   documento, cada ficheiro abre noutra janela (`rview --new-window <ficheiro>`), e antes dá o direito de
   primeiro plano (`allow_any_foreground`). Antes só abria o primeiro e substituía o que estava aberto.
+- `rich/extras.rs` (2026-11-24, pedido do utilizador): o que o pulldown-cmark não tem e o markdown-it tem: emojis
+  (`:wink:`, emoticons; a cores pelo `rt-gfx`, camadas COLR do `seguiemj.ttf`), `^sup^`, `~sub~` (o parser não os lê
+  dentro de palavras), `++ins++`, `==mark==`, abreviaturas (`*[X]: …`, tiradas da fonte antes de ler) e contentores
+  `::: aviso` (a fonte parte-se neles). Fórmulas (`$…$`) por fazer.
 - `linux/` — Clipboard (arboard: texto com HTML, ou imagem), e o resto de `rt-sys`: diálogo Abrir (zenity ou
   kdialog), tema, links, e o modo residente com socket Unix e ícone StatusNotifierItem.
 - `ui/menu.rs` — menus desenhados na janela (`rt-gfx`), só fora do Windows. Em Linux, `cfg(not(windows))`

@@ -156,6 +156,41 @@ const CJK: u8 = 5;
 const ITALIC: u8 = 6;
 const BOLD_ITALIC: u8 = 7;
 const ICONS: u8 = 8;
+const EMOJI: u8 = 9;
+
+const EMOJI_FONTS: &[&str] = &["seguiemj.ttf"];
+
+/// Emoji (the pictographs from U+1F000 up): drawn in colour from the emoji font when there is one.
+fn is_emoji(c: char) -> bool {
+    matches!(c as u32, 0x1F000..=0x1FAFF)
+}
+
+/// The colour layers of a glyph: `(layer glyph, RGBA)` from the bottom up.
+fn color_layers(bytes: &[u8], glyph: u16) -> Vec<(u16, [u8; 4])> {
+    struct Layers(Vec<(u16, [u8; 4])>, u16);
+    impl<'a> ttf_parser::colr::Painter<'a> for Layers {
+        fn outline_glyph(&mut self, glyph_id: ttf_parser::GlyphId) {
+            self.1 = glyph_id.0;
+        }
+        fn paint(&mut self, paint: ttf_parser::colr::Paint<'a>) {
+            if let ttf_parser::colr::Paint::Solid(c) = paint {
+                self.0.push((self.1, [c.red, c.green, c.blue, c.alpha]));
+            }
+        }
+        fn push_clip(&mut self) {}
+        fn push_clip_box(&mut self, _: ttf_parser::colr::ClipBox) {}
+        fn pop_clip(&mut self) {}
+        fn push_layer(&mut self, _: ttf_parser::colr::CompositeMode) {}
+        fn pop_layer(&mut self) {}
+        fn push_transform(&mut self, _: ttf_parser::Transform) {}
+        fn pop_transform(&mut self) {}
+    }
+    let Ok(face) = ttf_parser::Face::parse(bytes, 0) else { return Vec::new() };
+    let mut layers = Layers(Vec::new(), 0);
+    let fg = ttf_parser::RgbaColor::new(0, 0, 0, 255);
+    face.paint_color_glyph(ttf_parser::GlyphId(glyph), 0, fg, &mut layers);
+    layers.0
+}
 
 /// A face loaded on first use (None inside: not installed).
 type Lazy = OnceCell<Option<FontVec>>;
@@ -171,6 +206,8 @@ struct Fonts {
     icons: Lazy,
     /// Fallback for symbols missing from the main font.
     symbol: Lazy,
+    /// The colour emoji font, with its file (for the colour layers).
+    emoji: OnceCell<Option<(FontVec, Vec<u8>)>>,
     /// CJK fallback (Japanese or Chinese glyph style), loaded on demand.
     cjk: Option<(bool, Option<FontVec>)>,
     /// The CJK font changed, so its cached glyphs are stale.
@@ -250,6 +287,7 @@ impl Fonts {
             mono_names: MONO_FONTS,
             icons: Lazy::new(),
             symbol: Lazy::new(),
+            emoji: OnceCell::new(),
             cjk: None,
             cjk_changed: false,
         })
@@ -264,6 +302,7 @@ impl Fonts {
             BOLD_ITALIC => lazy(&self.bold_italic, BOLD_ITALIC_FONTS).or_else(|| lazy(&self.italic, ITALIC_FONTS)),
             ICONS => lazy(&self.icons, ICON_FONTS),
             SYMBOL => self.symbol.get().and_then(Option::as_ref),
+            EMOJI => self.emoji.get().and_then(Option::as_ref).map(|(f, _)| f),
             CJK => self.cjk.as_ref().and_then(|(_, f)| f.as_ref()),
             _ => None,
         };
@@ -280,6 +319,22 @@ impl Fonts {
         let g = self.regular.glyph_id(c);
         if g.0 != 0 {
             return (REGULAR, g);
+        }
+        if is_emoji(c) {
+            let emoji = self.emoji.get_or_init(|| {
+                EMOJI_FONTS.iter().find_map(|n| {
+                    font_dirs().into_iter().find_map(|d| {
+                        let bytes = std::fs::read(d.join(n)).ok()?;
+                        Some((FontVec::try_from_vec_and_index(bytes.clone(), 0).ok()?, bytes))
+                    })
+                })
+            });
+            if let Some((f, _)) = emoji {
+                let g = f.glyph_id(c);
+                if g.0 != 0 {
+                    return (EMOJI, g);
+                }
+            }
         }
         if let Some(s) = lazy(&self.symbol, &["seguisym.ttf", "DejaVuSans.ttf"]) {
             let g = s.glyph_id(c);
@@ -355,13 +410,22 @@ pub struct Gfx {
     pub pix: Pixmap,
     fonts: Fonts,
     cache: HashMap<GlyphKey, GlyphBmp>,
+    /// Colour layers of the emoji glyphs seen so far (empty: drawn like any other glyph).
+    layers: HashMap<u16, Vec<(u16, [u8; 4])>>,
     clip: Option<(Rect, Mask)>,
     lut: [u8; 256],
 }
 
 impl Gfx {
     pub fn new() -> Result<Gfx, String> {
-        Ok(Gfx { pix: Pixmap::new(1, 1).expect("pixmap"), fonts: Fonts::load()?, cache: HashMap::new(), clip: None, lut: contrast_lut() })
+        Ok(Gfx {
+            pix: Pixmap::new(1, 1).expect("pixmap"),
+            fonts: Fonts::load()?,
+            cache: HashMap::new(),
+            layers: HashMap::new(),
+            clip: None,
+            lut: contrast_lut(),
+        })
     }
 
     pub fn resize(&mut self, w: u32, h: u32) {
@@ -622,6 +686,37 @@ impl Gfx {
             }
             let ix = pen.floor();
             let sub = ((pen - ix) * 4.0).floor() as u8 % 4;
+            if fi == EMOJI {
+                let layers = self.layers.entry(g.0).or_insert_with(|| {
+                    self.fonts.emoji.get().and_then(Option::as_ref).map(|(_, bytes)| color_layers(bytes, g.0)).unwrap_or_default()
+                });
+                if !layers.is_empty() {
+                    let layers = layers.clone();
+                    for (lg, [r, gr, b, a]) in layers {
+                        let key = GlyphKey { font: fi, glyph: lg, size_q, sub_x: sub };
+                        if !self.cache.contains_key(&key) {
+                            let bmp = self.raster(fi, GlyphId(lg), px, sub as f32 / 4.0);
+                            self.cache.insert(key, bmp);
+                        }
+                        let bmp = &self.cache[&key];
+                        if bmp.w > 0 {
+                            let c = Color { r, g: gr, b, a };
+                            blit(
+                                &mut self.pix,
+                                bmp,
+                                ix as i32 + bmp.x,
+                                baseline + bmp.y,
+                                c,
+                                self.clip.as_ref().map(|(r, _)| *r),
+                                &self.lut,
+                            );
+                        }
+                    }
+                    pen += self.fonts.get(fi).h_advance_unscaled(g) * k;
+                    prev = Some((fi, g));
+                    continue;
+                }
+            }
             let key = GlyphKey { font: fi, glyph: g.0, size_q, sub_x: sub };
             if !self.cache.contains_key(&key) {
                 let bmp = self.raster(fi, g, px, sub as f32 / 4.0);

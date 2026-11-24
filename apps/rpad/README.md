@@ -243,6 +243,8 @@ was started, not used. A menu too long for the window scrolls, but this was not 
   from the status bar. Unknown files are plain text.
 - Code folding (braces, tags, indentation, Markdown headings) and matching
   bracket highlight.
+- Web and mail links (`http://`, `https://`, `mailto:`, `www.`) are underlined;
+  a double click opens one in the browser (Ctrl+click still adds a cursor).
 
 **Text tools** (Tools menu; selection or the whole document; all undoable)
 - Case: UPPER, lower, Title, Sentence, iNVERT.

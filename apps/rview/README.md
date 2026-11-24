@@ -208,8 +208,13 @@ only, and the status bar says so.
   numbers; numbers right-aligned; column widths sampled across the file.
 - **Markdown:** CommonMark with GitHub tables, task lists, strikethrough
   and footnotes; headings get GitHub-style anchors, so `#links` work;
-  embedded HTML is rendered with the HTML engine. Follows the light/dark
-  theme.
+  embedded HTML is rendered with the HTML engine. Also the usual markdown-it
+  extras: emoji shortcodes (`:wink:`) and emoticons (`:-)`), shown in colour
+  (Segoe UI Emoji); `^sup^` and `~sub~`; `++inserted++` and `==marked==`;
+  definition lists; abbreviations (`*[HTML]: …`, underlined); and `::: warning`
+  containers (also `info`, `tip`, `danger`). Not yet: maths (`$…$`). Follows
+  the light/dark theme. Images are only those next to the file (nothing is
+  downloaded).
 - **HTML:** documents are shown on a white page like a browser. Supported:
   headings, paragraphs, lists (nested, numbered with `start`), tables
   (with `colspan`), `pre`/`code`, quotes, links and anchors, local and

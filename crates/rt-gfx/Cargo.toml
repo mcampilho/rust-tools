@@ -11,3 +11,5 @@ publish = false
 rt-core = { path = "../rt-core" }
 tiny-skia = { version = "0.11", default-features = false, features = ["std", "simd"] }
 ab_glyph = { version = "0.2", default-features = false, features = ["std"] }
+# The colour layers (COLR) of the emoji font; the same version ab_glyph already uses.
+ttf-parser = { version = "0.25", default-features = false, features = ["std"] }

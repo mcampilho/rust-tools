@@ -851,6 +851,8 @@ fn editor(app: &mut App, ui: &mut Ui, r: Rect) -> Option<Rect> {
                 }
             }
         }
+        let link_spans =
+            if text.contains("://") || text.contains("www.") || text.contains("mailto:") { crate::links::find(&chars) } else { Vec::new() };
         let folded = d.folded.contains(&line);
         let fold_start = fold_margin && d.folds.iter().any(|f| f.0 == line);
         let line_end_pos = ls + n;
@@ -996,6 +998,14 @@ fn editor(app: &mut App, ui: &mut Ui, r: Rect) -> Option<Rect> {
                 run.push(ch);
             }
             flush(ui, &mut run, run_x, run_color);
+            // Links: underlined (a double click opens them).
+            for &(la, lb) in &link_spans {
+                let (a, b) = (la.max(rs), lb.min(re));
+                if a < b {
+                    let (xa, xb) = (x_of(col_at(a)), x_of(col_at(b)));
+                    ui.g.fill_rect(Rect::new(xa, base + 2.0, (xb - xa).max(1.0), 1.0), t.tok(Tok::Text));
+                }
+            }
             if last_row {
                 let end_x = x_of(col_at(n));
                 if folded {

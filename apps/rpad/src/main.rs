@@ -13,6 +13,7 @@ mod doc;
 mod i18n;
 mod input;
 mod io;
+mod links;
 #[cfg(not(windows))]
 mod linux;
 mod menus;
