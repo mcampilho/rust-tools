@@ -7,6 +7,9 @@ pub enum Command {
     Open,
     Reload,
     OpenFolder,
+    /// Prints the document (Windows).
+    #[cfg(windows)]
+    Print,
     /// Closes the window (hides it in resident mode).
     Close,
     /// Starts rview resident with the session (`--tray`).
@@ -61,6 +64,8 @@ impl Command {
                     "Show in File &Manager"
                 }
             }
+            #[cfg(windows)]
+            Print => "&Print...",
             Close => "&Close",
             Autostart => {
                 if cfg!(windows) {
@@ -109,6 +114,8 @@ impl Command {
 pub const BINDINGS: &[(&str, Command)] = &[
     ("Ctrl+O", Open),
     ("F5", Reload),
+    #[cfg(windows)]
+    ("Ctrl+P", Print),
     ("Ctrl+W", Close),
     ("Ctrl+C", Copy),
     ("Ctrl+Shift+C", CopyPlain),
@@ -161,6 +168,8 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
     let mut langs = vec![Item(UiLanguage(0)), Sep];
     langs.extend((1..=Lang::ALL.len()).map(|i| Item(UiLanguage(i as u8))));
     let mut file = vec![Item(Open), Item(Reload), Item(OpenFolder), Sep];
+    #[cfg(windows)]
+    file.extend([Item(Print), Sep]);
     #[cfg(windows)]
     file.extend([Sub("Windows &Integration", vec![Item(ExplorerMenu), Item(DefaultViewer), Sep, Item(Autostart)]), Sep]);
     #[cfg(not(windows))]

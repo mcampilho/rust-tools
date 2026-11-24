@@ -50,6 +50,11 @@ Correm na raiz do repositório. Saída: `target\release-small\rpad.exe`. Rust 1.
   1 s que a janela fique visível e é o processo acabado de arrancar pelo clique do utilizador que a traz para a frente
   (restaura e `SetForegroundWindow`); `Shell::open_files` também restaura a janela minimizada. **Não verificado a sério**
   (o utilizador tem o rpad aberto e as instâncias reconhecem-se todas pela mesma janela): o `trace.rs` fica até ele confirmar.
+- Imprimir (2026-11-24, pedido do utilizador, só Windows): `Command::Print` (Ficheiro › Imprimir, Ctrl+P) é tratado
+  no `main.rs` (`Shell::print_active`): monta um `rt_ui::print::TextJob` (linhas coloridas por `highlighted_lines` com as
+  cores do tema claro, números de linha e largura de tabulação das definições, quebra de linhas, 10 pt) e chama
+  `rt_ui::print::start_text`, que mostra o diálogo do Windows e imprime numa thread; o fim volta por
+  `UserEvent::Printed`. O papel é sempre branco e as cores as do tema claro, qualquer que seja o tema da janela.
 - `links.rs` (2026-11-24, pedido do utilizador): ligações `http(s)://`, `mailto:` e `www.` por linha; o `ui/view.rs`
   sublinha-as e o duplo clique (`App::mouse_down`) abre-as com `rt_sys::open_url` (o Ctrl+clique é multi-cursor).
 - `Host::info` não abre caixa do sistema: a mensagem (About, `--help` sem consola...) é desenhada na janela,

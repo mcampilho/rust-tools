@@ -149,6 +149,7 @@ consola; sem ela, o rview abre e mostra-o na sua janela, com o seu tema.
 | --- | --- |
 | Abrir | Ctrl+O |
 | Recarregar | F5 |
+| Imprimir (Windows) | Ctrl+P |
 | Fechar (esconder em modo residente) | Ctrl+W |
 | Selecionar | Arrastar com o rato (ver abaixo) |
 | Selecionar tudo | Ctrl+A |
@@ -164,6 +165,20 @@ consola; sem ela, o rview abre e mostra-o na sua janela, com o seu tema.
 | Página anterior / seguinte do PDF | Ctrl+Page Up / Ctrl+Page Down |
 | Mover o documento | Arrastar com o botão do meio, ou Ctrl+arrastar |
 | Atalhos de teclado | F1 |
+
+## Imprimir
+
+**Ficheiro › Imprimir** (Ctrl+P, Windows) abre o diálogo de impressão do Windows
+(qualquer impressora, também Microsoft Print to PDF; intervalo de páginas e
+cópias como de costume) e imprime o que está à vista, desenhado de novo para o
+papel numa thread própria, por isso a janela continua utilizável. O Markdown e
+o HTML são dispostos para a página (a coluna tão larga quanto as margens
+deixam, `<details>` abertos, imagens e fórmulas como no ecrã) e cortados entre
+linhas; o CSV imprime-se como tabela; o texto como linhas realçadas num tipo de
+letra de largura fixa; um PDF página a página, o maior que o papel deixar. Cada
+página leva em cima o nome do ficheiro e a data e em baixo «Página n de N». As
+páginas são desenhadas à resolução da impressora até 300 ppp. Ainda não em
+Linux.
 
 ## Selecionar e copiar
 

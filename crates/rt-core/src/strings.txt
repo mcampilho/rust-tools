@@ -47,3 +47,8 @@ less than a minute ago		vor weniger als einer Minute	hace menos de un minuto	il 
 {} min ago		vor {} Min.	hace {} min	il y a {} min	{} min fa	{} 分前	há {} min	há {} min	{} 分钟前
 {} h ago		vor {} Std.	hace {} h	il y a {} h	{} h fa	{} 時間前	há {} h	há {} h	{} 小时前
 {} (it runs when opened)		{} (wird beim Öffnen ausgeführt)	{} (se ejecuta al abrirlo)	{} (il s'exécute à l'ouverture)	{} (viene eseguito all'apertura)	{} (開くと実行されます)	{} (é executado ao abrir)	{} (é executado ao abrir)	{}（打开时会运行）
+Page {} of {}		Seite {} von {}	Página {} de {}	Page {} sur {}	Pagina {} di {}	{} / {} ページ	Página {} de {}		第 {} 页，共 {} 页
+Printing…		Wird gedruckt…	Imprimiendo…	Impression…	Stampa in corso…	印刷しています…	Imprimindo…	A imprimir…	正在打印…
+Sent to the printer: {}		An den Drucker gesendet: {}	Enviado a la impresora: {}	Envoyé à l’imprimante : {}	Inviato alla stampante: {}	プリンターに送信しました: {}	Enviado para a impressora: {}		已发送到打印机：{}
+Could not print: {}		Drucken nicht möglich: {}	No se pudo imprimir: {}	Impossible d’imprimer : {}	Impossibile stampare: {}	印刷できませんでした: {}	Não foi possível imprimir: {}		无法打印：{}
+Nothing to print.		Es gibt nichts zu drucken.	No hay nada que imprimir.	Il n’y a rien à imprimer.	Non c’è nulla da stampare.	印刷するものがありません。	Não há nada para imprimir.		没有可打印的内容。

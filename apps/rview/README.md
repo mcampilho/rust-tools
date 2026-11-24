@@ -146,6 +146,7 @@ rview opens and shows it in its window, in its theme.
 | --- | --- |
 | Open | Ctrl+O |
 | Reload | F5 |
+| Print (Windows) | Ctrl+P |
 | Close (hide in resident mode) | Ctrl+W |
 | Select | Drag with the mouse (see below) |
 | Select all | Ctrl+A |
@@ -161,6 +162,18 @@ rview opens and shows it in its window, in its theme.
 | Previous / next PDF page | Ctrl+Page Up / Ctrl+Page Down |
 | Pan | Drag with the middle mouse button, or Ctrl+drag |
 | Keyboard shortcuts | F1 |
+
+## Printing
+
+**File › Print** (Ctrl+P, Windows) opens Windows' Print dialog (any printer,
+also Microsoft Print to PDF; page range and copies as usual) and prints what is
+shown, drawn again for paper on a thread of its own, so the window stays
+usable. Markdown and HTML are laid out for the page (the column as wide as the
+margins allow, `<details>` opened, images and formulas as on screen) and cut
+between lines; CSV prints as a table; text as highlighted lines of a
+fixed-width font; a PDF page by page, as large as the paper allows. Every page
+has the file name and the date on top and "Page n of N" below. Pages are drawn
+at the printer's resolution up to 300 dpi. Not on Linux yet.
 
 ## Selecting and copying
 

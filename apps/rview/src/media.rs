@@ -149,6 +149,27 @@ impl Media {
     }
 }
 
+/// A PDF opened for printing on the thread that prints (File › Print), not through the media worker.
+#[cfg(windows)]
+pub struct PdfSource {
+    doc: windows::Data::Pdf::PdfDocument,
+    /// Size of each page in device-independent pixels (96 per inch).
+    pub sizes: Vec<(f32, f32)>,
+}
+
+#[cfg(windows)]
+impl PdfSource {
+    pub fn open(path: &std::path::Path) -> Result<PdfSource, String> {
+        winrt::init();
+        winrt::open_pdf(path).map(|(doc, sizes)| PdfSource { doc, sizes }).map_err(|e| e.to_string())
+    }
+
+    /// Page `page` (0-based) drawn `width` pixels wide.
+    pub fn render(&self, page: u32, width: u32) -> Option<Bitmap> {
+        winrt::render_page(&self.doc, page, width.clamp(16, MAX_EDGE)).ok()
+    }
+}
+
 #[cfg(windows)]
 mod winrt {
     use super::Bitmap;

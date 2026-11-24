@@ -176,6 +176,13 @@ mas isso não foi experimentado.
 - Novo, Abrir (seleção múltipla), Guardar, Guardar como, Guardar tudo, Fechar,
   Fechar os outros, Fechar tudo, Reabrir separador fechado (Ctrl+Shift+T),
   Recarregar, Abrir recente (com Limpar), Copiar caminho, Mostrar no Explorador.
+- **Imprimir** (Ficheiro › Imprimir, Ctrl+P, Windows): o diálogo de impressão do
+  Windows (qualquer impressora, também Microsoft Print to PDF; intervalo de
+  páginas e cópias como de costume), e depois o documento é desenhado para o
+  papel numa thread própria: cores da sintaxe, números de linha se estiverem
+  ligados, linhas compridas quebradas, texto de largura fixa a 10 pt em papel
+  branco, o nome do ficheiro e a data em cima e «Página n de N» em baixo. Ainda
+  não em Linux.
 - Fechar o último separador pode manter um documento vazio ou fechar a janela
   (Ferramentas › Preferências).
 - Pergunta sobre alterações não guardadas (Guardar / Não guardar / Cancelar) ao
@@ -295,6 +302,7 @@ mas isso não foi experimentado.
 | --- | --- |
 | Novo / Abrir / Guardar / Guardar como | Ctrl+N / Ctrl+O / Ctrl+S / Ctrl+Shift+S |
 | Guardar tudo | Ctrl+Alt+S |
+| Imprimir (Windows) | Ctrl+P |
 | Fechar separador | Ctrl+W, Ctrl+F4 |
 | Reabrir separador fechado | Ctrl+Shift+T |
 | Separador seguinte / anterior | Ctrl+Tab / Ctrl+Shift+Tab, Ctrl+PgDn / Ctrl+PgUp |

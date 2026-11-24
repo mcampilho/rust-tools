@@ -17,6 +17,8 @@ pub enum Command {
     Save,
     SaveAs,
     SaveAll,
+    /// Prints the active document (done by the window, Windows only).
+    Print,
     Reload,
     ReopenWithEncoding(u8),
     LocalHistory,
@@ -179,7 +181,8 @@ impl Command {
             CloseTab => "&Close",
             CloseOthers => "Close Ot&hers",
             CloseAll => "Close A&ll",
-            CopyPath => "Copy Full &Path",
+            CopyPath => "Cop&y Full Path",
+            Print => "&Print...",
             RevealInExplorer => {
                 if cfg!(windows) {
                     "Show in &Explorer"
@@ -336,6 +339,8 @@ impl Command {
                     Save,
                     SaveAs,
                     SaveAll,
+                    #[cfg(windows)]
+                    Print,
                     Reload,
                     LocalHistory,
                     CloseTab,
@@ -492,6 +497,8 @@ pub const BINDINGS: &[(&str, Command)] = &[
     ("Ctrl+Shift+T", ReopenClosed),
     ("Ctrl+S", Save),
     ("Ctrl+Shift+S", SaveAs),
+    #[cfg(windows)]
+    ("Ctrl+P", Print),
     ("Ctrl+Alt+S", SaveAll),
     ("Ctrl+W", CloseTab),
     ("Ctrl+F4", CloseTab),
@@ -610,6 +617,10 @@ pub fn menu_tree(recent: &[std::path::PathBuf]) -> Vec<(&'static str, Vec<M>)> {
                 Item(Reload),
                 Sub("Reopen &with Encoding", encodings(ReopenWithEncoding)),
                 Item(LocalHistory),
+                Sep,
+                #[cfg(windows)]
+                Item(Print),
+                #[cfg(windows)]
                 Sep,
                 Item(CopyPath),
                 Item(RevealInExplorer),

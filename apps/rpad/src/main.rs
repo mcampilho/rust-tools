@@ -54,6 +54,9 @@ enum UserEvent {
     Wake,
     /// A step of Check for Updates.
     Update(rt_ui::update::Step),
+    /// A print job ended: the document's name, and the pages printed or why not.
+    #[cfg(windows)]
+    Printed(String, Result<u32, String>),
     #[cfg(windows)]
     Win(win::WinMsg),
     #[cfg(not(windows))]
@@ -296,6 +299,10 @@ impl Shell {
         }
         #[cfg(windows)]
         {
+            if cmd == Command::Print {
+                self.print_active();
+                return self.after_action(el);
+            }
             if cmd == Command::DefaultEditor {
                 self.assoc = Some(rt_ui::assoc::AssocPanel::new(win::assoc::spec(), &i18n::tr("Edit with rpad")));
                 self.editor_drag = false;
@@ -318,6 +325,30 @@ impl Shell {
         }
         self.app.dispatch(cmd, &self.host);
         self.after_action(el);
+    }
+
+    /// File › Print: the active document with its highlighting and line numbers, on white paper.
+    #[cfg(windows)]
+    fn print_active(&mut self) {
+        let doc = self.app.doc();
+        let text = doc.buf.text.to_string();
+        let job = rt_ui::print::TextJob {
+            title: doc.display_name(),
+            lines: rt_ui::print::highlighted_lines(doc.lang, &text),
+            line_numbers: self.app.settings.line_numbers,
+            tab: self.app.settings.tab_width,
+            wrap: true,
+            pt: 10.0,
+        };
+        let (title, proxy) = (job.title.clone(), std::sync::Mutex::new(self.proxy.clone()));
+        let started = rt_ui::print::start_text(self.host.hwnd, &[], job, move |r| {
+            if let Ok(p) = proxy.lock() {
+                let _ = p.send_event(UserEvent::Printed(title, r));
+            }
+        });
+        if started {
+            self.app.notify(i18n::tr("Printing…"));
+        }
     }
 
     /// The Default app panel is over the window (Windows).
@@ -846,6 +877,14 @@ impl ApplicationHandler<UserEvent> for Shell {
                 if rt_ui::update::step(&who, s, self.update_sender()) == rt_ui::update::Next::Quit {
                     self.quit(el);
                 }
+            }
+            #[cfg(windows)]
+            UserEvent::Printed(title, result) => {
+                match result {
+                    Ok(_) => self.app.notify(i18n::tf("Sent to the printer: {}", &[&title])),
+                    Err(e) => self.host.info("rpad", &i18n::tf("Could not print: {}", &[&e])),
+                }
+                self.redraw();
             }
             #[cfg(not(windows))]
             UserEvent::Shell(linux::shell::Msg::Open(paths)) => self.open_files(el, &paths),

@@ -19,6 +19,8 @@ mod io;
 mod linux;
 mod media;
 mod menus;
+#[cfg(windows)]
+mod print;
 mod render;
 mod rich;
 mod settings;
@@ -54,6 +56,9 @@ enum UserEvent {
     /// The media worker has results.
     Wake,
     Loaded(u64, Box<Result<doc::Content, String>>),
+    /// A print job ended: the document's name, and the pages printed or why not.
+    #[cfg(windows)]
+    Printed(String, Result<u32, String>),
     #[cfg(windows)]
     Win(win::WinMsg),
     #[cfg(not(windows))]
@@ -186,6 +191,27 @@ impl Shell {
         self.redraw();
     }
 
+    /// File › Print: the Print dialog, then the pages are drawn and sent on a thread of their own.
+    #[cfg(windows)]
+    fn print(&mut self) {
+        let Some(job) = self.viewer.print_job() else {
+            self.status_note = Some(tr("Nothing to print."));
+            return;
+        };
+        let Some(hwnd) = self.win.as_ref().map(|w| w.hwnd) else { return };
+        let (title, proxy) = (job.title().to_string(), self.proxy.clone());
+        let started = rt_ui::print::start(
+            hwnd,
+            move |printer| print::run(job, printer),
+            move |r| {
+                let _ = proxy.send_event(UserEvent::Printed(title, r));
+            },
+        );
+        if started {
+            self.status_note = Some(tr("Printing…"));
+        }
+    }
+
     /// Files sent by another launch to this (resident) instance. One window shows one document: if this
     /// one is on screen with a document, each file opens in a window of its own (as `--new-window`),
     /// otherwise the first fills this window and the rest get their own.
@@ -258,6 +284,8 @@ impl Shell {
                     self.open(&p, true, None);
                 }
             }
+            #[cfg(windows)]
+            Command::Print => self.print(),
             Command::OpenFolder => {
                 if let Some(p) = &self.viewer.path {
                     #[cfg(windows)]
@@ -660,6 +688,14 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.viewer.finish(gen, *result);
                 self.menu_dirty = true;
                 self.update_title();
+                self.redraw();
+            }
+            #[cfg(windows)]
+            UserEvent::Printed(title, result) => {
+                self.status_note = Some(match result {
+                    Ok(_) => tf("Sent to the printer: {}", &[&title]),
+                    Err(e) => tf("Could not print: {}", &[&e]),
+                });
                 self.redraw();
             }
             #[cfg(not(windows))]

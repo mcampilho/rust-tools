@@ -42,6 +42,7 @@ Shell script		Shell-Skript	Script de shell	Script shell	Script della shell	シ�
 Properties		Properties	Properties	Properties	Properties	Properties	Properties		Properties
 Batch		Batch	Batch	Batch	Batch	バッチ	Batch		批处理
 &Reload		&Neu laden	&Recargar	&Recharger	&Ricarica	再読み込み(&R)	&Recarregar		重新加载(&R)
+&Print...		&Drucken...	I&mprimir...	Im&primer...	&Stampa...	印刷(&P)...	Im&primir...		打印(&P)...
 Show in &Folder		Im &Ordner anzeigen	Mostrar en la car&peta	Afficher dans le &dossier	Mostra nella car&tella	フォルダーに表示(&F)	Mostrar na &pasta		在文件夹中显示(&F)
 &Actual Size		&Originalgröße	Tamaño &real	Taille ré&elle	&Dimensioni effettive	実際のサイズ(&A)	Tamanho r&eal	Ta&manho real	实际大小(&A)
 Fit &Width		An &Breite anpassen	Ajustar al a&ncho	Ajuster à la lar&geur	Adatta alla lar&ghezza	幅に合わせる(&W)	Ajustar à &largura		适应宽度(&W)

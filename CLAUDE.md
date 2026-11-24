@@ -127,6 +127,11 @@ pelo rdup; o rinst usa a pesquisa livre `everything::search` para os restos), `r
 (`ui/gfx.rs`, `storage.rs`, `win/mod.rs`, `linux/mod.rs`...) que reexportam dos crates e lhes dão a
 identidade da aplicação. Uma correção num destes assuntos faz-se no crate, uma vez.
 
+- Impressão (2026-11-24, só Windows; rview e rpad): `rt_sys::win::print` (o diálogo `PrintDlgW`, `Printer` com
+  `page_size`/`render_dpi` até 300 ppp e `print` que manda páginas em bitmap por `StretchDIBits`; `named` abre uma
+  impressora sem diálogo, para testes) e `rt_ui::print` (`TextJob`, `plan`/`geometry`/`draw_page` para texto
+  colorido, `frame`/`draw_frame` para o cabeçalho e o rodapé, `start`/`start_text` que mostram o diálogo e imprimem
+  numa thread, `highlighted_lines` pelo `rt-syntax`). As outras aplicações não imprimem. Em Linux ainda não há.
 - Os crates não dependem das aplicações. Textos visíveis dos crates vão para `crates/rt-core/src/strings.txt`
   (procurado depois da tabela da aplicação).
 - Linux inclui sempre X11 e Wayland.

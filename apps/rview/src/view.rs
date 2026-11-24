@@ -1002,6 +1002,35 @@ impl Viewer {
         }
     }
 
+    /// What File › Print would print: the document as it is now (images as loaded, `<details>` opened by the
+    /// printing). `None` when no document is shown.
+    #[cfg(windows)]
+    pub fn print_job(&self) -> Option<crate::print::Job> {
+        use crate::print::Job;
+        let title =
+            self.path.as_ref().and_then(|p| p.file_name()).map_or_else(|| "rview".to_string(), |n| n.to_string_lossy().into_owned());
+        match &self.state {
+            State::Ready(Content::Text(d)) => {
+                let lang = self.language().unwrap_or(crate::syntax::Lang::Plain);
+                Some(Job::Text(rt_ui::print::TextJob {
+                    title,
+                    lines: rt_ui::print::highlighted_lines(lang, &d.text),
+                    line_numbers: false,
+                    tab: 4,
+                    wrap: true,
+                    pt: 10.0,
+                }))
+            }
+            State::Ready(Content::Csv(d)) => Some(Job::Rich { title, doc: Box::new(crate::print::csv_doc(d)), images: HashMap::new() }),
+            State::Ready(Content::Rich(d)) => {
+                let images = self.images.iter().map(|(k, i)| (k.clone(), (i.state, i.pix.clone()))).collect();
+                Some(Job::Rich { title, doc: Box::new(d.clone()), images })
+            }
+            State::Ready(Content::Pdf) => self.path.clone().map(|path| Job::Pdf { title, path }),
+            _ => None,
+        }
+    }
+
     /// The option to show online images was switched: forget the images that are on the Internet (the
     /// ones that failed or were never fetched, or all of them when it went off) and lay out again.
     pub fn remote_images_changed(&mut self) {

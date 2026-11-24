@@ -80,6 +80,16 @@ Correm na raiz do repositório. Saída: `target\release\rview.exe`. Rust 1.88+, 
   posto pelo menu e no arranque); só `date`, `+FORMATO` (`%Y %y %m %d %e %H %I %M %S %p %j %A %a %B %b %F %T %R %D`,
   nomes em en/pt/es pela língua da interface) e `-I`; sem argumentos entendidos o texto fica como está; nada é
   executado. Mudar a opção volta a ler o documento Markdown aberto.
+- Imprimir (2026-11-24, pedido do utilizador, só Windows): Ficheiro › Imprimir (Ctrl+P). `Viewer::print_job` junta o
+  que está à vista num `print::Job` (texto, tabela de CSV, documento rico com as imagens carregadas, ou o caminho do
+  PDF) e `Shell::print` chama `rt_ui::print::start`: o diálogo do Windows na janela, o resto numa thread própria (o fim
+  volta por `UserEvent::Printed`). `print.rs`: o Markdown/HTML é disposto para a largura da página (`max_width` tirado,
+  `<details>` abertos, 10,5 pt) e cortado por `page_ranges` entre linhas (texto, imagens e formas não se cortam; o que
+  é mais alto que a página corta-se no fim dela); cada página usa `Item` como o ecrã, num clip do corpo, com o
+  cabeçalho e o rodapé de `rt_ui::print::draw_frame`; PDF pelo `media::PdfSource` (a página mais larga que o papel
+  deixa, sobre branco). Ver o `rt-ui` e o `rt-sys::win::print` abaixo. Teste manual sem diálogo:
+  `RVIEW_PRINT_IN=doc.md RVIEW_PRINT_OUT=out.pdf ./dev.ps1 test -p rview '--' --ignored prints_a_file` (usa a
+  "Microsoft Print to PDF").
 - O `rt-gfx` não desenha nem mede selectores de variação e juntadores (`U+FE0F`, `U+200D`…): `⚠️` já não leva um
   quadrado.
 - `linux/` — Clipboard (arboard: texto com HTML, ou imagem), e o resto de `rt-sys`: diálogo Abrir (zenity ou

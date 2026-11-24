@@ -11,6 +11,7 @@ publish = false
 rt-core = { path = "../rt-core" }
 rt-gfx = { path = "../rt-gfx" }
 rt-sys = { path = "../rt-sys" }
+rt-syntax = { path = "../rt-syntax" }
 winit = { version = "0.30", default-features = false, features = ["rwh_06"] }
 softbuffer = { version = "0.4", default-features = false }
 

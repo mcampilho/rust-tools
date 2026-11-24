@@ -12,6 +12,7 @@ pub mod darkmode;
 pub mod dialogs;
 pub mod icon;
 pub mod menu;
+pub mod print;
 pub mod reg;
 pub mod tray;
 pub mod window;

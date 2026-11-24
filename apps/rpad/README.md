@@ -171,6 +171,12 @@ was started, not used. A menu too long for the window scrolls, but this was not 
 - New, Open (multi-select), Save, Save As, Save All, Close, Close Others,
   Close All, Reopen Closed Tab (Ctrl+Shift+T), Reload, Open Recent (with
   Clear), Copy Path, Reveal in Explorer.
+- **Print** (File › Print, Ctrl+P, Windows): Windows' Print dialog (any
+  printer, also Microsoft Print to PDF; page range and copies as usual), then
+  the document is drawn for paper on a thread of its own: syntax colours,
+  line numbers if they are on, long lines wrapped, 10 pt fixed-width text on
+  white paper, the file name and date on top and "Page n of N" below. Not on
+  Linux yet.
 - Closing the last tab either keeps an empty document or closes the window
   (Tools › Preferences).
 - Unsaved-changes prompt (Save / Don't Save / Cancel) when closing a tab,
@@ -285,6 +291,7 @@ was started, not used. A menu too long for the window scrolls, but this was not 
 | --- | --- |
 | New / Open / Save / Save As | Ctrl+N / Ctrl+O / Ctrl+S / Ctrl+Shift+S |
 | Save All | Ctrl+Alt+S |
+| Print (Windows) | Ctrl+P |
 | Close tab | Ctrl+W, Ctrl+F4 |
 | Reopen closed tab | Ctrl+Shift+T |
 | Next / previous tab | Ctrl+Tab / Ctrl+Shift+Tab, Ctrl+PgDn / Ctrl+PgUp |
