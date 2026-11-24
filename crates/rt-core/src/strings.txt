@@ -46,3 +46,4 @@ from the NTFS table, through the service		über den Dienst aus der NTFS-Tabelle	
 less than a minute ago		vor weniger als einer Minute	hace menos de un minuto	il y a moins de 1 min	meno di un minuto fa	1 分以内	há menos de um minuto	há menos de um minuto	不到一分钟前
 {} min ago		vor {} Min.	hace {} min	il y a {} min	{} min fa	{} 分前	há {} min	há {} min	{} 分钟前
 {} h ago		vor {} Std.	hace {} h	il y a {} h	{} h fa	{} 時間前	há {} h	há {} h	{} 小时前
+{} (it runs when opened)		{} (wird beim Öffnen ausgeführt)	{} (se ejecuta al abrirlo)	{} (il s'exécute à l'ouverture)	{} (viene eseguito all'apertura)	{} (開くと実行されます)	{} (é executado ao abrir)	{} (é executado ao abrir)	{}（打开时会运行）

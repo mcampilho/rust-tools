@@ -462,6 +462,13 @@ impl Shell {
         }
         if self.hidden {
             self.show(el);
+        } else if !paths.is_empty() {
+            // A window minimized to the taskbar must come back, or the file opens where nobody sees it.
+            if let Some(w) = &self.win {
+                if w.window.is_minimized().unwrap_or(false) {
+                    w.window.set_minimized(false);
+                }
+            }
         }
         for p in paths {
             let ok = self.app.open_arg(p, &self.host);

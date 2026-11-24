@@ -130,21 +130,22 @@ impl AssocPanel {
         self.note = None;
     }
 
+    /// Every type that can be ticked is (the runnable ones, `.bat`…, never are: see `assoc::RUNNABLE`).
     fn all_ticked(&self) -> bool {
-        self.rows.iter().all(|r| r.ticked)
+        self.rows.iter().filter(|r| !assoc::is_runnable(r.ext)).all(|r| r.ticked)
     }
 
     /// A click at (x, y).
     pub fn click(&mut self, hwnd: rt_sys::win::HWND, x: f32, y: f32) -> Outcome {
         match Painter::hit_at(&self.hits, x, y) {
             Some(Hit::Tick(i)) => {
-                if let Some(r) = self.rows.get_mut(i) {
+                if let Some(r) = self.rows.get_mut(i).filter(|r| !assoc::is_runnable(r.ext)) {
                     r.ticked = !r.ticked;
                 }
             }
             Some(Hit::All) => {
                 let on = !self.all_ticked();
-                self.rows.iter_mut().for_each(|r| r.ticked = on);
+                self.rows.iter_mut().filter(|r| !assoc::is_runnable(r.ext)).for_each(|r| r.ticked = on);
             }
             Some(Hit::OpenWith(i)) => self.open_with(hwnd, i),
             Some(Hit::Apply) => self.apply(),
@@ -281,7 +282,11 @@ impl AssocPanel {
                 Current::Ours { .. } => pal.accent,
                 _ => pal.text,
             };
-            let text = self.now_text(&row.now);
+            let mut text = self.now_text(&row.now);
+            if assoc::is_runnable(row.ext) {
+                // Run when opened: never made the app's default (see `assoc::RUNNABLE`).
+                text = tf("{} (it runs when opened)", &[&text]);
+            }
             p.label(&text, Rect::new(x + ext_w, ry + px(2.0), inner_w - ext_w - open_w - px(8.0), px(26.0)), 12.5, FontId::Regular, c);
             // "Open with…" is the way past a protected choice: it stands out
             // where the app is wanted and Windows keeps another one.

@@ -237,6 +237,18 @@ pub fn hand_off(ident: &Ident, paths: &[PathBuf], any: bool, activate: bool) -> 
         AllowSetForegroundWindow(pid);
         let ok = SendMessageW(target, WM_COPYDATA, 0, &cds as *const COPYDATASTRUCT as LPARAM) != 0;
         if ok && activate {
+            // The running instance shows and fills its window in its own time (the files reach
+            // it as an event), and a hidden window (in the tray) cannot be brought forward: wait
+            // until it is visible, up to a second. Then bring it forward from here: this process
+            // was started by the user's click (Explorer's menu, a double click) and may do it,
+            // while the instance already running may not, and its window would stay behind
+            // the others, as if nothing had opened.
+            for _ in 0..100 {
+                if IsWindowVisible(target) != 0 {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
             if IsIconic(target) != 0 {
                 ShowWindow(target, SW_RESTORE);
             }

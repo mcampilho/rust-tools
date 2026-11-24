@@ -93,7 +93,10 @@ the current user only (no administrator rights) and points to the
   them: the **Open with…** button of a type opens Windows' own window, where
   you pick rpad and "Always". **Default apps…** opens Windows Settings.
   `--associate` does the same for every type but `.url` (a double click on
-  an Internet shortcut should open the browser).
+  an Internet shortcut should open the browser). `.bat` and `.cmd` are run when
+  opened, so rpad never becomes their default (they keep only the right-click
+  entry); an earlier version did, and Apply (or `--associate`) now gives them back
+  to Windows.
 
 If you move `rpad.exe`, the menu item shows unchecked; check it again to
 point the entries at the new location.

@@ -7,6 +7,8 @@ use rt_sys::win::assoc::{Keys, Spec};
 
 /// Types rpad edits but should not open by default unless the user ticks
 /// them: a double click on an Internet shortcut must open the browser.
+/// (`.bat` and `.cmd` are run when opened, so `rt_sys::win::assoc` never makes
+/// an editor their default either: they only get the "Edit with rpad" entry.)
 const NOT_BY_DEFAULT: &[&str] = &[".url"];
 
 static SPEC: Spec = Spec {

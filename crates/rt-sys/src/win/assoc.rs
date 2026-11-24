@@ -255,6 +255,17 @@ pub fn associate(spec: &Spec, keys: &Keys, exe: &str, verb: &str) -> Result<Defa
     set_defaults(spec, keys, exe, verb, &all)
 }
 
+/// Types Windows runs when they are opened (scripts, programs, installers, shortcuts): an editor or
+/// a viewer is never made their default, whatever was asked, or a double click would open the app
+/// instead of running the file (rpad did that to `.bat` and `.cmd`, 2026-11-24). The context menu
+/// entry ("Edit with …") and the "Open with" list are fine: they are the user's to choose from.
+pub const RUNNABLE: &[&str] = &[".bat", ".cmd", ".com", ".exe", ".msi", ".scr", ".lnk", ".pif"];
+
+/// Whether `ext` is one of [`RUNNABLE`] (any case).
+pub fn is_runnable(ext: &str) -> bool {
+    RUNNABLE.iter().any(|r| r.eq_ignore_ascii_case(ext))
+}
+
 /// Whether a ProgID names the app for `ext` (its own, or its Applications entry).
 fn is_ours(spec: &Spec, ext: &str, progid: &str) -> bool {
     let own = spec.exts.iter().find(|(e, _)| e.eq_ignore_ascii_case(ext)).map_or("", |(_, p)| *p);
@@ -264,7 +275,9 @@ fn is_ours(spec: &Spec, ext: &str, progid: &str) -> bool {
 /// Like [`associate`], for the extensions in `want` only: the app becomes
 /// their default where Windows allows it, and stops being the default of
 /// the others (their previous default comes back). The user's own choices
-/// are never touched.
+/// are never touched. The [`RUNNABLE`] types are never wanted, even when
+/// asked for: where the app had been made their default, the previous one
+/// (Windows' own) comes back.
 pub fn set_defaults(spec: &Spec, keys: &Keys, exe: &str, verb: &str, want: &[&str]) -> Result<Defaults, Error> {
     register(spec, keys, exe, verb)?;
     let cap = format!("{}\\Capabilities", keys.app);
@@ -278,7 +291,7 @@ pub fn set_defaults(spec: &Spec, keys: &Keys, exe: &str, verb: &str, want: &[&st
     let backup = format!("{}\\Backup", keys.app);
     let mut d = Defaults::default();
     for (ext, progid) in spec.exts {
-        let wanted = want.iter().any(|w| w.eq_ignore_ascii_case(ext));
+        let wanted = want.iter().any(|w| w.eq_ignore_ascii_case(ext)) && !is_runnable(ext);
         let ours = |s: &str| is_ours(spec, ext, s);
         let key = format!("{}\\{ext}", keys.classes);
         match get_str(&format!("{}\\{ext}\\UserChoice", keys.file_exts), Some("ProgId")) {
@@ -545,6 +558,41 @@ mod tests {
         assert_eq!(get_str(&format!("{}\\rview.pdf", keys.classes), None), None);
         assert_eq!(get_str(&keys.registered, Some("rview")), None);
         assert_eq!(get_str(&format!("{}\\Capabilities", keys.app), Some("ApplicationName")), None);
+        delete_tree(&root).unwrap();
+    }
+
+    /// A type that is run (`.bat`) is never made the app's default, and where it had been
+    /// (an earlier rpad did it), Windows' own default comes back; the context menu entry stays.
+    #[test]
+    fn runnable_types_are_never_made_the_default() {
+        const EDITOR: Spec = Spec {
+            name: "rpad",
+            description: "An editor.",
+            exts: &[(".txt", "rpad.txt"), (".bat", "rpad.code"), (".cmd", "rpad.code")],
+            progids: &[("rpad.txt", "Text Document"), ("rpad.code", "Source Code")],
+        };
+        assert!(is_runnable(".bat") && is_runnable(".CMD") && is_runnable(".exe") && !is_runnable(".txt") && !is_runnable(".ps1"));
+        let (root, keys) = scratch("runnable");
+        let exe = "C:\\Tools\\rpad.exe";
+        let _ = delete_tree(&root);
+        // The damage of the earlier version: .bat made rpad's; .cmd the same, with a default of the user's HKCU before.
+        set_str(&format!("{}\\.bat", keys.classes), None, "rpad.code").unwrap();
+        set_str(&format!("{}\\.cmd", keys.classes), None, "rpad.code").unwrap();
+        set_str(&format!("{}\\Backup", keys.app), Some(".cmd"), "cmdfile").unwrap();
+        // Everything wanted, the runnable ones too: they are not given, and are given back.
+        let d = set_defaults(&EDITOR, &keys, exe, "Edit with rpad", &[".txt", ".bat", ".cmd"]).unwrap();
+        assert_eq!(d.set, vec![".txt"]);
+        assert!(d.released.contains(&".bat") && d.released.contains(&".cmd"));
+        assert_eq!(get_str(&format!("{}\\.bat", keys.classes), None), None, "Windows' own batfile applies again");
+        assert_eq!(get_str(&format!("{}\\.cmd", keys.classes), None).as_deref(), Some("cmdfile"));
+        // Asking again, and `associate` (all types): nothing changes for them.
+        let again = associate(&EDITOR, &keys, exe, "Edit with rpad").unwrap();
+        assert!(again.set.is_empty() && !again.already.contains(&".bat"));
+        assert_eq!(get_str(&format!("{}\\.bat", keys.classes), None), None);
+        // The right-click entry is there for them.
+        let verb = format!("{}\\SystemFileAssociations\\.bat\\shell\\rpad\\command", keys.classes);
+        assert_eq!(get_str(&verb, None).as_deref(), Some("\"C:\\Tools\\rpad.exe\" \"%1\""));
+        unregister(&EDITOR, &keys).unwrap();
         delete_tree(&root).unwrap();
     }
 

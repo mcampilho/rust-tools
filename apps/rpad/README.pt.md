@@ -96,6 +96,9 @@ para o utilizador atual (sem direitos de administrador) e aponta para o
   próprio Windows, onde escolhes o rpad e "Sempre". **Aplicações predefinidas…**
   abre as Definições do Windows. O `--associate` faz o mesmo para todos os tipos
   menos o `.url` (um duplo clique num atalho de Internet deve abrir o navegador).
+  O `.bat` e o `.cmd` executam-se ao abrir, por isso o rpad nunca é o programa
+  predefinido deles (ficam só com a entrada do botão direito); uma versão anterior
+  fazia-o, e o Aplicar (ou o `--associate`) devolve-os agora ao Windows.
 
 Se moveres o `rpad.exe`, o item do menu aparece desmarcado; marca-o de novo para
 as entradas apontarem para o novo local.

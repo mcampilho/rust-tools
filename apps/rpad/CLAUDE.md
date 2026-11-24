@@ -34,13 +34,22 @@ Correm na raiz do repositório. Saída: `target\release-small\rpad.exe`. Rust 1.
   `--register`/`--associate`/`--unregister` (tratados no `main.rs`, não na `App`). "Definir como editor
   predefinido" abre o painel `rt_ui::assoc::AssocPanel` (`Shell::assoc`; 2026-11-14): tipos a marcar, quem abre
   cada um, "Abrir com…", Aplicar. `.inf` e `.url` acrescentados nesse dia; o `--associate` deixa o `.url` de fora
-  (`NOT_BY_DEFAULT`: o duplo clique num atalho de Internet abre o navegador). "Iniciar com o Windows"
+  (`NOT_BY_DEFAULT`: o duplo clique num atalho de Internet abre o navegador). `.bat` e `.cmd` (2026-11-24): o rpad
+  tornava-se o programa predefinido deles (`HKCU\…\Classes\.bat` = `rpad.code`, por cima do `batfile` do Windows) e o duplo
+  clique abria o editor em vez de executar; agora `rt_sys::win::assoc::RUNNABLE` (`.bat .cmd .com .exe .msi .scr .lnk
+  .pif`) nunca é predefinido, mesmo que se peça, e onde já era é devolvido ao Windows ao Aplicar ou no `--associate`
+  (o painel mostra-os "(it runs when opened)" e não os deixa marcar). Ficam com "Editar com o rpad". "Iniciar com o Windows"
   (`Command::Autostart`, `rt_sys::autostart`) também é tratado no `main.rs`; fica nesse submenu (no Linux em
   Ferramentas › Preferências) porque todas as letras dele já são teclas de acesso no menu Ficheiro.
 - `trace.rs` (2026-11-17, provisório): `handoff.log` na pasta das definições regista cada arranque com ficheiros (para
   que rpad vão, visível/minimizado, se foram entregues) e o que a janela aberta recebeu e abriu. O utilizador viu
   ficheiros do menu de contexto não abrirem ("nada, nem separador") com o rpad aberto e minimizado; a causa ainda
-  não foi encontrada no código. Tirar quando estiver resolvido.
+  não foi encontrada no código. Tirar quando estiver resolvido. Em 2026-11-24 o `handoff.log` (56 linhas) mostrava todas as
+  entregas recebidas e abertas (nenhum "NOT opened"), por isso a falha é visual: a janela escondida (tabuleiro) ou
+  minimizada abria-se atrás das outras. Corrigido o que se vê no código: `rt_sys::win::hand_off` (com `activate`) espera até
+  1 s que a janela fique visível e é o processo acabado de arrancar pelo clique do utilizador que a traz para a frente
+  (restaura e `SetForegroundWindow`); `Shell::open_files` também restaura a janela minimizada. **Não verificado a sério**
+  (o utilizador tem o rpad aberto e as instâncias reconhecem-se todas pela mesma janela): o `trace.rs` fica até ele confirmar.
 - `Host::info` não abre caixa do sistema: a mensagem (About, `--help` sem consola...) é desenhada na janela,
   com o tema (`Shell::dialog`, `rt_gfx::dialog::draw_message`). `--tray` com a janela maximizada da última
   vez: maximiza só ao mostrar (`maximize_on_show`), porque maximizar mostra a janela no Windows.
