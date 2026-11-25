@@ -1,13 +1,13 @@
 {
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "The rust-tools service (optional): lets the tools read system-wide information without administrator rights. Install it with `rtsvc install` from an administrator prompt",
     "homepage": "https://github.com/mcampilho/rust-tools/tree/master/apps/rtsvc",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/mcampilho/rust-tools/releases/download/rtsvc-v0.1.0/rtsvc-0.1.0-windows-x86_64.zip",
-            "hash": "6929759f3a13c3aa6958707bec5d359738fde5d3741fadbe23d05f630fc6f424",
-            "extract_dir": "rtsvc-0.1.0-windows-x86_64"
+            "url": "https://github.com/mcampilho/rust-tools/releases/download/rtsvc-v0.1.1/rtsvc-0.1.1-windows-x86_64.zip",
+            "hash": "fe24693cb406be2f1078168c334365a0911d7dab6013bbb9dc1b4cc6deb86881",
+            "extract_dir": "rtsvc-0.1.1-windows-x86_64"
         }
     },
     "bin": "rtsvc.exe",
