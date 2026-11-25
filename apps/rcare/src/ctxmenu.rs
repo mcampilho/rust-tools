@@ -411,7 +411,8 @@ mod tests {
         assert_eq!(c.how, How::Verb(vec![(false, "a".into()), (false, "b".into()), (false, "c".into())]));
         // Off in one place: shown off, and turning it on turns all on.
         assert!(!c.enabled && !c.machine());
-        assert!(c.missing, "the program is not on this PC");
+        // The program is not on this PC; elsewhere `C:\…` is not an absolute path, so it cannot be told.
+        assert_eq!(c.missing, cfg!(windows));
     }
 
     /// Turns a command of its own off and on (run on request: it writes
