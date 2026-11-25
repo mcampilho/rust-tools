@@ -327,12 +327,28 @@ pub fn run_elevated_wait(args: &str) -> Result<u32, String> {
 /// before deleting it for good. Err when it is still there: it failed, or
 /// the user said no.
 pub fn recycle(owner: HWND, path: &std::path::Path) -> Result<(), String> {
+    let r = to_recycle_bin(owner, &[path]);
+    if path.symlink_metadata().is_err() {
+        Ok(())
+    } else if r != 0 {
+        Err(std::io::Error::from_raw_os_error(r).to_string())
+    } else {
+        Err(String::new())
+    }
+}
+
+/// One operation of the shell over all of `paths`; its error code (0 for none).
+pub(crate) fn to_recycle_bin(owner: HWND, paths: &[&std::path::Path]) -> i32 {
     use windows_sys::Win32::UI::Shell::{
         SHFileOperationW, FOF_ALLOWUNDO, FOF_NOCONFIRMATION, FOF_WANTNUKEWARNING, FO_DELETE, SHFILEOPSTRUCTW,
     };
     // A list of paths, each NUL-terminated, ending with an empty one.
-    let mut from: Vec<u16> = path.as_os_str().to_string_lossy().encode_utf16().collect();
-    from.extend([0, 0]);
+    let mut from: Vec<u16> = Vec::new();
+    for p in paths {
+        from.extend(p.as_os_str().to_string_lossy().encode_utf16());
+        from.push(0);
+    }
+    from.push(0);
     let mut op = SHFILEOPSTRUCTW {
         hwnd: owner,
         wFunc: FO_DELETE,
@@ -344,14 +360,7 @@ pub fn recycle(owner: HWND, path: &std::path::Path) -> Result<(), String> {
         lpszProgressTitle: std::ptr::null(),
     };
     // SAFETY: `from` is double NUL-terminated and outlives the call.
-    let r = unsafe { SHFileOperationW(&mut op) };
-    if path.symlink_metadata().is_err() {
-        Ok(())
-    } else if r != 0 {
-        Err(std::io::Error::from_raw_os_error(r).to_string())
-    } else {
-        Err(String::new())
-    }
+    unsafe { SHFileOperationW(&mut op) }
 }
 
 /// Opens Explorer with `path` selected (explicit user command only).

@@ -13,8 +13,8 @@ repository root.
 `rdup.exe` is a single 2.2 MB executable: no installer, no runtime, no DLLs beyond
 those that ship with Windows. It makes no network connections of its own (it
 reads network shares you choose) and has no telemetry. Nothing is moved or
-deleted unless you mark it and confirm, and then only to the Recycle Bin or to
-a folder you choose; one copy of each group is always kept.
+deleted unless you mark it and confirm: to the Recycle Bin, to a folder you
+choose, or for good; one copy of each group is always kept.
 
 ## Use
 
@@ -79,6 +79,14 @@ their names (with a number when the name is taken); on another drive they are
 copied first, and the original is removed only when the copy is complete.
 The last copy of a group can never be marked, whatever the rule.
 **Export to CSV...** (Ctrl+S) saves the list shown, with the marks.
+
+**Delete Permanently** (Edit menu, Shift+Delete) deletes the marked copies for
+good, after saying so. All of this runs in the background, with its progress in
+the status bar; **Esc** stops a deletion or a move (what is done stays done, the
+rest stays where it is), and closing rdup asks first. The Recycle Bin gets all
+the marked copies in one operation. Deleting and moving use as many threads as
+suit the drive (8 on an internal SSD, 2 on a hard disk, 1 over USB, 16 on a
+network share), the slower of the two drives when moving.
 
 In the folders, only identical folders can be marked: a similar folder holds
 files the other has not. Moving a folder away also takes its copies out of
@@ -228,11 +236,12 @@ have been faster.
 | Ctrl+O | Add a folder to the search |
 | F5 | Find the duplicates |
 | Ctrl+N | Change the drives and folders |
-| Esc | Stop the search |
+| Esc | Stop the search or the work under way |
 | Tab | Go to the next filter box |
 | Ctrl+1, Ctrl+2 | Show the files or the folders |
 | Space | Mark or unmark the selected copy |
 | Delete | Move the marked copies to the Recycle Bin |
+| Shift+Delete | Delete the marked copies permanently |
 | Ctrl+M | Move the marked copies to a folder |
 | Ctrl+S | Save the list as CSV |
 | ↑ ↓ PgUp PgDn Home End | Move in the list |

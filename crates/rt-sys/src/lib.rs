@@ -135,6 +135,25 @@ pub fn recycle(path: &Path) -> Result<(), String> {
     Err(format!("cannot move {} to the trash here", path.display()))
 }
 
+/// Moves all of `paths` to the Recycle Bin (the trash on Linux): on Windows in
+/// one operation, so the system prepares and shows its progress once, not
+/// once for each. Returns those still there, with the reason (empty when the
+/// user said no). May take long: for a thread of its own.
+pub fn recycle_many(paths: &[std::path::PathBuf]) -> Vec<(std::path::PathBuf, String)> {
+    #[cfg(windows)]
+    {
+        if paths.is_empty() {
+            return Vec::new();
+        }
+        let all: Vec<&Path> = paths.iter().map(|p| p.as_path()).collect();
+        let r = win::to_recycle_bin(std::ptr::null_mut(), &all);
+        let why = if r != 0 { std::io::Error::from_raw_os_error(r).to_string() } else { String::new() };
+        paths.iter().filter(|p| p.symlink_metadata().is_ok()).map(|p| (p.clone(), why.clone())).collect()
+    }
+    #[cfg(not(windows))]
+    paths.iter().filter_map(|p| recycle(p).err().map(|why| (p.clone(), why))).collect()
+}
+
 /// Local date and time.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LocalTime {

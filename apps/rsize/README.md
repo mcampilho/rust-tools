@@ -6,8 +6,8 @@ space, laid out as in WizTree: the drive's space on top, the folders and files
 at the left, the space by file type at the right, and a chart below: a
 **treemap** where each file is a rectangle as large as the file and each folder
 a box with its name, a **pie** of the folder's contents, or **rings** with the
-folders inside folders. Every column sorts. It also exports to CSV, and moves
-what you no longer want to the Recycle Bin.
+folders inside folders. Every column sorts. It also exports to CSV, and removes
+what you no longer want: to the Recycle Bin, or for good.
 
 [Versão portuguesa](README.pt.md)
 
@@ -17,8 +17,8 @@ repository root.
 `rsize.exe` is a single 1.9 MB executable: no installer, no runtime, no DLLs
 beyond those that ship with Windows. It makes no network connections of its own
 (it reads network shares you choose) and has no telemetry. It only reads, with
-one exception you ask for: **Delete**, which moves an item to the Recycle Bin
-after asking.
+one exception you ask for: **Delete**, which moves an item to the Recycle Bin,
+or deletes it for good, after asking.
 
 ## Use
 
@@ -138,8 +138,18 @@ the chart, or deletes it.
 **Edit > Delete** (Delete) moves the selected file or folder to the Recycle
 Bin, or to the desktop's trash on Linux, after showing what it is and how much
 it holds. Where there is no Recycle Bin (a network share) or the item is too
-large for it, Windows asks before deleting it for good. The list, the totals
-and the charts then lose the item at once, without reading the disk again.
+large for it, Windows asks before deleting it for good.
+
+**Edit > Delete Permanently** (Shift+Delete) deletes it for good, after saying
+so. rsize does it itself, without counting everything first, on as many threads
+as suit the drive (8 on an internal SSD, 2 on a hard disk, 1 over USB, 16 on a
+network share). Links and junctions are removed, never followed.
+
+Both work in the background: the window stays usable, the status bar shows how
+far it has gone, and **Esc** stops a permanent deletion (what is not deleted yet
+stays; F5 reads again). One deletion at a time; closing rsize asks first. When
+it ends, the list, the totals and the charts lose the item, without reading the
+disk again.
 
 **File > Export to CSV** (Ctrl+S) writes the folder shown in the chart, with
 everything below it, to a CSV file: one row per folder and file, with its
@@ -153,7 +163,7 @@ file opens in spreadsheets as it is (UTF-8, commas).
 | Ctrl+O | Choose a folder to analyze |
 | Ctrl+D | Show the drives |
 | F5 | Read the same folder again |
-| Esc | Stop reading |
+| Esc | Stop reading or deleting |
 | ↑ ↓ PgUp PgDn Home End | Move in the list |
 | ← → Space | Close or open a folder |
 | Enter | Show the selected folder in the treemap |
@@ -166,6 +176,7 @@ file opens in spreadsheets as it is (UTF-8, commas).
 | Ctrl+C | Copy its path |
 | Ctrl+1 / Ctrl+2 | File sizes / sizes on disk |
 | Delete | Move it to the Recycle Bin, after asking |
+| Shift+Delete | Delete it permanently, after asking |
 | Ctrl+S | Export the folder shown to CSV |
 | F1 | Keyboard shortcuts |
 

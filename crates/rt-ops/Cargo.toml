@@ -1,0 +1,23 @@
+[package]
+name = "rt-ops"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.93"
+description = "Deleting and moving files and folders on several threads, as many as the drive takes well"
+license = "MIT"
+publish = false
+
+[dependencies]
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    # CreateFileW takes SECURITY_ATTRIBUTES.
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_IO",
+    "Win32_System_Ioctl",
+] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

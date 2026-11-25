@@ -58,8 +58,10 @@ descrever o que cada um faz, onde quer que estejam.
   `*`/`?`, sem maiúsculas) ou `Bad` (que caixa, porquê; `Why::Both` para a mesma palavra a incluir e a excluir). `KINDS`: os tipos de ficheiro e as suas extensões.
   `parse_size` aceita as unidades em inglês e na língua da interface; `parse_date` aceita ano-mês-dia,
   dia/mês/ano, mês e ano.
-- `actions.rs` — `Rule` e `mark_by` (que cópias marcar, ficando uma), `run` (`Op::Recycle` com `rt_sys::recycle`,
-  `Op::MoveTo` com `move_into`: nome livre `x (2).ext`, `rename` ou cópia e depois remoção noutro disco), `csv`.
+- `actions.rs` — `Rule` e `mark_by` (que cópias marcar, ficando uma), `run` (`Op::Recycle` com
+  `rt_sys::recycle_many`, tudo numa operação; `Op::Delete` com `rt_ops::delete_auto`; `Op::MoveTo` com `move_into`:
+  nome livre `x (2).ext`, `rt_ops::move_to`: `rename` ou cópia em vários fios e depois remoção noutro disco), `csv`.
+  O trabalho corre num fio (`page.rs`: `Acting`), Esc pára eliminar e mover, `may_close` pergunta ao sair.
 - `app.rs` — estado sem janela: pastas acrescentadas (`saved`, guardadas em `settings.folders`, marcadas ou não;
   `chosen` tem as marcadas e os discos), `compare` (ficheiros, pastas), marcas (`marks`: caminhos; `toggle_mark` recusa a
   última cópia de um grupo e as pastas só semelhantes; `apply_rule`; `marked` nunca devolve um grupo inteiro;
@@ -107,9 +109,9 @@ descrever o que cada um faz, onde quer que estejam.
 
 ## Regras
 
-- Nada é apagado de vez: só Reciclagem ou mover, sempre depois de confirmar, e nunca todas as cópias de um grupo
-  (verificado em `toggle_mark`, nas regras e outra vez em `marked`). A confirmação usa os diálogos do sistema,
-  que os testes não cobrem.
+- Nada é tirado sem confirmar: Reciclagem (Delete), mover, ou de vez (Shift+Delete, desde 2026-11-25 a pedido do
+  utilizador); nunca todas as cópias de um grupo (verificado em `toggle_mark`, nas regras e outra vez em `marked`).
+  A confirmação usa os diálogos do sistema, que os testes não cobrem.
 - `unsafe` só para chamadas Win32 (`SetErrorMode` no `main`; `identity` em `search.rs`, hoje no `rt-dups`), com `SAFETY`.
 - Qualquer string visível nova precisa de linha completa em `strings.txt`; teclas de acesso diferentes dentro de
   cada menu em todas as línguas (teste `access_keys_differ_within_each_menu`).

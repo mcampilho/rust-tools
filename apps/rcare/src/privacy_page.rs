@@ -487,9 +487,6 @@ mod tests {
             fn save_file(&mut self, _: &str, _: (&str, &str), _: Option<&std::path::Path>) -> Option<PathBuf> {
                 None
             }
-            fn recycle(&mut self, _: &std::path::Path) -> Result<(), String> {
-                Ok(())
-            }
         }
         p.act(Action::Sweep, &mut No);
         assert!(!dir.exists() && p.rows[0].found.as_ref().unwrap().count == 3, "said no: nothing done");

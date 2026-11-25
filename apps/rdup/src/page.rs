@@ -31,8 +31,8 @@ use winit::window::CursorIcon;
 
 /// What the threads report.
 pub enum Event {
-    /// Moving the marked copies: how many done, of how many.
-    Acting(usize, usize),
+    /// Moving the marked copies to a folder: how many done.
+    Acting(usize),
     /// What was moved, and what was not (with the reason).
     Acted(Vec<PathBuf>, Vec<(PathBuf, String)>),
     Search(u64, SearchEvent),
@@ -58,6 +58,16 @@ pub enum Out {
     Popup(Popup),
 }
 
+/// What is being done with the marked copies, in the background.
+struct Acting {
+    op: Op,
+    ctl: Arc<rt_ops::Control>,
+    /// The copy being moved, of how many.
+    done: usize,
+    total: usize,
+    thread: Option<std::thread::JoinHandle<()>>,
+}
+
 pub struct DupPage {
     pub app: App,
     pub layout: Layout,
@@ -75,8 +85,7 @@ pub struct DupPage {
     pub elevated: bool,
     handle: Option<search::Handle>,
     generation: u64,
-    /// Marked copies being moved: (done, of how many).
-    acting: Option<(usize, usize)>,
+    acting: Option<Acting>,
     /// The last click in a filter box, to see a double click.
     last_click: Option<(Instant, f32, f32)>,
     /// Where the hashes are kept between searches.
@@ -184,11 +193,25 @@ impl DupPage {
         self.fx.redraw();
     }
 
-    /// Stops the search under way (the window is closing, or the user asked).
-    pub fn cancel(&self) {
+    /// Stops the search under way and the work on the marked copies (the
+    /// window is closing); deleting and moving are waited for, so they end on
+    /// a whole file.
+    pub fn cancel(&mut self) {
         if let Some(h) = &self.handle {
             h.cancel();
         }
+        if let Some(a) = &mut self.acting {
+            a.ctl.stop();
+            if let (false, Some(t)) = (a.op == Op::Recycle, a.thread.take()) {
+                let _ = t.join();
+            }
+        }
+    }
+
+    /// Before the app exits: with copies still being moved or deleted, asks
+    /// whether to stop. True to go on.
+    pub fn may_close(&self, dialogs: &mut dyn Dialogs) -> bool {
+        self.acting.is_none() || dialogs.confirm(&tr("Delete"), &tr("Something is still being moved or deleted. Stop and exit?"))
     }
 
     /// Folders from a later launch (or the Explorer menu): they are searched.
@@ -219,10 +242,11 @@ impl DupPage {
     pub fn event(&mut self, event: Event) {
         match event {
             Event::Search(gen, ev) => self.on_search(gen, ev),
-            Event::Acting(done, total) => {
-                self.acting = Some((done, total));
-                self.app.note = Some(tf("Moving {} of {}…", &[&format::count(done as u64 + 1), &format::count(total as u64)]));
-                self.fx.redraw();
+            Event::Acting(done) => {
+                if let Some(a) = &mut self.acting {
+                    a.done = done;
+                    self.show_progress();
+                }
             }
             Event::Acted(done, failed) => self.acted(done, failed),
             Event::Volumes(v) => {
@@ -265,11 +289,37 @@ impl DupPage {
     /// The elapsed time on the search page moves even between reports: the
     /// time the window should wake up in, while it searches.
     pub fn animate(&mut self) -> Option<Duration> {
+        // The progress of the work, drawn again only when it changed.
+        let work = self.acting.is_some().then(|| {
+            self.show_progress();
+            Duration::from_millis(200)
+        });
         if self.app.searching.is_some() {
             self.fx.redraw();
-            Some(Duration::from_millis(500))
+            Some(work.unwrap_or(Duration::from_millis(500)))
         } else {
-            None
+            work
+        }
+    }
+
+    fn show_progress(&mut self) {
+        let Some(a) = &self.acting else { return };
+        let total = format::count(a.total as u64);
+        let text = match a.op {
+            Op::Recycle if cfg!(windows) => tf("Moving {} items to the Recycle Bin…", &[&total]),
+            Op::Recycle => tf("Moving {} items to the trash…", &[&total]),
+            Op::Delete => tf("Deleting… {} files so far (Esc stops)", &[&format::count(a.ctl.files())]),
+            Op::MoveTo(_) => {
+                let text = tf("Moving {} of {}…", &[&format::count(a.done as u64 + 1), &total]);
+                match a.ctl.bytes() {
+                    0 => text,
+                    bytes => format!("{text} {}", tf("{} copied (Esc stops)", &[&format::size(bytes)])),
+                }
+            }
+        };
+        if self.app.note.as_ref() != Some(&text) {
+            self.app.note = Some(text);
+            self.fx.redraw();
         }
     }
 
@@ -305,7 +355,7 @@ impl DupPage {
             Command::Search => idle && !self.app.chosen.is_empty() && self.app.choice.filter().is_ok() && self.app.compare.contains(&true),
             Command::AddFolder => idle,
             Command::NewSearch => idle && self.app.has_result() && !self.app.show_start,
-            Command::Stop => !idle,
+            Command::Stop => !idle || self.acting.as_ref().is_some_and(|a| a.op != Op::Recycle),
             #[cfg(windows)]
             Command::RestartAdmin => !self.elevated,
             Command::CopyPath | Command::OpenItem | Command::Reveal => result && self.app.selected_path().is_some(),
@@ -313,7 +363,9 @@ impl DupPage {
             Command::KeepNewest | Command::KeepOldest | Command::KeepShortest | Command::KeepInFolder => {
                 result && self.acting.is_none() && (0..self.app.rows.len()).any(|i| self.app.markable(i))
             }
-            Command::UnmarkAll | Command::Recycle | Command::MoveTo => result && self.acting.is_none() && !self.app.marked().is_empty(),
+            Command::UnmarkAll | Command::Recycle | Command::DeletePermanently | Command::MoveTo => {
+                result && self.acting.is_none() && !self.app.marked().is_empty()
+            }
             Command::Export => result && !self.app.rows.is_empty(),
             Command::ShowFiles => result && self.app.found.as_ref().is_some_and(|f| !f.groups.is_empty() && f.look == [true, true]),
             Command::ShowFolders => result && self.app.found.as_ref().is_some_and(|f| !f.groups.is_empty() && f.look[1]),
@@ -340,6 +392,7 @@ impl DupPage {
                 | Command::KeepInFolder
                 | Command::UnmarkAll
                 | Command::Recycle
+                | Command::DeletePermanently
                 | Command::MoveTo
                 | Command::Export
                 | Command::ShowFiles
@@ -358,7 +411,12 @@ impl DupPage {
                 self.app.volumes = None;
                 self.load_volumes();
             }
-            Command::Stop => self.cancel(),
+            // The search first; with none, the work on the copies.
+            Command::Stop => match (&self.handle, &self.acting) {
+                (Some(h), _) => h.cancel(),
+                (None, Some(a)) => a.ctl.stop(),
+                (None, None) => {}
+            },
             Command::CopyPath => {
                 if let Some(p) = self.app.selected_path() {
                     rt_sys::set_clipboard_text(&p.to_string_lossy());
@@ -389,6 +447,7 @@ impl DupPage {
             }
             Command::UnmarkAll => self.app.unmark_all(),
             Command::Recycle => self.act(Op::Recycle, dialogs),
+            Command::DeletePermanently => self.act(Op::Delete, dialogs),
             Command::MoveTo => {
                 if let Some(dir) = dialogs.pick_folder(&tr("Choose where to move the marked copies")) {
                     self.act(Op::MoveTo(dir), dialogs);
@@ -421,8 +480,8 @@ impl DupPage {
             Some(if n == 0 { tr("No copy was marked: the rule keeps them all.") } else { tf("{} marked", &[&format::count(n as u64)]) });
     }
 
-    /// Moves the marked copies of the view to the Recycle Bin or a folder,
-    /// after asking, in the background.
+    /// Moves the marked copies of the view to the Recycle Bin or a folder, or
+    /// deletes them for good, after asking, in the background.
     fn act(&mut self, op: Op, dialogs: &mut dyn Dialogs) {
         let marked = self.app.marked();
         if marked.is_empty() || self.acting.is_some() {
@@ -444,41 +503,59 @@ impl DupPage {
                 rt_core::i18n::strip_mnemonic(&tr("Mo&ve To...")),
                 tf("Move {} to {}?\n\n{} in all. One copy of each group stays where it is.", &[&what, &dir.display().to_string(), &size]),
             ),
+            Op::Delete => (
+                tr("Delete"),
+                tf(
+                    "Delete {} permanently?\n\n{} in all. One copy of each group stays where it is. They cannot be brought back.",
+                    &[&what, &size],
+                ),
+            ),
         };
         if !dialogs.confirm(&title, &question) {
             return;
         }
         let paths: Vec<PathBuf> = marked.into_iter().map(|(p, _)| p).collect();
-        self.acting = Some((0, paths.len()));
+        let total = paths.len();
         self.dragging = false;
-        let send = self.send.clone();
+        let ctl = Arc::new(rt_ops::Control::new());
+        let (send, theirs, doing) = (self.send.clone(), ctl.clone(), op.clone());
         let lang = i18n::lang();
-        std::thread::spawn(move || {
+        let thread = std::thread::spawn(move || {
             i18n::set_lang(lang);
-            let total = paths.len();
-            let (done, failed) = crate::actions::run(&op, &paths, &|i, _| send(Event::Acting(i, total)));
+            let (done, failed) = crate::actions::run(&doing, &paths, &theirs, &|i, _| send(Event::Acting(i)));
             send(Event::Acted(done, failed));
         });
+        self.acting = Some(Acting { op, ctl, done: 0, total, thread: Some(thread) });
+        self.show_progress();
         self.fx.menus();
         self.fx.redraw();
     }
 
     fn acted(&mut self, done: Vec<PathBuf>, failed: Vec<(PathBuf, String)>) {
-        self.acting = None;
+        let Some(a) = self.acting.take() else { return };
         self.app.removed(&done);
-        let moved = format::count(done.len() as u64);
-        let mut note = tf("{} moved.", &[&moved]);
+        let n = format::count(done.len() as u64);
+        let deleted = a.op == Op::Delete;
+        let mut note = if a.ctl.stopped() {
+            tf("Stopped: {} done, the rest stays where it is.", &[&n])
+        } else if deleted {
+            tf("{} deleted.", &[&n])
+        } else {
+            tf("{} moved.", &[&n])
+        };
         if let Some((p, why)) = failed.first() {
-            note = format!(
-                "{note} {}",
-                tf("{} could not be moved, such as {}: {}", &[&format::count(failed.len() as u64), &p.display().to_string(), why])
-            );
+            let args = [&format::count(failed.len() as u64), &p.display().to_string(), why];
+            let what = if deleted {
+                tf("{} could not be deleted, such as {}: {}", &args.map(|s| s.as_str()))
+            } else {
+                tf("{} could not be moved, such as {}: {}", &args.map(|s| s.as_str()))
+            };
+            note = format!("{note} {what}");
         }
         self.app.note = Some(note);
         self.fx.menus();
         self.fx.redraw();
     }
-
     /// Writes the list shown to a CSV file the user chooses.
     fn export(&mut self, dialogs: &mut dyn Dialogs) {
         let name = if self.app.view == View::Folders { "rdup-folders.csv" } else { "rdup-files.csv" };
@@ -985,11 +1062,12 @@ pub fn shortcuts_text() -> String {
         ("Ctrl+O", tr("Add a folder to the search")),
         ("F5", tr("Find the duplicates")),
         ("Ctrl+N", tr("Change the drives and folders")),
-        ("Esc", tr("Stop the search")),
+        ("Esc", tr("Stop the search or the work under way")),
         ("Tab", tr("Go to the next filter box")),
         ("Ctrl+1  Ctrl+2", tr("Show the files or the folders")),
         ("Space", tr("Mark or unmark the selected copy")),
         ("Delete", if cfg!(windows) { tr("Move the marked copies to the Recycle Bin") } else { tr("Move the marked copies to the trash") }),
+        ("Shift+Delete", tr("Delete the marked copies permanently")),
         ("Ctrl+M", tr("Move the marked copies to a folder")),
         ("Ctrl+S", tr("Save the list as CSV")),
         ("↑ ↓  PgUp PgDn  Home End", tr("Move in the list")),

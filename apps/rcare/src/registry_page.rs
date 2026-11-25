@@ -744,9 +744,6 @@ mod tests {
             fn save_file(&mut self, _: &str, _: (&str, &str), _: Option<&Path>) -> Option<PathBuf> {
                 None
             }
-            fn recycle(&mut self, _: &Path) -> Result<(), String> {
-                Ok(())
-            }
         }
         let dir = std::env::temp_dir().join(format!("rcare-reg-{}", std::process::id()));
         let mut p = RegistryPage::new(false, dir.clone());

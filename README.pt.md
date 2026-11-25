@@ -160,6 +160,7 @@ rust-tools/
    ├─ rt-inst/     os programas instalados: o registo, o Windows Installer, a Loja, dpkg e rpm
    ├─ rt-svc/      o serviço com privilégios: protocolo, pipe, cliente, a verificação da pasta dele
    ├─ rt-gfx/      desenho, disposição de texto, menus desenhados, painel de mensagens
+   ├─ rt-ops/      apagar e mover em vários fios, os que o disco aguenta
    ├─ rt-scan/     leitura rápida dos discos: Everything, tabela NTFS, pasta a pasta
    ├─ rt-sys/      integração com Windows e Linux
    ├─ rt-ui/       base da janela: janela, tema, menus desenhados, mensagens, controlos

@@ -42,6 +42,24 @@ pub enum Event {
     Space(u64, Option<volumes::Space>),
     /// The system's names of the scanned file types, by extension (for that generation).
     TypeNames(u64, std::collections::HashMap<String, String>),
+    /// Deleting ended: how many things stayed, and the first ones with the
+    /// reason (empty when the user said no).
+    Removed(u64, Vec<(PathBuf, String)>),
+}
+
+/// What is being deleted, in the background.
+struct Removing {
+    ctl: Arc<rt_ops::Control>,
+    /// The tree it was picked in, and where.
+    tree_gen: u64,
+    id: Id,
+    path: PathBuf,
+    name: String,
+    /// The files in it, from the reading (nothing is counted again).
+    files: u64,
+    /// For good, not to the Recycle Bin.
+    permanent: bool,
+    thread: Option<std::thread::JoinHandle<()>>,
 }
 
 /// Where the threads send their events (to the window's event loop).
@@ -104,6 +122,7 @@ pub struct SizePage {
     hover: Option<Id>,
     drag: Option<Drag>,
     handle: Option<scan::Handle>,
+    removing: Option<Removing>,
     generation: u64,
     /// Which tree the treemap was made from (changes with each scan).
     tree_gen: u64,
@@ -134,6 +153,7 @@ impl SizePage {
             hover: None,
             drag: None,
             handle: None,
+            removing: None,
             generation: 0,
             tree_gen: 0,
             last_click: None,
@@ -226,11 +246,24 @@ impl SizePage {
         self.fx.redraw();
     }
 
-    /// Stops the scan under way (the window is closing, or the user asked).
-    pub fn cancel(&self) {
+    /// Stops the scan under way and the deleting (the window is closing); a
+    /// deletion for good is waited for, so it ends on a whole file.
+    pub fn cancel(&mut self) {
         if let Some(h) = &self.handle {
             h.cancel();
         }
+        if let Some(r) = &mut self.removing {
+            r.ctl.stop();
+            if let (true, Some(t)) = (r.permanent, r.thread.take()) {
+                let _ = t.join();
+            }
+        }
+    }
+
+    /// Before the app exits: with something still being deleted, asks whether
+    /// to stop it. True to go on.
+    pub fn may_close(&self, dialogs: &mut dyn Dialogs) -> bool {
+        self.removing.is_none() || dialogs.confirm(&tr("Delete"), &tr("Something is still being deleted. Stop and exit?"))
     }
 
     /// Folders from a later launch (or the Explorer menu): the first is read.
@@ -277,6 +310,7 @@ impl SizePage {
                 self.fx.redraw();
             }
             Event::Space(..) | Event::TypeNames(..) => {}
+            Event::Removed(count, first) => self.removed(count, first),
         }
     }
 
@@ -318,16 +352,37 @@ impl SizePage {
     /// page moves even between reports, and a stretched treemap is made
     /// again once the resizing pauses.
     pub fn animate(&mut self) -> Option<Instant> {
+        // The progress of the deleting, drawn again only when it changed.
+        let tick = self.removing.is_some().then(|| {
+            self.show_progress();
+            Instant::now() + Duration::from_millis(200)
+        });
         if self.app.scanning.is_some() {
             self.fx.redraw();
-            return Some(Instant::now() + Duration::from_millis(500));
+            return Some(tick.unwrap_or_else(|| Instant::now() + Duration::from_millis(500)));
         }
-        let due = self.map_due?;
+        let Some(due) = self.map_due else { return tick };
         if Instant::now() >= due {
             self.fx.redraw();
-            None
+            tick
         } else {
-            Some(due)
+            Some(tick.map_or(due, |t| t.min(due)))
+        }
+    }
+
+    fn show_progress(&mut self) {
+        let Some(r) = &self.removing else { return };
+        let text = if r.permanent {
+            let done = crate::format::count(r.ctl.files().min(r.files));
+            tf("Deleting “{}”: {} of {} files (Esc stops)", &[&r.name, &done, &crate::format::count(r.files)])
+        } else if cfg!(windows) {
+            tf("Moving “{}” to the Recycle Bin…", &[&r.name])
+        } else {
+            tf("Moving “{}” to the trash…", &[&r.name])
+        };
+        if self.app.working.as_ref() != Some(&text) {
+            self.app.working = Some(text);
+            self.fx.redraw();
         }
     }
 
@@ -348,13 +403,13 @@ impl SizePage {
         let result = view::page(&self.app) == Page::Result;
         match c {
             Command::Rescan => self.app.has_tree() && self.app.scanning.is_none(),
-            Command::Stop => self.app.scanning.is_some(),
+            Command::Stop => self.app.scanning.is_some() || self.removing.as_ref().is_some_and(|r| r.permanent),
             #[cfg(windows)]
             Command::RestartAdmin => !self.elevated,
             Command::CopyPath | Command::OpenItem | Command::Reveal => result && self.app.sel.is_some(),
             Command::ExportCsv => result,
             // Anything but the folder that was read.
-            Command::Delete => result && self.app.sel.is_some_and(|s| s != 0),
+            Command::Delete | Command::DeletePermanently => result && self.removing.is_none() && self.app.sel.is_some_and(|s| s != 0),
             Command::ZoomIn => result && self.app.sel.is_some(),
             Command::ZoomOut | Command::ZoomTop => result && self.app.scan.as_ref().is_some_and(|s| s.tree.parent(self.app.zoom).is_some()),
             _ => true,
@@ -372,6 +427,7 @@ impl SizePage {
                 | Command::Stop
                 | Command::ExportCsv
                 | Command::Delete
+                | Command::DeletePermanently
                 | Command::CopyPath
                 | Command::OpenItem
                 | Command::Reveal
@@ -405,9 +461,15 @@ impl SizePage {
                     self.start_scan(&root);
                 }
             }
-            Command::Stop => self.cancel(),
+            // The scan first; with none, the deleting.
+            Command::Stop => match (&self.handle, &self.removing) {
+                (Some(h), _) => h.cancel(),
+                (None, Some(r)) => r.ctl.stop(),
+                (None, None) => {}
+            },
             Command::ExportCsv => self.export_csv(dialogs),
-            Command::Delete => self.delete(dialogs),
+            Command::Delete => self.delete(false, dialogs),
+            Command::DeletePermanently => self.delete(true, dialogs),
             Command::CopyPath => {
                 if let Some(p) = self.app.selected_path() {
                     rt_sys::set_clipboard_text(&p.to_string_lossy());
@@ -469,43 +531,92 @@ impl SizePage {
         }
     }
 
-    /// Moves the selection to the Recycle Bin (the trash on Linux), after
-    /// asking, and takes it out of the tree.
-    fn delete(&mut self, dialogs: &mut dyn Dialogs) {
+    /// Deletes the selection, after asking: to the Recycle Bin (the trash on
+    /// Linux), or for good. In the background; `removed` takes it out of the
+    /// tree when it ends.
+    fn delete(&mut self, permanent: bool, dialogs: &mut dyn Dialogs) {
         let Some(scan) = &self.app.scan else { return };
         let Some(id) = self.app.sel.filter(|&s| s != scan.tree.root()) else { return };
+        if self.removing.is_some() {
+            return;
+        }
         let t = &scan.tree;
         let path = t.path(id);
         let name = t.name(id).to_string();
         let n = t.node(id);
+        let files = if n.is_dir() { n.files } else { 1 };
         let what = if n.is_dir() {
             tf("{} in {} files", &[&crate::format::size(n.size), &crate::format::count(n.files)])
         } else {
             crate::format::size(n.size)
         };
-        let question = if cfg!(windows) {
-            tf("Move “{}” to the Recycle Bin?\n\n{}\n{}", &[&name, &path.display().to_string(), &what])
-        } else {
-            tf("Move “{}” to the trash?\n\n{}\n{}", &[&name, &path.display().to_string(), &what])
+        let shown = path.display().to_string();
+        let question = match (permanent, cfg!(windows)) {
+            (true, _) => tf("Delete “{}” permanently?\n\n{}\n{}\n\nIt cannot be brought back.", &[&name, &shown, &what]),
+            (false, true) => tf("Move “{}” to the Recycle Bin?\n\n{}\n{}", &[&name, &shown, &what]),
+            (false, false) => tf("Move “{}” to the trash?\n\n{}\n{}", &[&name, &shown, &what]),
         };
         if !dialogs.confirm(&tr("Delete"), &question) {
             return;
         }
-        match dialogs.recycle(&path) {
-            Ok(()) => {
-                self.app.removed(id);
-                self.tree_gen += 1;
-                self.hover = None;
-                self.hover_seg = None;
-                self.app.note = Some(if cfg!(windows) {
-                    tf("“{}” was moved to the Recycle Bin.", &[&name])
-                } else {
-                    tf("“{}” was moved to the trash.", &[&name])
-                });
+        let ctl = Arc::new(rt_ops::Control::new());
+        let (send, theirs, target) = (self.send.clone(), ctl.clone(), path.clone());
+        let lang = i18n::lang();
+        let thread = std::thread::spawn(move || {
+            i18n::set_lang(lang);
+            let target = std::slice::from_ref(&target);
+            if permanent {
+                let f = rt_ops::delete_auto(target, &theirs);
+                send(Event::Removed(f.count, f.first));
+            } else {
+                let stayed = rt_sys::recycle_many(target);
+                send(Event::Removed(stayed.len() as u64, stayed));
             }
-            Err(e) if e.is_empty() => {}
-            Err(e) => self.app.note = Some(tf("Could not delete “{}”: {}", &[&name, &e])),
+        });
+        self.removing = Some(Removing { ctl, tree_gen: self.tree_gen, id, path, name, files, permanent, thread: Some(thread) });
+        self.app.note = None;
+        self.show_progress();
+    }
+
+    /// Deleting ended.
+    fn removed(&mut self, count: u64, first: Vec<(PathBuf, String)>) {
+        let Some(r) = self.removing.take() else { return };
+        self.app.working = None;
+        // The drive's used and free space changed (also when only part went);
+        // what is shown stays until the new figures come.
+        if let Some(root) = self.app.scan.as_ref().map(|s| PathBuf::from(s.tree.name(s.tree.root()))) {
+            self.load_space(&root);
         }
+        let gone = r.path.symlink_metadata().is_err();
+        // A newer reading already shows how things are.
+        if gone && r.tree_gen == self.tree_gen {
+            self.app.removed(r.id);
+            self.tree_gen += 1;
+            self.hover = None;
+            self.hover_seg = None;
+        }
+        self.app.note = if gone {
+            Some(match (r.permanent, cfg!(windows)) {
+                (true, _) => tf("“{}” was deleted.", &[&r.name]),
+                (false, true) => tf("“{}” was moved to the Recycle Bin.", &[&r.name]),
+                (false, false) => tf("“{}” was moved to the trash.", &[&r.name]),
+            })
+        } else if r.ctl.stopped() {
+            Some(tf("Stopped: part of “{}” is still there. Press F5 to read again.", &[&r.name]))
+        } else {
+            match first.first() {
+                // An empty reason: the user said no to deleting it for good.
+                Some((_, why)) if why.is_empty() => None,
+                Some((p, why)) if count > 1 => {
+                    let why = format!("{} ({}): {why}", p.display(), crate::format::count(count));
+                    Some(tf("Could not delete “{}”: {}", &[&r.name, &why]))
+                }
+                Some((_, why)) => Some(tf("Could not delete “{}”: {}", &[&r.name, why])),
+                None => None,
+            }
+        };
+        self.fx.menus();
+        self.fx.redraw();
     }
 
     // ------------------------------------------------------------ drawing
@@ -997,7 +1108,7 @@ pub fn shortcuts_text() -> String {
         ("Ctrl+O", tr("Choose a folder to analyze")),
         ("Ctrl+D", tr("Show the drives")),
         ("F5", tr("Read the same folder again")),
-        ("Esc", tr("Stop reading")),
+        ("Esc", tr("Stop reading or deleting")),
         ("↑ ↓  PgUp PgDn  Home End", tr("Move in the list")),
         ("← →  Space", tr("Close or open a folder")),
         ("Enter", tr("Show the selected folder in the treemap")),
@@ -1013,6 +1124,80 @@ pub fn shortcuts_text() -> String {
         ("Ctrl+1 / Ctrl+2", tr("Show file sizes / sizes on disk")),
         ("Ctrl+S", tr("Export the folder shown to CSV")),
         ("Delete", tr("Move it to the Recycle Bin or trash, after asking")),
+        ("Shift+Delete", tr("Delete it permanently, after asking")),
     ];
     rows.iter().map(|(k, v)| format!("{k}\t{v}")).collect::<Vec<_>>().join("\n")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::{Entry, Kind, Tree};
+    use std::sync::mpsc;
+
+    struct Answer(bool, Vec<String>);
+
+    impl Dialogs for Answer {
+        fn confirm(&mut self, _title: &str, text: &str) -> bool {
+            self.1.push(text.to_string());
+            self.0
+        }
+        fn pick_folder(&mut self, _: &str) -> Option<PathBuf> {
+            None
+        }
+        fn save_file(&mut self, _: &str, _: (&str, &str), _: Option<&Path>) -> Option<PathBuf> {
+            None
+        }
+    }
+
+    #[test]
+    fn deleting_for_good_asks_runs_in_the_background_and_leaves_the_tree() {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..").join("target").join("rsize-delete-test");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("sub")).unwrap();
+        std::fs::write(dir.join("sub").join("a.bin"), [0u8; 100]).unwrap();
+        let dir = scan::normalize(&dir.canonicalize().unwrap());
+        let dir = PathBuf::from(dir.to_string_lossy().trim_start_matches(r"\\?\"));
+
+        let entry = |name: &str, kind, size| Entry { name: name.into(), kind, size, alloc: size, mtime: 0, flags: 0 };
+        let mut tree = Tree::new(&dir.to_string_lossy(), 0);
+        tree.add_children(0, &[entry("sub", Kind::Dir, 0)]);
+        tree.add_children(1, &[entry("a.bin", Kind::File, 100)]);
+        tree.finish();
+
+        let (tx, rx) = mpsc::channel();
+        let tx = std::sync::Mutex::new(tx);
+        let send: Sender = Arc::new(move |e| {
+            let _ = tx.lock().unwrap().send(e);
+        });
+        let mut page = SizePage::new(Settings::default(), false, send);
+        let scan = crate::scan::Scan {
+            tree,
+            method: crate::scan::Method::System,
+            elapsed: Duration::ZERO,
+            complete: true,
+            admin_would_help: false,
+        };
+        page.app.set_scan(scan, SizeMode::Logical);
+        page.app.show_drives = false;
+        page.app.select(1);
+
+        // Said no: nothing happens.
+        let mut no = Answer(false, Vec::new());
+        page.command(Command::DeletePermanently, &mut no);
+        assert!(no.1[0].contains("sub") && page.removing.is_none() && dir.join("sub").exists());
+
+        page.command(Command::DeletePermanently, &mut Answer(true, Vec::new()));
+        assert!(page.removing.is_some() && page.app.working.is_some());
+        assert!(!page.enabled(Command::Delete), "one at a time");
+        let ended = rx.recv_timeout(Duration::from_secs(30)).unwrap();
+        page.event(ended);
+        assert!(page.removing.is_none() && page.app.working.is_none());
+        assert!(!dir.join("sub").exists() && dir.exists());
+        let t = &page.app.scan.as_ref().unwrap().tree;
+        assert!(t.children(t.root()).is_empty(), "taken out of the tree");
+        // The drive's space is asked for again.
+        let space = rx.recv_timeout(Duration::from_secs(30)).unwrap();
+        assert!(matches!(space, Event::Space(_, Some(_))));
+    }
 }

@@ -58,10 +58,11 @@ módulos do crate:
   clara para fora, segmentos com menos de 3 px omitidos). Desenhados uma vez numa `Pixmap`; o segmento sob o
   ponteiro (e, nos anéis, o que tem dentro) é redesenhado deslocado para fora em `view.rs`.
 - `export.rs` — CSV da pasta do gráfico (BOM UTF-8, vírgulas, CRLF, cabeçalhos traduzidos).
-- Eliminar: `rt_sys::recycle` / `rt_sys::win::recycle` (`SHFileOperationW` com `FOF_ALLOWUNDO |
-  FOF_NOCONFIRMATION | FOF_WANTNUKEWARNING`: o Windows avisa antes de apagar de vez) e `rt_sys::linux::trash`
-  (`gio trash`, ou o lixo freedesktop em `~/.local/share/Trash`). Depois, `Tree::remove` e `App::removed`
-  atualizam a árvore sem voltar a ler; `tree_gen` sobe para refazer os gráficos.
+- Eliminar (desde 2026-11-25 num fio à parte, `page.rs`: `Removing`, um de cada vez, progresso em `App::working`,
+  `may_close` pergunta ao sair): Delete = `rt_sys::recycle_many` (`SHFileOperationW` com `FOF_ALLOWUNDO |
+  FOF_NOCONFIRMATION | FOF_WANTNUKEWARNING`: o Windows avisa antes de apagar de vez; `gio trash` em Linux);
+  Shift+Delete = `rt_ops::delete_auto` (de vez, vários fios conforme o disco, Esc pára). Depois, `Tree::remove`
+  e `App::removed` atualizam a árvore sem voltar a ler (se não houve outra leitura entretanto).
 - Painel de tipos (sempre visível, à direita da lista; o separador Tipos e o F9 saíram em 2026-11-11):
   `App::exts` = `Tree::ext_totals(zoom)`, refeito pelo `main` quando muda a pasta do gráfico, o modo ou a árvore
   (`exts_key`); desenhado em `view::draw_exts`. Nome do tipo: `rt_sys::win::file_type_name` (`SHGetFileInfoW`
@@ -122,9 +123,9 @@ saltos). É o limite do disco; num disco mecânico grande o caminho rápido é o
 
 ## Regras
 
-- Só leitura, com uma exceção pedida pelo utilizador: Eliminar, que só manda para a Reciclagem (ou o lixo)
-  depois de confirmar. Nunca apagar de vez por iniciativa própria; o aviso do Windows trata dos casos sem
-  Reciclagem. O CSV só é escrito onde o utilizador escolhe.
+- Só leitura, com uma exceção pedida pelo utilizador: Eliminar, sempre depois de confirmar: para a Reciclagem
+  (Delete) ou, desde 2026-11-25 a pedido do utilizador, de vez (Shift+Delete, como no Explorador). Nunca apagar
+  de vez por iniciativa própria. O CSV só é escrito onde o utilizador escolhe.
 - `unsafe` só para chamadas Win32 (`scan/win.rs`, `scan/ntfs.rs`, `volumes.rs`, `SetErrorMode` no `main`), com
   `SAFETY`. O volume é aberto só para leitura.
 - Qualquer string visível nova precisa de linha completa em `strings.txt`.

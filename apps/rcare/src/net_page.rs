@@ -534,9 +534,6 @@ dns\t14\tEthernet\tIntel Ethernet\tFalse\t192.168.1.1\t\ndns\t7\tWi-Fi\tIntel Wi
         fn save_file(&mut self, _: &str, _: (&str, &str), _: Option<&std::path::Path>) -> Option<PathBuf> {
             None
         }
-        fn recycle(&mut self, _: &std::path::Path) -> Result<(), String> {
-            Ok(())
-        }
     }
 
     #[test]

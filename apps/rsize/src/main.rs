@@ -258,6 +258,9 @@ impl Shell {
     }
 
     fn quit(&mut self, el: &ActiveEventLoop) {
+        if !self.page.may_close(&mut self.dialogs()) {
+            return;
+        }
         self.page.cancel();
         self.save_settings();
         #[cfg(windows)]

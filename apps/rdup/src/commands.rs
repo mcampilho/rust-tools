@@ -36,6 +36,8 @@ pub enum Command {
     UnmarkAll,
     /// Moves the marked copies to the Recycle Bin (the trash on Linux).
     Recycle,
+    /// Deletes the marked copies for good.
+    DeletePermanently,
     /// Asks for a folder and moves the marked copies into it.
     MoveTo,
     /// Writes the list shown to a CSV file.
@@ -93,6 +95,7 @@ impl Command {
             UnmarkAll => "&Unmark All",
             Recycle if cfg!(windows) => "Move to &Recycle Bin",
             Recycle => "Move to &Trash",
+            DeletePermanently => "Delete &Permanently...",
             MoveTo => "Mo&ve To...",
             Export => "&Export to CSV...",
             ShowFiles => "&Files",
@@ -127,6 +130,7 @@ pub const BINDINGS: &[(&str, Command)] = &[
     ("Ctrl+E", Reveal),
     ("Space", ToggleMark),
     ("Delete", Recycle),
+    ("Shift+Delete", DeletePermanently),
     ("Ctrl+M", MoveTo),
     ("Ctrl+S", Export),
     ("Ctrl+1", ShowFiles),
@@ -174,7 +178,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
     file.push(Item(Exit));
     vec![
         ("&File", file),
-        ("&Edit", vec![Item(CopyPath), Sep, Item(OpenItem), Item(Reveal), Sep, Item(Recycle), Item(MoveTo)]),
+        ("&Edit", vec![Item(CopyPath), Sep, Item(OpenItem), Item(Reveal), Sep, Item(Recycle), Item(DeletePermanently), Item(MoveTo)]),
         (
             "&Mark",
             vec![Item(ToggleMark), Sep, Item(KeepNewest), Item(KeepOldest), Item(KeepShortest), Item(KeepInFolder), Sep, Item(UnmarkAll)],
@@ -219,6 +223,7 @@ mod tests {
         assert_eq!(lookup(true, false, false, "2"), Some(ShowFolders));
         assert_eq!(lookup(false, false, false, "space"), Some(ToggleMark));
         assert_eq!(lookup(false, false, false, "delete"), Some(Recycle));
+        assert_eq!(lookup(false, true, false, "delete"), Some(DeletePermanently));
         assert_eq!(lookup(false, false, false, "o"), None);
         assert_eq!(lookup(true, true, false, "c"), None);
     }

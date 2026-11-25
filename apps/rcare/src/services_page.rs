@@ -541,9 +541,6 @@ mod tests {
         fn save_file(&mut self, _name: &str, _kind: (&str, &str), _dir: Option<&std::path::Path>) -> Option<PathBuf> {
             None
         }
-        fn recycle(&mut self, _path: &std::path::Path) -> Result<(), String> {
-            Ok(())
-        }
     }
 
     fn svc(name: &str, start: Start) -> Service {

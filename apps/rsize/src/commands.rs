@@ -26,6 +26,8 @@ pub enum Command {
     CopyPath,
     /// Moves the selection to the Recycle Bin (trash), after asking.
     Delete,
+    /// Deletes the selection for good, after asking.
+    DeletePermanently,
     /// Opens the selected file or folder with its default program.
     OpenItem,
     Reveal,
@@ -75,6 +77,7 @@ impl Command {
             Exit => "E&xit",
             CopyPath => "&Copy Path",
             Delete => "&Delete...",
+            DeletePermanently => "Delete &Permanently...",
             OpenItem => "&Open",
             Reveal => {
                 if cfg!(windows) {
@@ -131,6 +134,7 @@ pub const BINDINGS: &[(&str, Command)] = &[
     ("F8", Chart(ChartType::Rings)),
     ("Ctrl+S", ExportCsv),
     ("Delete", Delete),
+    ("Shift+Delete", DeletePermanently),
     ("Ctrl+1", SizeLogical),
     ("Ctrl+2", SizeAllocated),
     ("F1", Shortcuts),
@@ -176,7 +180,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
     file.push(Item(Exit));
     vec![
         ("&File", file),
-        ("&Edit", vec![Item(CopyPath), Sep, Item(OpenItem), Item(Reveal), Sep, Item(Delete)]),
+        ("&Edit", vec![Item(CopyPath), Sep, Item(OpenItem), Item(Reveal), Sep, Item(Delete), Item(DeletePermanently)]),
         (
             "&View",
             vec![
@@ -205,7 +209,7 @@ pub fn menu_tree() -> Vec<(&'static str, Vec<M>)> {
 /// The context menu of a file or folder.
 pub fn item_menu() -> Vec<M> {
     use rt_core::menu::M::*;
-    vec![Item(OpenItem), Item(Reveal), Item(CopyPath), Sep, Item(ZoomIn), Item(ZoomOut), Sep, Item(Delete)]
+    vec![Item(OpenItem), Item(Reveal), Item(CopyPath), Sep, Item(ZoomIn), Item(ZoomOut), Sep, Item(Delete), Item(DeletePermanently)]
 }
 
 #[cfg(test)]
@@ -225,6 +229,7 @@ mod tests {
         assert_eq!(lookup(false, false, false, "f8"), Some(Chart(ChartType::Rings)));
         assert_eq!(lookup(false, false, false, "f4"), Some(View(ViewMode::Map)));
         assert_eq!(lookup(false, false, false, "delete"), Some(Delete));
+        assert_eq!(lookup(false, true, false, "delete"), Some(DeletePermanently));
         assert_eq!(lookup(true, false, false, "s"), Some(ExportCsv));
         assert_eq!(lookup(false, false, false, "o"), None);
         assert_eq!(lookup(true, true, false, "c"), None);

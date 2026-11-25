@@ -1107,7 +1107,7 @@ pub fn status_text(app: &App, hover: Option<Id>) -> (String, String) {
     }
     let Some(scan) = &app.scan else { return (String::new(), String::new()) };
     let t = &scan.tree;
-    let note = app.note.clone().filter(|_| hover.is_none());
+    let note = app.working.clone().or_else(|| app.note.clone().filter(|_| hover.is_none()));
     let left = note.unwrap_or_else(|| {
         hover.or(app.sel).map_or(String::new(), |id| {
             let n = t.node(id);

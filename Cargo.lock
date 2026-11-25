@@ -2712,6 +2712,7 @@ dependencies = [
  "rt-core",
  "rt-dups",
  "rt-gfx",
+ "rt-ops",
  "rt-scan",
  "rt-sys",
  "rt-ui",
@@ -2921,6 +2922,7 @@ dependencies = [
  "rt-build",
  "rt-core",
  "rt-gfx",
+ "rt-ops",
  "rt-scan",
  "rt-sys",
  "rt-ui",
@@ -3003,6 +3005,14 @@ dependencies = [
  "rt-svc",
  "rt-sys",
  "windows",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "rt-ops"
+version = "0.1.0"
+dependencies = [
+ "libc",
  "windows-sys 0.61.2",
 ]
 

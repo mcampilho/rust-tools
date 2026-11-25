@@ -161,6 +161,8 @@ pub struct App {
     pub space: Option<Space>,
     /// A message for the status bar (an export, a deletion).
     pub note: Option<String>,
+    /// The progress of what is being done, shown over anything else.
+    pub working: Option<String>,
 }
 
 impl App {
@@ -252,12 +254,14 @@ impl App {
         if scan.tree.is_within(self.zoom, id) {
             self.zoom = parent;
         }
+        // The selection stays, unless it was in what went.
+        let sel = self.sel.filter(|&s| !scan.tree.is_within(s, id)).unwrap_or(parent);
         if !scan.tree.remove(id) {
             return false;
         }
         self.expanded.remove(&id);
         self.rebuild();
-        self.select(parent);
+        self.select(sel);
         self.refresh_exts();
         true
     }

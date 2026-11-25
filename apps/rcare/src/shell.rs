@@ -183,9 +183,6 @@ impl Dialogs for ShellDialogs {
     fn save_file(&mut self, name: &str, kind: (&str, &str), dir: Option<&std::path::Path>) -> Option<std::path::PathBuf> {
         self.sys.save_file(name, kind, dir)
     }
-    fn recycle(&mut self, path: &std::path::Path) -> Result<(), String> {
-        self.sys.recycle(path)
-    }
     fn open_files(&mut self) -> Vec<std::path::PathBuf> {
         self.sys.open_files()
     }
@@ -991,6 +988,11 @@ impl Shell {
     }
 
     fn quit(&mut self, el: &ActiveEventLoop) {
+        // The system's box: the window may be hidden.
+        let mut ask = SystemDialogs { hwnd: self.win.as_ref().map_or(std::ptr::null_mut(), |w| w.hwnd) };
+        if !self.size.may_close(&mut ask) || !self.dups.may_close(&mut ask) {
+            return;
+        }
         self.clean.shutdown();
         self.dups.cancel();
         self.size.cancel();

@@ -14,7 +14,7 @@ raiz do repositório.
 O `rdup.exe` é um único executável de 2,2 MB: sem instalador, sem runtime, sem DLLs além das
 que vêm com o Windows. Não faz ligações de rede próprias (lê as partilhas de rede
 que escolher) e não tem telemetria. Nada é movido nem apagado sem o marcar e
-confirmar, e mesmo assim só para a Reciclagem ou para uma pasta que escolher;
+confirmar: para a Reciclagem, para uma pasta que escolher, ou de vez;
 fica sempre uma cópia de cada grupo.
 
 ## Utilização
@@ -84,6 +84,14 @@ pasta, mantêm os nomes (com um número quando o nome já existe); noutro disco
 são primeiro copiadas, e o original só é apagado quando a cópia está completa.
 A última cópia de um grupo nunca pode ser marcada, seja qual for a regra.
 **Exportar para CSV...** (Ctrl+S) grava a lista mostrada, com as marcas.
+
+**Eliminar definitivamente** (menu Editar, Shift+Delete) apaga de vez as cópias
+marcadas, depois de o dizer. Tudo isto corre em segundo plano, com o progresso
+na barra de estado; **Esc** pára uma eliminação ou uma mudança (o que está feito
+fica feito, o resto fica onde está), e fechar o rdup pergunta primeiro. A
+Reciclagem recebe todas as cópias marcadas numa só operação. Apagar e mover usam
+os fios que convêm ao disco (8 num SSD interno, 2 num disco mecânico, 1 por USB,
+16 numa partilha de rede); ao mover, os do mais lento dos dois.
 
 Nas pastas, só as idênticas podem ser marcadas: uma pasta semelhante tem
 ficheiros que a outra não tem. Mover uma pasta tira também as suas cópias dos
@@ -233,11 +241,12 @@ administrador teriam sido mais rápidos.
 | Ctrl+O | Adicionar uma pasta à pesquisa |
 | F5 | Procurar os duplicados |
 | Ctrl+N | Alterar os discos e as pastas |
-| Esc | Parar a pesquisa |
+| Esc | Parar a pesquisa ou o que está a ser feito |
 | Tab | Ir para o filtro seguinte |
 | Ctrl+1, Ctrl+2 | Mostrar os ficheiros ou as pastas |
 | Espaço | Marcar ou desmarcar a cópia selecionada |
 | Delete | Mover as cópias marcadas para a Reciclagem |
+| Shift+Delete | Eliminar definitivamente as cópias marcadas |
 | Ctrl+M | Mover as cópias marcadas para uma pasta |
 | Ctrl+S | Gravar a lista em CSV |
 | ↑ ↓ PgUp PgDn Home End | Mover na lista |

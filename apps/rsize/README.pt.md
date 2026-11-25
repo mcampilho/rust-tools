@@ -7,7 +7,7 @@ ficheiros à esquerda, o espaço por tipo de ficheiro à direita e um gráfico e
 um **treemap** em que cada ficheiro é um retângulo do tamanho do ficheiro e cada
 pasta uma caixa com o seu nome, uma **tarte** com o conteúdo da pasta, ou **anéis**
 com as pastas dentro das pastas. Todas as colunas ordenam. Também exporta para CSV e
-manda para a Reciclagem o que já não quer.
+tira o que já não quer: para a Reciclagem, ou de vez.
 
 [English version](README.md)
 
@@ -17,8 +17,8 @@ raiz do repositório.
 O `rsize.exe` é um único executável de 1,9 MB: sem instalador, sem runtime, sem DLLs
 além das que vêm com o Windows. Não faz ligações de rede por iniciativa própria (lê
 as partilhas de rede que escolher) e não tem telemetria. Só lê, com uma exceção que
-é pedida por si: **Eliminar**, que manda um item para a Reciclagem depois de
-perguntar.
+é pedida por si: **Eliminar**, que manda um item para a Reciclagem, ou o apaga
+de vez, depois de perguntar.
 
 ## Utilização
 
@@ -135,8 +135,18 @@ ou elimina-o.
 **Editar > Eliminar** (Delete) manda o ficheiro ou a pasta selecionados para a
 Reciclagem, ou para o lixo do ambiente de trabalho em Linux, depois de mostrar o que é
 e quanto contém. Onde não há Reciclagem (uma partilha de rede) ou o item é grande
-demais para ela, o Windows pergunta antes de o apagar de vez. A lista, os totais e os
-gráficos perdem logo o item, sem voltar a ler o disco.
+demais para ela, o Windows pergunta antes de o apagar de vez.
+
+**Editar > Eliminar definitivamente** (Shift+Delete) apaga-o de vez, depois de o
+dizer. É o próprio rsize que o faz, sem contar tudo primeiro, com os fios que
+convêm ao disco (8 num SSD interno, 2 num disco mecânico, 1 por USB, 16 numa
+partilha de rede). As ligações e junções são removidas, nunca seguidas.
+
+Ambos correm em segundo plano: a janela continua utilizável, a barra de estado
+mostra por onde vai, e **Esc** pára uma eliminação definitiva (o que ainda não
+foi apagado fica; F5 volta a ler). Uma eliminação de cada vez; fechar o rsize
+pergunta primeiro. No fim, a lista, os totais e os gráficos perdem o item, sem
+voltar a ler o disco.
 
 **Ficheiro > Exportar para CSV** (Ctrl+S) grava num ficheiro CSV a pasta mostrada no
 gráfico, com tudo o que tem abaixo: uma linha por pasta e ficheiro, com o caminho, o
@@ -150,7 +160,7 @@ alteração. O ficheiro abre-se tal como está nas folhas de cálculo (UTF-8, v�
 | Ctrl+O | Escolher uma pasta para analisar |
 | Ctrl+D | Mostrar os discos |
 | F5 | Ler a mesma pasta outra vez |
-| Esc | Parar a leitura |
+| Esc | Parar a leitura ou a eliminação |
 | ↑ ↓ PgUp PgDn Home End | Mover na lista |
 | ← → Espaço | Fechar ou abrir uma pasta |
 | Enter | Mostrar a pasta selecionada no treemap |
@@ -163,6 +173,7 @@ alteração. O ficheiro abre-se tal como está nas folhas de cálculo (UTF-8, v�
 | Ctrl+C | Copiar o caminho |
 | Ctrl+1 / Ctrl+2 | Tamanho dos ficheiros / tamanho em disco |
 | Delete | Mandá-lo para a Reciclagem, depois de perguntar |
+| Shift+Delete | Eliminá-lo definitivamente, depois de perguntar |
 | Ctrl+S | Exportar para CSV a pasta mostrada |
 | F1 | Atalhos de teclado |
 

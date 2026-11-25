@@ -160,6 +160,7 @@ rust-tools/
    ├─ rt-inst/     the programs installed: the registry, Windows Installer, the Store, dpkg and rpm
    ├─ rt-svc/      the privileged service: protocol, pipe, client, the check of its folder
    ├─ rt-gfx/      drawing, text layout, drawn menus, message panel
+   ├─ rt-ops/      deleting and moving on several threads, as many as the drive takes well
    ├─ rt-scan/     reading drives fast: Everything, the NTFS table, folder by folder
    ├─ rt-sys/      Windows and Linux integration
    ├─ rt-ui/       window shell: window, theme, drawn menus, messages, controls
