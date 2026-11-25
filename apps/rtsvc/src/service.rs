@@ -10,7 +10,8 @@ use rt_svc::{DEV_PIPE_NAME, PIPE_NAME, SERVICE_NAME};
 use std::ffi::c_void;
 use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicU32, Ordering};
 use std::sync::{Arc, OnceLock};
-use windows_sys::Win32::Foundation::{BOOL, ERROR_ACCESS_DENIED};
+use windows_sys::core::BOOL;
+use windows_sys::Win32::Foundation::ERROR_ACCESS_DENIED;
 use windows_sys::Win32::System::Console::SetConsoleCtrlHandler;
 use windows_sys::Win32::System::Registry::HKEY_LOCAL_MACHINE;
 use windows_sys::Win32::System::Services::{

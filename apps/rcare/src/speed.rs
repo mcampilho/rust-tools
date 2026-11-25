@@ -103,7 +103,8 @@ pub fn group(windows: Vec<(u32, String, isize)>, info: &dyn Fn(u32) -> Option<(S
 #[cfg(windows)]
 mod imp {
     use super::*;
-    use windows_sys::Win32::Foundation::{CloseHandle, BOOL, FILETIME, HWND, LPARAM, LUID};
+    use windows_sys::core::BOOL;
+    use windows_sys::Win32::Foundation::{CloseHandle, FILETIME, HWND, LPARAM, LUID};
     use windows_sys::Win32::Security::{
         AdjustTokenPrivileges, LookupPrivilegeValueW, SE_PRIVILEGE_ENABLED, TOKEN_ADJUST_PRIVILEGES, TOKEN_PRIVILEGES,
     };
