@@ -18,11 +18,14 @@ pub enum Command {
     SaveAs,
     SaveAll,
     /// Prints the active document (done by the window, Windows only).
+    #[cfg_attr(not(windows), allow(dead_code))]
     Print,
     /// Makes rpad open when this user asks for Notepad by name, or gives Notepad back (done by the window, Windows
     /// only; no administrator rights).
+    #[cfg_attr(not(windows), allow(dead_code))]
     ReplaceNotepad,
     /// The same for every program and every user (administrator rights; done by the window, Windows only).
+    #[cfg_attr(not(windows), allow(dead_code))]
     ReplaceNotepadAll,
     Reload,
     ReopenWithEncoding(u8),
