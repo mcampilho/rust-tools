@@ -290,7 +290,7 @@ impl Chart {
             ];
             let c = Point::from_xy(self.cx - self.radius * 0.25, self.cy - self.radius * 0.3);
             if let (Some(shader), Some(circle)) = (
-                RadialGradient::new(c, c, self.radius * 1.3, stops, SpreadMode::Pad, id),
+                RadialGradient::new(c, 0.0, c, self.radius * 1.3, stops, SpreadMode::Pad, id),
                 PathBuilder::from_circle(self.cx, self.cy, self.radius),
             ) {
                 let p = Paint { shader, anti_alias: true, ..Paint::default() };
