@@ -1,6 +1,6 @@
 [package]
 name = "rsize"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 rust-version = "1.93"
 description = "A portable disk space analyzer: shows what takes up space on a drive or in a folder"
