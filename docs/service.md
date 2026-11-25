@@ -1,6 +1,6 @@
 # A privileged service for rust-tools (design)
 
-Status: built, but tried only in pieces (the pipe, the levels, the folder check, the snapshots and the jobs run in tests in one process); `install`, `uninstall` and the service as SYSTEM have not been run yet. The tools do not use jobs yet. [Versão portuguesa](service.pt.md)
+Status: built, installed and answering as SYSTEM on a real PC (`install`, `status`, the volume reading and the snapshots). Not yet run for real: `uninstall` and the jobs. The tools do not use jobs yet; jobs are not kept on disk, so they do not survive a restart of the service. [Versão portuguesa](service.pt.md)
 
 ## 1. Goal
 
@@ -159,7 +159,7 @@ that Users cannot read (§6).
 - is limited by the **catalogue**: the cleaner's items are ids with a fixed meaning (folder or rule),
   resolved by the service. An id is never a path from the client.
 
-**Safe deleting.** Files are opened by handle with `FILE_FLAG_OPEN_REPARSE_POINT`, the final path is
+**Safe deleting** (plain files and folders of the cleaning jobs). Files are opened by handle with `FILE_FLAG_OPEN_REPARSE_POINT`, the final path is
 checked against the catalogue (`GetFinalPathNameByHandle`) after opening, and deleted through that handle
 (`FILE_DISPOSITION_INFO_EX`). Junctions and symbolic links are removed as links, never followed. This closes
 the time-of-check/time-of-use gap where a user swaps a folder for a junction.
@@ -196,6 +196,9 @@ user (`HKCU`) is run as that user by the tool, not by the service.
   anyone rename what is below it, so every folder on that drive, `Program Files` included, is refused until
   that entry is removed. `install` names the entry that fails
   and has no option to override the check.
+- **The data folder** (`%ProgramData%\rust-tools`) is checked too: users may create folders in `%ProgramData%`, so
+  `install` and every start refuse one that holds a link or a junction, or anything not owned by SYSTEM,
+  Administrators or TrustedInstaller, and then give it to Administrators with the service's own permissions.
 - The client finds where the service is by asking the Service Control Manager for its registered image
   path (`QueryServiceConfig`), not by assuming Program Files, and compares it with the image of the
   process on the pipe (§5).
@@ -217,13 +220,14 @@ session that is *not* elevated, and malformed data.
 | Threat | Answer |
 | --- | --- |
 | A user replaces the service exe | installed in Program Files or in another folder that passes the check of §9 (checked at install and at every start, so a later change of permissions stops the service); the client checks the server's image path against the one the Service Control Manager registered (§5) |
-| A process creates the pipe name first | the service creates it with `FIRST_PIPE_INSTANCE` at boot, before any user process; the client checks the server's token (§5) |
+| A process creates the pipe name first | the service creates it with `FIRST_PIPE_INSTANCE` at boot, before any user process, and never lets the name disappear afterwards (a new instance before a broken one is closed); the client checks the server's token (§5) |
+| A user creates the data folder before the service is installed | not used: no link and no other owner is accepted in it (§9) |
 | A non-elevated process of an admin asks for a write | the token received through the pipe is not elevated, so the request is denied (§5); UAC is not bypassed |
 | Path traversal, junction or symbolic link swaps | requests carry catalogue ids, handle-based opening, final path check (§8) |
 | Reading what a user may not (contents) | no request returns file contents; names and sizes only, and by the visibility setting (§6) |
 | Information about other users | held in a part of the cache Users cannot read; answered only to Elevated (§6) |
 | Denial of service (many clients, huge requests, endless scans) | limits of §4, low priority, a job per kind at a time, deadlines |
-| Malformed or hostile frames | length limits, strict decoding, no `unsafe` in the codec, fuzz tests of the decoder |
+| Malformed or hostile frames | length limits (a request is never long), strict decoding, no `unsafe` in the codec, fuzz tests of the decoder |
 | Stale or forged cache | cache files are only writable by SYSTEM and Administrators; each carries a version and a time |
 | Secrets in logs | logs name the user, the verb and the counts, never contents; rotated, in `%ProgramData%\rust-tools\logs` |
 

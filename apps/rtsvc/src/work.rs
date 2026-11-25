@@ -86,7 +86,11 @@ impl Executor for Real {
                 let t =
                     all(&Env::here()).into_iter().find(|t| t.id == item && cleanable(t)).ok_or("it is not a target the service cleans")?;
                 let found = rt_clean::clean::analyse(&t, cancel);
-                let done = rt_clean::clean::clean(&t, &found, cancel, &self.backups);
+                // As SYSTEM, in folders others may write to: plain files only where they were listed.
+                let done = match t.kind {
+                    Kind::Files => rt_clean::clean::clean_in_place(&found, cancel),
+                    _ => rt_clean::clean::clean(&t, &found, cancel, &self.backups),
+                };
                 match done.error {
                     Some(e) => Err(e),
                     None => Ok(format!("freed {} bytes in {} files, {} stayed", done.bytes, done.files, done.failed)),

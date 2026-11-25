@@ -37,8 +37,13 @@ fn confirm(t: &Texts, input: &mut dyn BufRead, out: &mut dyn Write) -> bool {
 /// Copies this program into `dir` (not over a running copy: the service is stopped first).
 fn copy_self(dir: &Path) -> std::io::Result<PathBuf> {
     let target = dir.join(EXE);
+    let this = std::env::current_exe()?;
+    // Installing again with the installed program itself: nothing to copy, and it must not be removed.
+    if matches!((this.canonicalize(), target.canonicalize()), (Ok(a), Ok(b)) if a == b) {
+        return Ok(target);
+    }
     let tmp = dir.join("rtsvc.exe.new");
-    std::fs::copy(std::env::current_exe()?, &tmp)?;
+    std::fs::copy(this, &tmp)?;
     let _ = std::fs::remove_file(&target);
     std::fs::rename(&tmp, &target)?;
     Ok(target)
@@ -90,10 +95,19 @@ fn install_inner(o: &InstallOpts, t: &Texts, input: &mut dyn BufRead, out: &mut 
     // And once more with the program in it.
     let problems = rt_svc::secure::check_dir(&dir);
     if !problems.is_empty() {
+        // Not the program that is running this (installed again by itself): that one stays.
         let _ = std::fs::remove_file(&exe);
         return Err(format!("{}\n  - {}", t.fill("err.unsafe_folder", &[("dir", &dir.display().to_string())]), problems.join("\n  - ")));
     }
-    step(t, "protect the data folder", crate::config::protect(&data_dir(), crate::config::DATA_SDDL))?;
+    // A data folder that someone else made is not taken over: it is looked at before and after.
+    let data = data_dir();
+    let usable = || match rt_svc::secure::check_data_dir(&data) {
+        p if p.is_empty() => Ok(()),
+        p => Err(format!("{}\n  - {}", t.fill("err.unsafe_data", &[("dir", &data.display().to_string())]), p.join("\n  - "))),
+    };
+    usable()?;
+    step(t, "protect the data folder", crate::config::protect(&data, crate::config::DATA_SDDL))?;
+    usable()?;
     step(t, "save the settings", Config { visibility: o.visibility }.save())?;
     step(t, "register the service", scm::install(&exe))?;
     if !step(t, "start the service", scm::start())? {

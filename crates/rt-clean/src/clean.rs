@@ -273,11 +273,28 @@ pub fn clean(t: &Target, found: &Found, stop: &AtomicBool, backups: &Path) -> Cl
         }
         return c;
     }
+    delete_listed(found, stop, &remove_file, &|d| {
+        // Only empty ones: what is left in them stays.
+        let _ = std::fs::remove_dir(d);
+    })
+}
+
+/// As [`clean`], for plain files only, by who has more rights than those who may write in the folders (the service):
+/// each thing is deleted only if it is really where it was listed (see [`crate::in_place`]).
+#[cfg(windows)]
+pub fn clean_in_place(found: &Found, stop: &AtomicBool) -> Cleaned {
+    delete_listed(found, stop, &crate::in_place::delete, &|d| {
+        let _ = crate::in_place::delete(d);
+    })
+}
+
+fn delete_listed(found: &Found, stop: &AtomicBool, file: &dyn Fn(&Path) -> std::io::Result<()>, dir: &dyn Fn(&Path)) -> Cleaned {
+    let mut c = Cleaned::default();
     for (path, size) in &found.files {
         if stop.load(Ordering::Relaxed) {
             break;
         }
-        match remove_file(path) {
+        match file(path) {
             Ok(()) => {
                 c.bytes += size;
                 c.files += 1;
@@ -287,8 +304,7 @@ pub fn clean(t: &Target, found: &Found, stop: &AtomicBool, backups: &Path) -> Cl
         }
     }
     for d in &found.dirs {
-        // Only empty ones: what is left in them stays.
-        let _ = std::fs::remove_dir(d);
+        dir(d);
     }
     c
 }

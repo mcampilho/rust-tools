@@ -3,6 +3,8 @@
 //! the background.
 
 pub mod clean;
+#[cfg(windows)]
+pub mod in_place;
 pub mod managers;
 pub mod registry;
 pub mod shortcuts;

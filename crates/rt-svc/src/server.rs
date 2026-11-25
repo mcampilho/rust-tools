@@ -3,7 +3,7 @@
 //! `Status`) and give the rest to a [`Handler`].
 
 use crate::access::{client_of, Who};
-use crate::frame::{kind, read_frame, write_frame, Frame, PROTOCOL, PROTOCOL_MIN};
+use crate::frame::{kind, read_request, write_frame, Frame, PROTOCOL, PROTOCOL_MIN};
 use crate::pipe::{Conn, Event, Listener, SDDL};
 use crate::proto::{code, encode_error, Hello, HelloOk, Level, Status};
 use std::io::{self, Write};
@@ -63,7 +63,7 @@ fn error(out: &mut dyn Write, id: u32, c: u16, msg: &str) -> io::Result<()> {
 fn serve_client(mut conn: Conn, shared: Arc<Shared>) -> io::Result<()> {
     conn.set_timeout(SILENCE_MS);
     let who = client_of(&conn)?;
-    let first = read_frame(&mut conn)?;
+    let first = read_request(&mut conn)?;
     if first.kind != kind::HELLO {
         return error(&mut conn, first.id, code::NO_HELLO, "the first message must be Hello");
     }
@@ -82,7 +82,7 @@ fn serve_client(mut conn: Conn, shared: Arc<Shared>) -> io::Result<()> {
 
     let session = Session { who: &who, level: who.level, protocol };
     loop {
-        let f = match read_frame(&mut conn) {
+        let f = match read_request(&mut conn) {
             Ok(f) => f,
             // The client closed the pipe, or was silent too long, or the service stops.
             Err(e) if matches!(e.kind(), io::ErrorKind::UnexpectedEof | io::ErrorKind::TimedOut | io::ErrorKind::ConnectionAborted) => {

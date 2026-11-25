@@ -29,7 +29,12 @@ Fora do Windows só diz que é só Windows (`platforms = "windows"`).
 - Nunca aceitar um caminho ou um comando de um cliente; só nomes (ids, códigos) que o serviço resolve.
 - Escrever só para `Level::Elevated` (decidido pelo token no pipe). Ler para qualquer autenticado, conforme a `Visibility`.
 - Testes: pipes de nome único, nunca o do serviço instalado. Compilar com `CARGO_INCREMENTAL=0` neste PC.
-- Por experimentar a sério (elevado): `install`, `uninstall`, o serviço como SYSTEM, `ScanVolume` real, `UninstallMsi`.
+- Endurecimento de 2026-11-25: o pipe nunca desaparece (instância nova antes de fechar a estragada; era também a causa
+  de testes instáveis); a pasta de dados é recusada se tiver ligações/junções ou outro dono (`check_data_dir`) e passa
+  para os Administradores; as tarefas de limpeza só apagam o que está mesmo onde foi listado (`rt_clean::in_place`);
+  um pedido nunca é uma trama longa (`read_request`).
+- Experimentado a sério pelo utilizador (0.1.0): `install`, o serviço como SYSTEM, `status`, fotografias. Por
+  experimentar (elevado): `uninstall`, as tarefas (`Clean`, `UninstallMsi`).
 - Por fazer: restringir os privilégios do serviço (`SERVICE_CONFIG_REQUIRED_PRIVILEGES_INFO`), tarefas nas janelas do
   rclean e do rinst, indicador "via serviço" e botão para o ignorar.
 

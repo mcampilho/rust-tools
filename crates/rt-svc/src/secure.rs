@@ -163,6 +163,36 @@ fn below(dir: &Path, depth: usize, out: &mut Vec<PathBuf>) {
     }
 }
 
+/// Everything wrong with an existing folder of the service's data; empty when it can be used (or does not exist yet).
+///
+/// Users may create folders in `%ProgramData%`, so this one may have been put there before the service was installed:
+/// its owner could change its permissions afterwards, and a junction in it would send what the service writes
+/// somewhere else. So nothing in it may be a link or belong to anyone but SYSTEM, Administrators or TrustedInstaller.
+/// The permissions are not judged: the service sets them itself.
+pub fn check_data_dir(dir: &Path) -> Vec<String> {
+    let mut problems = Vec::new();
+    if std::fs::symlink_metadata(dir).is_err() {
+        return problems;
+    }
+    let mut all = vec![dir.to_path_buf()];
+    below(dir, 3, &mut all);
+    for p in all {
+        // Not followed: a junction is a problem by itself.
+        if std::fs::symlink_metadata(&p).is_ok_and(|m| m.file_attributes() & ATTRIBUTE_REPARSE_POINT != 0) {
+            problems.push(format!("{} is a link or a junction", p.display()));
+            continue;
+        }
+        match read_acl(&p) {
+            Ok(acl) if is_trusted(&acl.owner) && acl.owner != "S-1-3-0" => {}
+            Ok(acl) => {
+                problems.push(format!("{} is owned by {}, not by SYSTEM, Administrators or TrustedInstaller", p.display(), acl.owner))
+            }
+            Err(e) => problems.push(e),
+        }
+    }
+    problems
+}
+
 /// Everything wrong with `dir` as a place to run the service from; empty when it is safe.
 pub fn check_dir(dir: &Path) -> Vec<String> {
     let mut problems = Vec::new();
@@ -265,6 +295,28 @@ mod tests {
         assert!(!problems.is_empty());
         assert!(problems.iter().any(|p| p.contains("change it")), "{problems:#?}");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_data_folder_with_a_junction_or_of_a_user_is_not_used() {
+        let base = Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..").join("target").join("rt-svc-data-test");
+        let _ = std::fs::remove_dir_all(&base);
+        assert!(check_data_dir(&base).is_empty(), "one that does not exist yet is fine");
+        let (data, elsewhere) = (base.join("data"), base.join("elsewhere"));
+        std::fs::create_dir_all(&data).unwrap();
+        std::fs::create_dir_all(&elsewhere).unwrap();
+        let link = std::path::absolute(data.join("logs")).unwrap();
+        let target = std::path::absolute(&elsewhere).unwrap();
+        let made = std::process::Command::new("cmd").args(["/c", "mklink", "/J"]).arg(&link).arg(&target).output().unwrap();
+        assert!(made.status.success(), "{made:?}");
+        let problems = check_data_dir(&data);
+        assert!(problems.iter().any(|p| p.contains("junction")), "{problems:#?}");
+        // Made by this test: a user's, unless it runs elevated (then Administrators own it).
+        if !crate::access::is_elevated() {
+            assert!(problems.iter().any(|p| p.contains("owned by")), "{problems:#?}");
+        }
+        std::fs::remove_dir(&link).unwrap();
+        let _ = std::fs::remove_dir_all(&base);
     }
 
     #[test]

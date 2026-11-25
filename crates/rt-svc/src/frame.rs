@@ -94,11 +94,21 @@ pub fn write_frame(out: &mut dyn Write, f: &Frame) -> io::Result<()> {
 /// and a frame cut short are errors; nothing is reserved before the length
 /// has been checked.
 pub fn read_frame(input: &mut dyn Read) -> io::Result<Frame> {
+    read_up_to(input, MAX_BULK)
+}
+
+/// Reads a request, in the service: the long frames are answers only, so no client may make the service reserve
+/// the room of one.
+pub fn read_request(input: &mut dyn Read) -> io::Result<Frame> {
+    read_up_to(input, MAX_PAYLOAD)
+}
+
+fn read_up_to(input: &mut dyn Read, max: usize) -> io::Result<Frame> {
     let bad = |m: &'static str| io::Error::new(io::ErrorKind::InvalidData, m);
     let mut len = [0u8; 4];
     input.read_exact(&mut len)?;
     let len = u32::from_le_bytes(len) as usize;
-    if !(HEADER..=HEADER + MAX_BULK).contains(&len) {
+    if !(HEADER..=HEADER + max).contains(&len) {
         return Err(bad("the frame has an impossible length"));
     }
     let mut head = [0u8; HEADER];
@@ -148,6 +158,14 @@ mod tests {
         for cut in 0..wire.len() {
             assert!(read(&wire[..cut]).is_err(), "cut at {cut}");
         }
+    }
+
+    #[test]
+    fn a_request_is_never_long() {
+        let mut wire = Vec::new();
+        write_frame(&mut wire, &Frame::new(kind::SCAN_BATCH, 0, vec![0; MAX_PAYLOAD + 1])).unwrap();
+        assert!(read_frame(&mut wire.as_slice()).is_ok(), "an answer may be");
+        assert!(read_request(&mut wire.as_slice()).is_err());
     }
 
     #[test]

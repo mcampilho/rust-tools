@@ -110,7 +110,8 @@ impl Store {
         self.kinds.iter().position(|k| k.name == name)
     }
 
-    fn poke(&self) {
+    /// Wakes the scheduler.
+    pub fn poke(&self) {
         if let Ok(mut g) = self.wake.0.lock() {
             *g = true;
             self.wake.1.notify_all();

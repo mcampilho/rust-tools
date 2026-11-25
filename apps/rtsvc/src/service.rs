@@ -62,7 +62,14 @@ unsafe extern "system" fn service_main(_argc: u32, _argv: *mut *mut u16) {
     }
     STATUS_HANDLE.store(h as isize, Ordering::SeqCst);
     report(SERVICE_START_PENDING, 0, 10_000);
-    let log = file_log(&data_dir().join("logs"));
+    // Before anything is read from or written to it (the log included): the data folder is the service's own.
+    let data = data_dir();
+    let usable = || rt_svc::secure::check_data_dir(&data).is_empty();
+    if !usable() || crate::config::protect(&data, crate::config::DATA_SDDL).is_err() || !usable() {
+        report(SERVICE_STOPPED, ERROR_ACCESS_DENIED, 0);
+        return;
+    }
+    let log = file_log(&data.join("logs"));
 
     // Only from a folder that only administrators may change.
     let dir = std::env::current_exe().ok().and_then(|e| e.parent().map(|p| p.to_path_buf()));
@@ -82,10 +89,13 @@ unsafe extern "system" fn service_main(_argc: u32, _argv: *mut *mut u16) {
     report(SERVICE_RUNNING, 0, 0);
     let store = start_background(&stop, &log, Some(data_dir().join("cache")));
     let result = run(PIPE_NAME, Arc::new(Svc::new(cfg.visibility, crate::handler::ntfs_source(), store, jobs())), stop, log.clone());
+    // A failure is told to the Service Control Manager too (it shows in its state and in the event log).
+    let mut exit = 0;
     if let Err(e) = result {
         log(&format!("the pipe could not be served: {e}"));
+        exit = e.raw_os_error().map_or(ERROR_ACCESS_DENIED, |c| c as u32);
     }
-    report(SERVICE_STOPPED, 0, 0);
+    report(SERVICE_STOPPED, exit, 0);
 }
 
 /// The snapshots and what makes them: a thread that makes them when the computer is idle (or a
@@ -110,7 +120,7 @@ fn start_background(stop: &Arc<Event>, log: &Log, cache: Option<std::path::PathB
                 std::thread::spawn(move || {
                     stop.wait(u32::MAX);
                     cancel.store(true, Ordering::SeqCst);
-                    store.mark_dirty("");
+                    store.poke();
                 })
             };
             crate::idle::work_in_background();

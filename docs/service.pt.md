@@ -1,6 +1,6 @@
 # Um serviço com privilégios para as rust-tools (desenho)
 
-Estado: construído, mas experimentado só por partes (o pipe, os níveis, a verificação de pasta, as fotografias e as tarefas correm em testes num só processo); o `install`, o `uninstall` e o serviço como SYSTEM ainda não correram. As ferramentas ainda não usam tarefas. [English version](service.md)
+Estado: construído, instalado e a responder como SYSTEM num PC real (`install`, `status`, a leitura de volumes e as fotografias). Ainda não correram a sério: o `uninstall` e as tarefas. As ferramentas ainda não usam tarefas; as tarefas não são guardadas em disco, por isso não sobrevivem a um reinício do serviço. [English version](service.md)
 
 ## 1. Objetivo
 
@@ -160,7 +160,7 @@ atualização. As entradas sobre outros utilizadores ficam numa parte que os Uti
 - está limitada pelo **catálogo**: os itens do limpador são ids com significado fixo (uma pasta ou uma
   regra) que o serviço resolve. Um id nunca é um caminho vindo do cliente.
 
-**Apagar com segurança.** Os ficheiros abrem-se por *handle* com `FILE_FLAG_OPEN_REPARSE_POINT`, o caminho
+**Apagar com segurança** (ficheiros e pastas simples das tarefas de limpeza). Os ficheiros abrem-se por *handle* com `FILE_FLAG_OPEN_REPARSE_POINT`, o caminho
 final verifica-se contra o catálogo (`GetFinalPathNameByHandle`) depois de abrir, e apagam-se por esse
 *handle* (`FILE_DISPOSITION_INFO_EX`). Junções e ligações simbólicas removem-se como ligações, nunca se
 seguem. Isto fecha a falha entre verificar e usar, em que um utilizador troca uma pasta por uma junção.
@@ -198,6 +198,10 @@ por utilizador (`HKCU`) é corrido como esse utilizador pela ferramenta, não pe
   deixa qualquer um mudar o nome do que está por baixo, por isso todas as pastas desse disco, a
   `Program Files` incluída, são recusadas até essa entrada ser removida. O `install` diz a entrada que falha e
   não tem opção para ignorar a verificação.
+- **A pasta de dados** (`%ProgramData%\rust-tools`) também é verificada: os utilizadores podem criar pastas em
+  `%ProgramData%`, por isso o `install` e cada arranque recusam uma que tenha uma ligação ou junção, ou algo que
+  não seja de SYSTEM, Administradores ou TrustedInstaller, e depois entregam-na aos Administradores com as
+  permissões do próprio serviço.
 - O cliente descobre onde está o serviço perguntando ao Gestor de Serviços pelo caminho registado da
   imagem (`QueryServiceConfig`), sem presumir Program Files, e compara-o com a imagem do processo
   que está no pipe (§5).
@@ -219,13 +223,14 @@ administrador que *não* está elevado, e dados malformados.
 | Ameaça | Resposta |
 | --- | --- |
 | Um utilizador troca o exe do serviço | instalado em Program Files ou noutra pasta que passe a verificação do §9 (feita na instalação e em cada arranque, por isso uma mudança posterior de permissões pára o serviço); o cliente compara o caminho da imagem do servidor com o que o Gestor de Serviços registou (§5) |
-| Um processo cria primeiro o nome do pipe | o serviço cria-o com `FIRST_PIPE_INSTANCE` no arranque, antes de qualquer processo de utilizador; o cliente verifica o token do servidor (§5) |
+| Um processo cria primeiro o nome do pipe | o serviço cria-o com `FIRST_PIPE_INSTANCE` no arranque, antes de qualquer processo de utilizador; o cliente verifica o token do servidor (§5); depois disso o nome nunca desaparece (uma instância nova antes de fechar uma estragada) |
+| Um utilizador cria a pasta de dados antes de o serviço ser instalado | não é usada: não se aceita nela nenhuma ligação nem outro dono (§9) |
 | Um processo não elevado de um administrador pede uma escrita | o token recebido pelo pipe não é elevado, por isso o pedido é recusado (§5); o UAC não é contornado |
 | Troca de caminhos, junções ou ligações simbólicas | os pedidos levam ids do catálogo, abertura por *handle*, verificação do caminho final (§8) |
 | Ler o que um utilizador não pode (conteúdos) | nenhum pedido devolve conteúdos de ficheiros; só nomes e tamanhos, e conforme a definição de visibilidade (§6) |
 | Informação sobre outros utilizadores | numa parte da cache que os Utilizadores não leem; só respondida a Elevated (§6) |
 | Recusa de serviço (muitos clientes, pedidos enormes, leituras sem fim) | os limites do §4, prioridade baixa, uma tarefa de cada tipo de cada vez, prazos |
-| Tramas malformadas ou hostis | limites de comprimento, descodificação estrita, sem `unsafe` no codificador, testes de *fuzz* do descodificador |
+| Tramas malformadas ou hostis | limites de comprimento (um pedido nunca é longo), descodificação estrita, sem `unsafe` no codificador, testes de *fuzz* do descodificador |
 | Cache velha ou forjada | os ficheiros da cache só são escritos por SYSTEM e Administradores; cada um leva versão e hora |
 | Segredos nos registos | os registos dizem o utilizador, o verbo e as contagens, nunca conteúdos; rodam, em `%ProgramData%\rust-tools\logs` |
 
