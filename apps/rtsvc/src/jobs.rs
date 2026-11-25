@@ -217,8 +217,9 @@ mod tests {
     fn a_job_can_be_stopped_and_the_next_waits_its_turn() {
         let j = Jobs::new(Arc::new(Fake));
         let a = j.submit(req(&["slow", "ok"])).unwrap();
-        let b = j.submit(req(&["ok"])).unwrap();
+        // The first has its turn before the second is asked for: which of two queued jobs goes first is not promised.
         wait(&j, a, |i| i.state == JobState::Running);
+        let b = j.submit(req(&["ok"])).unwrap();
         assert_eq!(j.get(b).unwrap().state, JobState::Queued, "one at a time for a kind");
         j.cancel(a).unwrap();
         let i = wait(&j, a, |i| i.state.finished());

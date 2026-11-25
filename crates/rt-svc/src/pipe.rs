@@ -6,8 +6,8 @@ use std::io::{self, Read, Write};
 use std::mem::zeroed;
 use std::ptr::{null, null_mut};
 use windows_sys::Win32::Foundation::{
-    CloseHandle, GetLastError, LocalFree, ERROR_BROKEN_PIPE, ERROR_IO_PENDING, ERROR_PIPE_BUSY, ERROR_PIPE_CONNECTED, HANDLE,
-    INVALID_HANDLE_VALUE, WAIT_OBJECT_0, WAIT_TIMEOUT,
+    CloseHandle, GetLastError, LocalFree, ERROR_BROKEN_PIPE, ERROR_IO_PENDING, ERROR_NO_DATA, ERROR_PIPE_BUSY, ERROR_PIPE_CONNECTED,
+    HANDLE, INVALID_HANDLE_VALUE, WAIT_OBJECT_0, WAIT_TIMEOUT,
 };
 use windows_sys::Win32::Security::Authorization::{ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1};
 use windows_sys::Win32::Security::SECURITY_ATTRIBUTES;
@@ -252,43 +252,52 @@ impl Listener {
     }
 
     /// Waits for a client. The next instance is created before this one is
-    /// handed over, so there is never a moment without one waiting.
+    /// handed over (or closed), so there is never a moment without one: a
+    /// moment without would tell clients there is no service, and would let
+    /// someone else create a pipe of the same name.
     pub fn accept(&mut self, timeout_ms: u32) -> io::Result<Conn> {
-        if self.pending == INVALID_HANDLE_VALUE {
-            self.pending = self.instance(false)?;
-        }
-        let ev = Event::new()?;
-        // SAFETY: an all-zero OVERLAPPED is its initial state.
-        let mut ov: OVERLAPPED = unsafe { zeroed() };
-        ov.hEvent = ev.0;
-        // SAFETY: the pending instance is a valid pipe handle.
-        let ok = unsafe { ConnectNamedPipe(self.pending, &mut ov) };
-        if ok == 0 {
-            // SAFETY: no arguments.
-            let e = unsafe { GetLastError() };
-            let waited = if e == ERROR_IO_PENDING {
-                wait(self.pending, &mut ov, self.stop, timeout_ms)
-            } else if e != ERROR_PIPE_CONNECTED {
-                Err(io::Error::from_raw_os_error(e as i32))
-            } else {
-                Ok(0)
-            };
-            if let Err(e) = waited {
-                // A client that connected and left before we looked ("the pipe is being
-                // closed"), or a stop: this instance is no good any more. The next call makes another.
-                // SAFETY: the handle is ours and not used again.
-                unsafe { CloseHandle(self.pending) };
-                self.pending = INVALID_HANDLE_VALUE;
-                return Err(e);
+        loop {
+            if self.pending == INVALID_HANDLE_VALUE {
+                self.pending = self.instance(false)?;
             }
+            let ev = Event::new()?;
+            // SAFETY: an all-zero OVERLAPPED is its initial state.
+            let mut ov: OVERLAPPED = unsafe { zeroed() };
+            ov.hEvent = ev.0;
+            // SAFETY: the pending instance is a valid pipe handle.
+            let ok = unsafe { ConnectNamedPipe(self.pending, &mut ov) };
+            if ok == 0 {
+                // SAFETY: no arguments.
+                let e = unsafe { GetLastError() };
+                let waited = if e == ERROR_IO_PENDING {
+                    wait(self.pending, &mut ov, self.stop, timeout_ms)
+                } else if e != ERROR_PIPE_CONNECTED {
+                    Err(io::Error::from_raw_os_error(e as i32))
+                } else {
+                    Ok(0)
+                };
+                if let Err(e) = waited {
+                    // This instance is no good any more: another one first, then it goes.
+                    let broken = self.pending;
+                    self.pending = self.instance(false).unwrap_or(INVALID_HANDLE_VALUE);
+                    // SAFETY: the handle is ours and not used again.
+                    unsafe { CloseHandle(broken) };
+                    // A client that connected and left before we looked ("the pipe is being
+                    // closed") is nothing to report: wait for the next.
+                    if e.raw_os_error() == Some(ERROR_NO_DATA as i32) {
+                        continue;
+                    }
+                    return Err(e);
+                }
+            }
+            let connected = self.pending;
+            let conn = Conn { h: connected, stop: self.stop, timeout_ms: 60_000 };
+            // If the next instance cannot be made, `conn` is dropped (closed) with the error,
+            // and the next call makes the instance again.
+            self.pending = INVALID_HANDLE_VALUE;
+            self.pending = self.instance(false)?;
+            return Ok(conn);
         }
-        let connected = self.pending;
-        let conn = Conn { h: connected, stop: self.stop, timeout_ms: 60_000 };
-        // If the next instance cannot be made, `conn` is dropped (closed) with the error,
-        // and the next call makes the instance again.
-        self.pending = INVALID_HANDLE_VALUE;
-        self.pending = self.instance(false)?;
-        Ok(conn)
     }
 }
 

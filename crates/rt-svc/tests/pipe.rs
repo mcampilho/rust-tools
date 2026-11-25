@@ -160,6 +160,20 @@ fn a_client_that_checks_does_not_trust_just_any_server() {
 }
 
 #[test]
+fn clients_that_come_and_go_never_take_the_pipe_away() {
+    let s = start();
+    // A client that leaves before the service looks at it must not leave a moment without the pipe: others would be
+    // told there is no service, and anyone could create a pipe of the same name in that moment.
+    for i in 0..200 {
+        for _ in 0..3 {
+            drop(connect(&s.name, 1000).unwrap_or_else(|e| panic!("round {i}: {e}")));
+        }
+        let mut c = connect_to(&s.name, Trust::Anyone, "test", "1", 1000).unwrap_or_else(|e| panic!("round {i}: {e}"));
+        c.ping().unwrap();
+    }
+}
+
+#[test]
 fn no_service_is_a_quick_error() {
     let start = std::time::Instant::now();
     let e = connect_to(r"\\.\pipe\rt-svc-nobody-here", Trust::Anyone, "t", "1", 200).err().unwrap();
