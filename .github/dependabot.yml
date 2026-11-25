@@ -9,6 +9,10 @@ updates:
     groups:
       crates:
         update-types: [minor, patch]
+    ignore:
+      # Named only for the `#[implement]` macro (rwall): it must be the version the `windows` crate uses, so it is
+      # raised by hand together with `windows`, never on its own.
+      - dependency-name: windows-core
     open-pull-requests-limit: 5
 
   - package-ecosystem: github-actions
