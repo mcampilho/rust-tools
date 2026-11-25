@@ -1,13 +1,13 @@
 {
-    "version": "0.3.0",
+    "version": "0.3.1",
     "description": "Command-line disk usage like du: how much space the files and folders under a path take, reading NTFS directly or the Everything index",
     "homepage": "https://github.com/mcampilho/rust-tools/tree/master/apps/rsize-cli",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/mcampilho/rust-tools/releases/download/rsize-cli-v0.3.0/rsize-cli-0.3.0-windows-x86_64.zip",
-            "hash": "2bad9c5bbca23ac0063b423a8cad32705cfdf3599ee624cdb60e8ada3a8cd426",
-            "extract_dir": "rsize-cli-0.3.0-windows-x86_64"
+            "url": "https://github.com/mcampilho/rust-tools/releases/download/rsize-cli-v0.3.1/rsize-cli-0.3.1-windows-x86_64.zip",
+            "hash": "439eab1d5e3d01949a5808fce7207885f77e1f2c1c1785ea10da50da3542e525",
+            "extract_dir": "rsize-cli-0.3.1-windows-x86_64"
         }
     },
     "bin": "rsize-cli.exe",

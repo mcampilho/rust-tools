@@ -1,13 +1,13 @@
 {
-    "version": "0.2.0",
+    "version": "0.2.1",
     "description": "Portable cleaner: temporary files of the system and of the browsers",
     "homepage": "https://github.com/mcampilho/rust-tools/tree/master/apps/rclean",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/mcampilho/rust-tools/releases/download/rclean-v0.2.0/rclean-0.2.0-windows-x86_64.zip",
-            "hash": "a6bd1e730fa1bff363229b99723e818392441294d5e8812ae3a0ae6113104c40",
-            "extract_dir": "rclean-0.2.0-windows-x86_64"
+            "url": "https://github.com/mcampilho/rust-tools/releases/download/rclean-v0.2.1/rclean-0.2.1-windows-x86_64.zip",
+            "hash": "fa422b5a0831c7999bfa6f148d531e163ec64723155d450e702e4032046cb6c7",
+            "extract_dir": "rclean-0.2.1-windows-x86_64"
         }
     },
     "bin": "rclean.exe",

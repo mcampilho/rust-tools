@@ -1,13 +1,13 @@
 {
-    "version": "0.3.0",
+    "version": "0.3.1",
     "description": "Command-line duplicate finder like fdupes: files with the same contents in the folders and drives given, listed in groups; it never deletes anything",
     "homepage": "https://github.com/mcampilho/rust-tools/tree/master/apps/rdup-cli",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/mcampilho/rust-tools/releases/download/rdup-cli-v0.3.0/rdup-cli-0.3.0-windows-x86_64.zip",
-            "hash": "64b44a9ab8032fd1e53cc14572fed4ade44bc90b931df9b688ae018815b042e1",
-            "extract_dir": "rdup-cli-0.3.0-windows-x86_64"
+            "url": "https://github.com/mcampilho/rust-tools/releases/download/rdup-cli-v0.3.1/rdup-cli-0.3.1-windows-x86_64.zip",
+            "hash": "27d0a1ae7ca0cc1c2acab07700cefd79f640355e84c945f154ffb9e26208dc7e",
+            "extract_dir": "rdup-cli-0.3.1-windows-x86_64"
         }
     },
     "bin": "rdup-cli.exe",

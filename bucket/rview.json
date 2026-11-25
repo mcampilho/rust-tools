@@ -1,13 +1,13 @@
 {
-    "version": "1.4.0",
+    "version": "1.4.1",
     "description": "Portable document viewer for PDF, Markdown, HTML, text and CSV",
     "homepage": "https://github.com/mcampilho/rust-tools/tree/master/apps/rview",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/mcampilho/rust-tools/releases/download/rview-v1.4.0/rview-1.4.0-windows-x86_64.zip",
-            "hash": "a66fdf7f7608178c2af60ec121b47ca971ec6af1d55a388b0bb19aa707d231f2",
-            "extract_dir": "rview-1.4.0-windows-x86_64"
+            "url": "https://github.com/mcampilho/rust-tools/releases/download/rview-v1.4.1/rview-1.4.1-windows-x86_64.zip",
+            "hash": "0c3b5ca915e13775b7f3f116a709b0699fffc78daac282f74282aa63decfe91d",
+            "extract_dir": "rview-1.4.1-windows-x86_64"
         }
     },
     "bin": "rview.exe",
