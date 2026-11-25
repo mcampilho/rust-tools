@@ -1,6 +1,6 @@
 [package]
 name = "rwall"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 rust-version = "1.93"
 description = "A portable wallpaper changer in the notification area: Bing, NASA, Wallhaven, Picsum or your own folders"

@@ -1,6 +1,6 @@
 [package]
 name = "rpack"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 rust-version = "1.93"
 description = "A portable archiver: opens, tests and extracts zip, tar and compressed files"
