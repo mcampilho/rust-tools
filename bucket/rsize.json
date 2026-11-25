@@ -1,13 +1,13 @@
 {
-    "version": "0.2.0",
+    "version": "0.3.0",
     "description": "Portable disk space analyzer: folder list, file types, treemap, pie and rings",
     "homepage": "https://github.com/mcampilho/rust-tools/tree/master/apps/rsize",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/mcampilho/rust-tools/releases/download/rsize-v0.2.0/rsize-0.2.0-windows-x86_64.zip",
-            "hash": "04bc927a235df1b4d3f0f6bcb058343743cec4a7df4149dcec85756f9b4772e5",
-            "extract_dir": "rsize-0.2.0-windows-x86_64"
+            "url": "https://github.com/mcampilho/rust-tools/releases/download/rsize-v0.3.0/rsize-0.3.0-windows-x86_64.zip",
+            "hash": "c41d0c4ecb2db5066849d548a504aee4e0ae0fdc0e9e3a3802c64eb8a0d061dc",
+            "extract_dir": "rsize-0.3.0-windows-x86_64"
         }
     },
     "bin": "rsize.exe",

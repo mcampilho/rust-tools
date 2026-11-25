@@ -1,13 +1,13 @@
 {
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "Portable uninstaller: the programs of the system and of every user, with their shortcuts",
     "homepage": "https://github.com/mcampilho/rust-tools/tree/master/apps/rinst",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/mcampilho/rust-tools/releases/download/rinst-v0.1.0/rinst-0.1.0-windows-x86_64.zip",
-            "hash": "5ed8e03a809f7f7133a02e0fa14e87439be8ad05fb8a214c8e16cce10a27f114",
-            "extract_dir": "rinst-0.1.0-windows-x86_64"
+            "url": "https://github.com/mcampilho/rust-tools/releases/download/rinst-v0.2.0/rinst-0.2.0-windows-x86_64.zip",
+            "hash": "655c2b30197668d6bbbc5c953f3d9110c458d6b6598a96fa54b5315fdff31b88",
+            "extract_dir": "rinst-0.2.0-windows-x86_64"
         }
     },
     "bin": "rinst.exe",

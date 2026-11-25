@@ -1,13 +1,13 @@
 {
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Portable archiver: opens, tests and extracts zip, tar and compressed files",
     "homepage": "https://github.com/mcampilho/rust-tools/tree/master/apps/rpack",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/mcampilho/rust-tools/releases/download/rpack-v0.1.0/rpack-0.1.0-windows-x86_64.zip",
-            "hash": "c1c47c301fda71bf819d5db38adc4d3fcfcb5ea0b2687bff338685b13c4288e4",
-            "extract_dir": "rpack-0.1.0-windows-x86_64"
+            "url": "https://github.com/mcampilho/rust-tools/releases/download/rpack-v0.1.1/rpack-0.1.1-windows-x86_64.zip",
+            "hash": "d5f2b816e36747b6c6920b3f096408b4e41945b075cd712fd04e075776d42371",
+            "extract_dir": "rpack-0.1.1-windows-x86_64"
         }
     },
     "bin": "rpack.exe",
