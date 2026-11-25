@@ -56,7 +56,7 @@ windows = { version = "0.62", features = [
     "Win32_UI_WindowsAndMessaging",
 ] }
 # The #[implement] macro of the media engine's callback needs it by name.
-windows-core = "0.62"
+windows-core = "0.100"
 
 # X11 and Wayland both: the same executable runs on either.
 [target.'cfg(target_os = "linux")'.dependencies]
