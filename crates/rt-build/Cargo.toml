@@ -8,4 +8,4 @@ license = "MIT"
 publish = false
 
 [dependencies]
-tiny-skia = { version = "0.11", default-features = false, features = ["std", "png-format"] }
+tiny-skia = { version = "0.12", default-features = false, features = ["std", "png-format"] }
