@@ -1,13 +1,13 @@
 {
-    "version": "1.3.1",
+    "version": "1.4.0",
     "description": "Portable text and code editor: tabs, encodings, regex search and replace, multiple cursors, syntax highlighting, Markdown preview",
     "homepage": "https://github.com/mcampilho/rust-tools/tree/master/apps/rpad",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/mcampilho/rust-tools/releases/download/rpad-v1.3.1/rpad-1.3.1-windows-x86_64.zip",
-            "hash": "2250eb1012ba6ecbe8c92891db1dcb4aaba5ab4ef9494085cd754b66f1369d73",
-            "extract_dir": "rpad-1.3.1-windows-x86_64"
+            "url": "https://github.com/mcampilho/rust-tools/releases/download/rpad-v1.4.0/rpad-1.4.0-windows-x86_64.zip",
+            "hash": "54d01acd9487904cf3933bedafb46a9d43caf5f1c95c0a1d5a620ebf146cd064",
+            "extract_dir": "rpad-1.4.0-windows-x86_64"
         }
     },
     "bin": "rpad.exe",
