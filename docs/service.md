@@ -1,6 +1,6 @@
 # A privileged service for rust-tools (design)
 
-Status: built, installed and answering as SYSTEM on a real PC (`install`, `status`, the volume reading and the snapshots). Not yet run for real: `uninstall` and the jobs. The tools do not use jobs yet; jobs are not kept on disk, so they do not survive a restart of the service. [Versão portuguesa](service.pt.md)
+Status: built, installed and answering as SYSTEM on a real PC (`install`, `uninstall`, `status`, the volume reading and the snapshots). Not yet run for real: the jobs. The tools do not use jobs yet; jobs are not kept on disk, so they do not survive a restart of the service. [Versão portuguesa](service.pt.md)
 
 ## 1. Goal
 

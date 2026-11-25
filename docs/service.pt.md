@@ -1,6 +1,6 @@
 # Um serviço com privilégios para as rust-tools (desenho)
 
-Estado: construído, instalado e a responder como SYSTEM num PC real (`install`, `status`, a leitura de volumes e as fotografias). Ainda não correram a sério: o `uninstall` e as tarefas. As ferramentas ainda não usam tarefas; as tarefas não são guardadas em disco, por isso não sobrevivem a um reinício do serviço. [English version](service.md)
+Estado: construído, instalado e a responder como SYSTEM num PC real (`install`, `uninstall`, `status`, a leitura de volumes e as fotografias). Ainda não correram a sério: as tarefas. As ferramentas ainda não usam tarefas; as tarefas não são guardadas em disco, por isso não sobrevivem a um reinício do serviço. [English version](service.md)
 
 ## 1. Objetivo
 

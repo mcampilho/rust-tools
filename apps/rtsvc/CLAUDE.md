@@ -33,8 +33,8 @@ Fora do Windows só diz que é só Windows (`platforms = "windows"`).
   de testes instáveis); a pasta de dados é recusada se tiver ligações/junções ou outro dono (`check_data_dir`) e passa
   para os Administradores; as tarefas de limpeza só apagam o que está mesmo onde foi listado (`rt_clean::in_place`);
   um pedido nunca é uma trama longa (`read_request`).
-- Experimentado a sério pelo utilizador (0.1.0): `install`, o serviço como SYSTEM, `status`, fotografias. Por
-  experimentar (elevado): `uninstall`, as tarefas (`Clean`, `UninstallMsi`).
+- Experimentado a sério pelo utilizador: `install`, o serviço como SYSTEM, `status`, fotografias (0.1.0) e
+  `uninstall` seguido de `install` (2026-11-25). Por experimentar (elevado): as tarefas (`Clean`, `UninstallMsi`).
 - Por fazer: restringir os privilégios do serviço (`SERVICE_CONFIG_REQUIRED_PRIVILEGES_INFO`), tarefas nas janelas do
   rclean e do rinst, indicador "via serviço" e botão para o ignorar.
 
