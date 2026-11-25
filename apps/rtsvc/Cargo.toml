@@ -1,6 +1,6 @@
 [package]
 name = "rtsvc"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 rust-version = "1.93"
 description = "The rust-tools privileged service: lets the tools read system-wide information, and do what an elevated tool asks, in the background"
