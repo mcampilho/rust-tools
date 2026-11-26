@@ -84,6 +84,10 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
   `cargo fmt --all` antes de cada commit. Neste PC o `cargo-fmt` do rustup (sem toolchain) vem primeiro no PATH:
   pôr `E:\Portable\scoop\apps\rust\current\bin` à frente. A reformatação de 2026-11-18 está em
   `.git-blame-ignore-revs` (`git config blame.ignoreRevsFile .git-blame-ignore-revs`).
+- Para trazer uma janela para a frente usar `rt_ui::window::focus`, nunca o `focus_window` do winit (2026-11-26):
+  no Windows este simula uma pressão no Alt, e quando o largar chegava à janela ela ficava em modo de menu (sem
+  cursor, scroll nem escrita até um clique; no rpad ao abrir ficheiros pelo Explorador ou pelo Everything). O
+  lançamento do utilizador é que traz a janela aberta para a frente (`rt_sys::win::hand_off` com `activate`).
 
 ## Verificação automática
 

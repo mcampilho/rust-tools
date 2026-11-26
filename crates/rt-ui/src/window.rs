@@ -77,6 +77,18 @@ pub fn hwnd_of(window: &Window) -> rt_sys::win::HWND {
     }
 }
 
+/// Brings the window to the front, if Windows lets this process (it was
+/// handed the right by the launch or the click that asked for the window).
+/// Not winit's `focus_window`: on Windows it presses Alt by itself to get that
+/// right, and when the release reached the window it was left in menu mode,
+/// with no caret, scrolling or typing until a click.
+pub fn focus(window: &Window) {
+    #[cfg(windows)]
+    rt_sys::win::set_foreground(hwnd_of(window));
+    #[cfg(not(windows))]
+    window.focus_window();
+}
+
 /// The access keys of the menu bar's titles, in the current language
 /// ("&File" → 'F'), for Alt+key in the window.
 pub fn mnemonics_of<C>(tree: &[(&'static str, Vec<M<C>>)]) -> String {

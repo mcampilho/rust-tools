@@ -1041,7 +1041,7 @@ impl Shell {
             }
             w.window.set_visible(true);
             w.window.set_minimized(false);
-            w.window.focus_window();
+            rt_ui::window::focus(&w.window);
         }
         self.hidden = false;
         self.autostart = rt_sys::autostart::enabled("rcare");
@@ -1710,7 +1710,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 w.window.set_maximized(true);
             }
             w.window.set_visible(true);
-            w.window.focus_window();
+            rt_ui::window::focus(&w.window);
         }
         self.redraw();
     }
@@ -1975,7 +1975,7 @@ pub fn run() {
     let tray = raw.iter().any(|a| a == "--tray" || a == "/tray") && !help;
     let new_window = raw.iter().any(|a| a == "--new-window") || help;
     // A resident rcare shows itself (and analyses the folder) instantly.
-    if !new_window && rt_sys::win::hand_off(&IDENT, &folders, false, false) {
+    if !new_window && rt_sys::win::hand_off(&IDENT, &folders, false, true) {
         return;
     }
     // As administrator by default: Windows asks, and that rcare starts instead. Refused: on without the rights.

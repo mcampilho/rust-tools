@@ -312,7 +312,7 @@ impl Shell {
             }
             w.window.set_visible(true);
             w.window.set_minimized(false);
-            w.window.focus_window();
+            rt_ui::window::focus(&w.window);
         }
         self.hidden = false;
         self.menu_dirty = true;
@@ -457,7 +457,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 w.window.set_maximized(true);
             }
             w.window.set_visible(true);
-            w.window.focus_window();
+            rt_ui::window::focus(&w.window);
         }
         self.redraw();
     }
@@ -728,7 +728,7 @@ fn main() {
     let new_window = raw.iter().any(|a| a == "--new-window") || help;
     // A resident rsize shows itself (and reads the folder) instantly.
     #[cfg(windows)]
-    if !new_window && rt_sys::win::hand_off(&IDENT, &args, false, false) {
+    if !new_window && rt_sys::win::hand_off(&IDENT, &args, false, true) {
         return;
     }
     #[cfg(not(windows))]

@@ -907,7 +907,7 @@ impl Host2<'_> {
                     Err(e) => {
                         let msg = match e {
                             WeatherError::NotFound => tf("City not found: {}", &[&city]),
-                            WeatherError::Net(e) => tf("The weather could not be read: {}", &[&e]),
+                            WeatherError::Net(e) => tf("The weather could not be read: {}", &[&crate::net::explain(&e)]),
                         };
                         w.status = Some(msg.clone());
                         w.next_weather = now + Duration::from_secs(5 * 60);

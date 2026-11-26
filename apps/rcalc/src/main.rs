@@ -174,7 +174,7 @@ impl Shell {
             w.window.set_visible(true);
             w.window.set_minimized(false);
             w.window.set_title(rcalc::i18n::tr("Calculator"));
-            w.window.focus_window();
+            rt_ui::window::focus(&w.window);
             self.hidden = false;
             w.window.request_redraw();
         }

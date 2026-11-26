@@ -60,6 +60,22 @@ pub fn encode(s: &str) -> String {
     o
 }
 
+const UNREACHABLE: &str = ": could not connect (error ";
+
+/// The error of a request that never got an answer from `host`; `code` is
+/// WinHTTP's, or `curl`'s exit code on Linux.
+fn no_connection(host: &str, code: u32) -> String {
+    format!("{host}{UNREACHABLE}{code})")
+}
+
+/// The host and code of such an error (also with text in front of it), so a
+/// program can word it in the user's language.
+pub fn unreachable(error: &str) -> Option<(&str, u32)> {
+    let (before, after) = error.split_once(UNREACHABLE)?;
+    let code = after.split_once(')')?.0.parse().ok()?;
+    Some((before.rsplit(": ").next()?, code))
+}
+
 /// Downloads `url` as `agent` ("rwall/1.0"), refusing answers larger than
 /// `limit` bytes and any status but 200.
 pub fn get(url: &str, limit: usize, agent: &str) -> Result<Response, String> {
@@ -69,7 +85,7 @@ pub fn get(url: &str, limit: usize, agent: &str) -> Result<Response, String> {
 
 #[cfg(windows)]
 mod imp {
-    use super::{split_url, Response, TIMEOUT};
+    use super::{no_connection, split_url, Response, TIMEOUT};
     use crate::win::{from_wide, wide};
     use std::ffi::c_void;
     use windows_sys::Win32::Networking::WinHttp::*;
@@ -87,7 +103,18 @@ mod imp {
     }
 
     fn last_error(what: &str) -> String {
-        format!("{what}: {}", std::io::Error::last_os_error())
+        let e = std::io::Error::last_os_error();
+        // WinHTTP's own codes have no text in the system's message table.
+        match e.raw_os_error().map(|c| c as u32) {
+            Some(
+                c @ (ERROR_WINHTTP_TIMEOUT
+                | ERROR_WINHTTP_NAME_NOT_RESOLVED
+                | ERROR_WINHTTP_CANNOT_CONNECT
+                | ERROR_WINHTTP_CONNECTION_ERROR),
+            ) => no_connection(what, c),
+            Some(c @ 12000..=12999) => format!("{what}: network error {c}"),
+            _ => format!("{what}: {e}"),
+        }
     }
 
     pub fn get(url: &str, limit: usize, user_agent: &str) -> Result<Response, String> {
@@ -160,7 +187,7 @@ mod imp {
 
 #[cfg(not(windows))]
 mod imp {
-    use super::{Response, TIMEOUT};
+    use super::{no_connection, split_url, Response, TIMEOUT};
 
     pub fn get(url: &str, limit: usize, user_agent: &str) -> Result<Response, String> {
         // The address after redirects goes to stderr, the body to stdout.
@@ -174,6 +201,10 @@ mod imp {
             .map_err(|e| format!("curl: {e}"))?;
         let err = String::from_utf8_lossy(&out.stderr).to_string();
         if !out.status.success() {
+            // Name not resolved, no connection, timed out.
+            if let Some(c @ (6 | 7 | 28)) = out.status.code() {
+                return Err(no_connection(split_url(url).map_or(url, |u| u.host), c as u32));
+            }
             return Err(err.lines().find(|l| l.starts_with("curl:")).unwrap_or("curl failed").to_string());
         }
         Ok(Response { body: out.stdout, url: err.lines().last().unwrap_or(url).to_string() })
@@ -195,6 +226,13 @@ mod tests {
         assert_eq!(split_url("ftp://a.b/"), None);
         assert_eq!(split_url("https://user@a.b/"), None);
         assert_eq!(split_url("https:///x"), None);
+    }
+
+    #[test]
+    fn a_request_without_answer_is_recognised() {
+        let e = format!("bing: {}", no_connection("www.bing.com", 12029));
+        assert_eq!(unreachable(&e), Some(("www.bing.com", 12029)));
+        assert_eq!(unreachable("www.bing.com: HTTP 500"), None);
     }
 
     #[test]

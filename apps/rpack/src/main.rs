@@ -1120,7 +1120,7 @@ impl Shell {
             }
             w.window.set_visible(true);
             w.window.set_minimized(false);
-            w.window.focus_window();
+            rt_ui::window::focus(&w.window);
         }
         let was_hidden = std::mem::take(&mut self.hidden);
         self.autostart = rt_sys::autostart::enabled("rpack");
@@ -1288,7 +1288,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 w.window.set_maximized(true);
             }
             w.window.set_visible(true);
-            w.window.focus_window();
+            rt_ui::window::focus(&w.window);
         }
         self.redraw();
     }
@@ -1655,7 +1655,7 @@ fn main() {
     // A resident rpack shows itself (with the archive or folder asked for).
     let given: Vec<PathBuf> = arg.iter().map(|p| std::path::absolute(p).unwrap_or_else(|_| p.clone())).collect();
     #[cfg(windows)]
-    if !new_window && rt_sys::win::hand_off(&IDENT, &given, false, false) {
+    if !new_window && rt_sys::win::hand_off(&IDENT, &given, false, true) {
         return;
     }
     #[cfg(not(windows))]

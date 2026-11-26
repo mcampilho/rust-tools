@@ -312,7 +312,7 @@ impl Shell {
             }
             w.window.set_visible(true);
             w.window.set_minimized(false);
-            w.window.focus_window();
+            rt_ui::window::focus(&w.window);
         }
         let was_hidden = std::mem::take(&mut self.hidden);
         self.autostart = rt_sys::autostart::enabled("rinst");
@@ -431,7 +431,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 w.window.set_maximized(true);
             }
             w.window.set_visible(true);
-            w.window.focus_window();
+            rt_ui::window::focus(&w.window);
         }
         self.redraw();
     }
@@ -672,7 +672,7 @@ fn main() {
     let new_window = raw.iter().any(|a| a == "--new-window") || help;
     // A resident rinst shows itself instantly.
     #[cfg(windows)]
-    if !new_window && rt_sys::win::hand_off(&IDENT, &[], false, false) {
+    if !new_window && rt_sys::win::hand_off(&IDENT, &[], false, true) {
         return;
     }
     #[cfg(not(windows))]

@@ -486,7 +486,7 @@ impl Shell {
             }
             w.window.set_visible(true);
             w.window.set_minimized(false);
-            w.window.focus_window();
+            rt_ui::window::focus(&w.window);
         }
         self.hidden = false;
         self.app.check_external_changes();
@@ -564,7 +564,7 @@ impl Shell {
             );
         }
         if let Some(w) = &self.win {
-            w.window.focus_window();
+            rt_ui::window::focus(&w.window);
         }
         if !paths.is_empty() {
             // The window may still be coming out of the tray or the taskbar: the frame drawn now can be
@@ -898,7 +898,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 w.window.set_maximized(true);
             }
             w.window.set_visible(true);
-            w.window.focus_window();
+            rt_ui::window::focus(&w.window);
         }
         self.focused = true;
         self.reset_blink();

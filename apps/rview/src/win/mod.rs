@@ -30,7 +30,7 @@ pub fn set_resident(hwnd: HWND) {
 /// Sends `paths` to a running resident instance, which shows its window.
 /// Returns true if handed over (this process should exit).
 pub fn hand_off_to_resident(paths: &[PathBuf]) -> bool {
-    rt_sys::win::hand_off(&IDENT, paths, false, false)
+    rt_sys::win::hand_off(&IDENT, paths, false, true)
 }
 
 /// Lets the window of the process started next come to the front.

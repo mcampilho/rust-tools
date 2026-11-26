@@ -168,6 +168,15 @@ unsafe extern "system" fn subclass_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LP
     }
 }
 
+/// Asks Windows to bring the window to the front; without the right to do so
+/// it only flashes in the taskbar. No keys are simulated to get it.
+pub fn set_foreground(hwnd: HWND) {
+    // SAFETY: accepts any handle value.
+    unsafe {
+        SetForegroundWindow(hwnd);
+    }
+}
+
 /// Finds the window of another running instance (any, or only a resident one).
 fn find_instance(ident: &Ident, resident_only: bool) -> HWND {
     struct Found(HWND, Vec<u16>);

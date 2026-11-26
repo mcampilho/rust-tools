@@ -271,7 +271,7 @@ impl Shell {
                 self.update_tip();
             }
             Err(e) => {
-                self.error = Some(tf("The picture could not be changed: {}", &[&e]));
+                self.error = Some(tf("The picture could not be changed: {}", &[&rwall::net::explain(&e)]));
                 self.retry_at = Some(Instant::now() + RETRY);
             }
         }
@@ -395,7 +395,7 @@ impl Shell {
             self.autostart = rwall::autostart::enabled();
             w.window.set_visible(true);
             w.window.set_minimized(false);
-            w.window.focus_window();
+            rt_ui::window::focus(&w.window);
             self.visible = true;
             self.redraw();
         }
@@ -904,7 +904,7 @@ fn auto() -> i32 {
         let job = changer::job(&settings, images, screen_size(), (1, 1)).ok_or_else(|| tr("Turn on at least one source of pictures."))?;
         let done = std::panic::catch_unwind(|| changer::run(&job))
             .unwrap_or_else(|_| Err("the picture could not be read".into()))
-            .map_err(|e| tf("The picture could not be changed: {}", &[&e]))?;
+            .map_err(|e| tf("The picture could not be changed: {}", &[&rwall::net::explain(&e)]))?;
         changer::record(&mut settings, done.pick, done.file, &rt_sys::local_time());
         if location.save(&settings.to_store()) {
             Ok(())

@@ -470,7 +470,7 @@ impl Shell {
         if let Some(w) = &self.win {
             w.window.set_visible(true);
             w.window.set_minimized(false);
-            w.window.focus_window();
+            rt_ui::window::focus(&w.window);
         }
         self.hidden = false;
         self.redraw();
@@ -663,7 +663,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
         if let Some(w) = &self.win {
             w.window.set_visible(true);
-            w.window.focus_window();
+            rt_ui::window::focus(&w.window);
         }
         self.redraw();
     }
