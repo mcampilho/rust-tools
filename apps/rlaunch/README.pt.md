@@ -7,7 +7,7 @@ só menu, por categorias, com uma caixa de procura.
 [English version](README.md)
 
 O rlaunch faz parte do [rust-tools](../../README.pt.md). Os comandos abaixo
-correm na raiz do repositório. **É uma primeira fase**: ver [Fases](#fases).
+correm na raiz do repositório. **Está a ser feito por fases**: ver [Fases](#fases).
 
 O `rlaunch.exe` é um único executável com cerca de 1,7 MB: sem instalador nem
 runtime. Não faz ligações à rede (salvo **Procurar atualizações**, quando o
@@ -20,8 +20,8 @@ rlaunch [--tray]
 ```
 
 O rlaunch fica na área de notificação. O menu abre pelo ícone, pelo atalho de
-teclado (**Ctrl+Alt+Espaço**) ou arrancando o rlaunch outra vez, junto ao canto
-do ecrã onde está o ponteiro, e fecha quando outra coisa recebe o foco. `--tray`
+teclado (**Ctrl+Alt+Espaço**) ou arrancando o rlaunch outra vez, junto à área de
+notificação do ecrã onde está o ponteiro, e fecha quando outra coisa recebe o foco. `--tray`
 arranca sem abrir o menu.
 
 - **À esquerda:** as categorias; um clique (ou Enter) abre uma, a seta no topo
@@ -31,6 +31,31 @@ arranca sem abrir o menu.
 - **À direita:** as pastas Documentos, Transferências, Imagens, Música e Vídeos,
   **Explorar**, Opções, Acerca de e Sair.
 - **Em baixo:** o espaço livre do disco.
+- Os **favoritos** ficam no topo, acima das categorias.
+- **Afixar** (ao lado da procura): o menu fica aberto quando outra coisa recebe
+  o foco, para se poder arrastar ficheiros para ele.
+
+### Os teus programas
+
+Botão direito num programa (ou a tecla Menu, ou Shift+F10): **Abrir**,
+**Executar como administrador** (também Ctrl+Shift+Enter; Windows), **Executar sempre como administrador** (o programa
+fica com um escudo), **Abrir
+localização do ficheiro**, **Adicionar aos favoritos**, **Mudar o nome** (um nome
+vazio repõe o original), **Categoria**, **Mudar o ícone…** (`.ico`, `.png`, um
+programa ou um atalho) e **Ocultar**. Os ocultos estão em **Opções > Ocultos**,
+onde o mesmo menu os volta a mostrar.
+
+**Opções > Adicionar programa…** acrescenta qualquer ficheiro, um programa
+ou um documento; arrastá-lo para o menu afixado faz o mesmo (uma pasta arrastada
+junta-se às tuas pastas). O menu dele tem **Remover do menu**. Os atalhos e os
+programas nunca são alterados: o que escolhes fica nas definições do rlaunch.
+
+**Modo admin**, na coluna da direita (ou **Reiniciar como administrador** no
+menu do ícone), arranca o rlaunch outra vez com direitos de administrador; para
+voltar ao normal, **Sair** e arrancar de novo.
+
+Quando o próprio rlaunch corre como administrador, um escudo toma o lugar do
+logótipo e uma linha avisa: o que ele abrir também fica com esses direitos.
 
 ### Opções
 
@@ -42,6 +67,9 @@ arranca sem abrir o menu.
 - **Atalho de teclado:** Ctrl+Alt+Espaço, Ctrl+Shift+Espaço, Alt+Shift+Espaço,
   Win+Shift+Espaço ou desativado. Quando outro programa já tem a combinação, o
   menu avisa: escolhe outra.
+- **Arrancar sempre como administrador** (Windows): o Windows pede confirmação
+  em cada arranque, também quando o rlaunch inicia com a sessão; se recusares,
+  arranca sem esses direitos.
 - Iniciar com o Windows, tema, língua.
 
 As categorias são deduzidas do nome dos programas conhecidos; os outros vão para
@@ -69,8 +97,8 @@ categorias) e as tuas pastas. Não tem atalho de teclado próprio (associa um a
 
 1. **Feito:** o menu na área de notificação com o atalho de teclado, Scoop, menu
    Iniciar e pastas próprias, categorias, procura, abrir programas.
-2. Favoritos, ocultar, mudar o nome, a categoria e o ícone, acrescentar um
-   programa solto, executar como administrador.
+2. **Feito:** favoritos, ocultar, mudar o nome, a categoria e o ícone,
+   acrescentar um programa solto, executar como administrador.
 3. Temas e aspeto.
 4. PortableApps (nomes e categorias de cada programa) e importação de outras
    suites portáteis.

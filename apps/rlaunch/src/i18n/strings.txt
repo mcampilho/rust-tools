@@ -30,7 +30,7 @@ Scoop		Scoop	Scoop	Scoop	Scoop	Scoop	Scoop		Scoop
 Start menu		Startmenü	Menú Inicio	Menu Démarrer	Menu Start	スタート メニュー	Menu Iniciar		开始菜单
 Installed applications		Installierte Anwendungen	Aplicaciones instaladas	Applications installées	Applicazioni installate	インストール済みアプリ	Aplicativos instalados	Aplicações instaladas	已安装的应用
 My folders		Meine Ordner	Mis carpetas	Mes dossiers	Le mie cartelle	自分のフォルダー	Minhas pastas	As minhas pastas	我的文件夹
-Add a folder…		Ordner hinzufügen…	Añadir una carpeta…	Ajouter un dossier…	Aggiungi una cartella…	フォルダーを追加…	Adicionar uma pasta…	Acrescentar uma pasta…	添加文件夹…
+Add a folder…		Ordner hinzufügen…	Añadir una carpeta…	Ajouter un dossier…	Aggiungi una cartella…	フォルダーを追加…	Adicionar pasta…		添加文件夹…
 Choose a folder of programs		Ordner mit Programmen wählen	Elija una carpeta de programas	Choisissez un dossier de programmes	Scegliere una cartella di programmi	プログラムのフォルダーを選択	Escolha uma pasta de programas		选择程序文件夹
 Keyboard shortcut		Tastenkombination	Atajo de teclado	Raccourci clavier	Scorciatoia da tastiera	ショートカット キー	Atalho de teclado		键盘快捷键
 Off		Aus	Desactivado	Désactivé	Disattivato	オフ	Desativado		关闭
@@ -52,3 +52,29 @@ About rlaunch		Über rlaunch	Acerca de rlaunch	À propos de rlaunch	Informazioni
 rlaunch {}\n\nA portable menu of applications, written in Rust.\nNo telemetry, no network access.\n\nMIT License.		rlaunch {}\n\nEin portables Anwendungsmenü, geschrieben in Rust.\nKeine Telemetrie, kein Netzwerkzugriff.\n\nMIT-Lizenz.	rlaunch {}\n\nUn menú portátil de aplicaciones, escrito en Rust.\nSin telemetría ni acceso a la red.\n\nLicencia MIT.	rlaunch {}\n\nUn menu d’applications portable, écrit en Rust.\nAucune télémétrie, aucun accès au réseau.\n\nLicence MIT.	rlaunch {}\n\nUn menu portatile di applicazioni, scritto in Rust.\nNessuna telemetria, nessun accesso alla rete.\n\nLicenza MIT.	rlaunch {}\n\nRust で書かれたポータブルなアプリケーション メニュー。\nテレメトリもネットワーク アクセスもありません。\n\nMIT ライセンス。	rlaunch {}\n\nUm menu portátil de aplicativos, escrito em Rust.\nSem telemetria nem acesso à rede.\n\nLicença MIT.	rlaunch {}\n\nUm menu portátil de aplicações, escrito em Rust.\nSem telemetria nem acesso à rede.\n\nLicença MIT.	rlaunch {}\n\n用 Rust 编写的便携应用菜单。\n无遥测，不访问网络。\n\nMIT 许可证。
 Size		Größe	Tamaño	Taille	Dimensione	サイズ	Tamanho		大小
 Transparency		Transparenz	Transparencia	Transparence	Trasparenza	透明度	Transparência		透明度
+Open		Öffnen	Abrir	Ouvrir	Apri	開く	Abrir		打开
+Run as administrator		Als Administrator ausführen	Ejecutar como administrador	Exécuter en tant qu’administrateur	Esegui come amministratore	管理者として実行	Executar como administrador		以管理员身份运行
+Open file location		Dateipfad öffnen	Abrir ubicación del archivo	Ouvrir l’emplacement du fichier	Apri percorso file	ファイルの場所を開く	Abrir local do arquivo	Abrir localização do ficheiro	打开文件所在位置
+Add to favorites	Add to favourites	Zu Favoriten hinzufügen	Añadir a favoritos	Ajouter aux favoris	Aggiungi ai preferiti	お気に入りに追加	Adicionar aos favoritos		添加到收藏夹
+Remove from favorites	Remove from favourites	Aus Favoriten entfernen	Quitar de favoritos	Retirer des favoris	Rimuovi dai preferiti	お気に入りから削除	Remover dos favoritos		从收藏夹中移除
+Rename		Umbenennen	Cambiar nombre	Renommer	Rinomina	名前の変更	Renomear	Mudar o nome	重命名
+Category		Kategorie	Categoría	Catégorie	Categoria	カテゴリ	Categoria		类别
+Change icon…		Symbol ändern…	Cambiar icono…	Changer l’icône…	Cambia icona…	アイコンの変更…	Alterar ícone…	Mudar o ícone…	更改图标…
+Default icon		Standardsymbol	Icono predeterminado	Icône par défaut	Icona predefinita	既定のアイコン	Ícone padrão	Ícone original	默认图标
+Hide		Ausblenden	Ocultar	Masquer	Nascondi	非表示にする	Ocultar		隐藏
+Show again		Wieder einblenden	Volver a mostrar	Afficher de nouveau	Mostra di nuovo	再表示する	Mostrar novamente	Voltar a mostrar	重新显示
+Remove from the menu		Aus dem Menü entfernen	Quitar del menú	Retirer du menu	Rimuovi dal menu	メニューから削除	Remover do menu		从菜单中移除
+Add a program…		Programm hinzufügen…	Añadir un programa…	Ajouter un programme…	Aggiungi programma…	プログラムを追加…	Adicionar programa…		添加程序…
+Hidden ({})		Ausgeblendet ({})	Ocultos ({})	Masqués ({})	Nascosti ({})	非表示 ({})	Ocultos ({})		已隐藏 ({})
+Hidden programs		Ausgeblendete Programme	Programas ocultos	Programmes masqués	Programmi nascosti	非表示のプログラム	Programas ocultos		已隐藏的程序
+Keep the menu open		Menü geöffnet lassen	Mantener el menú abierto	Garder le menu ouvert	Mantieni il menu aperto	メニューを開いたままにする	Manter o menu aberto		保持菜单打开
+Choose a program		Programm wählen	Elegir un programa	Choisir un programme	Scegli un programma	プログラムを選択	Escolher um programa		选择程序
+Choose an icon		Symbol wählen	Elegir un icono	Choisir une icône	Scegli un’icona	アイコンを選択	Escolher um ícone		选择图标
+Programs		Programme	Programas	Programmes	Programmi	プログラム	Programas		程序
+Icons		Symbole	Iconos	Icônes	Icone	アイコン	Ícones		图标
+All files		Alle Dateien	Todos los archivos	Tous les fichiers	Tutti i file	すべてのファイル	Todos os arquivos	Todos os ficheiros	所有文件
+Always run as administrator		Immer als Administrator ausführen	Ejecutar siempre como administrador	Toujours exécuter en tant qu’administrateur	Esegui sempre come amministratore	常に管理者として実行	Sempre executar como administrador	Executar sempre como administrador	始终以管理员身份运行
+Running as administrator: what it opens does too.		Läuft als Administrator: Geöffnetes ebenfalls.	Ejecutándose como administrador: lo que abra, también.	Exécuté en tant qu’administrateur : ce qu’il ouvre aussi.	In esecuzione come amministratore: anche ciò che apre.	管理者として実行中: 開くものも管理者になります。	Executando como administrador: o que ele abrir também.	A correr como administrador: o que abrir também fica.	正在以管理员身份运行：它打开的程序也是如此。
+Admin mode		Admin-Modus	Modo admin	Mode admin	Modo admin	管理者モード	Modo admin		管理员模式
+Restart as administrator		Als Administrator neu starten	Reiniciar como administrador	Redémarrer en tant qu’administrateur	Riavvia come amministratore	管理者として再起動	Reiniciar como administrador		以管理员身份重新启动
+Always start as administrator		Immer als Administrator starten	Iniciar siempre como administrador	Toujours démarrer en administrateur	Avvia sempre come amministratore	常に管理者として起動	Sempre iniciar como administrador	Arrancar sempre como administrador	始终以管理员身份启动

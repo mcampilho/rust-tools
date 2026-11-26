@@ -8,17 +8,21 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use rlaunch::app::{App, Row, View};
+use rlaunch::category::Category;
 use rlaunch::i18n::{self, tf, tr};
+use rlaunch::items::Custom;
 use rlaunch::settings::{Hotkey, Settings, SIZES, TRANSPARENCIES};
 use rlaunch::sources::{self, Entry};
 use rlaunch::storage;
 use rlaunch::ui::gfx::{Color, Gfx, Rect};
 use rlaunch::ui::theme::Theme;
 use rlaunch::ui::view::{self, Drawn, Field, Hit, Model, Place, SIZE};
+use rt_core::textedit::TextEdit;
+use rt_gfx::menu::{Act, Item, Menu, MenuStyle};
 use rt_ui::Message;
 use std::collections::HashMap;
 use std::num::NonZeroU32;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 use tiny_skia::Pixmap;
@@ -31,6 +35,27 @@ use winit::window::{Theme as WinTheme, Window, WindowId, WindowLevel};
 
 /// How long the caret stays on, and off.
 const BLINK: Duration = Duration::from_millis(530);
+
+/// What the menu of a program (right click) does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Cmd {
+    Open,
+    #[cfg(windows)]
+    Admin,
+    #[cfg(windows)]
+    AlwaysAdmin,
+    Reveal,
+    Favourite,
+    Rename,
+    Category(Category),
+    ChangeIcon,
+    DefaultIcon,
+    Hide,
+    Remove,
+}
+
+/// The ids of the rows of that menu, for screen readers.
+const MENU_NODE: u64 = 10_000;
 
 enum UserEvent {
     /// A step of Check for Updates.
@@ -58,6 +83,10 @@ impl From<accesskit_winit::Event> for UserEvent {
 #[cfg(windows)]
 const IDENT: rt_sys::win::Ident = rt_sys::win::Ident { name: "rlaunch", copydata: 0x524C_4348 }; // "RLCH"
 
+/// Given to the instance started by [`Shell::elevate`].
+#[cfg(windows)]
+const ELEVATED_RESTART: &str = "--elevated-restart";
+
 struct Win {
     window: Rc<Window>,
     surface: softbuffer::Surface<Rc<Window>, Rc<Window>>,
@@ -68,6 +97,17 @@ struct Win {
 
 struct Shell {
     app: App,
+    /// The programs as the folders give them, before the user's changes.
+    raw: Vec<Entry>,
+    /// The menu of a program, and which.
+    menu: Menu<Cmd>,
+    menu_for: PathBuf,
+    /// The program being renamed.
+    rename: Option<(PathBuf, TextEdit)>,
+    /// Stays open when the focus goes elsewhere.
+    pinned: bool,
+    /// Running with administrator rights.
+    elevated: bool,
     settings: Settings,
     location: storage::Location,
     gfx: Gfx,
@@ -136,10 +176,18 @@ fn icon_thread(proxy: EventLoopProxy<UserEvent>) -> std::sync::mpsc::Sender<Path
             windows_sys::Win32::System::Com::CoInitializeEx(std::ptr::null(), 2);
         }
         for path in receive {
-            #[cfg(windows)]
-            let icon = rt_sys::win::icon::of_file(&path).and_then(|(w, h, px)| view::pixmap(w, h, px));
-            #[cfg(not(windows))]
-            let icon: Option<Pixmap> = None;
+            let icon = if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("png")) {
+                std::fs::read(&path).ok().and_then(|b| Pixmap::decode_png(&b).ok())
+            } else {
+                #[cfg(windows)]
+                {
+                    rt_sys::win::icon::of_file(&path).and_then(|(w, h, px)| view::pixmap(w, h, px))
+                }
+                #[cfg(not(windows))]
+                {
+                    None
+                }
+            };
             if proxy.send_event(UserEvent::Icon(path, icon.map(Box::new))).is_err() {
                 break;
             }
@@ -226,19 +274,18 @@ impl Shell {
         LogicalSize::new(SIZE.0 * self.zoom(), SIZE.1 * self.zoom())
     }
 
-    /// Sizes the menu and puts it by the corner of the screen the pointer is
-    /// near.
+    /// Sizes the menu and puts it by the notification area (the bottom right
+    /// corner) of the screen the pointer is on.
     fn place(&self) {
         let Some(w) = &self.win else { return };
         #[cfg(windows)]
-        if let Some((left, top, right, bottom, x, _)) = rt_sys::win::work_area_at_cursor() {
+        if let Some((left, top, right, bottom, _, _)) = rt_sys::win::work_area_at_cursor() {
             // Moved first: the size depends on the scale of that screen.
             w.window.set_outer_position(winit::dpi::PhysicalPosition::new(left, top));
             let _ = w.window.request_inner_size(self.size());
             let size = w.window.outer_size();
             let (width, height) = (size.width as i32, size.height as i32);
-            let at_x = if x < (left + right) / 2 { left + 8 } else { right - width - 8 };
-            w.window.set_outer_position(winit::dpi::PhysicalPosition::new(at_x, (bottom - height - 8).max(top)));
+            w.window.set_outer_position(winit::dpi::PhysicalPosition::new((right - width - 8).max(left), (bottom - height - 8).max(top)));
             return;
         }
         let _ = w.window.request_inner_size(self.size());
@@ -372,6 +419,10 @@ impl Shell {
                 }),
             );
             rt_sys::win::set_resident(hwnd, &IDENT);
+            // A normal start still opens an elevated menu: it only shows it.
+            if self.elevated {
+                rt_sys::win::accept_hand_off(hwnd);
+            }
             rt_sys::win::tray::show(hwnd, "rlaunch");
         }
         self.win = Some(Win {
@@ -390,6 +441,8 @@ impl Shell {
             return;
         }
         self.app.reset();
+        self.menu.close();
+        self.rename = None;
         self.note = None;
         // The help asked at the start stays until closed.
         if self.reading > 0 {
@@ -429,6 +482,9 @@ impl Shell {
         self.visible = false;
         self.focused = false;
         self.cursor = None;
+        self.menu.close();
+        self.rename = None;
+        self.pinned = false;
         // Release the frame buffer while hidden.
         self.gfx.resize(1, 1);
         self.gfx.trim_cache();
@@ -445,6 +501,18 @@ impl Shell {
             self.shell = None;
         }
         el.exit();
+    }
+
+    /// Starts again with administrator rights, in place of this instance.
+    #[cfg(windows)]
+    fn elevate(&mut self, el: &ActiveEventLoop) {
+        self.asking = true;
+        let started = rt_sys::win::restart_elevated(ELEVATED_RESTART);
+        self.asking = false;
+        // Refused: everything stays as it was.
+        if started {
+            self.quit(el);
+        }
     }
 
     fn about(&mut self) {
@@ -486,17 +554,231 @@ impl Shell {
         }
     }
 
+    /// The programs with the user's changes, keeping `keep` selected.
+    fn refresh(&mut self, keep: Option<&Path>) {
+        self.app.set_entries(self.settings.items.apply(&self.raw));
+        let rows = self.app.rows();
+        let at = keep.and_then(|p| rows.iter().position(|r| matches!(r, Row::Entry(i) if self.app.entries[*i].path == p)));
+        if let Some(at) = at {
+            self.app.selected = at;
+            self.app.reveal_selection(self.drawn.visible);
+        }
+    }
+
+    /// Changes what is kept about a program, and shows it.
+    fn change(&mut self, path: &Path, edit: impl FnOnce(&mut Custom)) {
+        self.settings.items.change(path, edit);
+        self.save();
+        self.refresh(Some(path));
+    }
+
+    fn entry(&self, path: &Path) -> Option<&Entry> {
+        self.app.entries.iter().find(|e| e.path == path)
+    }
+
+    /// Opens a program; `admin`: with administrator rights (Windows).
+    fn launch(&mut self, el: &ActiveEventLoop, entry: &Entry, admin: bool) {
+        #[cfg(windows)]
+        let opened = if admin { rt_sys::win::launch_as_admin(&entry.path) } else { open_entry(entry) };
+        #[cfg(not(windows))]
+        let opened = {
+            let _ = admin;
+            open_entry(entry)
+        };
+        if !opened {
+            self.note = Some(tf("Cannot open {}.", &[&entry.name]));
+        } else if !self.pinned {
+            self.hide(el);
+        }
+    }
+
+    /// The menu of the program in row `k`, at `at` (pixels of the window).
+    fn open_menu(&mut self, k: usize, at: (f32, f32), keyboard: bool) {
+        let Some(&Row::Entry(i)) = self.app.rows().get(k) else { return };
+        let e = &self.app.entries[i];
+        let item = |label: String, cmd: Cmd| Item::new(&label.replace('&', "&&"), Some(cmd), true);
+        let mut items = vec![item(tr("Open"), Cmd::Open)];
+        #[cfg(windows)]
+        {
+            items.push(item(tr("Run as administrator"), Cmd::Admin));
+            let mut always = item(tr("Always run as administrator"), Cmd::AlwaysAdmin);
+            always.checked = e.admin;
+            items.push(always);
+        }
+        items.push(item(tr("Open file location"), Cmd::Reveal));
+        items.push(Item::separator());
+        let favourite = if e.favourite { tr("Remove from favorites") } else { tr("Add to favorites") };
+        items.push(item(favourite, Cmd::Favourite));
+        items.push(item(tr("Rename"), Cmd::Rename));
+        let mut categories = Item::new(&tr("Category"), None, true);
+        categories.sub = Category::ALL
+            .into_iter()
+            .map(|c| {
+                let mut it = item(tr(c.name()), Cmd::Category(c));
+                it.checked = c == e.category;
+                it
+            })
+            .collect();
+        items.push(categories);
+        items.push(item(tr("Change icon…"), Cmd::ChangeIcon));
+        if e.icon.is_some() {
+            items.push(item(tr("Default icon"), Cmd::DefaultIcon));
+        }
+        items.push(Item::separator());
+        items.push(item(if e.hidden { tr("Show again") } else { tr("Hide") }, Cmd::Hide));
+        if e.added {
+            items.push(item(tr("Remove from the menu"), Cmd::Remove));
+        }
+        self.menu_for = e.path.clone();
+        self.app.selected = k;
+        // Towards the left, so the categories fit beside it.
+        let at = (at.0.min(24.0 * self.scale()), at.1);
+        self.menu.open(None, items, at, keyboard);
+    }
+
+    /// [`Self::open_menu`] from the keyboard, under the selected row.
+    fn menu_at_selection(&mut self) {
+        let k = self.app.selected;
+        if let Some((r, _)) = self.drawn.hits.iter().find(|(_, h)| *h == Hit::Row(k)) {
+            self.open_menu(k, (r.x + r.h, r.bottom()), true);
+        }
+    }
+
+    fn menu_act(&mut self, el: &ActiveEventLoop, act: Act<Cmd>) {
+        if let Act::Run(cmd) = act {
+            self.menu.close();
+            self.run(el, cmd);
+        }
+        self.redraw();
+    }
+
+    fn run(&mut self, el: &ActiveEventLoop, cmd: Cmd) {
+        let path = self.menu_for.clone();
+        let Some(entry) = self.entry(&path).cloned() else { return };
+        match cmd {
+            Cmd::Open => self.launch(el, &entry, entry.admin),
+            #[cfg(windows)]
+            Cmd::Admin => self.launch(el, &entry, true),
+            #[cfg(windows)]
+            Cmd::AlwaysAdmin => self.change(&path, |c| c.admin = !c.admin),
+            Cmd::Reveal => {
+                rt_sys::reveal(&path);
+                if !self.pinned {
+                    self.hide(el);
+                }
+            }
+            Cmd::Favourite => self.change(&path, |c| c.favourite = !c.favourite),
+            Cmd::Rename => {
+                let mut edit = TextEdit::new(&entry.name);
+                edit.select_all();
+                self.rename = Some((path, edit));
+            }
+            Cmd::Category(to) => self.change(&path, |c| c.category = Some(to)),
+            Cmd::ChangeIcon => {
+                let filter = [(tr("Icons"), "*.ico;*.png;*.exe;*.dll;*.lnk"), (tr("All files"), "*.*")];
+                if let Some(icon) = self.pick_file(&tr("Choose an icon"), &filter) {
+                    // Read again, should the file have changed.
+                    self.icons.remove(&icon);
+                    self.change(&path, |c| c.icon = Some(icon));
+                }
+            }
+            Cmd::DefaultIcon => self.change(&path, |c| c.icon = None),
+            Cmd::Hide => self.change(&path, |c| c.hidden = !c.hidden),
+            Cmd::Remove => {
+                self.settings.items.remove(&path);
+                self.save();
+                self.refresh(None);
+            }
+        }
+    }
+
+    /// Keeps the name typed; none, or the program's own, forgets the change.
+    fn finish_rename(&mut self) {
+        let Some((path, edit)) = self.rename.take() else { return };
+        let own = self.raw.iter().find(|e| e.path == path).map(|e| e.name.clone()).or_else(|| sources::added_entry(&path).map(|e| e.name));
+        let name = edit.text.trim().to_string();
+        let name = (!name.is_empty() && Some(&name) != own.as_ref()).then_some(name);
+        self.change(&path, |c| c.name = name);
+    }
+
+    fn rename_key(&mut self, event: &KeyEvent) {
+        let command = self.mods.control_key() && !self.mods.alt_key();
+        let shift = self.mods.shift_key();
+        let Some((_, edit)) = &mut self.rename else { return };
+        match &event.logical_key {
+            Key::Named(NamedKey::Enter) => self.finish_rename(),
+            Key::Named(NamedKey::Escape) => self.rename = None,
+            Key::Named(NamedKey::Backspace) => edit.delete(false, command),
+            Key::Named(NamedKey::Delete) => edit.delete(true, command),
+            Key::Named(NamedKey::ArrowLeft) => edit.move_caret(true, false, command, shift),
+            Key::Named(NamedKey::ArrowRight) => edit.move_caret(false, false, command, shift),
+            Key::Named(NamedKey::Home) => edit.move_caret(true, true, false, shift),
+            Key::Named(NamedKey::End) => edit.move_caret(false, true, false, shift),
+            Key::Character(c) if command && c.eq_ignore_ascii_case("a") => edit.select_all(),
+            Key::Character(c) if command && c.eq_ignore_ascii_case("c") && edit.selection().is_some() => {
+                rt_sys::set_clipboard_text(edit.selected_text());
+            }
+            Key::Character(c) if command && c.eq_ignore_ascii_case("x") && edit.selection().is_some() => {
+                let text = edit.cut();
+                rt_sys::set_clipboard_text(&text);
+            }
+            Key::Character(c) if command && c.eq_ignore_ascii_case("v") => {
+                if let Some(text) = rt_sys::clipboard_text() {
+                    edit.insert(text.lines().next().unwrap_or(""));
+                }
+            }
+            _ => {
+                if let Some(text) = event.text.as_ref().filter(|_| !command && !self.mods.super_key()) {
+                    edit.insert(text);
+                }
+            }
+        }
+    }
+
+    fn pick_file(&mut self, title: &str, filter: &[(String, &str)]) -> Option<PathBuf> {
+        self.asking = true;
+        #[cfg(windows)]
+        let picked = {
+            let _ = title;
+            let hwnd = self.win.as_ref().map_or(std::ptr::null_mut(), |w| w.hwnd);
+            rt_sys::win::dialogs::open_file(hwnd, None, &rt_sys::win::dialogs::filter(filter))
+        };
+        #[cfg(not(windows))]
+        let picked = {
+            let _ = title;
+            rt_sys::linux::dialogs::open_files(None, filter, false).into_iter().next()
+        };
+        self.asking = false;
+        if let Some(w) = &self.win {
+            rt_ui::window::focus(&w.window);
+        }
+        picked
+    }
+
+    /// A file (or folder) chosen or dropped on the menu.
+    fn add(&mut self, path: PathBuf) {
+        if path.is_dir() {
+            if !self.settings.folders.contains(&path) {
+                self.settings.folders.push(path);
+                self.save();
+                self.scan();
+            }
+        } else {
+            self.settings.items.add(&path);
+            self.save();
+            self.refresh(Some(&path));
+        }
+    }
+
     fn activate_row(&mut self, el: &ActiveEventLoop, k: usize) {
         match self.app.rows().get(k).copied() {
-            Some(Row::Back(_)) => self.app.back(),
+            Some(Row::Back) => self.app.back(),
             Some(Row::Category(c, _)) => self.app.open_category(c),
             Some(Row::Entry(i)) => {
                 let entry = self.app.entries[i].clone();
-                if open_entry(&entry) {
-                    self.hide(el);
-                } else {
-                    self.note = Some(tf("Cannot open {}.", &[&entry.name]));
-                }
+                // Ctrl+Shift, as in the Start menu.
+                let admin = entry.admin || (self.mods.control_key() && self.mods.shift_key());
+                self.launch(el, &entry, admin);
             }
             None => {}
         }
@@ -516,7 +798,19 @@ impl Shell {
             Hit::Done => self.app.back(),
             Hit::About => self.about(),
             Hit::Exit => self.quit(el),
+            #[cfg(windows)]
+            Hit::Elevate => self.elevate(el),
+            #[cfg(not(windows))]
+            Hit::Elevate => {}
             Hit::Close => self.hide(el),
+            Hit::Pin => self.pinned = !self.pinned,
+            Hit::ShowHidden => self.app.open_hidden(),
+            Hit::AddProgram => {
+                let filter = [(tr("Programs"), "*.exe;*.lnk;*.bat;*.cmd;*.appref-ms"), (tr("All files"), "*.*")];
+                if let Some(file) = self.pick_file(&tr("Choose a program"), &filter) {
+                    self.add(file);
+                }
+            }
             Hit::Scoop => {
                 self.settings.scoop = !self.settings.scoop;
                 self.save();
@@ -534,6 +828,10 @@ impl Shell {
                     self.save();
                     self.scan();
                 }
+            }
+            Hit::AlwaysAdmin => {
+                self.settings.always_admin = !self.settings.always_admin;
+                self.save();
             }
             Hit::Autostart => match rt_sys::autostart::set("rlaunch", !self.autostart) {
                 Ok(()) => self.autostart = rt_sys::autostart::enabled("rlaunch"),
@@ -553,6 +851,35 @@ impl Shell {
             }
             return;
         }
+        if self.rename.is_some() {
+            self.rename_key(event);
+            self.caret = true;
+            self.caret_at = Instant::now();
+            self.redraw();
+            return;
+        }
+        if self.menu.is_open() {
+            let act = match &event.logical_key {
+                Key::Named(NamedKey::ArrowUp) => {
+                    self.menu.up_down(-1);
+                    Act::None
+                }
+                Key::Named(NamedKey::ArrowDown) => {
+                    self.menu.up_down(1);
+                    Act::None
+                }
+                Key::Named(NamedKey::ArrowLeft) => self.menu.left(),
+                Key::Named(NamedKey::ArrowRight) => self.menu.right(),
+                Key::Named(NamedKey::Enter) => self.menu.enter(),
+                Key::Named(NamedKey::Escape) => {
+                    self.menu.back();
+                    Act::None
+                }
+                _ => Act::None,
+            };
+            self.menu_act(el, act);
+            return;
+        }
         let page = self.drawn.visible.max(1) as isize;
         let command = self.mods.control_key() || self.mods.super_key();
         match &event.logical_key {
@@ -563,6 +890,8 @@ impl Shell {
             Key::Named(NamedKey::Home) => self.app.step(isize::MIN / 2),
             Key::Named(NamedKey::End) => self.app.step(isize::MAX / 2),
             Key::Named(NamedKey::Enter) if self.app.view == View::Options => self.app.back(),
+            Key::Named(NamedKey::ContextMenu) => self.menu_at_selection(),
+            Key::Named(NamedKey::F10) if self.mods.shift_key() => self.menu_at_selection(),
             Key::Named(NamedKey::Enter) => {
                 self.activate_row(el, self.app.selected);
             }
@@ -572,7 +901,7 @@ impl Shell {
                 }
             }
             Key::Named(NamedKey::ArrowLeft) if self.app.query.is_empty() => {
-                if matches!(self.app.view, View::Inside(_)) {
+                if matches!(self.app.view, View::Inside(_) | View::Hidden) {
                     self.app.back();
                 }
             }
@@ -617,6 +946,10 @@ impl Shell {
     }
 
     fn type_text(&mut self, text: &str) {
+        if let Some((_, edit)) = &mut self.rename {
+            edit.insert(text);
+            return;
+        }
         let typed: String = text.chars().filter(|c| !c.is_control()).collect();
         // A space does not start a search.
         if !typed.is_empty() && !(self.app.query.is_empty() && typed.trim().is_empty()) {
@@ -628,6 +961,7 @@ impl Shell {
     fn render(&mut self) {
         let theme = self.theme();
         let s = self.scale();
+        let menu_style = MenuStyle { dark: theme.dark, bar: theme.list, border: theme.border, text: theme.text, dim: theme.dim };
         let Some(win) = &mut self.win else { return };
         let size = win.window.inner_size();
         let (Some(w), Some(h)) = (NonZeroU32::new(size.width), NonZeroU32::new(size.height)) else { return };
@@ -635,17 +969,23 @@ impl Shell {
             return;
         }
         self.gfx.resize(w.get(), h.get());
+        let elevated_note = self.elevated.then(|| tr("Running as administrator: what it opens does too."));
         let model = Model {
             app: &self.app,
             settings: &self.settings,
             icons: &self.icons,
-            note: self.note.as_deref().or(self.hotkey_note.as_deref()),
+            note: self.note.as_deref().or(elevated_note.as_deref()).or(self.hotkey_note.as_deref()),
             autostart: self.autostart,
             hot: self.hot,
             disk: self.disk.clone(),
             caret: self.caret,
+            pinned: self.pinned,
+            elevated: self.elevated,
+            rename: self.rename.as_ref().map(|(p, e)| (p.as_path(), e)),
         };
         self.drawn = view::draw(&mut self.gfx, &model, &theme, s);
+        let full = Rect::new(0.0, 0.0, w.get() as f32, h.get() as f32);
+        self.menu.draw_popups(&mut self.gfx, full, &menu_style, s);
         if let Some(message) = &mut self.dialog {
             let style = rt_gfx::dialog::DialogStyle { dark: theme.dark, text: theme.text, dim: theme.dim, border: theme.border };
             message.draw(&mut self.gfx, Rect::new(0.0, 0.0, w.get() as f32, h.get() as f32), &style, s);
@@ -654,10 +994,10 @@ impl Shell {
         self.gfx.trim_cache();
         // The icons of what is on screen, once each.
         for &i in &self.drawn.shown {
-            let Some(path) = self.app.entries.get(i).map(|e| &e.path) else { continue };
+            let Some(path) = self.app.entries.get(i).map(Entry::icon_source) else { continue };
             if !self.icons.contains_key(path) {
-                self.icons.insert(path.clone(), None);
-                let _ = self.wanted.send(path.clone());
+                self.icons.insert(path.to_path_buf(), None);
+                let _ = self.wanted.send(path.to_path_buf());
             }
         }
         let tree = self.tree();
@@ -673,17 +1013,22 @@ impl Shell {
         let name = |hit: Hit| -> Option<String> {
             Some(match hit {
                 Hit::Row(k) => match *rows.get(k)? {
-                    Row::Back(_) => tr("Back"),
+                    Row::Back => tr("Back"),
                     Row::Category(c, _) => tr(c.name()),
                     Row::Entry(i) => self.app.entries.get(i)?.name.clone(),
                 },
                 Hit::Options => tr("Options"),
                 Hit::About => tr("About"),
                 Hit::Exit => tr("Exit"),
+                Hit::Elevate => tr("Restart as administrator"),
                 Hit::Done => tr("Done"),
                 Hit::AddFolder => tr("Add a folder…"),
+                Hit::AddProgram => tr("Add a program…"),
+                Hit::Pin => tr("Keep the menu open"),
+                Hit::ShowHidden => tr("Hidden programs"),
                 Hit::CheckUpdates => tr("Check for updates"),
                 Hit::Autostart => tr("Start with Windows"),
+                Hit::AlwaysAdmin => tr("Always start as administrator"),
                 Hit::Scoop => "Scoop".to_string(),
                 Hit::StartMenu => tr("Start menu"),
                 Hit::Step(field, forward) => {
@@ -713,6 +1058,19 @@ impl Shell {
             }
             children.push(id);
             nodes.push((id, n));
+        }
+        for (l, level) in self.menu.levels.iter().enumerate() {
+            for (i, _) in &level.rows {
+                let id = NodeId(MENU_NODE + (l * 100 + i) as u64);
+                let mut n = Node::new(Role::MenuItem);
+                n.set_label(level.items[*i].label.clone());
+                n.add_action(Action::Click);
+                if level.sel == Some(*i) {
+                    focus = id;
+                }
+                children.push(id);
+                nodes.push((id, n));
+            }
         }
         let mut root = Node::new(Role::Window);
         root.set_label("rlaunch");
@@ -754,7 +1112,9 @@ impl ApplicationHandler<UserEvent> for Shell {
     fn user_event(&mut self, el: &ActiveEventLoop, event: UserEvent) {
         match event {
             UserEvent::Scanned(n, entries) if n == self.reading => {
-                self.app.set_entries(entries);
+                self.raw = entries;
+                let keep = self.app.selected_entry().map(|e| e.path.clone());
+                self.refresh(keep.as_deref());
                 self.redraw();
             }
             UserEvent::Scanned(..) => {}
@@ -777,9 +1137,17 @@ impl ApplicationHandler<UserEvent> for Shell {
             #[cfg(windows)]
             UserEvent::Win(rt_sys::win::WinMsg::Tray(rt_sys::win::tray::TrayEvent::Menu)) => {
                 if let Some(hwnd) = self.win.as_ref().map(|w| w.hwnd) {
-                    match rt_sys::win::tray::menu(hwnd, &tr("Open rlaunch"), &tr("Exit")) {
+                    use rt_sys::win::tray::Item as Entry;
+                    let (open, admin, exit) = (tr("Open rlaunch"), tr("Restart as administrator"), tr("Exit"));
+                    let mut items = vec![Entry::new(1, &open), Entry::SEPARATOR];
+                    if !self.elevated {
+                        items.extend([Entry::new(3, &admin), Entry::SEPARATOR]);
+                    }
+                    items.push(Entry::new(2, &exit));
+                    match rt_sys::win::tray::popup(hwnd, &items, 1) {
                         Some(1) => self.show(el),
                         Some(2) => self.quit(el),
+                        Some(3) => self.elevate(el),
                         _ => {}
                     }
                 }
@@ -812,6 +1180,11 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
             UserEvent::A11y(ev) => match ev.window_event {
                 accesskit_winit::WindowEvent::ActionRequested(req) if req.action == accesskit::Action::Click => {
+                    if let Some(n) = req.target_node.0.checked_sub(MENU_NODE) {
+                        let act = self.menu.click(n as usize / 100, n as usize % 100);
+                        self.menu_act(el, act);
+                        return;
+                    }
                     let hit = req.target_node.0.checked_sub(100).and_then(|i| self.drawn.hits.get(i as usize)).map(|(_, h)| *h);
                     if let Some(hit) = hit {
                         self.act(el, hit);
@@ -837,7 +1210,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             WindowEvent::Focused(focused) => {
                 self.focused = focused;
                 // A menu: something else was chosen, so it goes away.
-                if !focused && self.visible && self.resident && !self.asking {
+                if !focused && self.visible && self.resident && !self.asking && !self.pinned {
                     self.hide(el);
                 } else {
                     self.redraw();
@@ -859,8 +1232,16 @@ impl ApplicationHandler<UserEvent> for Shell {
                 // Only a pointer that moves chooses a row, not one the menu opened under.
                 let moved = self.cursor.is_some_and(|c| c != (x, y));
                 self.cursor = Some((x, y));
+                if self.menu.is_open() {
+                    if let Some((l, i)) = self.menu.row_at(x, y).filter(|_| moved) {
+                        self.menu.hover(l, i);
+                        self.redraw();
+                    }
+                    self.hot = None;
+                    return;
+                }
                 let hot = if self.dialog.is_none() { self.drawn.hit(x, y) } else { None };
-                if let Some(Hit::Row(k)) = hot.filter(|_| moved) {
+                if let Some(Hit::Row(k)) = hot.filter(|_| moved && self.rename.is_none()) {
                     self.app.selected = k;
                 }
                 if hot != self.hot {
@@ -880,15 +1261,52 @@ impl ApplicationHandler<UserEvent> for Shell {
                         self.dialog = None;
                         self.redraw();
                     }
-                } else if let Some(hit) = self.drawn.hit(x, y) {
-                    self.act(el, hit);
+                } else if self.menu.is_open() {
+                    match self.menu.row_at(x, y) {
+                        Some((l, i)) => {
+                            let act = self.menu.click(l, i);
+                            self.menu_act(el, act);
+                        }
+                        // A click outside only closes the menu.
+                        None if !self.menu.contains(x, y) => {
+                            self.menu.close();
+                            self.redraw();
+                        }
+                        None => {}
+                    }
+                } else {
+                    let hit = self.drawn.hit(x, y);
+                    // A click elsewhere keeps the name typed.
+                    if let Some((path, _)) = &self.rename {
+                        let there = matches!(hit, Some(Hit::Row(k)) if matches!(self.app.rows().get(k), Some(Row::Entry(i)) if self.app.entries[*i].path == *path));
+                        if !there {
+                            self.finish_rename();
+                            self.redraw();
+                        }
+                    } else if let Some(hit) = hit {
+                        self.act(el, hit);
+                    }
                 }
+            }
+            WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Right, .. } if self.dialog.is_none() => {
+                let Some((x, y)) = self.cursor else { return };
+                self.menu.close();
+                self.finish_rename();
+                if let Some(Hit::Row(k)) = self.drawn.hit(x, y) {
+                    self.open_menu(k, (x, y), false);
+                }
+                self.redraw();
+            }
+            WindowEvent::DroppedFile(path) => {
+                self.add(path);
+                self.redraw();
             }
             WindowEvent::MouseWheel { delta, .. } if self.dialog.is_none() => {
                 let lines = match delta {
                     MouseScrollDelta::LineDelta(_, y) => y * 3.0,
                     MouseScrollDelta::PixelDelta(p) => p.y as f32 / (26.0 * self.scale()),
                 };
+                self.menu.close();
                 self.app.scroll_by(-lines.round() as isize, self.drawn.visible);
                 self.redraw();
             }
@@ -940,6 +1358,16 @@ fn main() {
         return;
     }
     let tray = raw.iter().any(|a| a == "--tray" || a == "/tray") && !help;
+    // The instance this one replaces is on its way out: wait for it.
+    #[cfg(windows)]
+    if raw.iter().any(|a| a == ELEVATED_RESTART) {
+        for _ in 0..100 {
+            if !rt_sys::win::resident_running(&IDENT) {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+    }
     // One menu: a second launch opens the one running.
     #[cfg(windows)]
     if rt_sys::win::hand_off(&IDENT, &[], false, !tray) {
@@ -953,6 +1381,15 @@ fn main() {
     let store = location.load();
     let settings = Settings::load(&store, own_dir(&location).as_deref());
     i18n::set_lang(settings.language.unwrap_or_else(i18n::system_lang));
+    // Asked for in Options: start again with the rights. Said no (or already
+    // tried): carry on without them.
+    #[cfg(windows)]
+    if settings.always_admin && !help && !rt_sys::win::elevated() && !raw.iter().any(|a| a == ELEVATED_RESTART) {
+        let args = if tray { format!("{ELEVATED_RESTART} --tray") } else { ELEVATED_RESTART.to_string() };
+        if rt_sys::win::restart_elevated(&args) {
+            return;
+        }
+    }
     let gfx = match Gfx::new() {
         Ok(g) => g,
         Err(e) => {
@@ -969,6 +1406,15 @@ fn main() {
     };
     let mut shell = Shell {
         app: App::default(),
+        raw: Vec::new(),
+        menu: Menu::default(),
+        menu_for: PathBuf::new(),
+        rename: None,
+        pinned: false,
+        #[cfg(windows)]
+        elevated: rt_sys::win::elevated(),
+        #[cfg(not(windows))]
+        elevated: false,
         settings,
         location,
         gfx,

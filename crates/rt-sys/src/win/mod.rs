@@ -19,8 +19,8 @@ pub mod tray;
 pub mod window;
 
 pub use window::{
-    allow_any_foreground, clear_hotkey, hand_off, instance_state, resident_running, set_foreground, set_hotkey, set_mnemonics, set_opacity,
-    set_resident, subclass, work_area_at_cursor, Ident, WinMsg,
+    accept_hand_off, allow_any_foreground, clear_hotkey, hand_off, instance_state, resident_running, set_foreground, set_hotkey,
+    set_mnemonics, set_opacity, set_resident, subclass, work_area_at_cursor, Ident, WinMsg,
 };
 /// The window handle type of these functions.
 pub use windows_sys::Win32::Foundation::HWND;
@@ -30,7 +30,16 @@ use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 /// Opens a program, document or shortcut as a double click does, starting in
 /// its folder. False when Windows could not (or the user refused).
 pub fn launch(path: &std::path::Path) -> bool {
-    let (op, file) = (wide("open"), wide(&path.to_string_lossy()));
+    start(path, "open")
+}
+
+/// [`launch`] with administrator rights: Windows asks first.
+pub fn launch_as_admin(path: &std::path::Path) -> bool {
+    start(path, "runas")
+}
+
+fn start(path: &std::path::Path, verb: &str) -> bool {
+    let (op, file) = (wide(verb), wide(&path.to_string_lossy()));
     let dir = path.parent().map(|d| wide(&d.to_string_lossy()));
     // SAFETY: NUL-terminated strings that live during the call.
     let r = unsafe {

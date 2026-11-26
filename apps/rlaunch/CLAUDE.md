@@ -19,14 +19,17 @@ vários `rmenu`). Funcionalidades e fases no `README.md`.
   as pastas, depois o menu Iniciar sem as do Scoop), `collect` (`.lnk/.exe/.bat/.cmd`, 3 níveis, sem seguir junções,
   sem desinstaladores nem atalhos para documentos; um por nome), `desktop` (`.desktop`, testado em qualquer sistema).
 - `category.rs` — `Category` e `guess` por palavras inteiras; a primeira categoria da lista `KNOWN` ganha.
-- `app.rs` — vista (categorias, dentro de uma, opções), procura (sem acentos), seleção e scroll. Sem desenho.
+- `items.rs` — o que o utilizador mudou (nome, categoria, ícone, favorito, oculto, por caminho) e os programas
+  acrescentados; `apply` sobrepõe-o ao que a leitura deu (`main.rs` guarda `raw`), sem voltar a ler as pastas.
+- `app.rs` — vista (categorias com os favoritos no topo, dentro de uma, ocultos, opções), procura (sem acentos), seleção e scroll. Sem desenho.
 - `settings.rs` — `Settings`, `Hotkey`; `pack`/`unpack`: em modo portátil as pastas do disco do rlaunch ficam `*:\…`.
 - `ui/view.rs` — o menu numa função `draw` que devolve os alvos de clique (`Hit`), as linhas visíveis e os programas
   mostrados (cujos ícones se pedem). 350×480 lógicos (×`Settings::size`; era 560×620, grande demais para o utilizador). As opções ocupam o menu todo. `ui/theme.rs` cores.
 - `main.rs` — janela sem moldura, sempre por cima, fora da barra de tarefas; residente (ícone, `rt_sys::win::set_hotkey`,
   `hand_off`); esconde ao perder o foco (menos com um diálogo aberto, `asking`); leitura das pastas num fio
-  (`Scanned` com geração) a cada abertura; ícones noutro fio (`rt_sys::win::icon::of_file`, com COM). Posição pelo
-  canto da área de trabalho junto ao ponteiro (`rt_sys::win::work_area_at_cursor`). Linux: a janela é destruída ao
+  (`Scanned` com geração) a cada abertura; ícones noutro fio (`rt_sys::win::icon::of_file`, com COM). Posição: sempre o
+  canto inferior direito (junto ao relógio) do ecrã do ponteiro; pelo lado do ponteiro, o utilizador viu-o por cima
+  do botão Iniciar (`rt_sys::win::work_area_at_cursor`). Linux: a janela é destruída ao
   esconder; sem anfitrião do ícone, fechar termina.
 
 ## Verificado (2026-11-26, Windows 10)
@@ -36,6 +39,20 @@ segundo arranque entregue ao primeiro. Clippy e testes em Windows e no WSL. Nest
 ocupado (provavelmente pela aplicação do Claude). Depois de reduzir o menu para 350×480 e acrescentar a
 transparência (lida numa janela real), o utilizador experimentou-o: "parece estar tudo a funcionar bem". Não
 verificado: pen USB, vários ecrãs e o Linux a correr.
+
+Fase 2 (2026-11-26): menu do programa (`rt_gfx::menu`, desenhado na janela; ancorado à esquerda para o submenu
+caber), mudar o nome na própria linha (`rt_core::textedit`), afixar. Experimentado numa cópia com outra identidade
+(`IDENT` mudado só para o teste, porque o rlaunch do utilizador estava a correr), enviando mensagens à janela: mudar o
+nome, favorito, categoria, ocultar e a lista de ocultos. Não experimentado: arrastar ficheiros, os diálogos de
+escolher programa e ícone, executar como administrador.
+
+Administrador (2026-11-26): "Executar sempre como administrador" por programa (escudo), "Modo admin" e "Arrancar
+sempre como administrador" (`restart_elevated` com `--elevated-restart`, que espera a instância anterior sair);
+elevado, `accept_hand_off` deixa um arranque normal mostrar o menu. O utilizador confirmou a posição à direita, o
+arrastar, o ícone, abrir a localização e o escudo; o arranque sempre elevado não foi confirmado.
+
+Numa cópia de teste com o código alterado, ao repor o ficheiro atualizar-lhe a data, ou o cargo não recompila e o
+executável fica o de teste.
 
 ## Regras
 

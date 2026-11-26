@@ -16,6 +16,43 @@ pub struct Entry {
     pub category: Category,
     /// Linux: the command of a `.desktop` file.
     pub exec: Vec<String>,
+    /// What the user chose (see [`crate::items`]).
+    pub icon: Option<PathBuf>,
+    pub favourite: bool,
+    pub hidden: bool,
+    pub admin: bool,
+    /// Added one by one, not found in a folder.
+    pub added: bool,
+}
+
+impl Entry {
+    pub fn new(name: String, path: PathBuf, category: Category) -> Entry {
+        Entry { name, path, category, exec: Vec::new(), icon: None, favourite: false, hidden: false, admin: false, added: false }
+    }
+
+    /// The file whose icon stands for the program.
+    pub fn icon_source(&self) -> &Path {
+        self.icon.as_deref().unwrap_or(&self.path)
+    }
+}
+
+/// The entry of a file the user added: any file, named after it; a `.desktop`
+/// file gives its own name and command.
+pub fn added_entry(path: &Path) -> Option<Entry> {
+    let own = path
+        .extension()
+        .is_some_and(|e| e == "desktop")
+        .then(|| std::fs::read_to_string(path).ok().and_then(|t| desktop::parse(&t, path)))
+        .flatten();
+    let entry = match own {
+        Some(e) => e,
+        None => {
+            let name = path.file_stem()?.to_string_lossy().into_owned();
+            let category = category::guess(&[&name]);
+            Entry::new(name, path.to_path_buf(), category)
+        }
+    };
+    Some(Entry { added: true, ..entry })
 }
 
 /// A folder to look through.
@@ -98,7 +135,7 @@ fn entry_of(path: &Path) -> Option<Entry> {
         }
     }
     let category = category::guess(&[&name, &stem]);
-    Some(Entry { name, path: path.to_path_buf(), category, exec: Vec::new() })
+    Some(Entry::new(name, path.to_path_buf(), category))
 }
 
 fn walk(dir: &Path, skip: &[PathBuf], depth: usize, found: &mut Vec<Entry>) {
@@ -266,7 +303,7 @@ pub mod desktop {
             return None;
         }
         let category = category_of(categories).unwrap_or_else(|| super::category::guess(&[&name]));
-        Some(Entry { name, path: path.to_path_buf(), category, exec })
+        Some(Entry { exec, ..Entry::new(name, path.to_path_buf(), category) })
     }
 
     pub fn read_dir(dir: &Path, found: &mut Vec<Entry>) {

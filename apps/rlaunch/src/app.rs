@@ -11,14 +11,16 @@ pub enum View {
     Categories,
     /// The programs of one.
     Inside(Category),
+    /// The programs the user hid.
+    Hidden,
     Options,
 }
 
 /// A line of the list.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Row {
-    /// Goes back to the categories.
-    Back(Category),
+    /// Goes back to the categories (or, from the hidden ones, the options).
+    Back,
     Category(Category, usize),
     /// An index into [`App::entries`].
     Entry(usize),
@@ -62,6 +64,7 @@ impl App {
             .entries
             .iter()
             .enumerate()
+            .filter(|(_, e)| !e.hidden)
             .filter_map(|(i, e)| {
                 let n = plain(&e.name);
                 let rank = if n.starts_with(&q) {
@@ -85,18 +88,40 @@ impl App {
             return self.matches().into_iter().map(Row::Entry).collect();
         }
         match self.view {
-            View::Categories => Category::ALL
-                .into_iter()
-                .filter_map(|c| {
-                    let n = self.entries.iter().filter(|e| e.category == c).count();
+            // The favourites, then the categories.
+            View::Categories => self
+                .entries_where(|e| e.favourite && !e.hidden)
+                .chain(Category::ALL.into_iter().filter_map(|c| {
+                    let n = self.entries.iter().filter(|e| e.category == c && !e.hidden).count();
                     (n > 0).then_some(Row::Category(c, n))
-                })
+                }))
                 .collect(),
-            View::Inside(c) => std::iter::once(Row::Back(c))
-                .chain(self.entries.iter().enumerate().filter(|(_, e)| e.category == c).map(|(i, _)| Row::Entry(i)))
-                .collect(),
+            View::Inside(c) => std::iter::once(Row::Back).chain(self.entries_where(move |e| e.category == c && !e.hidden)).collect(),
+            View::Hidden => std::iter::once(Row::Back).chain(self.entries_where(|e| e.hidden)).collect(),
             View::Options => Vec::new(),
         }
+    }
+
+    fn entries_where<'a>(&'a self, keep: impl Fn(&Entry) -> bool + 'a) -> impl Iterator<Item = Row> + 'a {
+        self.entries.iter().enumerate().filter(move |(_, e)| keep(e)).map(|(i, _)| Row::Entry(i))
+    }
+
+    pub fn hidden_count(&self) -> usize {
+        self.entries.iter().filter(|e| e.hidden).count()
+    }
+
+    /// The program of the selected row.
+    pub fn selected_entry(&self) -> Option<&Entry> {
+        match self.rows().get(self.selected) {
+            Some(&Row::Entry(i)) => self.entries.get(i),
+            _ => None,
+        }
+    }
+
+    pub fn open_hidden(&mut self) {
+        self.view = View::Hidden;
+        self.selected = 0;
+        self.scroll = 0;
     }
 
     pub fn open_category(&mut self, c: Category) {
@@ -106,8 +131,13 @@ impl App {
         self.scroll = 0;
     }
 
-    /// Back to the categories, with the one left selected.
+    /// Back to the categories, with the one left selected; from the hidden
+    /// programs, back to the options.
     pub fn back(&mut self) {
+        if self.view == View::Hidden {
+            self.view = View::Options;
+            return;
+        }
         let from = match self.view {
             View::Inside(c) => Some(c),
             _ => None,
@@ -171,7 +201,7 @@ pub(crate) mod tests {
     use std::path::PathBuf;
 
     pub(crate) fn sample() -> App {
-        let entry = |name: &str, category| Entry { name: name.into(), path: PathBuf::from(name), category, exec: Vec::new() };
+        let entry = |name: &str, category| Entry::new(name.into(), PathBuf::from(name), category);
         let mut app = App::default();
         app.set_entries(vec![
             entry("Audacity", Category::Multimedia),
@@ -191,10 +221,25 @@ pub(crate) mod tests {
             [Row::Category(Category::Internet, 3), Row::Category(Category::Multimedia, 1), Row::Category(Category::Other, 1)]
         );
         app.open_category(Category::Multimedia);
-        assert_eq!(app.rows(), [Row::Back(Category::Multimedia), Row::Entry(0)]);
+        assert_eq!(app.rows(), [Row::Back, Row::Entry(0)]);
         assert_eq!(app.selected, 1);
         app.back();
         assert_eq!((app.view, app.selected), (View::Categories, 1));
+    }
+
+    #[test]
+    fn favourites_come_first_and_hidden_ones_apart() {
+        let mut app = sample();
+        app.entries[2].favourite = true;
+        app.entries[0].hidden = true;
+        assert_eq!(app.rows(), [Row::Entry(2), Row::Category(Category::Internet, 3), Row::Category(Category::Other, 1)]);
+        app.set_query("aud".into());
+        assert!(app.rows().is_empty());
+        app.set_query(String::new());
+        app.open_hidden();
+        assert_eq!((app.rows(), app.hidden_count()), (vec![Row::Back, Row::Entry(0)], 1));
+        app.back();
+        assert_eq!(app.view, View::Options);
     }
 
     #[test]

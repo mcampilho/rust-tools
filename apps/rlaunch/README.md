@@ -7,7 +7,7 @@ own folders into one menu, by category, with a search box.
 [Versão portuguesa](README.pt.md)
 
 rlaunch is part of [rust-tools](../../README.md). Commands below run from the
-repository root. **It is a first phase**: see [Phases](#phases).
+repository root. **It is being built in phases**: see [Phases](#phases).
 
 `rlaunch.exe` is a single executable of about 1.7 MB: no installer, no
 runtime. It makes no network connections (except **Check for updates**, when
@@ -20,8 +20,8 @@ rlaunch [--tray]
 ```
 
 rlaunch stays in the notification area. The menu opens from the icon, with the
-keyboard shortcut (**Ctrl+Alt+Space**) or by starting rlaunch again, near the
-corner of the screen the pointer is on, and closes when something else gets the
+keyboard shortcut (**Ctrl+Alt+Space**) or by starting rlaunch again, by the
+notification area of the screen the pointer is on, and closes when something else gets the
 focus. `--tray` starts it without opening the menu.
 
 - **Left:** the categories; a click (or Enter) opens one, the arrow at its top
@@ -31,6 +31,30 @@ focus. `--tray` starts it without opening the menu.
 - **Right:** your Documents, Downloads, Pictures, Music and Videos folders,
   **Explore**, Options, About and Exit.
 - **Bottom:** the free space of the drive.
+- **Favourites** stay at the top, above the categories.
+- **Pin** (beside the search box): the menu stays open when something else gets
+  the focus, so files can be dragged onto it.
+
+### Your programs
+
+Right-click a program (or press the Menu key, or Shift+F10): **Open**, **Run as
+administrator** (also Ctrl+Shift+Enter; Windows), **Always run as
+administrator** (the program gets a shield), **Open file location**, **Add
+to favorites**, **Rename** (an empty name gives back the original), **Category**,
+**Change icon…** (`.ico`, `.png`, a program or a shortcut) and **Hide**. Hidden
+programs are under **Options > Hidden**, where the same menu shows them again.
+
+**Options > Add a program…** adds any file by itself, a program or a document;
+dragging it onto the pinned menu does the same (a dragged folder joins your
+folders). Its menu has **Remove from the menu**. The shortcuts and programs are
+never changed: what you choose is kept in rlaunch's settings.
+
+**Admin mode**, in the right column (or **Restart as administrator** in the
+icon's menu), starts rlaunch again with administrator rights; **Exit** and start
+it again to go back.
+
+When rlaunch itself runs as administrator, a shield takes the place of its
+logo and a line says so: what it opens has those rights too.
 
 ### Options
 
@@ -42,6 +66,9 @@ focus. `--tray` starts it without opening the menu.
 - **Keyboard shortcut:** Ctrl+Alt+Space, Ctrl+Shift+Space, Alt+Shift+Space,
   Win+Shift+Space or off. When another program already holds the combination,
   the menu says so: choose another.
+- **Always start as administrator** (Windows): Windows asks at every start,
+  also when rlaunch starts with the session; if you say no, it starts without
+  those rights.
 - Start with Windows, theme, language.
 
 Categories are guessed from the names of well-known programs; the others go to
@@ -68,8 +95,8 @@ Without a notification area, closing the menu quits.
 
 1. **Done:** the menu in the notification area with the keyboard shortcut,
    Scoop, Start menu and own folders, categories, search, opening programs.
-2. Favourites, hiding, renaming, changing category and icon, adding a single
-   program, running as administrator.
+2. **Done:** favourites, hiding, renaming, changing category and icon, adding a
+   single program, running as administrator.
 3. Themes and looks.
 4. PortableApps (names and categories of each program) and importing from
    other portable suites.

@@ -300,6 +300,16 @@ pub fn allow_any_foreground() {
     }
 }
 
+/// Lets a process without administrator rights hand over to this window when
+/// this one has them: Windows drops its message otherwise, and a second copy
+/// would start. Only for windows that do nothing risky with what is handed.
+pub fn accept_hand_off(hwnd: HWND) {
+    // SAFETY: a window of this thread; no result structure is asked for.
+    unsafe {
+        ChangeWindowMessageFilterEx(hwnd, WM_COPYDATA, MSGFLT_ALLOW, std::ptr::null_mut());
+    }
+}
+
 /// True if a resident (tray) instance is running.
 pub fn resident_running(ident: &Ident) -> bool {
     !find_instance(ident, true).is_null()

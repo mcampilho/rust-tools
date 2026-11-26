@@ -4,6 +4,7 @@
 pub mod app;
 pub mod category;
 pub mod i18n;
+pub mod items;
 pub mod settings;
 pub mod sources;
 pub mod storage;

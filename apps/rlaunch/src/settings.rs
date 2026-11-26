@@ -1,6 +1,7 @@
 //! What the user chose, as kept in `settings.ini`.
 
 use crate::i18n::Lang;
+use crate::items::Items;
 use crate::storage::Store;
 use std::path::{Component, Path, PathBuf};
 
@@ -68,6 +69,10 @@ pub struct Settings {
     pub size: u16,
     /// How much of what is behind shows through, in percent (Windows).
     pub transparency: u8,
+    /// Ask for administrator rights at every start (Windows).
+    pub always_admin: bool,
+    /// Changes to programs and programs added.
+    pub items: Items,
 }
 
 pub const SIZES: [u16; 3] = [100, 115, 130];
@@ -84,6 +89,8 @@ impl Default for Settings {
             hotkey: Hotkey::default(),
             size: 100,
             transparency: 0,
+            always_admin: false,
+            items: Items::default(),
         }
     }
 }
@@ -128,6 +135,8 @@ impl Settings {
             hotkey: s.get("hotkey").and_then(|v| Hotkey::ALL.into_iter().find(|h| h.key() == v)).unwrap_or_default(),
             size: s.get("size").and_then(|v| v.parse().ok()).filter(|v| SIZES.contains(v)).unwrap_or(d.size),
             transparency: s.get("transparency").and_then(|v| v.parse().ok()).filter(|v| TRANSPARENCIES.contains(v)).unwrap_or(0),
+            always_admin: flag("always_admin", false),
+            items: Items::load(s, own),
         }
     }
 
@@ -144,6 +153,8 @@ impl Settings {
         s.set("hotkey", self.hotkey.key());
         s.set("size", self.size.to_string());
         s.set("transparency", self.transparency.to_string());
+        s.set("always_admin", bit(self.always_admin));
+        self.items.save(&mut s, own);
         s
     }
 }
@@ -161,6 +172,7 @@ mod tests {
             hotkey: Hotkey::WinShiftSpace,
             size: 130,
             transparency: 20,
+            always_admin: true,
             ..Settings::default()
         };
         st.folders = vec![PathBuf::from("D:\\Apps"), PathBuf::from("/opt/apps")];

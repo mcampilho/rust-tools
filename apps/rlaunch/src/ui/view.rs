@@ -8,13 +8,17 @@ use crate::app::{App, Row, View};
 use crate::category::Category;
 use crate::i18n::{tf, tr, Lang};
 use crate::settings::{Hotkey, Settings};
+use rt_core::textedit::TextEdit;
 use rt_gfx::dialog::{ellipsize, ellipsize_middle};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tiny_skia::Pixmap;
 
 /// The size of the menu at 100 %, in logical pixels.
 pub const SIZE: (f64, f64) = (350.0, 480.0);
+
+/// The shield of the Windows icon font.
+const SHIELD: &str = "\u{EA18}";
 
 /// An option chosen by going through its values with ‹ and ›.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -72,13 +76,20 @@ pub enum Hit {
     Place(Place),
     Options,
     About,
+    /// Starts rlaunch again with administrator rights (Windows).
+    Elevate,
     Exit,
     Close,
+    /// Keeps the menu open when something else gets the focus.
+    Pin,
     Scoop,
     StartMenu,
     AddFolder,
+    AddProgram,
+    ShowHidden,
     RemoveFolder(usize),
     Autostart,
+    AlwaysAdmin,
     /// The next value of an option, or the one before.
     Step(Field, bool),
     CheckUpdates,
@@ -88,7 +99,7 @@ pub enum Hit {
 pub struct Model<'a> {
     pub app: &'a App,
     pub settings: &'a Settings,
-    /// The icons read so far, by the entry's path.
+    /// The icons read so far, by the file they come from.
     pub icons: &'a HashMap<PathBuf, Option<Pixmap>>,
     /// Something to tell the user, over the footer.
     pub note: Option<&'a str>,
@@ -96,8 +107,13 @@ pub struct Model<'a> {
     pub hot: Option<Hit>,
     /// The drive's name, free and total bytes.
     pub disk: Option<(String, u64, u64)>,
-    /// Whether the caret of the search box is in its visible half.
+    /// Whether the caret is in its visible half.
     pub caret: bool,
+    pub pinned: bool,
+    /// rlaunch has administrator rights, so what it opens has them too.
+    pub elevated: bool,
+    /// The program being renamed, and the name being typed.
+    pub rename: Option<(&'a Path, &'a TextEdit)>,
 }
 
 /// What was drawn.
@@ -160,11 +176,29 @@ impl Painter<'_, '_> {
     fn header(&mut self) {
         let t = *self.t;
         let logo = self.rect(11.0, 10.0, 24.0, 24.0);
-        if let Some(pm) = pixmap(64, 64, super::appicon::render(64)) {
+        // A shield in place of the logo says the menu has administrator rights.
+        if self.m.elevated {
+            let badge = self.rect(9.0, 8.0, 28.0, 28.0);
+            self.g.fill_rrect(badge, self.px(5.0), t.warn);
+            self.icon_glyph(SHIELD, badge, 17.0, t.frame);
+        } else if let Some(pm) = pixmap(64, 64, super::appicon::render(64)) {
             self.g.draw_image(&pm, logo);
         }
+        let pin = self.rect(316.0, 8.0, 28.0, 28.0);
+        if self.m.pinned {
+            self.g.fill_rrect(pin, self.px(5.0), t.accent);
+        } else if self.m.hot == Some(Hit::Pin) {
+            self.g.fill_rrect(pin, self.px(5.0), t.frame_hover);
+        }
+        self.icon_glyph(
+            if self.m.pinned { "\u{E840}" } else { "\u{E718}" },
+            pin,
+            13.0,
+            if self.m.pinned { t.on_accent } else { t.frame_text },
+        );
+        self.out.hits.push((pin, Hit::Pin));
         // The search box: typing goes here wherever the pointer is.
-        let field = self.rect(44.0, 8.0, 300.0, 28.0);
+        let field = self.rect(44.0, 8.0, 266.0, 28.0);
         self.g.fill_rrect(field, self.px(6.0), t.list);
         let inner = Rect::new(field.x + self.px(10.0), field.y, field.w - self.px(20.0), field.h);
         let size = self.px(13.0);
@@ -178,7 +212,7 @@ impl Painter<'_, '_> {
             self.g.text_in(&shown, inner, size, FontId::Regular, t.text, Align::Left);
             caret_x += self.g.measure(&shown, size, FontId::Regular) + self.px(1.0);
         }
-        if self.m.caret && self.m.app.view != View::Options {
+        if self.m.caret && self.m.app.view != View::Options && self.m.rename.is_none() {
             self.g.fill_rect(Rect::new(caret_x, field.y + self.px(6.0), self.px(1.0).max(1.0), field.h - self.px(12.0)), t.text);
         }
     }
@@ -210,7 +244,12 @@ impl Painter<'_, '_> {
         y += 10.0;
         self.side(y, "\u{E713}", &tr("Options"), Hit::Options);
         self.side(y + 28.0, "\u{E946}", &tr("About"), Hit::About);
-        self.side(y + 56.0, "\u{E7E8}", &tr("Exit"), Hit::Exit);
+        y += 56.0;
+        if cfg!(windows) && !self.m.elevated {
+            self.side(y, SHIELD, &tr("Admin mode"), Hit::Elevate);
+            y += 28.0;
+        }
+        self.side(y, "\u{E7E8}", &tr("Exit"), Hit::Exit);
     }
 
     fn footer(&mut self) {
@@ -270,27 +309,47 @@ impl Painter<'_, '_> {
             }
             let (ink, faint) = if selected { (t.on_accent, t.on_accent) } else { (t.text, t.dim) };
             let icon = Rect::new(r.x + self.px(6.0), r.y + self.px(4.0), self.px(18.0), self.px(18.0));
-            let count_w = if matches!(row, Row::Category(..)) { 36.0 } else { 4.0 };
+            let count_w = match *row {
+                Row::Category(..) => 36.0,
+                Row::Entry(i) if app.entries[i].admin => 22.0,
+                _ => 4.0,
+            };
             let text = Rect::new(r.x + self.px(31.0), r.y, r.w - self.px(31.0 + count_w), r.h);
             match *row {
                 Row::Category(c, n) => {
+                    // A line parts the favourites from the categories.
+                    if k > first && matches!(rows[k - 1], Row::Entry(_)) {
+                        let line = Rect::new(r.x + self.px(6.0), r.y, r.w - self.px(12.0), self.px(1.0).max(1.0));
+                        self.g.fill_rect(line, t.border);
+                    }
                     self.folder(icon, c);
                     text_middle(self.g, &tr(c.name()), text, size, FontId::Semibold, ink);
                     let count = Rect::new(r.right() - self.px(38.0), r.y, self.px(31.0), r.h);
                     let small = self.px(11.0);
                     self.g.text_in(&n.to_string(), count, small, FontId::Regular, faint, Align::Right);
                 }
-                Row::Back(c) => {
+                Row::Back => {
+                    let title = match app.view {
+                        View::Inside(c) => tr(c.name()),
+                        _ => tr("Hidden programs"),
+                    };
                     self.icon_glyph("\u{E72B}", icon, 13.0, ink);
-                    text_middle(self.g, &tr(c.name()), text, size, FontId::Semibold, ink);
+                    text_middle(self.g, &title, text, size, FontId::Semibold, ink);
                 }
                 Row::Entry(i) => {
                     let e = &app.entries[i];
-                    match self.m.icons.get(&e.path) {
+                    match self.m.icons.get(e.icon_source()) {
                         Some(Some(pm)) => self.g.draw_image(pm, icon),
                         _ => self.letter(icon, &e.name),
                     }
-                    text_middle(self.g, &e.name, text, size, FontId::Regular, ink);
+                    match self.m.rename {
+                        Some((path, edit)) if path == e.path => self.field(text, edit),
+                        _ => text_middle(self.g, &e.name, text, size, FontId::Regular, ink),
+                    }
+                    if e.admin {
+                        let shield = Rect::new(r.right() - self.px(22.0), r.y, self.px(18.0), r.h);
+                        self.icon_glyph(SHIELD, shield, 13.0, if selected { ink } else { t.warn });
+                    }
                     self.out.shown.push(i);
                 }
             }
@@ -302,6 +361,30 @@ impl Painter<'_, '_> {
             let y = track.y + (track.h - h) * first as f32 / (rows.len() - self.out.visible).max(1) as f32;
             self.g.fill_rrect(Rect::new(track.x, y, track.w, h), self.px(2.0), t.border);
         }
+    }
+
+    /// The name being typed in a row, with its selection and caret.
+    fn field(&mut self, text: Rect, edit: &TextEdit) {
+        let t = *self.t;
+        let size = self.px(13.0);
+        let r = Rect::new(text.x - self.px(4.0), text.y + self.px(2.0), text.w + self.px(2.0), text.h - self.px(4.0));
+        self.g.fill_rrect(r, self.px(4.0), t.list);
+        self.g.stroke_rrect(r, self.px(4.0), self.px(1.0).max(1.0), t.accent);
+        // Scrolled so the caret stays in the field.
+        let before = self.g.measure(&edit.text[..edit.caret], size, FontId::Regular);
+        let x = text.x - (before - (text.w - self.px(6.0))).max(0.0);
+        self.g.set_clip(Some(r));
+        if let Some((a, b)) = edit.selection() {
+            let from = self.g.measure(&edit.text[..a], size, FontId::Regular);
+            let to = self.g.measure(&edit.text[..b], size, FontId::Regular);
+            self.g.fill_rect(Rect::new(x + from, r.y + self.px(3.0), to - from, r.h - self.px(6.0)), t.hover);
+        }
+        let wide = self.g.measure(&edit.text, size, FontId::Regular) + self.px(4.0);
+        self.g.text_in(&edit.text, Rect::new(x, text.y, wide, text.h), size, FontId::Regular, t.text, Align::Left);
+        if self.m.caret {
+            self.g.fill_rect(Rect::new(x + before, r.y + self.px(4.0), self.px(1.0).max(1.0), r.h - self.px(8.0)), t.text);
+        }
+        self.g.set_clip(None);
     }
 
     /// A folder in the category's colour.
@@ -404,23 +487,31 @@ impl Painter<'_, '_> {
             self.button(x, "×", Hit::RemoveFolder(i));
             y += 25.0;
         }
-        let add = self.rect(16.0, y, 200.0, 26.0);
+        let add = self.rect(16.0, y, 156.0, 26.0);
         self.button(add, &tr("Add a folder…"), Hit::AddFolder);
-        y += 34.0;
-        let start = if cfg!(windows) { tr("Start with Windows") } else { tr("Start at login") };
-        self.check(16.0, y, 318.0, &start, self.m.autostart, Hit::Autostart);
+        let program = self.rect(178.0, y, 156.0, 26.0);
+        self.button(program, &tr("Add a program…"), Hit::AddProgram);
         y += 30.0;
+        let start = if cfg!(windows) { tr("Start with Windows") } else { tr("Start at login") };
+        self.check(16.0, y, 188.0, &start, self.m.autostart, Hit::Autostart);
+        let hidden = self.rect(210.0, y - 1.0, 124.0, 26.0);
+        self.button(hidden, &tf("Hidden ({})", &[&self.m.app.hidden_count().to_string()]), Hit::ShowHidden);
+        if cfg!(windows) {
+            y += 23.0;
+            self.check(16.0, y, 318.0, &tr("Always start as administrator"), st.always_admin, Hit::AlwaysAdmin);
+        }
+        y += 27.0;
         if cfg!(windows) {
             let keys = if st.hotkey == Hotkey::Off { tr("Off") } else { st.hotkey.label().to_string() };
             self.stepper(y, &tr("Keyboard shortcut"), &keys, Field::Hotkey);
-            y += 29.0;
+            y += 27.0;
         }
         self.stepper(y, &tr("Size"), &format!("{}%", st.size), Field::Size);
-        y += 29.0;
+        y += 27.0;
         if cfg!(windows) {
             let value = if st.transparency == 0 { tr("Off") } else { format!("{}%", st.transparency) };
             self.stepper(y, &tr("Transparency"), &value, Field::Transparency);
-            y += 29.0;
+            y += 27.0;
         }
         let theme = match st.theme {
             1 => tr("Light"),
@@ -428,10 +519,10 @@ impl Painter<'_, '_> {
             _ => tr("As the system"),
         };
         self.stepper(y, &tr("Theme"), &theme, Field::Theme);
-        y += 29.0;
+        y += 27.0;
         let language = st.language.map_or_else(|| tr("As the system"), |l: Lang| l.native_name().to_string());
         self.stepper(y, &tr("Language"), &language, Field::Language);
-        y += 33.0;
+        y += 29.0;
         let updates = self.rect(16.0, y, 208.0, 26.0);
         self.button(updates, &tr("Check for updates"), Hit::CheckUpdates);
         let done = self.rect(234.0, y, 100.0, 26.0);
@@ -481,7 +572,19 @@ mod tests {
         let mut g = Gfx::new().unwrap();
         g.resize(SIZE.0 as u32, SIZE.1 as u32);
         let (app, settings, icons) = (sample(), Settings::default(), HashMap::new());
-        let m = Model { app: &app, settings: &settings, icons: &icons, note: None, autostart: false, hot: None, disk: None, caret: true };
+        let m = Model {
+            app: &app,
+            settings: &settings,
+            icons: &icons,
+            note: None,
+            autostart: false,
+            hot: None,
+            disk: None,
+            caret: true,
+            pinned: false,
+            elevated: false,
+            rename: None,
+        };
         let d = draw(&mut g, &m, &Theme::new(false, None), 1.0);
         let hits: Vec<Hit> = d.hits.iter().map(|(_, h)| *h).collect();
         for want in [Hit::Row(0), Hit::Row(2), Hit::Place(Place::Explore), Hit::Options, Hit::Exit, Hit::Close] {

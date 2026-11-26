@@ -23,6 +23,9 @@ fn model<'a>(
         hot: None,
         disk: Some(("E:".to_string(), 70_500_000_000, 500_000_000_000)),
         caret: true,
+        pinned: false,
+        elevated: false,
+        rename: None,
     }
 }
 
@@ -57,7 +60,7 @@ fn every_view_is_translated() {
     }
     rt_core::i18n::record_misses(true);
     set_lang(Lang::DeDE);
-    for view in [View::Categories, View::Inside(Category::Internet), View::Options] {
+    for view in [View::Categories, View::Inside(Category::Internet), View::Hidden, View::Options] {
         app.view = view;
         draw(&mut g, &model(&app, &settings, &icons, None), &Theme::new(false, None), 1.0);
     }
@@ -117,6 +120,24 @@ fn screenshots() {
         }
         pm.save_png(out.join(format!("{name}.png"))).unwrap();
     }
+    // The shields: the menu elevated, and programs always run as administrator.
+    set_lang(Lang::PtPT);
+    app.view = View::Inside(dev);
+    app.query.clear();
+    for e in app.entries.iter_mut().filter(|e| e.category == dev).step_by(2) {
+        e.admin = true;
+    }
+    let note = tr("Running as administrator: what it opens does too.");
+    let m = Model { elevated: true, ..model(&app, &settings, &icons, Some(&note)) };
+    draw(&mut g, &m, &Theme::new(false, None), 1.0);
+    let (w, h) = (SIZE.0 as u32, SIZE.1 as u32);
+    let mut buf = vec![0u32; (w * h) as usize];
+    g.copy_to(&mut buf);
+    let mut pm = tiny_skia::Pixmap::new(w, h).unwrap();
+    for (d, s) in pm.pixels_mut().iter_mut().zip(&buf) {
+        *d = tiny_skia::ColorU8::from_rgba((s >> 16) as u8, (s >> 8) as u8, *s as u8, 255).premultiply();
+    }
+    pm.save_png(out.join("pt-admin.png")).unwrap();
     set_lang(Lang::EnUS);
     println!("{} programs", app.entries.len());
     for c in Category::ALL {
