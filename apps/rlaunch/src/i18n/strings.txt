@@ -1,0 +1,54 @@
+# rlaunch's strings, looked up before the common table of rt-core.
+# Columns: en-US key, en-GB, de-DE, es-ES, fr-FR, it-IT, ja-JP, pt-BR, pt-PT, zh-CN (tab-separated).
+# An empty cell falls back (en-GB and pt-PT to en-US and pt-BR); edit by hand, one row per string.
+Internet		Internet	Internet	Internet	Internet	インターネット	Internet		互联网
+Multimedia		Multimedia	Multimedia	Multimédia	Multimedia	マルチメディア	Multimídia	Multimédia	多媒体
+Graphics		Grafik	Gráficos	Graphisme	Grafica	グラフィックス	Gráficos		图形
+Office		Büro	Oficina	Bureautique	Ufficio	オフィス	Escritório		办公
+Development		Entwicklung	Desarrollo	Développement	Sviluppo	開発	Desenvolvimento		开发
+System		System	Sistema	Système	Sistema	システム	Sistema		系统
+Security		Sicherheit	Seguridad	Sécurité	Sicurezza	セキュリティ	Segurança		安全
+Games		Spiele	Juegos	Jeux	Giochi	ゲーム	Jogos		游戏
+Utilities		Dienstprogramme	Utilidades	Utilitaires	Utilità	ユーティリティ	Utilitários		实用工具
+Other		Sonstiges	Otros	Autres	Altro	その他	Outros		其他
+Search…		Suchen…	Buscar…	Rechercher…	Cerca…	検索…	Pesquisar…	Procurar…	搜索…
+Documents		Dokumente	Documentos	Documents	Documenti	ドキュメント	Documentos		文档
+Downloads		Downloads	Descargas	Téléchargements	Download	ダウンロード	Downloads	Transferências	下载
+Pictures		Bilder	Imágenes	Images	Immagini	ピクチャ	Imagens		图片
+Music		Musik	Música	Musique	Musica	ミュージック	Músicas	Música	音乐
+Videos		Videos	Vídeos	Vidéos	Video	ビデオ	Vídeos		视频
+Explore		Durchsuchen	Explorar	Explorer	Esplora	参照	Explorar		浏览
+Options		Optionen	Opciones	Options	Opzioni	オプション	Opções		选项
+About		Info	Acerca de	À propos	Informazioni	バージョン情報	Sobre	Acerca de	关于
+Exit		Beenden	Salir	Quitter	Esci	終了	Sair		退出
+Back		Zurück	Atrás	Retour	Indietro	戻る	Voltar		返回
+Reading the programs…		Programme werden gelesen…	Leyendo los programas…	Lecture des programmes…	Lettura dei programmi…	プログラムを読み込み中…	Lendo os programas…	A ler os programas…	正在读取程序…
+No programs found. Turn on a source in Options.		Keine Programme gefunden. Aktivieren Sie eine Quelle in den Optionen.	No se han encontrado programas. Active un origen en Opciones.	Aucun programme trouvé. Activez une source dans les options.	Nessun programma trovato. Attivare un’origine nelle opzioni.	プログラムが見つかりません。オプションで読み込み元を有効にしてください。	Nenhum programa encontrado. Ative uma origem em Opções.	Nenhum programa encontrado. Ligue uma origem nas Opções.	未找到程序。请在选项中启用一个来源。
+Nothing matches.		Nichts passt.	No hay coincidencias.	Aucun résultat.	Nessun risultato.	一致するものはありません。	Nada corresponde.		没有匹配项。
+Programs from		Programme aus	Programas de	Programmes depuis	Programmi da	プログラムの読み込み元	Programas de		程序来源
+Scoop		Scoop	Scoop	Scoop	Scoop	Scoop	Scoop		Scoop
+Start menu		Startmenü	Menú Inicio	Menu Démarrer	Menu Start	スタート メニュー	Menu Iniciar		开始菜单
+Installed applications		Installierte Anwendungen	Aplicaciones instaladas	Applications installées	Applicazioni installate	インストール済みアプリ	Aplicativos instalados	Aplicações instaladas	已安装的应用
+My folders		Meine Ordner	Mis carpetas	Mes dossiers	Le mie cartelle	自分のフォルダー	Minhas pastas	As minhas pastas	我的文件夹
+Add a folder…		Ordner hinzufügen…	Añadir una carpeta…	Ajouter un dossier…	Aggiungi una cartella…	フォルダーを追加…	Adicionar uma pasta…	Acrescentar uma pasta…	添加文件夹…
+Choose a folder of programs		Ordner mit Programmen wählen	Elija una carpeta de programas	Choisissez un dossier de programmes	Scegliere una cartella di programmi	プログラムのフォルダーを選択	Escolha uma pasta de programas		选择程序文件夹
+Keyboard shortcut		Tastenkombination	Atajo de teclado	Raccourci clavier	Scorciatoia da tastiera	ショートカット キー	Atalho de teclado		键盘快捷键
+Off		Aus	Desactivado	Désactivé	Disattivato	オフ	Desativado		关闭
+Another program is using {}.		Ein anderes Programm verwendet {}.	Otro programa está usando {}.	Un autre programme utilise {}.	Un altro programma usa {}.	別のプログラムが {} を使用しています。	Outro programa está usando {}.	Outro programa está a usar {}.	另一个程序正在使用 {}。
+Start with Windows		Mit Windows starten	Iniciar con Windows	Démarrer avec Windows	Avvia con Windows	Windows と同時に起動	Iniciar com o Windows		随 Windows 启动
+Start at login		Bei der Anmeldung starten	Iniciar al entrar en la sesión	Démarrer à l’ouverture de session	Avvia all’accesso	ログイン時に起動	Iniciar ao entrar na sessão		登录时启动
+Theme		Design	Tema	Thème	Tema	テーマ	Tema		主题
+As the system		Wie das System	Como el sistema	Comme le système	Come il sistema	システムに合わせる	Como o sistema		跟随系统
+Light		Hell	Claro	Clair	Chiaro	ライト	Claro		浅色
+Dark		Dunkel	Oscuro	Sombre	Scuro	ダーク	Escuro		深色
+Language		Sprache	Idioma	Langue	Lingua	言語	Idioma	Língua	语言
+Check for updates		Nach Updates suchen	Buscar actualizaciones	Rechercher des mises à jour	Verifica aggiornamenti	更新の確認	Verificar atualizações	Procurar atualizações	检查更新
+Done		Fertig	Listo	Terminé	Fine	完了	Concluído		完成
+Cannot open {}.		{} kann nicht geöffnet werden.	No se puede abrir {}.	Impossible d’ouvrir {}.	Impossibile aprire {}.	{} を開けません。	Não é possível abrir {}.	Não é possível abrir {}.	无法打开 {}。
+{} free of {}		{} frei von {}	{} libres de {}	{} libres sur {}	{} liberi di {}	空き {} / {}	{} livres de {}		可用 {}，共 {}
+Cannot change how it starts: {}		Der Start lässt sich nicht ändern: {}	No se puede cambiar el inicio: {}	Impossible de modifier le démarrage : {}	Impossibile modificare l’avvio: {}	起動方法を変更できません: {}	Não é possível mudar a inicialização: {}	Não é possível mudar o arranque: {}	无法更改启动方式：{}
+Open rlaunch		rlaunch öffnen	Abrir rlaunch	Ouvrir rlaunch	Apri rlaunch	rlaunch を開く	Abrir o rlaunch		打开 rlaunch
+About rlaunch		Über rlaunch	Acerca de rlaunch	À propos de rlaunch	Informazioni su rlaunch	rlaunch について	Sobre o rlaunch	Acerca do rlaunch	关于 rlaunch
+rlaunch {}\n\nA portable menu of applications, written in Rust.\nNo telemetry, no network access.\n\nMIT License.		rlaunch {}\n\nEin portables Anwendungsmenü, geschrieben in Rust.\nKeine Telemetrie, kein Netzwerkzugriff.\n\nMIT-Lizenz.	rlaunch {}\n\nUn menú portátil de aplicaciones, escrito en Rust.\nSin telemetría ni acceso a la red.\n\nLicencia MIT.	rlaunch {}\n\nUn menu d’applications portable, écrit en Rust.\nAucune télémétrie, aucun accès au réseau.\n\nLicence MIT.	rlaunch {}\n\nUn menu portatile di applicazioni, scritto in Rust.\nNessuna telemetria, nessun accesso alla rete.\n\nLicenza MIT.	rlaunch {}\n\nRust で書かれたポータブルなアプリケーション メニュー。\nテレメトリもネットワーク アクセスもありません。\n\nMIT ライセンス。	rlaunch {}\n\nUm menu portátil de aplicativos, escrito em Rust.\nSem telemetria nem acesso à rede.\n\nLicença MIT.	rlaunch {}\n\nUm menu portátil de aplicações, escrito em Rust.\nSem telemetria nem acesso à rede.\n\nLicença MIT.	rlaunch {}\n\n用 Rust 编写的便携应用菜单。\n无遥测，不访问网络。\n\nMIT 许可证。
+Size		Größe	Tamaño	Taille	Dimensione	サイズ	Tamanho		大小
+Transparency		Transparenz	Transparencia	Transparence	Trasparenza	透明度	Transparência		透明度

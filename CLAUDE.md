@@ -18,6 +18,7 @@ Monorepo (workspace Cargo) com nove aplicações, cada uma um único `.exe`, e o
   restos; separadores para Scoop, Chocolatey, DISM, npm, pip, Cargo e vcpkg; em Linux, dpkg, rpm, Flatpak e Snap.
 - `apps/rclean` — limpador: temporários do sistema, caches dos browsers e dos gestores de pacotes, apagados de vez
   depois de confirmar; atalhos inválidos (para a Reciclagem); entradas inválidas do registo (cópia `.reg` antes).
+- `apps/rlaunch` — menu de aplicações na área de notificação (desde 2026-11-26, fase 1): Scoop, menu Iniciar e pastas próprias por categorias, procura, atalho de teclado; modo portátil para pen USB.
 - `apps/rcare` — manutenção do Windows numa só janela, só Windows (desde 2026-11-22, em curso): barra lateral
   recolhível que escolhe a página, e as páginas são as das apps pequenas (rclean, rdup, rsize, rinst), partilhadas por
   código (`rclean::page::CleanPage`, `rdup::page::DupPage`, `rsize::page::SizePage`, `rinst::page::InstPage`, `rt_ui::page::Effects`). Plano e passagem de testemunho em `docs/rcare.pt.md`; perfil `release`; ver o

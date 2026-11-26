@@ -1,0 +1,495 @@
+//! The menu, drawn in one function that gives back what can be clicked: a
+//! search box on top, the list on the left, the user's folders on the right
+//! and the space of the drive at the bottom.
+
+use super::gfx::{Align, Color, FontId, Gfx, Rect};
+use super::theme::Theme;
+use crate::app::{App, Row, View};
+use crate::category::Category;
+use crate::i18n::{tf, tr, Lang};
+use crate::settings::{Hotkey, Settings};
+use rt_gfx::dialog::{ellipsize, ellipsize_middle};
+use std::collections::HashMap;
+use std::path::PathBuf;
+use tiny_skia::Pixmap;
+
+/// The size of the menu at 100 %, in logical pixels.
+pub const SIZE: (f64, f64) = (350.0, 480.0);
+
+/// An option chosen by going through its values with ‹ and ›.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Field {
+    Hotkey,
+    Size,
+    Transparency,
+    Theme,
+    Language,
+}
+
+/// The folders of the user in the right column.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Place {
+    Documents,
+    Downloads,
+    Pictures,
+    Music,
+    Videos,
+    /// The folder or drive rlaunch is on.
+    Explore,
+}
+
+impl Place {
+    pub const ALL: [Place; 6] = [Place::Documents, Place::Downloads, Place::Pictures, Place::Music, Place::Videos, Place::Explore];
+
+    fn name(self) -> String {
+        match self {
+            Place::Documents => tr("Documents"),
+            Place::Downloads => tr("Downloads"),
+            Place::Pictures => tr("Pictures"),
+            Place::Music => tr("Music"),
+            Place::Videos => tr("Videos"),
+            Place::Explore => tr("Explore"),
+        }
+    }
+
+    /// A glyph of the Windows icon font.
+    fn glyph(self) -> &'static str {
+        match self {
+            Place::Documents => "\u{E8A5}",
+            Place::Downloads => "\u{E896}",
+            Place::Pictures => "\u{E8B9}",
+            Place::Music => "\u{E8D6}",
+            Place::Videos => "\u{E714}",
+            Place::Explore => "\u{E8B7}",
+        }
+    }
+}
+
+/// What a click does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Hit {
+    Row(usize),
+    Place(Place),
+    Options,
+    About,
+    Exit,
+    Close,
+    Scoop,
+    StartMenu,
+    AddFolder,
+    RemoveFolder(usize),
+    Autostart,
+    /// The next value of an option, or the one before.
+    Step(Field, bool),
+    CheckUpdates,
+    Done,
+}
+
+pub struct Model<'a> {
+    pub app: &'a App,
+    pub settings: &'a Settings,
+    /// The icons read so far, by the entry's path.
+    pub icons: &'a HashMap<PathBuf, Option<Pixmap>>,
+    /// Something to tell the user, over the footer.
+    pub note: Option<&'a str>,
+    pub autostart: bool,
+    pub hot: Option<Hit>,
+    /// The drive's name, free and total bytes.
+    pub disk: Option<(String, u64, u64)>,
+    /// Whether the caret of the search box is in its visible half.
+    pub caret: bool,
+}
+
+/// What was drawn.
+#[derive(Default)]
+pub struct Drawn {
+    pub hits: Vec<(Rect, Hit)>,
+    /// Rows of the list that fit.
+    pub visible: usize,
+    /// The entries shown, whose icons are wanted.
+    pub shown: Vec<usize>,
+}
+
+impl Drawn {
+    pub fn hit(&self, x: f32, y: f32) -> Option<Hit> {
+        self.hits.iter().rev().find(|(r, _)| r.contains(x, y)).map(|(_, h)| *h)
+    }
+}
+
+/// An image from straight RGBA pixels.
+pub fn pixmap(w: u32, h: u32, rgba: Vec<u8>) -> Option<Pixmap> {
+    let mut pm = Pixmap::new(w, h)?;
+    for (d, s) in pm.pixels_mut().iter_mut().zip(rgba.as_chunks::<4>().0) {
+        *d = tiny_skia::ColorU8::from_rgba(s[0], s[1], s[2], s[3]).premultiply();
+    }
+    Some(pm)
+}
+
+struct Painter<'a, 'm> {
+    g: &'a mut Gfx,
+    t: &'a Theme,
+    m: &'a Model<'m>,
+    s: f32,
+    out: Drawn,
+}
+
+fn text_middle(g: &mut Gfx, text: &str, r: Rect, px: f32, font: FontId, c: Color) {
+    let cut = ellipsize(g, text, r.w, px, font);
+    g.text_in(&cut, r, px, font, c, Align::Left);
+}
+
+impl Painter<'_, '_> {
+    fn px(&self, v: f32) -> f32 {
+        (v * self.s).round()
+    }
+
+    fn rect(&self, x: f32, y: f32, w: f32, h: f32) -> Rect {
+        Rect::new(self.px(x), self.px(y), self.px(w), self.px(h))
+    }
+
+    fn icon_glyph(&mut self, glyph: &str, r: Rect, size: f32, c: Color) {
+        if self.g.has_icons() {
+            let px = self.px(size);
+            self.g.text_in(glyph, r, px, FontId::Icons, c, Align::Center);
+        } else {
+            let d = self.px(4.0);
+            self.g.fill_circle(r.x + r.w / 2.0, r.center_y(), d, c);
+        }
+    }
+
+    fn header(&mut self) {
+        let t = *self.t;
+        let logo = self.rect(11.0, 10.0, 24.0, 24.0);
+        if let Some(pm) = pixmap(64, 64, super::appicon::render(64)) {
+            self.g.draw_image(&pm, logo);
+        }
+        // The search box: typing goes here wherever the pointer is.
+        let field = self.rect(44.0, 8.0, 300.0, 28.0);
+        self.g.fill_rrect(field, self.px(6.0), t.list);
+        let inner = Rect::new(field.x + self.px(10.0), field.y, field.w - self.px(20.0), field.h);
+        let size = self.px(13.0);
+        let query = &self.m.app.query;
+        let mut caret_x = inner.x;
+        if query.is_empty() {
+            let hint = tr("Search…");
+            self.g.text_in(&hint, Rect::new(inner.x + self.px(4.0), inner.y, inner.w, inner.h), size, FontId::Regular, t.dim, Align::Left);
+        } else {
+            let shown = ellipsize_middle(self.g, query, inner.w - self.px(4.0), size, FontId::Regular);
+            self.g.text_in(&shown, inner, size, FontId::Regular, t.text, Align::Left);
+            caret_x += self.g.measure(&shown, size, FontId::Regular) + self.px(1.0);
+        }
+        if self.m.caret && self.m.app.view != View::Options {
+            self.g.fill_rect(Rect::new(caret_x, field.y + self.px(6.0), self.px(1.0).max(1.0), field.h - self.px(12.0)), t.text);
+        }
+    }
+
+    /// One line of the right column.
+    fn side(&mut self, y: f32, glyph: &str, label: &str, hit: Hit) {
+        let t = *self.t;
+        let r = self.rect(220.0, y, 127.0, 27.0);
+        if self.m.hot == Some(hit) {
+            self.g.fill_rrect(r, self.px(5.0), t.frame_hover);
+        }
+        let icon = self.rect(221.0, y, 20.0, 27.0);
+        self.icon_glyph(glyph, icon, 14.0, t.frame_dim);
+        let size = self.px(13.0);
+        let text = self.rect(242.0, y, 106.0, 27.0);
+        text_middle(self.g, label, text, size, FontId::Regular, t.frame_text);
+        self.out.hits.push((r, hit));
+    }
+
+    fn column(&mut self) {
+        let mut y = 44.0;
+        for place in Place::ALL {
+            self.side(y, place.glyph(), &place.name(), Hit::Place(place));
+            y += 28.0;
+        }
+        let line = self.rect(226.0, y + 4.0, 114.0, 1.0);
+        let c = self.t.frame_hover;
+        self.g.fill_rect(line, c);
+        y += 10.0;
+        self.side(y, "\u{E713}", &tr("Options"), Hit::Options);
+        self.side(y + 28.0, "\u{E946}", &tr("About"), Hit::About);
+        self.side(y + 56.0, "\u{E7E8}", &tr("Exit"), Hit::Exit);
+    }
+
+    fn footer(&mut self) {
+        let t = *self.t;
+        if let Some((name, free, total)) = &self.m.disk {
+            let label = format!("{name}  {}", tf("{} free of {}", &[&rt_scan::format::size(*free), &rt_scan::format::size(*total)]));
+            let r = self.rect(10.0, 442.0, 204.0, 16.0);
+            let size = self.px(11.0);
+            text_middle(self.g, &label, r, size, FontId::Regular, t.frame_dim);
+            let bar = self.rect(10.0, 463.0, 204.0, 5.0);
+            self.g.fill_rrect(bar, self.px(2.5), t.frame_hover);
+            if *total > 0 {
+                let used = (total.saturating_sub(*free) as f64 / *total as f64) as f32;
+                self.g.fill_rrect(Rect::new(bar.x, bar.y, (bar.w * used).max(bar.h), bar.h), self.px(2.5), t.accent);
+            }
+        }
+        let close = self.rect(314.0, 447.0, 30.0, 26.0);
+        if self.m.hot == Some(Hit::Close) {
+            self.g.fill_rrect(close, self.px(5.0), t.frame_hover);
+        }
+        self.icon_glyph("\u{E8BB}", close, 11.0, t.frame_text);
+        self.out.hits.push((close, Hit::Close));
+    }
+
+    /// The categories or the programs.
+    fn list(&mut self, area: Rect) {
+        let t = *self.t;
+        let app = self.m.app;
+        let rows = app.rows();
+        let row_h = self.px(26.0);
+        self.out.visible = ((area.h - self.px(8.0)) / row_h).floor().max(1.0) as usize;
+        let size = self.px(13.0);
+        if rows.is_empty() {
+            let text = if app.loading {
+                tr("Reading the programs…")
+            } else if app.query.trim().is_empty() {
+                tr("No programs found. Turn on a source in Options.")
+            } else {
+                tr("Nothing matches.")
+            };
+            let mut y = area.y + self.px(16.0);
+            for line in rt_gfx::dialog::wrap_words(self.g, &text, area.w - self.px(28.0), size, FontId::Regular) {
+                let r = Rect::new(area.x + self.px(14.0), y, area.w - self.px(28.0), self.px(22.0));
+                self.g.text_in(&line, r, size, FontId::Regular, t.dim, Align::Left);
+                y += self.px(22.0);
+            }
+            return;
+        }
+        let first = app.scroll.min(rows.len().saturating_sub(1));
+        for (k, row) in rows.iter().enumerate().skip(first).take(self.out.visible) {
+            let r = Rect::new(area.x + self.px(4.0), area.y + self.px(4.0) + (k - first) as f32 * row_h, area.w - self.px(14.0), row_h);
+            let selected = k == app.selected;
+            if selected {
+                self.g.fill_rrect(r, self.px(5.0), t.accent);
+            } else if self.m.hot == Some(Hit::Row(k)) {
+                self.g.fill_rrect(r, self.px(5.0), t.hover);
+            }
+            let (ink, faint) = if selected { (t.on_accent, t.on_accent) } else { (t.text, t.dim) };
+            let icon = Rect::new(r.x + self.px(6.0), r.y + self.px(4.0), self.px(18.0), self.px(18.0));
+            let count_w = if matches!(row, Row::Category(..)) { 36.0 } else { 4.0 };
+            let text = Rect::new(r.x + self.px(31.0), r.y, r.w - self.px(31.0 + count_w), r.h);
+            match *row {
+                Row::Category(c, n) => {
+                    self.folder(icon, c);
+                    text_middle(self.g, &tr(c.name()), text, size, FontId::Semibold, ink);
+                    let count = Rect::new(r.right() - self.px(38.0), r.y, self.px(31.0), r.h);
+                    let small = self.px(11.0);
+                    self.g.text_in(&n.to_string(), count, small, FontId::Regular, faint, Align::Right);
+                }
+                Row::Back(c) => {
+                    self.icon_glyph("\u{E72B}", icon, 13.0, ink);
+                    text_middle(self.g, &tr(c.name()), text, size, FontId::Semibold, ink);
+                }
+                Row::Entry(i) => {
+                    let e = &app.entries[i];
+                    match self.m.icons.get(&e.path) {
+                        Some(Some(pm)) => self.g.draw_image(pm, icon),
+                        _ => self.letter(icon, &e.name),
+                    }
+                    text_middle(self.g, &e.name, text, size, FontId::Regular, ink);
+                    self.out.shown.push(i);
+                }
+            }
+            self.out.hits.push((r, Hit::Row(k)));
+        }
+        if rows.len() > self.out.visible {
+            let track = Rect::new(area.right() - self.px(8.0), area.y + self.px(6.0), self.px(4.0), area.h - self.px(12.0));
+            let h = (track.h * self.out.visible as f32 / rows.len() as f32).max(self.px(24.0));
+            let y = track.y + (track.h - h) * first as f32 / (rows.len() - self.out.visible).max(1) as f32;
+            self.g.fill_rrect(Rect::new(track.x, y, track.w, h), self.px(2.0), t.border);
+        }
+    }
+
+    /// A folder in the category's colour.
+    fn folder(&mut self, r: Rect, c: Category) {
+        let color = Color::rgb(match c {
+            Category::Internet => 0x2F8FE0,
+            Category::Multimedia => 0xD1558B,
+            Category::Graphics => 0x8E5BD0,
+            Category::Office => 0x2E9E6A,
+            Category::Development => 0x4C6FD6,
+            Category::System => 0x6E7C8C,
+            Category::Security => 0xC7503E,
+            Category::Games => 0xE08A22,
+            Category::Utilities => 0x1FA0A8,
+            Category::Other => 0xB49B3C,
+        });
+        let tab = Rect::new(r.x + self.px(1.0), r.y + self.px(2.0), self.px(8.0), self.px(5.0));
+        self.g.fill_rrect(tab, self.px(2.0), color);
+        let body = Rect::new(r.x + self.px(1.0), r.y + self.px(4.0), r.w - self.px(2.0), r.h - self.px(6.0));
+        self.g.fill_rrect(body, self.px(3.0), color);
+    }
+
+    /// In place of an icon not read yet (or not there).
+    fn letter(&mut self, r: Rect, name: &str) {
+        let t = *self.t;
+        self.g.fill_rrect(r, self.px(5.0), t.border);
+        let first: String = name.chars().take(1).flat_map(char::to_uppercase).collect();
+        let size = self.px(11.0);
+        self.g.text_in(&first, r, size, FontId::Semibold, t.text, Align::Center);
+    }
+
+    fn check(&mut self, x: f32, y: f32, w: f32, label: &str, on: bool, hit: Hit) {
+        let t = *self.t;
+        let r = self.rect(x, y, w, 24.0);
+        let b = self.rect(x + 2.0, y + 4.0, 16.0, 16.0);
+        let radius = self.px(4.0);
+        self.g.fill_rrect(b, radius, if on { t.accent } else { t.list });
+        self.g.stroke_rrect(b, radius, self.px(1.0).max(1.0), if on { t.accent } else { t.dim });
+        if on {
+            let p = [(b.x + b.w * 0.22, b.y + b.h * 0.52), (b.x + b.w * 0.42, b.y + b.h * 0.72), (b.x + b.w * 0.8, b.y + b.h * 0.3)];
+            self.g.polyline(&p, self.px(2.0), t.on_accent, false);
+        }
+        let text = self.rect(x + 26.0, y, w - 26.0, 24.0);
+        let size = self.px(13.0);
+        text_middle(self.g, label, text, size, if self.m.hot == Some(hit) { FontId::Semibold } else { FontId::Regular }, t.text);
+        self.out.hits.push((r, hit));
+    }
+
+    fn heading(&mut self, y: f32, label: &str) {
+        let r = self.rect(16.0, y, 318.0, 20.0);
+        let size = self.px(12.0);
+        let c = self.t.dim;
+        text_middle(self.g, label, r, size, FontId::Semibold, c);
+    }
+
+    fn button(&mut self, r: Rect, label: &str, hit: Hit) {
+        let t = *self.t;
+        self.g.fill_rrect(r, self.px(5.0), if self.m.hot == Some(hit) { t.hover } else { t.list });
+        self.g.stroke_rrect(r, self.px(5.0), self.px(1.0).max(1.0), t.border);
+        let size = self.px(13.0);
+        let cut = ellipsize(self.g, label, r.w - self.px(8.0), size, FontId::Regular);
+        self.g.text_in(&cut, r, size, FontId::Regular, t.text, Align::Center);
+        self.out.hits.push((r, hit));
+    }
+
+    /// A line with the name of an option, its value and ‹ › to change it.
+    fn stepper(&mut self, y: f32, label: &str, value: &str, field: Field) {
+        let t = *self.t;
+        let size = self.px(13.0);
+        let name = self.rect(16.0, y, 128.0, 26.0);
+        text_middle(self.g, label, name, size, FontId::Regular, t.text);
+        let less = self.rect(148.0, y, 26.0, 26.0);
+        self.button(less, "‹", Hit::Step(field, false));
+        let r = self.rect(176.0, y, 130.0, 26.0);
+        let cut = ellipsize(self.g, value, r.w, size, FontId::Semibold);
+        self.g.text_in(&cut, r, size, FontId::Semibold, t.text, Align::Center);
+        let more = self.rect(308.0, y, 26.0, 26.0);
+        self.button(more, "›", Hit::Step(field, true));
+    }
+
+    fn options(&mut self) {
+        let st = self.m.settings;
+        let t = *self.t;
+        self.heading(48.0, &tr("Programs from"));
+        if cfg!(windows) {
+            self.check(16.0, 70.0, 128.0, &tr("Scoop"), st.scoop, Hit::Scoop);
+            self.check(148.0, 70.0, 186.0, &tr("Start menu"), st.start_menu, Hit::StartMenu);
+        } else {
+            self.check(16.0, 70.0, 318.0, &tr("Installed applications"), st.start_menu, Hit::StartMenu);
+        }
+        self.heading(100.0, &tr("My folders"));
+        let mut y = 122.0;
+        // Room for three; more are kept and read, only not listed.
+        for (i, folder) in st.folders.iter().take(3).enumerate() {
+            let r = self.rect(18.0, y, 286.0, 22.0);
+            let size = self.px(12.0);
+            let cut = ellipsize_middle(self.g, &folder.to_string_lossy(), r.w, size, FontId::Regular);
+            self.g.text_in(&cut, r, size, FontId::Regular, t.text, Align::Left);
+            let x = self.rect(310.0, y, 24.0, 22.0);
+            self.button(x, "×", Hit::RemoveFolder(i));
+            y += 25.0;
+        }
+        let add = self.rect(16.0, y, 200.0, 26.0);
+        self.button(add, &tr("Add a folder…"), Hit::AddFolder);
+        y += 34.0;
+        let start = if cfg!(windows) { tr("Start with Windows") } else { tr("Start at login") };
+        self.check(16.0, y, 318.0, &start, self.m.autostart, Hit::Autostart);
+        y += 30.0;
+        if cfg!(windows) {
+            let keys = if st.hotkey == Hotkey::Off { tr("Off") } else { st.hotkey.label().to_string() };
+            self.stepper(y, &tr("Keyboard shortcut"), &keys, Field::Hotkey);
+            y += 29.0;
+        }
+        self.stepper(y, &tr("Size"), &format!("{}%", st.size), Field::Size);
+        y += 29.0;
+        if cfg!(windows) {
+            let value = if st.transparency == 0 { tr("Off") } else { format!("{}%", st.transparency) };
+            self.stepper(y, &tr("Transparency"), &value, Field::Transparency);
+            y += 29.0;
+        }
+        let theme = match st.theme {
+            1 => tr("Light"),
+            2 => tr("Dark"),
+            _ => tr("As the system"),
+        };
+        self.stepper(y, &tr("Theme"), &theme, Field::Theme);
+        y += 29.0;
+        let language = st.language.map_or_else(|| tr("As the system"), |l: Lang| l.native_name().to_string());
+        self.stepper(y, &tr("Language"), &language, Field::Language);
+        y += 33.0;
+        let updates = self.rect(16.0, y, 208.0, 26.0);
+        self.button(updates, &tr("Check for updates"), Hit::CheckUpdates);
+        let done = self.rect(234.0, y, 100.0, 26.0);
+        self.button(done, &tr("Done"), Hit::Done);
+    }
+}
+
+/// Draws the menu on `g`, at `s` times its logical size.
+pub fn draw(g: &mut Gfx, m: &Model, t: &Theme, s: f32) -> Drawn {
+    g.clear(t.frame);
+    let mut p = Painter { g, t, m, s, out: Drawn::default() };
+    p.header();
+    // The options take the place of the column and of the drive too.
+    let options = m.app.view == View::Options && m.app.query.is_empty();
+    let mut area = if options { p.rect(6.0, 42.0, 338.0, 432.0) } else { p.rect(6.0, 42.0, 210.0, 394.0) };
+    p.g.fill_rrect(area, p.px(7.0), t.list);
+    if let Some(note) = m.note {
+        let h = p.px(34.0);
+        let r = area.take_bottom(h);
+        let size = p.px(11.0);
+        let mut y = r.y + p.px(1.0);
+        for line in rt_gfx::dialog::wrap_words(p.g, note, r.w - p.px(20.0), size, FontId::Regular).into_iter().take(2) {
+            let line_rect = Rect::new(r.x + p.px(10.0), y, r.w - p.px(20.0), p.px(15.0));
+            p.g.text_in(&line, line_rect, size, FontId::Regular, t.warn, Align::Left);
+            y += p.px(15.0);
+        }
+    }
+    if options {
+        p.options();
+    } else {
+        p.list(area);
+        p.column();
+        p.footer();
+    }
+    let edge = Rect::new(0.0, 0.0, p.g.width(), p.g.height());
+    p.g.stroke_rrect(edge.inset(0.5), 0.0, 1.0, t.border);
+    p.out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::tests::sample;
+
+    #[test]
+    fn rows_places_and_close_can_be_clicked() {
+        let mut g = Gfx::new().unwrap();
+        g.resize(SIZE.0 as u32, SIZE.1 as u32);
+        let (app, settings, icons) = (sample(), Settings::default(), HashMap::new());
+        let m = Model { app: &app, settings: &settings, icons: &icons, note: None, autostart: false, hot: None, disk: None, caret: true };
+        let d = draw(&mut g, &m, &Theme::new(false, None), 1.0);
+        let hits: Vec<Hit> = d.hits.iter().map(|(_, h)| *h).collect();
+        for want in [Hit::Row(0), Hit::Row(2), Hit::Place(Place::Explore), Hit::Options, Hit::Exit, Hit::Close] {
+            assert!(hits.contains(&want), "{want:?}");
+        }
+        assert!(!hits.contains(&Hit::Row(3)));
+        assert!(d.visible >= 10);
+        let (r, h) = d.hits.iter().find(|(_, h)| *h == Hit::Row(1)).copied().unwrap();
+        assert_eq!(d.hit(r.x + 5.0, r.y + 5.0), Some(h));
+    }
+}

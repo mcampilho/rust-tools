@@ -13,6 +13,7 @@ use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
 use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows_sys::Win32::System::DataExchange::COPYDATASTRUCT;
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::{RegisterHotKey, UnregisterHotKey, MOD_NOREPEAT};
 use windows_sys::Win32::UI::Shell::{DefSubclassProc, SetWindowSubclass};
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
@@ -54,6 +55,73 @@ thread_local! {
     static MNEMONICS: RefCell<String> = const { RefCell::new(String::new()) };
     static TASKBAR_CREATED: Cell<u32> = const { Cell::new(0) };
     static COPYDATA: Cell<usize> = const { Cell::new(0) };
+    static HOTKEY: RefCell<Option<Box<dyn Fn()>>> = const { RefCell::new(None) };
+}
+
+const HOTKEY_ID: i32 = 0x7254;
+
+/// Registers a system-wide key combination (`MOD_*` flags and a virtual key)
+/// on the subclassed window, replacing the one before; `pressed` is called
+/// when it is typed. False when another program holds it.
+pub fn set_hotkey(hwnd: HWND, modifiers: u32, vk: u32, pressed: Box<dyn Fn()>) -> bool {
+    clear_hotkey(hwnd);
+    // SAFETY: our own window; the registration is undone by `clear_hotkey`
+    // or when the window is destroyed.
+    let ok = unsafe { RegisterHotKey(hwnd, HOTKEY_ID, modifiers | MOD_NOREPEAT, vk) != 0 };
+    if ok {
+        HOTKEY.with(|h| *h.borrow_mut() = Some(pressed));
+    }
+    ok
+}
+
+/// Gives up the combination of [`set_hotkey`], if any.
+pub fn clear_hotkey(hwnd: HWND) {
+    if HOTKEY.with(|h| h.borrow_mut().take()).is_some() {
+        // SAFETY: our own window and identifier.
+        unsafe {
+            UnregisterHotKey(hwnd, HOTKEY_ID);
+        }
+    }
+}
+
+/// Lets what is behind the window show through: `alpha` 255 is opaque. winit
+/// rewrites the window's styles when its own change (showing it, for one), so
+/// this is applied again after those.
+pub fn set_opacity(hwnd: HWND, alpha: u8) {
+    // SAFETY: plain calls on a window of this thread.
+    unsafe {
+        let style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+        let layered = WS_EX_LAYERED as isize;
+        if alpha == 255 {
+            if style & layered != 0 {
+                SetWindowLongPtrW(hwnd, GWL_EXSTYLE, style & !layered);
+            }
+            return;
+        }
+        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, style | layered);
+        SetLayeredWindowAttributes(hwnd, 0, alpha, LWA_ALPHA);
+    }
+}
+
+/// The work area (the screen without the taskbar) of the monitor the pointer
+/// is on, with the pointer: `(left, top, right, bottom, x, y)` in pixels.
+pub fn work_area_at_cursor() -> Option<(i32, i32, i32, i32, i32, i32)> {
+    use windows_sys::Win32::Foundation::POINT;
+    use windows_sys::Win32::Graphics::Gdi::{GetMonitorInfoW, MonitorFromPoint, MONITORINFO, MONITOR_DEFAULTTONEAREST};
+    // SAFETY: plain queries into structures of the sizes they declare.
+    unsafe {
+        let mut p = POINT { x: 0, y: 0 };
+        if GetCursorPos(&mut p) == 0 {
+            return None;
+        }
+        let mut info: MONITORINFO = std::mem::zeroed();
+        info.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+        if GetMonitorInfoW(MonitorFromPoint(p, MONITOR_DEFAULTTONEAREST), &mut info) == 0 {
+            return None;
+        }
+        let r = info.rcWork;
+        Some((r.left, r.top, r.right, r.bottom, p.x, p.y))
+    }
 }
 
 /// Installs the subclass on the main window. `mnemonics` holds the access
@@ -135,6 +203,14 @@ unsafe extern "system" fn subclass_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LP
             };
             emit(WinMsg::OpenFiles(paths));
             1
+        }
+        WM_HOTKEY if wp == HOTKEY_ID as usize => {
+            HOTKEY.with(|h| {
+                if let Some(f) = h.borrow().as_ref() {
+                    f();
+                }
+            });
+            0
         }
         tray::WM_TRAY => {
             if let Some(e) = tray::event(lp) {

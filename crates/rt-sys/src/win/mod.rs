@@ -19,12 +19,32 @@ pub mod tray;
 pub mod window;
 
 pub use window::{
-    allow_any_foreground, hand_off, instance_state, resident_running, set_foreground, set_mnemonics, set_resident, subclass, Ident, WinMsg,
+    allow_any_foreground, clear_hotkey, hand_off, instance_state, resident_running, set_foreground, set_hotkey, set_mnemonics, set_opacity,
+    set_resident, subclass, work_area_at_cursor, Ident, WinMsg,
 };
 /// The window handle type of these functions.
 pub use windows_sys::Win32::Foundation::HWND;
 
 use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+
+/// Opens a program, document or shortcut as a double click does, starting in
+/// its folder. False when Windows could not (or the user refused).
+pub fn launch(path: &std::path::Path) -> bool {
+    let (op, file) = (wide("open"), wide(&path.to_string_lossy()));
+    let dir = path.parent().map(|d| wide(&d.to_string_lossy()));
+    // SAFETY: NUL-terminated strings that live during the call.
+    let r = unsafe {
+        windows_sys::Win32::UI::Shell::ShellExecuteW(
+            std::ptr::null_mut(),
+            op.as_ptr(),
+            file.as_ptr(),
+            std::ptr::null(),
+            dir.as_ref().map_or(std::ptr::null(), |d| d.as_ptr()),
+            SW_SHOWNORMAL,
+        )
+    };
+    r as usize > 32
+}
 
 /// A NUL-terminated UTF-16 string.
 pub fn wide(s: &str) -> Vec<u16> {

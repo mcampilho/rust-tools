@@ -2834,6 +2834,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "rlaunch"
+version = "0.1.0"
+dependencies = [
+ "accesskit",
+ "accesskit_winit",
+ "rt-build",
+ "rt-core",
+ "rt-gfx",
+ "rt-scan",
+ "rt-sys",
+ "rt-ui",
+ "softbuffer",
+ "tiny-skia 0.12.0",
+ "windows-sys 0.61.2",
+ "winit",
+]
+
+[[package]]
 name = "ropey"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

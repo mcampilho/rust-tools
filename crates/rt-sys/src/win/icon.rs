@@ -97,6 +97,31 @@ pub fn extract(file: &Path, index: i32) -> Option<(u32, u32, Vec<u8>)> {
     }
 }
 
+/// The icon Explorer shows for a file, folder or shortcut, without the
+/// shortcut's arrow. Call from a thread where COM is initialized.
+pub fn of_file(file: &Path) -> Option<(u32, u32, Vec<u8>)> {
+    use windows_sys::Win32::UI::Controls::{ImageList_GetIcon, ILD_TRANSPARENT};
+    use windows_sys::Win32::UI::Shell::{SHGetFileInfoW, SHFILEINFOW, SHGFI_LARGEICON, SHGFI_SYSICONINDEX};
+    let f = wide(&file.to_string_lossy());
+    // SAFETY: a NUL-terminated path and a structure of the size passed. The
+    // image list is the system's (not to be destroyed); the icon made from it
+    // is destroyed once. An index into the list carries no overlay.
+    unsafe {
+        let mut info: SHFILEINFOW = std::mem::zeroed();
+        let size = std::mem::size_of::<SHFILEINFOW>() as u32;
+        let list = SHGetFileInfoW(f.as_ptr(), 0, &mut info, size, SHGFI_SYSICONINDEX | SHGFI_LARGEICON);
+        if list == 0 {
+            return None;
+        }
+        let icon = ImageList_GetIcon(list as _, info.iIcon, ILD_TRANSPARENT);
+        if icon.is_null() {
+            return None;
+        }
+        let out = pixels(icon);
+        DestroyIcon(icon);
+        out
+    }
+}
 #[cfg(test)]
 mod tests {
     #[test]
