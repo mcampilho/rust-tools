@@ -1,6 +1,6 @@
 [package]
 name = "rview"
-version = "1.4.1"
+version = "1.4.2"
 edition = "2021"
 rust-version = "1.93"
 description = "A small, fast, portable viewer for PDF, Markdown, HTML, text and CSV documents"

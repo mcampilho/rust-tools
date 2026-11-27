@@ -1,6 +1,6 @@
 [package]
 name = "rcare"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 rust-version = "1.93"
 description = "Windows maintenance in one window: cleaner, duplicates, large files, uninstaller and more"

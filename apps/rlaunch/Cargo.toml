@@ -1,6 +1,6 @@
 [package]
 name = "rlaunch"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 rust-version = "1.93"
 description = "A portable application menu: Scoop, the Start menu and your own folders"
