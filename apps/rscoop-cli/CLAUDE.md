@@ -8,14 +8,16 @@ códigos de problema, opções e relatório; a versão Python serve de referênc
 ## Comandos do Scoop (desde 2026-11-27)
 
 Plano, fases e o que cada uma deixou em `docs/rscoop.pt.md`. O Scoop oficial é a especificação (clone em
-`E:\Projects\Git\Categories\System\scoop\Apps\scoop`, v0.6.0, commit e6aa3b36). Feitas as fases 0 a 3 (a 3 à espera da comparação no Windows Sandbox).
+`E:\Projects\Git\Categories\System\scoop\Apps\scoop`, v0.6.0, commit e6aa3b36). Feitas as fases 0 a 3; a 4 em curso.
+Comparação diferencial no Windows Sandbox: `sandbox/` (`docs/rscoop.pt.md` §12).
 
 - `cmd/` — `mod.rs` (linha de comandos, `is_native`, ajuda), um módulo por assunto e `delegate.rs`, que corre o
   `scoop.ps1` da instalação para tudo o resto. O que instala ou remove aplicações só passa a nativo quando passar os
-  testes de compatibilidade do plano (fases 3 e 4): até lá, o `install`, o `update <app>`, o `reset` e o
-  `uninstall` só são nativos com `RSCOOP_NATIVE=1` (`cmd/mod.rs`, `on_trial`); os testes ligam-no.
-- Fase 4 (em curso): `cmd/install.rs` (`install_app`, também usado pelo `update`) e `cmd/update_apps.rs`. A
-  extração (`Invoke-Extraction`) e os scripts correm no código do Scoop; o `download.rs` dá o `to_cache` a ambos.
+  testes de compatibilidade do plano (fases 3 e 4): até lá, o `install`, o `update <app>`, o `import`, o `reset` e
+  o `uninstall` só são nativos com `RSCOOP_NATIVE=1` (`cmd/mod.rs`, `on_trial`); os testes ligam-no.
+- Fase 4 (em curso): `cmd/install.rs` (`install_app`, também usado pelo `update`), `cmd/update_apps.rs` e
+  `cmd/import.rs`. A extração (`Invoke-Extraction`) e os scripts correm no código do Scoop; o `download.rs` dá o
+  `to_cache` ao `download` e ao `install`.
 - Fase 3: `cmd/shim.rs` (`shim add|rm|list|info`), `cmd/reset.rs`, `cmd/uninstall.rs` e `cmd/machinery.rs` (o que
   partilham: shims de uma aplicação, mensagens do ambiente, processos a correr) sobre os módulos `shims`, `links`,
   `env`, `shortcuts`, `system` e `hooks` do `rt-scoop`. O `Ctx` leva um `rt_scoop::system::System`: o `WinSystem` no

@@ -11,6 +11,7 @@
 #   4-uninstalled `uninstall` of the first apps, the last of them with --purge
 #   5-official    `uninstall` of the others by Scoop (what the other one left
 #                 must be removable by Scoop)
+#   6-imported    `import` of the `scoop export` made after step 1
 #
 # -Side official: by Scoop; -Side rscoop: by rscoop-cli, with
 # RSCOOP_NATIVE=1. A snapshot (snapshot.ps1) after each step goes to
@@ -77,6 +78,7 @@ try {
     Invoke-Tool install @($plan.apps)
     scoop list 6>$null | Select-Object Name, Version | Format-Table | Out-String | Set-Content -LiteralPath "$results\versions.txt"
     Save-Step '1-installed'
+    scoop export 6>$null | Set-Content -LiteralPath "$results\scoopfile.json"
 
     # 2. The same version again, by the whole path of an update.
     Invoke-Tool update @($plan.updated) --force
@@ -119,6 +121,10 @@ try {
     $rest = @(Get-ChildItem -LiteralPath "$root\apps" -Directory | Where-Object Name -ne 'scoop' | ForEach-Object Name)
     if ($rest) { scoop uninstall @rest }
     Save-Step '5-official'
+
+    # 6. Everything back from the export of step 1.
+    Invoke-Tool import "$results\scoopfile.json"
+    Save-Step '6-imported'
     'done' | Set-Content -LiteralPath "$results\done.txt"
 } catch {
     $_ | Out-String | Set-Content -LiteralPath "$results\failed.txt"

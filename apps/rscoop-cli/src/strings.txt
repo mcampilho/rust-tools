@@ -338,3 +338,6 @@ update.updating	Updating '{app}' ({old} -> {new})	A atualizar '{app}' ({old} -> 
 update.running	Running process detected, skip updating.	Há programas a correr: não se atualiza.	Hay programas en ejecución: no se actualiza.
 update.downloading	Downloading new version	A descarregar a versão nova	Descargando la versión nueva
 update.uninstalling	Uninstalling '{app}' ({version})	A desinstalar '{app}' ({version})	Desinstalando '{app}' ({version})
+cmd.import	Install the settings, buckets and apps of an export (a scoopfile.json).	Instala as definições, os buckets e as aplicações de um export (um scoopfile.json).	Instala la configuración, los buckets y las aplicaciones de un export (un scoopfile.json).
+import.invalid	Input file not a valid JSON.	O ficheiro não é JSON válido.	El archivo no es JSON válido.
+import.set	'{name}' has been set to '{value}'	'{name}' passou a ser '{value}'	'{name}' pasa a ser '{value}'

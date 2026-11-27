@@ -1,7 +1,7 @@
 //! The commands of Scoop that rscoop-cli does itself: those that read, and
 //! the upkeep of the installation (update of Scoop and buckets, downloads,
 //! cleanup, hold, configuration), and `shim`, `install`, `update <app>`,
-//! `reset` and `uninstall` (these four only with RSCOOP_NATIVE=1 for now).
+//! `import`, `reset` and `uninstall` (these five only with RSCOOP_NATIVE=1 for now).
 //! The rest is handed to the Scoop of the installation (`delegate`).
 
 mod args;
@@ -10,6 +10,7 @@ mod checkup;
 mod delegate;
 mod download;
 mod git;
+mod import;
 mod install;
 mod listing;
 mod machinery;
@@ -40,7 +41,7 @@ use std::io::Write;
 use std::path::PathBuf;
 
 /// The commands of this program: name, usage, key of the description.
-pub const NATIVE: [(&str, &str, &str); 26] = [
+pub const NATIVE: [(&str, &str, &str); 27] = [
     ("list", "[query]", "cmd.list"),
     ("search", "[query]", "cmd.search"),
     ("info", "<app> [-v]", "cmd.info"),
@@ -61,6 +62,7 @@ pub const NATIVE: [(&str, &str, &str); 26] = [
     ("alias", "add|rm|list", "cmd.alias"),
     ("shim", "add|rm|list|info [-g]", "cmd.shim"),
     ("install", "<app…> [-giksu] [-a arch]", "cmd.install"),
+    ("import", "<scoopfile.json>", "cmd.import"),
     ("reset", "<app…>|*", "cmd.reset"),
     ("uninstall", "<app…> [-gp]", "cmd.uninstall"),
     ("export", "[-c]", "cmd.export"),
@@ -211,7 +213,7 @@ pub fn run(mut line: Line, outside: Outside, out: &mut dyn Write, err: &mut dyn 
     let env = Env::new(outside.vars.clone());
     // What removes apps stays Scoop's until it has been compared with Scoop
     // in a throw-away Windows (docs/rscoop.pt.md §7); RSCOOP_NATIVE=1 tries it.
-    let writes_apps = matches!(line.command.as_str(), "install" | "reset" | "uninstall")
+    let writes_apps = matches!(line.command.as_str(), "install" | "import" | "reset" | "uninstall")
         || (line.command == "update" && update_apps::updates_apps(&line.args));
     let on_trial = writes_apps && env.get("RSCOOP_NATIVE") != Some("1");
     let native = is_native(&line.command, &line.args) && !on_trial;
@@ -276,6 +278,7 @@ pub fn run(mut line: Line, outside: Outside, out: &mut dyn Write, err: &mut dyn 
         "alias" => maintain::alias(&mut ctx, args),
         "shim" => shim::run(&mut ctx, args),
         "install" => install::run(&mut ctx, args),
+        "import" => import::run(&mut ctx, args),
         "reset" => reset::run(&mut ctx, args),
         "uninstall" => uninstall::run(&mut ctx, args),
         "checkup" => checkup::run(&mut ctx, args, &outside),

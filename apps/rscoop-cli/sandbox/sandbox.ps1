@@ -80,7 +80,7 @@ function Start-Side([string]$name) {
 function Compare-Steps {
     $report = New-Object System.Collections.Generic.List[string]
     $differences = 0
-    foreach ($step in '1-installed', '2-updated', '3-reset', '4-uninstalled', '5-official') {
+    foreach ($step in '1-installed', '2-updated', '3-reset', '4-uninstalled', '5-official', '6-imported') {
         $a = "$results\official\$step.json"
         $b = "$results\rscoop\$step.json"
         if (-not (Test-Path $a) -or -not (Test-Path $b)) {
