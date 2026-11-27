@@ -8,16 +8,16 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use rlaunch::app::{App, Row, View};
-use rlaunch::category::Category;
+use rlaunch::category::Group;
 use rlaunch::i18n::{self, tf, tr};
 use rlaunch::items::Custom;
 use rlaunch::portableapps;
-use rlaunch::settings::{Hotkey, Position, Settings, SIZES, TRANSPARENCIES};
+use rlaunch::settings::{FolderMode, Hotkey, Position, Settings, SIZES, TRANSPARENCIES};
 use rlaunch::sources::{self, Entry};
 use rlaunch::storage;
 use rlaunch::ui::gfx::{Color, Gfx, Rect};
 use rlaunch::ui::theme::{self, Theme};
-use rlaunch::ui::view::{self, Drawn, Field, Hit, Model, Place, SIZE};
+use rlaunch::ui::view::{self, Drawn, Editing, Field, Hit, Model, Place, SIZE};
 use rt_core::textedit::TextEdit;
 use rt_gfx::menu::{Act, Item, Menu, MenuStyle};
 use rt_ui::Message;
@@ -48,7 +48,10 @@ enum Cmd {
     Reveal,
     Favourite,
     Rename,
-    Category(Category),
+    Category(Group),
+    NewCategory,
+    RenameGroup,
+    RemoveGroup,
     ChangeIcon,
     DefaultIcon,
     Hide,
@@ -103,8 +106,10 @@ struct Shell {
     /// The menu of a program, and which.
     menu: Menu<Cmd>,
     menu_for: PathBuf,
-    /// The program being renamed.
-    rename: Option<(PathBuf, TextEdit)>,
+    /// The category or subgroup whose menu it is, instead of a program.
+    menu_group: Option<Group>,
+    /// A name being typed in a row.
+    rename: Option<(Editing, TextEdit)>,
     /// Stays open when the focus goes elsewhere.
     pinned: bool,
     /// Running with administrator rights.
@@ -653,9 +658,21 @@ impl Shell {
 
     /// The menu of the program in row `k`, at `at` (pixels of the window).
     fn open_menu(&mut self, k: usize, at: (f32, f32), keyboard: bool) {
-        let Some(&Row::Entry(i)) = self.app.rows().get(k) else { return };
-        let e = &self.app.entries[i];
         let item = |label: String, cmd: Cmd| Item::new(&label.replace('&', "&&"), Some(cmd), true);
+        let i = match self.app.rows().get(k) {
+            Some(&Row::Entry(i)) => i,
+            // A category or subgroup of the user.
+            Some(&Row::Category(group, _)) if group.is_own() => {
+                let items = vec![item(tr("Rename"), Cmd::RenameGroup), item(tr("Remove category"), Cmd::RemoveGroup)];
+                self.menu_group = Some(group);
+                self.app.selected = k;
+                self.menu.open(None, items, at, keyboard);
+                return;
+            }
+            _ => return,
+        };
+        let e = &self.app.entries[i];
+        self.menu_group = None;
         let mut items = vec![item(tr("Open"), Cmd::Open)];
         #[cfg(windows)]
         {
@@ -670,13 +687,16 @@ impl Shell {
         items.push(item(favourite, Cmd::Favourite));
         items.push(item(tr("Rename"), Cmd::Rename));
         let mut categories = Item::new(&tr("Category"), None, true);
-        categories.sub = Category::ALL
+        categories.sub = self
+            .app
+            .groups()
             .into_iter()
-            .map(|c| {
-                let mut it = item(tr(c.name()), Cmd::Category(c));
-                it.checked = c == e.category;
+            .map(|g| {
+                let mut it = item(g.full_title(), Cmd::Category(g));
+                it.checked = g == e.group();
                 it
             })
+            .chain([Item::separator(), item(tr("New category…"), Cmd::NewCategory)])
             .collect();
         items.push(categories);
         items.push(item(tr("Change icon…"), Cmd::ChangeIcon));
@@ -711,7 +731,34 @@ impl Shell {
         self.redraw();
     }
 
+    /// The menu of a category or subgroup.
+    fn run_on_group(&mut self, group: Group, cmd: Cmd) {
+        match cmd {
+            Cmd::RenameGroup => {
+                let mut edit = TextEdit::new(&group.title());
+                edit.select_all();
+                self.rename = Some((Editing::Group(group), edit));
+            }
+            Cmd::RemoveGroup => {
+                self.settings.items.remove_group(group);
+                self.save();
+                self.refresh(None);
+            }
+            _ => {}
+        }
+    }
+
+    /// Puts a program in a group the user chose.
+    fn move_to(&mut self, path: &Path, group: Group) {
+        self.settings.items.keep_group(group);
+        self.change(path, |c| c.category = Some(group));
+    }
+
     fn run(&mut self, el: &ActiveEventLoop, cmd: Cmd) {
+        if let Some(group) = self.menu_group.take() {
+            self.run_on_group(group, cmd);
+            return;
+        }
         let path = self.menu_for.clone();
         let Some(entry) = self.entry(&path).cloned() else { return };
         match cmd {
@@ -730,9 +777,11 @@ impl Shell {
             Cmd::Rename => {
                 let mut edit = TextEdit::new(&entry.name);
                 edit.select_all();
-                self.rename = Some((path, edit));
+                self.rename = Some((Editing::Name(path), edit));
             }
-            Cmd::Category(to) => self.change(&path, |c| c.category = Some(to)),
+            Cmd::Category(to) => self.move_to(&path, to),
+            Cmd::NewCategory => self.rename = Some((Editing::NewCategory(path), TextEdit::new(""))),
+            Cmd::RenameGroup | Cmd::RemoveGroup => {}
             Cmd::ChangeIcon => {
                 let filter = if cfg!(windows) {
                     [(tr("Icons"), "*.ico;*.png;*.exe;*.dll;*.lnk"), (tr("All files"), "*.*")]
@@ -755,13 +804,43 @@ impl Shell {
         }
     }
 
-    /// Keeps the name typed; none, or the program's own, forgets the change.
+    /// Keeps the name typed. For a program, none (or its own) forgets the
+    /// change; for a category, none leaves everything as it was.
     fn finish_rename(&mut self) {
-        let Some((path, edit)) = self.rename.take() else { return };
-        let own = self.raw.iter().find(|e| e.path == path).map(|e| e.name.clone()).or_else(|| sources::added_entry(&path).map(|e| e.name));
+        let Some((what, edit)) = self.rename.take() else { return };
         let name = edit.text.trim().to_string();
-        let name = (!name.is_empty() && Some(&name) != own.as_ref()).then_some(name);
-        self.change(&path, |c| c.name = name);
+        match what {
+            Editing::Name(path) => {
+                let own = self
+                    .raw
+                    .iter()
+                    .find(|e| e.path == path)
+                    .map(|e| e.name.clone())
+                    .or_else(|| sources::added_entry(&path).map(|e| e.name));
+                let name = (!name.is_empty() && Some(&name) != own.as_ref()).then_some(name);
+                self.change(&path, |c| c.name = name);
+            }
+            Editing::NewCategory(path) => {
+                if let Some(group) = Group::typed(&name) {
+                    self.move_to(&path, group);
+                }
+            }
+            Editing::Group(from) => {
+                // Only the name of this level is typed.
+                let name = name.replace('/', " ");
+                let Some(typed) = Group::typed(&name) else { return };
+                let to = match from.sub {
+                    Some(_) => Group { category: from.category, sub: Some(rlaunch::category::intern(name.trim())) },
+                    None => typed,
+                };
+                self.settings.items.rename_group(from, to);
+                self.save();
+                self.refresh(None);
+                let rows = self.app.rows();
+                self.app.selected = rows.iter().position(|r| matches!(r, Row::Category(g, _) if *g == to)).unwrap_or(0);
+                self.app.reveal_selection(self.drawn.visible);
+            }
+        }
     }
 
     fn rename_key(&mut self, event: &KeyEvent) {
@@ -893,7 +972,16 @@ impl Shell {
             Hit::AddFolder => self.add_folder(),
             Hit::RemoveFolder(i) => {
                 if i < self.settings.folders.len() {
-                    self.settings.folders.remove(i);
+                    let folder = self.settings.folders.remove(i);
+                    self.settings.modes.remove(&folder);
+                    self.save();
+                    self.scan();
+                }
+            }
+            Hit::FolderMode(i) => {
+                if let Some(folder) = self.settings.folders.get(i).cloned() {
+                    let at = FolderMode::ALL.iter().position(|m| *m == self.settings.mode_of(&folder)).unwrap_or(0);
+                    self.settings.set_mode(&folder, FolderMode::ALL[(at + 1) % FolderMode::ALL.len()]);
                     self.save();
                     self.scan();
                 }
@@ -1039,11 +1127,13 @@ impl Shell {
         }
         self.gfx.resize(w.get(), h.get());
         let elevated_note = self.elevated.then(|| tr("Running as administrator: what it opens does too."));
+        let new_category_note =
+            matches!(self.rename, Some((Editing::NewCategory(_), _))).then(|| tr("New category: type a name, or Name/Subgroup."));
         let model = Model {
             app: &self.app,
             settings: &self.settings,
             icons: &self.icons,
-            note: self.note.as_deref().or(elevated_note.as_deref()).or(self.hotkey_note.as_deref()),
+            note: new_category_note.as_deref().or(self.note.as_deref()).or(elevated_note.as_deref()).or(self.hotkey_note.as_deref()),
             autostart: self.autostart,
             hot: self.hot,
             disk: self.disk.clone(),
@@ -1051,7 +1141,7 @@ impl Shell {
             pinned: self.pinned,
             elevated: self.elevated,
             accent: self.accent,
-            rename: self.rename.as_ref().map(|(p, e)| (p.as_path(), e)),
+            rename: self.rename.as_ref().map(|(what, edit)| (what, edit)),
         };
         self.drawn = view::draw(&mut self.gfx, &model, &theme, s);
         let full = Rect::new(0.0, 0.0, w.get() as f32, h.get() as f32);
@@ -1084,7 +1174,7 @@ impl Shell {
             Some(match hit {
                 Hit::Row(k) => match *rows.get(k)? {
                     Row::Back => tr("Back"),
-                    Row::Category(c, _) => tr(c.name()),
+                    Row::Category(c, _) => c.title(),
                     Row::Entry(i) => self.app.entries.get(i)?.name.clone(),
                 },
                 Hit::Options => tr("Options"),
@@ -1101,6 +1191,10 @@ impl Shell {
                 Hit::AlwaysAdmin => tr("Always start as administrator"),
                 Hit::Scoop => "Scoop".to_string(),
                 Hit::StartMenu => tr("Start menu"),
+                Hit::FolderMode(i) => {
+                    let folder = self.settings.folders.get(i)?;
+                    format!("{} {}", tr(self.settings.mode_of(folder).name()), folder.display())
+                }
                 Hit::Page(true) => tr("Appearance"),
                 Hit::Page(false) => tr("Programs"),
                 Hit::Colour(c) => format!("{} {}", tr("Color"), tr(theme::colour_name(c))),
@@ -1352,8 +1446,12 @@ impl ApplicationHandler<UserEvent> for Shell {
                 } else {
                     let hit = self.drawn.hit(x, y);
                     // A click elsewhere keeps the name typed.
-                    if let Some((path, _)) = &self.rename {
-                        let there = matches!(hit, Some(Hit::Row(k)) if matches!(self.app.rows().get(k), Some(Row::Entry(i)) if self.app.entries[*i].path == *path));
+                    if let Some((what, _)) = &self.rename {
+                        let there = matches!(hit, Some(Hit::Row(k)) if match self.app.rows().get(k) {
+                            Some(&Row::Entry(i)) => what.is_program(&self.app.entries[i].path),
+                            Some(&Row::Category(g, _)) => *what == Editing::Group(g),
+                            _ => false,
+                        });
                         if !there {
                             self.finish_rename();
                             self.redraw();
@@ -1381,8 +1479,18 @@ impl ApplicationHandler<UserEvent> for Shell {
                     MouseScrollDelta::LineDelta(_, y) => y * 3.0,
                     MouseScrollDelta::PixelDelta(p) => p.y as f32 / (if self.settings.large { 36.0 } else { 26.0 } * self.scale()),
                 };
-                self.menu.close();
-                self.app.scroll_by(-lines.round() as isize, self.drawn.visible);
+                // Over a long menu (the categories), the wheel scrolls it.
+                let over = self.cursor.and_then(|(x, y)| self.menu.row_at(x, y));
+                match over {
+                    Some((l, _)) => {
+                        self.menu.levels[l].sel = None;
+                        self.menu.wheel(l, -lines.round() as isize);
+                    }
+                    None => {
+                        self.menu.close();
+                        self.app.scroll_by(-lines.round() as isize, self.drawn.visible);
+                    }
+                }
                 self.redraw();
             }
             WindowEvent::RedrawRequested if self.visible => self.render(),
@@ -1491,6 +1599,7 @@ fn main() {
         raw: Vec::new(),
         menu: Menu::default(),
         menu_for: PathBuf::new(),
+        menu_group: None,
         rename: None,
         pinned: false,
         #[cfg(windows)]

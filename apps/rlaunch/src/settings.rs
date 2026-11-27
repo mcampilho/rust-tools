@@ -4,7 +4,45 @@ use crate::i18n::Lang;
 use crate::items::Items;
 use crate::storage::Store;
 use crate::ui::theme::CHOICES;
+use std::collections::BTreeMap;
 use std::path::{Component, Path, PathBuf};
+
+/// How the programs of a folder of the user get their categories.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum FolderMode {
+    /// From its subfolders when shortcuts are arranged in them.
+    #[default]
+    Auto,
+    /// Its subfolders are the categories, and theirs the subgroups.
+    Subfolders,
+    /// The folder is a category, and its subfolders the subgroups.
+    One,
+    /// Only the programs' names say.
+    Names,
+}
+
+impl FolderMode {
+    pub const ALL: [FolderMode; 4] = [FolderMode::Auto, FolderMode::Subfolders, FolderMode::One, FolderMode::Names];
+
+    pub fn key(self) -> &'static str {
+        match self {
+            FolderMode::Auto => "auto",
+            FolderMode::Subfolders => "subfolders",
+            FolderMode::One => "one",
+            FolderMode::Names => "names",
+        }
+    }
+
+    /// The English name, which is also the translation key.
+    pub fn name(self) -> &'static str {
+        match self {
+            FolderMode::Auto => "Automatic",
+            FolderMode::Subfolders => "Subfolders",
+            FolderMode::One => "One category",
+            FolderMode::Names => "By name",
+        }
+    }
+}
 
 /// The key combinations offered to open the menu (Windows).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -114,6 +152,8 @@ pub struct Settings {
     pub start_menu: bool,
     /// The user's own folders of programs and shortcuts.
     pub folders: Vec<PathBuf>,
+    /// The folders whose mode is not [`FolderMode::Auto`].
+    pub modes: BTreeMap<PathBuf, FolderMode>,
     pub hotkey: Hotkey,
     /// The size of the menu, in percent of the compact one.
     pub size: u16,
@@ -142,6 +182,7 @@ impl Default for Settings {
             scoop: true,
             start_menu: true,
             folders: Vec::new(),
+            modes: BTreeMap::new(),
             hotkey: Hotkey::default(),
             size: 100,
             transparency: 0,
@@ -181,6 +222,18 @@ pub fn unpack(text: &str, own: Option<&Path>) -> PathBuf {
 }
 
 impl Settings {
+    pub fn mode_of(&self, folder: &Path) -> FolderMode {
+        self.modes.get(folder).copied().unwrap_or_default()
+    }
+
+    pub fn set_mode(&mut self, folder: &Path, mode: FolderMode) {
+        if mode == FolderMode::Auto {
+            self.modes.remove(folder);
+        } else {
+            self.modes.insert(folder.to_path_buf(), mode);
+        }
+    }
+
     /// `own` is the folder of rlaunch in portable mode, else None.
     pub fn load(s: &Store, own: Option<&Path>) -> Settings {
         let d = Settings::default();
@@ -191,6 +244,11 @@ impl Settings {
             scoop: flag("scoop", d.scoop),
             start_menu: flag("start_menu", d.start_menu),
             folders: s.get_all("folder").filter(|v| !v.is_empty()).map(|v| unpack(v, own)).collect(),
+            modes: s
+                .get_all("folder_mode")
+                .filter_map(|v| v.split_once('\t'))
+                .filter_map(|(f, m)| Some((unpack(f, own), FolderMode::ALL.into_iter().find(|x| x.key() == m)?)))
+                .collect(),
             hotkey: s.get("hotkey").and_then(|v| Hotkey::ALL.into_iter().find(|h| h.key() == v)).unwrap_or_default(),
             size: s.get("size").and_then(|v| v.parse().ok()).filter(|v| SIZES.contains(v)).unwrap_or(d.size),
             transparency: s.get("transparency").and_then(|v| v.parse().ok()).filter(|v| TRANSPARENCIES.contains(v)).unwrap_or(0),
@@ -211,6 +269,9 @@ impl Settings {
         s.set("start_menu", bit(self.start_menu));
         for f in &self.folders {
             s.push("folder", pack(f, own));
+        }
+        for (f, mode) in &self.modes {
+            s.push("folder_mode", format!("{}\t{}", pack(f, own), mode.key()));
         }
         s.set("hotkey", self.hotkey.key());
         s.set("size", self.size.to_string());
@@ -253,6 +314,9 @@ mod tests {
             ..Settings::default()
         };
         st.folders = vec![PathBuf::from("D:\\Apps"), PathBuf::from("/opt/apps")];
+        st.set_mode(Path::new("/opt/apps"), FolderMode::One);
+        st.set_mode(Path::new("D:\\Apps"), FolderMode::Auto);
+        assert_eq!(st.modes.len(), 1);
         assert_eq!(Settings::load(&st.to_store(None), None), st);
         assert_eq!(Settings::load(&Store::default(), None), Settings::default());
     }

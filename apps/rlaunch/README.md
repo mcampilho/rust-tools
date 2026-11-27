@@ -25,7 +25,8 @@ notification area of the screen the pointer is on, and closes when something els
 focus. `--tray` starts it without opening the menu.
 
 - **Left:** the categories; a click (or Enter) opens one, the arrow at its top
-  goes back.
+  goes back. A category can have subgroups, listed first (see
+  [Categories](#categories)).
 - **Search:** just type. Accents do not matter. Up, Down and Enter choose;
   Esc clears, goes back, and then closes.
 - **Right:** your Documents, Downloads, Pictures, Music and Videos folders,
@@ -95,9 +96,36 @@ text=#101010
 The names are `frame`, `frame_text`, `frame_dim`, `frame_hover`, `list`, `text`,
 `dim`, `border`, `hover`, `accent`, `on_accent` and `warn`.
 
-Categories are guessed from the names of well-known programs; the others go to
-**Other**. Uninstallers, manuals and web page shortcuts are left out, and a
-program with the same name in two places is shown once (Scoop's first).
+Uninstallers, manuals and web page shortcuts are left out, and a program with
+the same name in two places is shown once (Scoop's first). Where one folder has
+`x.exe`, `x64.exe` and `x64a.exe` (as Sysinternals does), only the first is
+listed.
+
+## Categories
+
+There are ten built-in categories, guessed from the names of well-known programs
+(the others go to **Other**), and your own. There are two levels: category and
+subgroup.
+
+**From your folders.** Each folder under **Options > My folders** has a button
+that chooses where its categories come from:
+
+- **Automatic** (the default): when shortcuts are arranged in subfolders, as
+  **Subfolders**; else **By name**.
+- **Subfolders:** the subfolder is the category and a folder inside it the
+  subgroup (`links\Office\LibreOffice`). What is loose at the top is guessed.
+- **One category:** the folder itself is the category (`SysInternals`, say), and
+  its subfolders the subgroups.
+- **By name:** the folders do not count.
+
+A program Scoop also has goes in the category your folder gives it.
+
+**By hand.** Right-click a program > **Category** picks another, or **New
+category…** (type `Name` or `Name/Subgroup`). Right-click a category of yours or
+a subgroup: **Rename** or **Remove category** (the programs of a subgroup stay in
+the category; those of a category go to **Other**, or back to the guess if you
+had put them there). Your choice wins over the folder, and the folder over the
+guess. Nothing changes in the folders: it is kept in rlaunch's settings.
 
 ## PortableApps
 
@@ -151,6 +179,9 @@ What differs from Windows:
 4. **Done for PortableApps:** its apps and the choices of its menu. Other suites
    are not read in their own format yet.
 5. **Done:** Linux in full (icons, programs of folders).
+6. **In progress:** categories from folders and of your own, on two levels.
+   Still to do: moving several programs at once and grouping the subfolders of
+   the Start menu.
 
 ## Build
 

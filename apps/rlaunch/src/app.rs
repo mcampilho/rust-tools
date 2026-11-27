@@ -1,7 +1,8 @@
 //! What the menu shows and where the selection is, apart from drawing.
 
-use crate::category::Category;
+use crate::category::{Category, Group};
 use crate::sources::Entry;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// The left side of the menu.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -9,8 +10,9 @@ pub enum View {
     /// The categories that have programs.
     #[default]
     Categories,
-    /// The programs of one.
-    Inside(Category),
+    /// The subgroups and programs of a category, or the programs of a
+    /// subgroup.
+    Inside(Group),
     /// The programs the user hid.
     Hidden,
     Options,
@@ -19,9 +21,10 @@ pub enum View {
 /// A line of the list.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Row {
-    /// Goes back to the categories (or, from the hidden ones, the options).
+    /// Goes up (or, from the hidden programs, back to the options).
     Back,
-    Category(Category, usize),
+    /// A category or a subgroup, and how many programs it has.
+    Category(Group, usize),
     /// An index into [`App::entries`].
     Entry(usize),
 }
@@ -55,6 +58,11 @@ fn plain(s: &str) -> String {
             c => c,
         })
         .collect()
+}
+
+/// Where a category goes among the others.
+fn order(c: Category) -> (bool, String, Category) {
+    (c == Category::Other, plain(&c.title()), c)
 }
 
 impl App {
@@ -93,15 +101,56 @@ impl App {
             // The favourites, then the categories.
             View::Categories => self
                 .entries_where(|e| e.favourite && !e.hidden)
-                .chain(Category::ALL.into_iter().filter_map(|c| {
-                    let n = self.entries.iter().filter(|e| e.category == c && !e.hidden).count();
-                    (n > 0).then_some(Row::Category(c, n))
-                }))
+                .chain(self.categories().into_iter().map(|(c, n)| Row::Category(c.into(), n)))
                 .collect(),
-            View::Inside(c) => std::iter::once(Row::Back).chain(self.entries_where(move |e| e.category == c && !e.hidden)).collect(),
+            // The subgroups of a category come before its other programs.
+            View::Inside(g) => std::iter::once(Row::Back)
+                .chain(self.subgroups(g).into_iter().map(|(g, n)| Row::Category(g, n)))
+                .chain(self.entries_where(move |e| e.group() == g && !e.hidden))
+                .collect(),
             View::Hidden => std::iter::once(Row::Back).chain(self.entries_where(|e| e.hidden)).collect(),
             View::Options => Vec::new(),
         }
+    }
+
+    /// The categories with programs shown, by their names as displayed, Other
+    /// last; and how many programs each has.
+    fn categories(&self) -> Vec<(Category, usize)> {
+        let mut counts = BTreeMap::<Category, usize>::new();
+        for e in self.entries.iter().filter(|e| !e.hidden) {
+            *counts.entry(e.category).or_default() += 1;
+        }
+        let mut all: Vec<_> = counts.into_iter().collect();
+        all.sort_by_cached_key(|(c, _)| order(*c));
+        all
+    }
+
+    /// The subgroups of the category `g` (none for a subgroup).
+    fn subgroups(&self, g: Group) -> Vec<(Group, usize)> {
+        if g.sub.is_some() {
+            return Vec::new();
+        }
+        let mut counts = BTreeMap::<&str, usize>::new();
+        for e in self.entries.iter().filter(|e| !e.hidden && e.category == g.category) {
+            if let Some(sub) = e.sub {
+                *counts.entry(sub).or_default() += 1;
+            }
+        }
+        let mut all: Vec<_> = counts.into_iter().map(|(sub, n)| (Group { category: g.category, sub: Some(sub) }, n)).collect();
+        all.sort_by_cached_key(|(g, _)| plain(&g.title()));
+        all
+    }
+
+    /// Every group a program can be moved to: the built-in categories and
+    /// those in use, each followed by its subgroups.
+    pub fn groups(&self) -> Vec<Group> {
+        let mut all: BTreeSet<Group> = Category::ALL.into_iter().map(Group::from).collect();
+        for e in &self.entries {
+            all.extend([e.group().top(), e.group()]);
+        }
+        let mut all: Vec<Group> = all.into_iter().collect();
+        all.sort_by_cached_key(|g| (order(g.category), g.sub.map(plain)));
+        all
     }
 
     fn entries_where<'a>(&'a self, keep: impl Fn(&Entry) -> bool + 'a) -> impl Iterator<Item = Row> + 'a {
@@ -126,25 +175,28 @@ impl App {
         self.scroll = 0;
     }
 
-    pub fn open_category(&mut self, c: Category) {
-        self.view = View::Inside(c);
-        // On the first program, not on "back".
+    pub fn open_category(&mut self, g: Group) {
+        self.view = View::Inside(g);
+        // On the first row, not on "back".
         self.selected = 1;
         self.scroll = 0;
     }
 
-    /// Back to the categories, with the one left selected; from the hidden
-    /// programs, back to the options.
+    /// Up a level, with the group left selected; from the hidden programs,
+    /// back to the options.
     pub fn back(&mut self) {
         if self.view == View::Hidden {
             self.view = View::Options;
             return;
         }
         let from = match self.view {
-            View::Inside(c) => Some(c),
+            View::Inside(g) => Some(g),
             _ => None,
         };
-        self.view = View::Categories;
+        self.view = match from {
+            Some(g) if g.sub.is_some() => View::Inside(g.top()),
+            _ => View::Categories,
+        };
         self.scroll = 0;
         self.selected = self.rows().iter().position(|r| matches!(r, Row::Category(c, _) if Some(*c) == from)).unwrap_or(0);
     }
@@ -170,6 +222,10 @@ impl App {
     pub fn set_entries(&mut self, entries: Vec<Entry>) {
         self.entries = entries;
         self.loading = false;
+        // The group shown may be gone: renamed, or its programs moved.
+        while matches!(self.view, View::Inside(_)) && self.rows().len() <= 1 {
+            self.back();
+        }
         let n = self.rows().len();
         self.selected = self.selected.min(n.saturating_sub(1));
         self.scroll = self.scroll.min(n.saturating_sub(1));
@@ -216,14 +272,42 @@ pub(crate) mod tests {
         app
     }
 
+    fn group(c: Category, n: usize) -> Row {
+        Row::Category(c.into(), n)
+    }
+
+    #[test]
+    fn subgroups_come_before_programs_and_back_goes_up_one_level() {
+        let mut app = sample();
+        let sub = Group::parse("Internet/Browsers").unwrap();
+        let mut entries = app.entries.clone();
+        entries[1].set_group(sub);
+        entries[2].set_group(sub);
+        entries[4].set_group(Group::parse("Zed tools").unwrap());
+        app.set_entries(entries);
+        // The user's category among the others, Other still last.
+        assert_eq!(app.rows(), [group(Category::Internet, 3), group(Category::Multimedia, 1), group(Category::named("Zed tools"), 1)]);
+        app.open_category(Category::Internet.into());
+        assert_eq!(app.rows(), [Row::Back, Row::Category(sub, 2), Row::Entry(3)]);
+        app.open_category(sub);
+        assert_eq!(app.rows(), [Row::Back, Row::Entry(1), Row::Entry(2)]);
+        app.back();
+        assert_eq!((app.view, app.selected), (View::Inside(Category::Internet.into()), 1));
+        assert!(app.groups().windows(2).any(|w| w == [Category::Internet.into(), sub]));
+        // The subgroup shown disappears: up to the category.
+        app.open_category(sub);
+        let mut entries = app.entries.clone();
+        entries[1].sub = None;
+        entries[2].sub = None;
+        app.set_entries(entries);
+        assert_eq!(app.view, View::Inside(Category::Internet.into()));
+    }
+
     #[test]
     fn categories_then_their_programs_and_back() {
         let mut app = sample();
-        assert_eq!(
-            app.rows(),
-            [Row::Category(Category::Internet, 3), Row::Category(Category::Multimedia, 1), Row::Category(Category::Other, 1)]
-        );
-        app.open_category(Category::Multimedia);
+        assert_eq!(app.rows(), [group(Category::Internet, 3), group(Category::Multimedia, 1), group(Category::Other, 1)]);
+        app.open_category(Category::Multimedia.into());
         assert_eq!(app.rows(), [Row::Back, Row::Entry(0)]);
         assert_eq!(app.selected, 1);
         app.back();
@@ -235,7 +319,7 @@ pub(crate) mod tests {
         let mut app = sample();
         app.entries[2].favourite = true;
         app.entries[0].hidden = true;
-        assert_eq!(app.rows(), [Row::Entry(2), Row::Category(Category::Internet, 3), Row::Category(Category::Other, 1)]);
+        assert_eq!(app.rows(), [Row::Entry(2), group(Category::Internet, 3), group(Category::Other, 1)]);
         app.set_query("aud".into());
         assert!(app.rows().is_empty());
         app.set_query(String::new());

@@ -98,3 +98,10 @@ Orange		Orange	Naranja	Orange	Arancione	オレンジ	Laranja		橙色
 System accent		Systemakzent	Color del sistema	Couleur du système	Colore di sistema	システムのアクセント	Cor do sistema		系统强调色
 Your own colors: a theme.ini file beside the settings.	Your own colours: a theme.ini file beside the settings.	Eigene Farben: eine theme.ini neben den Einstellungen.	Colores propios: un archivo theme.ini junto a los ajustes.	Vos couleurs : un fichier theme.ini à côté des réglages.	Colori tuoi: un file theme.ini accanto alle impostazioni.	独自の色: 設定の隣の theme.ini ファイル。	Suas cores: um arquivo theme.ini ao lado das configurações.	Cores à tua medida: um ficheiro theme.ini junto às definições.	自定义颜色：在设置旁放置 theme.ini 文件。
 Took {} choices from PortableApps.		{} Einstellungen aus PortableApps übernommen.	{} ajustes traídos de PortableApps.	{} choix repris de PortableApps.	{} scelte prese da PortableApps.	PortableApps から {} 件の設定を取り込みました。	{} escolhas trazidas do PortableApps.	{} escolhas trazidas da PortableApps.	已从 PortableApps 导入 {} 项设置。
+New category…		Neue Kategorie…	Nueva categoría…	Nouvelle catégorie…	Nuova categoria…	新しいカテゴリ…	Nova categoria…		新建类别…
+New category: type a name, or Name/Subgroup.		Neue Kategorie: Name oder Name/Untergruppe eingeben.	Nueva categoría: escriba un nombre o Nombre/Subgrupo.	Nouvelle catégorie : un nom, ou Nom/Sous-groupe.	Nuova categoria: scrivere un nome o Nome/Sottogruppo.	新しいカテゴリ: 名前、または 名前/サブグループ を入力。	Nova categoria: digite um nome ou Nome/Subgrupo.	Nova categoria: escreva um nome ou Nome/Subgrupo.	新类别：输入名称或 名称/子组。
+Remove category		Kategorie entfernen	Quitar categoría	Supprimer la catégorie	Rimuovi categoria	カテゴリを削除	Remover categoria		删除类别
+Automatic		Automatisch	Automático	Automatique	Automatico	自動	Automático		自动
+Subfolders		Unterordner	Subcarpetas	Sous-dossiers	Sottocartelle	サブフォルダー	Subpastas		子文件夹
+One category		Eine Kategorie	Una categoría	Une catégorie	Una categoria	1 カテゴリ	Uma categoria		单一类别
+By name		Nach Name	Por nombre	Par nom	Per nome	名前で判定	Pelo nome		按名称

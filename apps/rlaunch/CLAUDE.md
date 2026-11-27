@@ -18,7 +18,11 @@ vários `rmenu`). Funcionalidades e fases no `README.md`.
 - `sources.rs` — `Entry`, `Root`, `roots` (Scoop = `Start Menu\Programs\Scoop Apps` do utilizador e de todos, depois
   as pastas, depois o menu Iniciar sem as do Scoop), `collect` (`.lnk/.exe/.bat/.cmd`, 3 níveis, sem seguir junções,
   sem desinstaladores nem atalhos para documentos; um por nome), `desktop` (`.desktop`, testado em qualquer sistema).
-- `category.rs` — `Category` e `guess` por palavras inteiras; a primeira categoria da lista `KNOWN` ganha.
+- `category.rs` — `Category` (dez de origem e `Own`, com o nome internado) e `Group` (categoria e, no máximo, um
+  subgrupo; nas definições `Nome/Subgrupo`, com os nomes ingleses nas de origem). `guess` por palavras inteiras; a
+  primeira categoria da lista `KNOWN` ganha. Precedência: escolha do utilizador > pasta (`sources::place`, conforme
+  `settings::FolderMode`) > adivinhação; mudar o nome ou remover uma categoria são `aliases` em `items.rs`, porque as
+  pastas continuam com o nome antigo.
 - `items.rs` — o que o utilizador mudou (nome, categoria, ícone, favorito, oculto, por caminho) e os programas
   acrescentados; `apply` sobrepõe-o ao que a leitura deu (`main.rs` guarda `raw`), sem voltar a ler as pastas.
 - `portableapps.rs` — o formato PortableApps (`appinfo.ini`) e a importação do `PortableAppsMenu.ini` (UTF-16:
@@ -66,6 +70,12 @@ PStart, LiberKey e Lupo/ASuite não foram feitos: não há instalação para ver
 Fase 5 (2026-11-27): verificada no WSL com aplicações de exemplo (ícones PNG e SVG, capturas) e arranque em X11 e
 Wayland durante 4 s; o executável Linux ficou com 7,6 MB (o resvg junta cerca de 0,8 MB). Não verificado num ambiente
 de trabalho Linux a sério (área de notificação, abrir programas, temas de ícones do GNOME/KDE, posição).
+
+Categorias em dois níveis (2026-11-27): pontos 1 a 3 do que o utilizador aprovou. Por fazer, também aprovados:
+4, selecionar vários (Ctrl/Shift) e "Mover para…"; 5, 4 ou mais atalhos na mesma subpasta do menu Iniciar formam um
+subgrupo (não adivinhar grupos pelo nome). As pastas dele: `E:\Portable\scoop\links` (arrumada em subpastas) e as
+Sysinternals em `E:\Portable\Tools\sys\SysInternals` e `…\sys\WSCC\Apps\Sysinternals Suite` (modo "Uma
+categoria"). Numa cópia de teste em `debug` há uma consola: escolher a janela pela largura.
 
 ## Regras
 

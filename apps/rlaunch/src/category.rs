@@ -1,8 +1,98 @@
 //! The categories of the menu, and a guess of the category of a program from
 //! its name: shortcuts (Scoop's too) say nothing about what a program is for.
-//! Names that are not recognised go to Other.
+//! Names that are not recognised go to Other. The user can have categories of
+//! their own, and subgroups: see [`Group`].
 
-/// In the order the menu shows them.
+use crate::i18n::tr;
+use std::collections::BTreeSet;
+use std::sync::Mutex;
+
+/// The names of the user's categories and subgroups, each kept once for as
+/// long as rlaunch runs, so a [`Group`] is a small value to copy around. There
+/// are only as many as folders and typed names.
+pub fn intern(name: &str) -> &'static str {
+    static NAMES: Mutex<BTreeSet<&'static str>> = Mutex::new(BTreeSet::new());
+    let mut names = NAMES.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    if let Some(known) = names.get(name) {
+        return known;
+    }
+    let kept: &'static str = Box::leak(name.into());
+    names.insert(kept);
+    kept
+}
+
+/// Where a program is in the menu: a category and, perhaps, a subgroup of it.
+/// There are no deeper levels.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Group {
+    pub category: Category,
+    pub sub: Option<&'static str>,
+}
+
+impl From<Category> for Group {
+    fn from(category: Category) -> Group {
+        Group { category, sub: None }
+    }
+}
+
+impl Group {
+    /// The category alone.
+    pub fn top(self) -> Group {
+        self.category.into()
+    }
+
+    /// Whether `other` is this group or, for a category, one of its subgroups.
+    pub fn holds(self, other: Group) -> bool {
+        self.category == other.category && (self.sub.is_none() || self.sub == other.sub)
+    }
+
+    /// Whether the user can rename or remove it: all but the built-in
+    /// categories.
+    pub fn is_own(self) -> bool {
+        self.sub.is_some() || matches!(self.category, Category::Own(_))
+    }
+
+    /// As kept in the settings: `Name` or `Name/Subgroup`, with the English
+    /// names of the built-in categories. No folder name has a `/`.
+    pub fn key(self) -> String {
+        match self.sub {
+            Some(sub) => format!("{}/{sub}", self.category.name()),
+            None => self.category.name().to_string(),
+        }
+    }
+
+    /// The reverse of [`Group::key`].
+    pub fn parse(text: &str) -> Option<Group> {
+        Group::with(text, |name| Category::ALL.into_iter().find(|c| c.name() == name).unwrap_or_else(|| Category::Own(intern(name))))
+    }
+
+    /// What was typed: `Name` or `Name/Subgroup`, where the name of a built-in
+    /// category (in English or as shown) means that one.
+    pub fn typed(text: &str) -> Option<Group> {
+        Group::with(text, Category::named)
+    }
+
+    fn with(text: &str, category: impl Fn(&str) -> Category) -> Option<Group> {
+        let mut parts = text.split('/').map(str::trim).filter(|p| !p.is_empty() && !p.contains(char::is_control));
+        let top = category(parts.next()?);
+        Some(Group { category: top, sub: parts.next().map(intern) })
+    }
+
+    /// The name shown for the group itself.
+    pub fn title(self) -> String {
+        self.sub.map_or_else(|| self.category.title(), str::to_string)
+    }
+
+    /// The name with the category's before it.
+    pub fn full_title(self) -> String {
+        match self.sub {
+            Some(sub) => format!("{} › {sub}", self.category.title()),
+            None => self.category.title(),
+        }
+    }
+}
+
+/// The built-in categories, and those of the user.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Category {
     Internet,
@@ -15,6 +105,8 @@ pub enum Category {
     Games,
     Utilities,
     Other,
+    /// One of the user's, from a folder or typed.
+    Own(&'static str),
 }
 
 impl Category {
@@ -31,7 +123,22 @@ impl Category {
         Category::Other,
     ];
 
-    /// The English name, which is also the translation key.
+    /// The category called `name`, in English or as shown; else the user's.
+    pub fn named(name: &str) -> Category {
+        let same = |a: &str| a.to_lowercase() == name.to_lowercase();
+        Category::ALL.into_iter().find(|c| same(c.name()) || same(&c.title())).unwrap_or_else(|| Category::Own(intern(name)))
+    }
+
+    /// The name shown: translated for the built-in ones.
+    pub fn title(self) -> String {
+        match self {
+            Category::Own(name) => name.to_string(),
+            c => tr(c.name()),
+        }
+    }
+
+    /// The English name, which is also the translation key; the user's own
+    /// name for the others.
     pub fn name(self) -> &'static str {
         match self {
             Category::Internet => "Internet",
@@ -44,6 +151,7 @@ impl Category {
             Category::Games => "Games",
             Category::Utilities => "Utilities",
             Category::Other => "Other",
+            Category::Own(name) => name,
         }
     }
 }
@@ -539,6 +647,19 @@ pub fn guess(names: &[&str]) -> Category {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn groups_are_written_read_and_typed() {
+        let own = Group { category: Category::named("NirSoft"), sub: Some(intern("Network")) };
+        assert_eq!((own.key().as_str(), own.full_title().as_str()), ("NirSoft/Network", "NirSoft › Network"));
+        assert_eq!(Group::parse("NirSoft/Network"), Some(own));
+        assert_eq!(Group::parse("Games"), Some(Category::Games.into()));
+        // Typed or from a folder, whatever the case; no deeper levels.
+        assert_eq!(Group::typed(" office / LibreOffice / x "), Some(Group { category: Category::Office, sub: Some("LibreOffice") }));
+        assert_eq!((Group::typed("  / "), Group::parse("")), (None, None));
+        assert!(own.is_own() && own.top().is_own() && !Group::from(Category::Games).is_own());
+        assert!(own.top().holds(own) && !own.holds(own.top()));
+    }
 
     #[test]
     fn known_programs_find_their_category() {

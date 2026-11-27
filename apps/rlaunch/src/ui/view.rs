@@ -5,7 +5,7 @@
 use super::gfx::{Align, Color, FontId, Gfx, Rect};
 use super::theme::Theme;
 use crate::app::{App, Row, View};
-use crate::category::Category;
+use crate::category::{Category, Group};
 use crate::i18n::{tf, tr, Lang};
 use crate::settings::{Hotkey, Settings};
 use crate::ui::theme::{colour_name, frame_of, CHOICES};
@@ -91,6 +91,8 @@ pub enum Hit {
     AddProgram,
     ShowHidden,
     RemoveFolder(usize),
+    /// The next way of taking categories from a folder.
+    FolderMode(usize),
     Autostart,
     AlwaysAdmin,
     /// The next value of an option, or the one before.
@@ -100,6 +102,24 @@ pub enum Hit {
     Colour(u8),
     CheckUpdates,
     Done,
+}
+
+/// What a name is being typed for.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Editing {
+    /// The name of a program.
+    Name(PathBuf),
+    /// A new category for a program, typed in its row.
+    NewCategory(PathBuf),
+    /// The name of a category or subgroup.
+    Group(Group),
+}
+
+impl Editing {
+    /// Whether it is typed in the row of the program at `path`.
+    pub fn is_program(&self, path: &Path) -> bool {
+        matches!(self, Editing::Name(p) | Editing::NewCategory(p) if p == path)
+    }
 }
 
 pub struct Model<'a> {
@@ -120,8 +140,8 @@ pub struct Model<'a> {
     pub elevated: bool,
     /// The system's accent colour, for the colour made from it.
     pub accent: Option<Color>,
-    /// The program being renamed, and the name being typed.
-    pub rename: Option<(&'a Path, &'a TextEdit)>,
+    /// What is being named, and what was typed.
+    pub rename: Option<(&'a Editing, &'a TextEdit)>,
 }
 
 /// What was drawn.
@@ -336,21 +356,24 @@ impl Painter<'_, '_> {
             };
             let text = Rect::new(r.x + self.px(indent), r.y, r.w - self.px(indent + count_w), r.h);
             match *row {
-                Row::Category(c, n) => {
+                Row::Category(g, n) => {
                     // A line parts the favourites from the categories.
                     if k > first && matches!(rows[k - 1], Row::Entry(_)) {
                         let line = Rect::new(r.x + self.px(6.0), r.y, r.w - self.px(12.0), self.px(1.0).max(1.0));
                         self.g.fill_rect(line, t.border);
                     }
-                    self.folder(icon, c);
-                    text_middle(self.g, &tr(c.name()), text, size, FontId::Semibold, ink);
+                    self.folder(icon, g.category);
+                    match self.m.rename {
+                        Some((Editing::Group(named), edit)) if *named == g => self.field(text, edit),
+                        _ => text_middle(self.g, &g.title(), text, size, FontId::Semibold, ink),
+                    }
                     let count = Rect::new(r.right() - self.px(38.0), r.y, self.px(31.0), r.h);
                     let small = self.px(11.0);
                     self.g.text_in(&n.to_string(), count, small, FontId::Regular, faint, Align::Right);
                 }
                 Row::Back => {
                     let title = match app.view {
-                        View::Inside(c) => tr(c.name()),
+                        View::Inside(g) => g.title(),
                         _ => tr("Hidden programs"),
                     };
                     self.icon_glyph("\u{E72B}", icon, 13.0, ink);
@@ -363,7 +386,7 @@ impl Painter<'_, '_> {
                         _ => self.letter(icon, &e.name),
                     }
                     match self.m.rename {
-                        Some((path, edit)) if path == e.path => self.field(text, edit),
+                        Some((what, edit)) if what.is_program(&e.path) => self.field(text, edit),
                         _ => text_middle(self.g, &e.name, text, size, FontId::Regular, ink),
                     }
                     if e.admin {
@@ -420,6 +443,11 @@ impl Painter<'_, '_> {
             Category::Games => 0xE08A22,
             Category::Utilities => 0x1FA0A8,
             Category::Other => 0xB49B3C,
+            // The user's: a colour that stays with the name.
+            Category::Own(name) => {
+                const OWN: [u32; 8] = [0x5B8DB8, 0xA96FB0, 0x6C9A5B, 0xC07A5A, 0x4F9C95, 0x8A82C9, 0xB26B7D, 0x8F8F5E];
+                OWN[name.bytes().fold(0usize, |h, b| h.wrapping_mul(31).wrapping_add(usize::from(b))) % OWN.len()]
+            }
         });
         let tab = Rect::new(r.x + self.px(1.0), r.y + r.h * 0.11, r.w * 0.45, r.h * 0.28);
         self.g.fill_rrect(tab, self.px(2.0), color);
@@ -565,10 +593,12 @@ impl Painter<'_, '_> {
         let mut y = 152.0;
         // Room for four; more are kept and read, only not listed.
         for (i, folder) in st.folders.iter().take(4).enumerate() {
-            let r = self.rect(18.0, y, 286.0, 22.0);
+            let r = self.rect(18.0, y, 178.0, 22.0);
             let size = self.px(12.0);
             let cut = ellipsize_middle(self.g, &folder.to_string_lossy(), r.w, size, FontId::Regular);
             self.g.text_in(&cut, r, size, FontId::Regular, t.text, Align::Left);
+            let mode = self.rect(200.0, y, 106.0, 22.0);
+            self.button(mode, &tr(st.mode_of(folder).name()), Hit::FolderMode(i));
             let x = self.rect(310.0, y, 24.0, 22.0);
             self.button(x, "×", Hit::RemoveFolder(i));
             y += 25.0;

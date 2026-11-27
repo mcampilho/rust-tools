@@ -1,6 +1,6 @@
 use super::*;
 use crate::app::{tests::sample, View};
-use crate::category::Category;
+use crate::category::{Category, Group};
 use crate::settings::Settings;
 use crate::ui::gfx::Gfx;
 use crate::ui::theme::Theme;
@@ -61,7 +61,7 @@ fn every_view_is_translated() {
     }
     rt_core::i18n::record_misses(true);
     set_lang(Lang::DeDE);
-    for view in [View::Categories, View::Inside(Category::Internet), View::Hidden, View::Options] {
+    for view in [View::Categories, View::Inside(Category::Internet.into()), View::Hidden, View::Options] {
         app.view = view;
         draw(&mut g, &model(&app, &settings, &icons, None), &Theme::new(false, None, 0), 1.0);
     }
@@ -71,6 +71,12 @@ fn every_view_is_translated() {
     // Names looked up from tables, which no literal in the drawing shows.
     for c in 0..crate::ui::theme::CHOICES {
         assert!(rt_core::i18n::has_key(crate::ui::theme::colour_name(c)));
+    }
+    for m in crate::settings::FolderMode::ALL {
+        assert!(rt_core::i18n::has_key(m.name()), "{}", m.name());
+    }
+    for key in ["New category…", "New category: type a name, or Name/Subgroup.", "Remove category"] {
+        assert!(rt_core::i18n::has_key(key), "{key}");
     }
     for p in crate::settings::Position::ALL {
         assert!(rt_core::i18n::has_key(p.name()), "{}", p.name());
@@ -92,8 +98,12 @@ fn screenshots() {
     std::fs::create_dir_all(&out).unwrap();
     let mut g = Gfx::new().unwrap();
     g.resize(SIZE.0 as u32, SIZE.1 as u32);
-    let settings =
+    let mut settings =
         Settings { folders: vec!["C:\\Tools".into(), "E:\\Portable\\Apps".into(), "D:\\PortableApps".into()], ..Settings::default() };
+    // `RLAUNCH_SCREEN_FOLDERS=a;b` shows those instead.
+    if let Ok(folders) = std::env::var("RLAUNCH_SCREEN_FOLDERS") {
+        settings.folders = folders.split(';').map(Into::into).collect();
+    }
     // The programs of this PC, with their icons.
     let mut app = crate::app::App::default();
     app.set_entries(crate::sources::scan(&settings));
@@ -114,10 +124,13 @@ fn screenshots() {
             icons.insert(e.path.clone(), crate::ui::linux_icon::of(&dirs, e.icon_source()));
         }
     }
-    let dev = app.entries.iter().find(|e| e.category == Category::Development).map_or(Category::Other, |e| e.category);
+    let dev = Group::from(Category::Development);
+    // A category with subgroups, when a folder gives one.
+    let nested = app.entries.iter().find(|e| e.sub.is_some()).map_or(dev, |e| e.group().top());
     for (name, lang, dark, view, query) in [
         ("pt-categories", Lang::PtPT, false, View::Categories, ""),
         ("pt-development-dark", Lang::PtPT, true, View::Inside(dev), ""),
+        ("pt-folder-category", Lang::PtPT, false, View::Inside(nested), ""),
         ("en-search", Lang::EnUS, false, View::Categories, "co"),
         ("fr-categories", Lang::FrFR, false, View::Categories, ""),
         ("pt-options", Lang::PtPT, false, View::Options, ""),
@@ -142,7 +155,7 @@ fn screenshots() {
     set_lang(Lang::PtPT);
     app.view = View::Inside(dev);
     app.query.clear();
-    for e in app.entries.iter_mut().filter(|e| e.category == dev).step_by(2) {
+    for e in app.entries.iter_mut().filter(|e| e.group() == dev).step_by(2) {
         e.admin = true;
     }
     let note = tr("Running as administrator: what it opens does too.");
@@ -158,8 +171,8 @@ fn screenshots() {
     pm.save_png(out.join("pt-admin.png")).unwrap();
     set_lang(Lang::EnUS);
     println!("{} programs", app.entries.len());
-    for c in Category::ALL {
-        let names: Vec<&str> = app.entries.iter().filter(|e| e.category == c).map(|e| e.name.as_str()).collect();
-        println!("{} ({}): {}", c.name(), names.len(), names.join(", "));
+    for g in app.groups() {
+        let names: Vec<&str> = app.entries.iter().filter(|e| e.group() == g).map(|e| e.name.as_str()).collect();
+        println!("{} ({}): {}", g.key(), names.len(), names.join(", "));
     }
 }

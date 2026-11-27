@@ -2,10 +2,10 @@
 //! (the Start menu, Scoop's part of it, the user's own) and, on Linux, the
 //! `.desktop` files.
 
-use crate::category::{self, Category};
+use crate::category::{self, Category, Group};
 use crate::portableapps;
-use crate::settings::Settings;
-use std::collections::HashSet;
+use crate::settings::{FolderMode, Settings};
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 /// A program of the menu.
@@ -15,6 +15,10 @@ pub struct Entry {
     /// The shortcut, program or `.desktop` file that is opened.
     pub path: PathBuf,
     pub category: Category,
+    /// The subgroup of the category, if any.
+    pub sub: Option<&'static str>,
+    /// The category comes from the folder the program is in.
+    pub placed: bool,
     /// Linux: the command of a `.desktop` file.
     pub exec: Vec<String>,
     /// What the user chose (see [`crate::items`]).
@@ -28,7 +32,28 @@ pub struct Entry {
 
 impl Entry {
     pub fn new(name: String, path: PathBuf, category: Category) -> Entry {
-        Entry { name, path, category, exec: Vec::new(), icon: None, favourite: false, hidden: false, admin: false, added: false }
+        Entry {
+            name,
+            path,
+            category,
+            sub: None,
+            placed: false,
+            exec: Vec::new(),
+            icon: None,
+            favourite: false,
+            hidden: false,
+            admin: false,
+            added: false,
+        }
+    }
+
+    /// Where it is in the menu.
+    pub fn group(&self) -> Group {
+        Group { category: self.category, sub: self.sub }
+    }
+
+    pub fn set_group(&mut self, group: Group) {
+        (self.category, self.sub) = (group.category, group.sub);
     }
 
     /// The file whose icon stands for the program.
@@ -62,6 +87,14 @@ pub struct Root {
     pub dir: PathBuf,
     /// Folders inside it that are not looked into.
     pub skip: Vec<PathBuf>,
+    /// Whether its folders say the categories.
+    pub mode: FolderMode,
+}
+
+impl Root {
+    fn plain(dir: PathBuf, skip: Vec<PathBuf>) -> Root {
+        Root { dir, skip, mode: FolderMode::Names }
+    }
 }
 
 /// How deep a folder is followed.
@@ -187,6 +220,13 @@ fn walk(dir: &Path, skip: &[PathBuf], depth: usize, found: &mut Vec<Entry>) {
     let Ok(read) = std::fs::read_dir(dir) else { return };
     let mut items: Vec<_> = read.flatten().collect();
     items.sort_by_key(|e| e.file_name());
+    // Suites of tools ship `x.exe` beside `x64.exe` and `x64a.exe` (as
+    // Sysinternals does): only the first is listed.
+    let files: HashSet<String> = items.iter().map(|e| e.file_name().to_string_lossy().to_lowercase()).collect();
+    let variant = |name: &str| {
+        let n = name.to_lowercase();
+        ["64.exe", "64a.exe"].iter().any(|end| n.strip_suffix(end).is_some_and(|base| files.contains(&format!("{base}.exe"))))
+    };
     // Among the apps of a suite: its platform and shared files are not apps,
     // and a folder in another format gives only what is at its top.
     let suite = dir.join(portableapps::PLATFORM).is_dir();
@@ -204,6 +244,8 @@ fn walk(dir: &Path, skip: &[PathBuf], depth: usize, found: &mut Vec<Entry>) {
             if depth < DEPTH && !hidden && !shared && !skip.contains(&path) {
                 walk(&path, skip, if suite { DEPTH } else { depth + 1 }, found);
             }
+        } else if variant(&item.file_name().to_string_lossy()) {
+            continue;
         } else if let Some(e) = entry_of(&path).or_else(|| unix_program(&path)) {
             found.push(e);
         }
@@ -232,13 +274,57 @@ pub fn roots_in(st: &Settings, menus: &[PathBuf]) -> Vec<Root> {
     let mut out = Vec::new();
     let scoop: Vec<PathBuf> = menus.iter().map(|m| m.join("Scoop Apps")).collect();
     if st.scoop {
-        out.extend(scoop.iter().map(|d| Root { dir: d.clone(), skip: Vec::new() }));
+        out.extend(scoop.iter().map(|d| Root::plain(d.clone(), Vec::new())));
     }
-    out.extend(st.folders.iter().map(|d| Root { dir: d.clone(), skip: Vec::new() }));
+    out.extend(st.folders.iter().map(|d| Root { dir: d.clone(), skip: Vec::new(), mode: st.mode_of(d) }));
     if st.start_menu {
-        out.extend(menus.iter().map(|d| Root { dir: d.clone(), skip: scoop.clone() }));
+        out.extend(menus.iter().map(|d| Root::plain(d.clone(), scoop.clone())));
     }
     out
+}
+
+/// The names of the folders between `root` and the program.
+fn folders_below(root: &Path, program: &Path) -> Vec<String> {
+    let inside = program.strip_prefix(root).ok().and_then(Path::parent);
+    inside.map_or_else(Vec::new, |p| p.components().map(|c| c.as_os_str().to_string_lossy().into_owned()).collect())
+}
+
+/// Gives the programs of a folder the categories its mode says.
+fn place(root: &Root, found: &mut [Entry]) {
+    let mode = match root.mode {
+        // Shortcuts arranged in folders say the categories; portable programs
+        // each in its folder, and suites, do not.
+        FolderMode::Auto => {
+            let arranged = found.iter().any(|e| {
+                e.path.extension().is_some_and(|x| x.eq_ignore_ascii_case("lnk")) && !folders_below(&root.dir, &e.path).is_empty()
+            });
+            if arranged {
+                FolderMode::Subfolders
+            } else {
+                FolderMode::Names
+            }
+        }
+        mode => mode,
+    };
+    // A Scoop package is in `apps\<name>\current`: it is called `<name>`.
+    let named = if root.dir.file_name().is_some_and(|n| n.eq_ignore_ascii_case("current")) { root.dir.parent() } else { Some(&*root.dir) };
+    let own = named.and_then(Path::file_name).map(|n| n.to_string_lossy().into_owned());
+    for e in found {
+        let mut folders = folders_below(&root.dir, &e.path);
+        match mode {
+            FolderMode::Subfolders => {}
+            FolderMode::One => {
+                if let Some(own) = &own {
+                    folders.insert(0, own.clone());
+                }
+            }
+            FolderMode::Auto | FolderMode::Names => continue,
+        }
+        let mut folders = folders.into_iter();
+        let Some(top) = folders.next() else { continue };
+        e.set_group(Group { category: Category::named(&top), sub: folders.next().map(|s| category::intern(&s)) });
+        e.placed = true;
+    }
 }
 
 /// Every program of the folders (and of the `.desktop` files given), one of
@@ -246,15 +332,34 @@ pub fn roots_in(st: &Settings, menus: &[PathBuf]) -> Vec<Root> {
 pub fn collect(roots: &[Root], desktop_dirs: &[PathBuf]) -> Vec<Entry> {
     let mut found = Vec::new();
     for r in roots {
+        let from = found.len();
         walk(&r.dir, &r.skip, 0, &mut found);
+        place(r, &mut found[from..]);
     }
     for dir in desktop_dirs {
         desktop::read_dir(dir, &mut found);
     }
-    let mut seen = HashSet::new();
-    found.retain(|e| seen.insert(e.name.to_lowercase()));
-    found.sort_by_cached_key(|e| e.name.to_lowercase());
-    found
+    // The first of a name stays, but takes the category a folder gave another:
+    // a Scoop program arranged in the user's folders goes where it was put.
+    let mut kept: Vec<Entry> = Vec::new();
+    let mut at = HashMap::new();
+    for e in found {
+        match at.get(&e.name.to_lowercase()) {
+            None => {
+                at.insert(e.name.to_lowercase(), kept.len());
+                kept.push(e);
+            }
+            Some(&i) => {
+                let first: &mut Entry = &mut kept[i];
+                if e.placed && !first.placed {
+                    first.set_group(e.group());
+                    first.placed = true;
+                }
+            }
+        }
+    }
+    kept.sort_by_cached_key(|e| e.name.to_lowercase());
+    kept
 }
 
 /// The programs the settings ask for, on this system.
@@ -432,9 +537,49 @@ mod tests {
     }
 
     #[test]
+    fn folders_say_the_categories() {
+        let d = scratch("groups");
+        let link = rt_sys::lnk::make("C:\\x\\x.exe", None);
+        put(&d, "menu/Scoop Apps/Writer.lnk", &link);
+        put(&d, "links/Loose.lnk", &link);
+        put(&d, "links/Office/LibreOffice/Writer.lnk", &link);
+        put(&d, "links/Editors/deeper/more/Pad.lnk", &link);
+        put(&d, "links/multimedia/Player.lnk", &link);
+        for f in ["procexp.exe", "procexp64.exe", "procexp64a.exe", "base64.exe"] {
+            put(&d, &format!("SysInternals/{f}"), b"x");
+        }
+        let links = d.join("links");
+        let tools = d.join("SysInternals");
+        let mut st = Settings { folders: vec![links.clone(), tools.clone()], start_menu: false, ..Settings::default() };
+        st.modes.insert(tools.clone(), FolderMode::One);
+        let places = |st: &Settings| -> Vec<(String, String)> {
+            collect(&roots_in(st, &[d.join("menu")]), &[]).iter().map(|e| (e.name.clone(), e.group().key())).collect()
+        };
+        let pair = |a: &str, b: &str| (a.to_string(), b.to_string());
+        assert_eq!(
+            places(&st),
+            [
+                pair("base64", "SysInternals"),
+                pair("Loose", "Other"),
+                pair("Pad", "Editors/deeper"),
+                pair("Player", "Multimedia"),
+                pair("procexp", "SysInternals"),
+                // Scoop's shortcut, in the category of the user's folder.
+                pair("Writer", "Office/LibreOffice"),
+            ]
+        );
+        let all = collect(&roots_in(&st, &[d.join("menu")]), &[]);
+        assert_eq!(all[5].path, d.join("menu").join("Scoop Apps").join("Writer.lnk"));
+        // Turned off: names alone.
+        st.modes.insert(links, FolderMode::Names);
+        st.modes.insert(tools, FolderMode::Names);
+        assert!(places(&st).iter().all(|(_, g)| !g.contains('/') && g != "SysInternals"));
+    }
+
+    #[test]
     fn a_suite_gives_its_apps_and_not_their_insides() {
         let d = crate::portableapps::tests::suite("pa-walk");
-        let all = collect(&[Root { dir: d, skip: Vec::new() }], &[]);
+        let all = collect(&[Root::plain(d, Vec::new())], &[]);
         let names: Vec<&str> = all.iter().map(|e| e.name.as_str()).collect();
         assert_eq!(names, ["Git Bash", "Git GUI", "Mozilla Firefox, Edition", "Tool"]);
     }
@@ -464,7 +609,7 @@ mod tests {
             put(&d, file, bytes);
             std::fs::set_permissions(d.join(file), std::fs::Permissions::from_mode(mode)).unwrap();
         }
-        let all = collect(&[Root { dir: d.clone(), skip: Vec::new() }], &[]);
+        let all = collect(&[Root::plain(d.clone(), Vec::new())], &[]);
         let names: Vec<&str> = all.iter().map(|e| e.name.as_str()).collect();
         // `target` may be on a drive without modes: then all are executable.
         let modes = std::fs::metadata(d.join("plain.sh")).unwrap().permissions().mode() & 0o111 == 0;

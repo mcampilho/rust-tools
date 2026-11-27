@@ -25,7 +25,8 @@ notificação do ecrã onde está o ponteiro, e fecha quando outra coisa recebe 
 arranca sem abrir o menu.
 
 - **À esquerda:** as categorias; um clique (ou Enter) abre uma, a seta no topo
-  volta atrás.
+  volta atrás. Uma categoria pode ter subgrupos, que aparecem primeiro (ver
+  [Categorias](#categorias)).
 - **Procura:** é só escrever. Os acentos não contam. Cima, Baixo e Enter
   escolhem; Esc limpa, volta atrás e depois fecha.
 - **À direita:** as pastas Documentos, Transferências, Imagens, Música e Vídeos,
@@ -96,10 +97,35 @@ text=#101010
 Os nomes são `frame`, `frame_text`, `frame_dim`, `frame_hover`, `list`, `text`,
 `dim`, `border`, `hover`, `accent`, `on_accent` e `warn`.
 
-As categorias são deduzidas do nome dos programas conhecidos; os outros vão para
-**Outros**. Os desinstaladores, manuais e atalhos para páginas ficam de fora, e
-um programa com o mesmo nome em dois sítios aparece uma vez (primeiro o do
-Scoop).
+Os desinstaladores, manuais e atalhos para páginas ficam de fora, e um programa
+com o mesmo nome em dois sítios aparece uma vez (primeiro o do Scoop). Onde há
+`x.exe`, `x64.exe` e `x64a.exe` na mesma pasta (como nas Sysinternals), só o
+primeiro é listado.
+
+## Categorias
+
+Há dez categorias de origem, deduzidas do nome dos programas conhecidos (os
+outros vão para **Outros**), e as tuas. Há dois níveis: categoria e subgrupo.
+
+**Pelas tuas pastas.** Cada pasta em **Opções > As minhas pastas** tem um botão
+que escolhe de onde vêm as categorias:
+
+- **Automático** (o habitual): se há atalhos arrumados em subpastas, como
+  **Subpastas**; senão, **Pelo nome**.
+- **Subpastas:** a subpasta é a categoria e a pasta dentro dela o subgrupo
+  (`links\Office\LibreOffice`). O que está solto na raiz é deduzido pelo nome.
+- **Uma categoria:** a própria pasta é a categoria (por exemplo `SysInternals`),
+  e as subpastas os subgrupos.
+- **Pelo nome:** as pastas não contam.
+
+Um programa que também esteja no Scoop fica na categoria que a tua pasta lhe dá.
+
+**À mão.** Botão direito num programa > **Categoria** escolhe outra, ou **Nova
+categoria…** (escreve `Nome` ou `Nome/Subgrupo`). Botão direito numa categoria
+tua ou num subgrupo: **Mudar o nome** ou **Remover categoria** (os programas de
+um subgrupo ficam na categoria; os de uma categoria vão para **Outros**, ou
+voltam à dedução se foste tu que os lá puseste). A tua escolha ganha à pasta, e
+a pasta ganha à dedução. Nada muda nas pastas: fica nas definições do rlaunch.
 
 ## PortableApps
 
@@ -154,6 +180,8 @@ O que é diferente do Windows:
 4. **Feito para a PortableApps:** as aplicações e as escolhas do menu dela. As
    outras suites ainda não são lidas no seu próprio formato.
 5. **Feito:** Linux completo (ícones, programas das pastas).
+6. **Em curso:** categorias das pastas e do utilizador, em dois níveis. Falta
+   mover vários programas de uma vez e agrupar as subpastas do menu Iniciar.
 
 ## Compilar
 

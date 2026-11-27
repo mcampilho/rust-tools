@@ -152,7 +152,7 @@ pub fn import(suite: &Path, items: &mut Items) -> usize {
             c.favourite |= choice.favourite;
             c.hidden |= choice.hidden;
             c.name = c.name.take().or_else(|| choice.name.clone());
-            c.category = c.category.or(choice.category);
+            c.category = c.category.or(choice.category.map(Into::into));
         });
         changed += usize::from(items.of(&entry.path) != before);
     }
@@ -217,7 +217,7 @@ pub(crate) mod tests {
         items.change(&d.join("GitPortable").join("GitGui.exe"), |c| c.name = Some("Mine".into()));
         assert_eq!(import(&d, &mut items), 3);
         assert!(items.of(&d.join("FirefoxPortable").join("FirefoxPortable.exe")).favourite);
-        assert_eq!(items.of(&d.join("GitPortable").join("GitBash.exe")).category, Some(Category::Development));
+        assert_eq!(items.of(&d.join("GitPortable").join("GitBash.exe")).category, Some(Category::Development.into()));
         let gui = items.of(&d.join("GitPortable").join("GitGui.exe"));
         assert!(gui.hidden && gui.name.as_deref() == Some("Mine"));
         assert_eq!(import(&d, &mut items), 0);
