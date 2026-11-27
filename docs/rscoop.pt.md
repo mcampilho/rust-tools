@@ -338,6 +338,45 @@ atalhos reais por COM foram lidos de volta com o leitor de `.lnk`; o registo ver
   (`"$shim."` é o próprio ficheiro no Windows); aqui o antigo fica de lado como `nome.ext.<app>`.
 - Sem manifesto instalado, o `uninstall` segue com um manifesto vazio (o oficial parava no `Invoke-HookScript`).
 
-**Por fazer:** a comparação no Windows Sandbox (secção 7: a mesma lista de aplicações removida e reposta pelos dois,
-comparando ficheiros, shims, junções, atalhos e variáveis); o `update` voltar a criar o shim do Scoop; o
+**Por fazer:** correr a comparação no Windows Sandbox (abaixo); o `update` voltar a criar o shim do Scoop; o
 `install_psmodule` já existe para a fase 4.
+
+### Comparação no Windows Sandbox (preparada a 2026-11-27, por correr)
+
+`apps/rscoop-cli/sandbox/`: `sandbox.ps1` (no PC), `inside.ps1` (na Sandbox), `snapshot.ps1` (a fotografia).
+
+```powershell
+./apps/rscoop-cli/sandbox/sandbox.ps1                 # os dois lados e a comparação (target\sandbox\report.txt)
+./apps/rscoop-cli/sandbox/sandbox.ps1 -Side rscoop    # só um lado outra vez
+./apps/rscoop-cli/sandbox/sandbox.ps1 -CompareOnly    # só a comparação
+./apps/rscoop-cli/sandbox/sandbox.ps1 -Side rscoop -KeepOpen   # a Sandbox fica aberta, para ver
+```
+
+- Duas Sandboxes novas, uma depois da outra, com o Scoop em `C:\scoop` nas duas. Os passos são os mesmos, só muda
+  quem faz os passos 2 e 3: `1-installed` (o instalador do Scoop, `git`, o bucket `extras` e as aplicações, pelo
+  Scoop), `2-reset` (o mesmo estrago — junções `current`, shims, atalhos, variáveis do `env_set` e pastas das
+  aplicações no `PATH` — e `reset *`), `3-uninstalled` (`uninstall` de quatro aplicações, a última com `--purge`),
+  `4-official` (o Scoop remove o resto: a interoperação).
+- Aplicações por omissão: `jq`, `which`, `psutils`, `gsudo`, `oh-my-posh`, `notepadplusplus`, `everything`,
+  `posh-git`, `ditto` (mais `git` e `7zip`), escolhidas por terem, entre elas, shims `.exe` de consola e com janela e
+  `.ps1`, `bin` com nome e argumentos, atalhos, `persist` de pastas e ficheiros, `env_set`, `env_add_path`,
+  `pre_uninstall`, `uninstaller` e módulos do PowerShell. `-Apps` e `-First` mudam a lista.
+- O primeiro lado guarda os commits dos buckets em `pins.json` e o segundo usa-os: as mesmas versões dos dois lados.
+- A fotografia: os ficheiros, pastas e ligações da raiz (sem `cache`, `buckets` nem o próprio Scoop) com tamanho,
+  só de leitura, destino das ligações, número de nomes e o conteúdo dos shims, do `persist` e dos JSON das
+  aplicações; as variáveis do utilizador; `HKCU\Software\Classes`, `Run` e `Uninstall`; os atalhos de `Scoop Apps`.
+- **Descarrega da Internet, dentro das Sandboxes:** o instalador (`get.scoop.sh`), o Scoop, o git, os buckets `main`
+  e `extras` e as aplicações — umas centenas de MB, guardadas em `target\sandbox\share\cache` para a vez seguinte.
+  No PC só se escreve em `target\sandbox`.
+- Experimentado aqui: a fotografia (numa instalação fictícia) e a comparação (com uma diferença feita de propósito).
+  Primeira volta (2026-11-27): o passo 1 do lado oficial correu (11 aplicações, 11 272 entradas); parou no estrago
+  por erro do script, e mostrou que o instalador traz o `main` em zip (agora volta a ser posto com git) e que desligar
+  a Sandbox por dentro dá "connection to the sandbox was lost" no Windows 10 (agora é o PC que a fecha).
+- Segunda volta (2026-11-27), os quatro passos dos dois lados: **tudo igual** (11 272 ficheiros, pastas e ligações,
+  as variáveis, 3682 linhas do registo, os atalhos) **menos uma linha**: o `uninstall` do rscoop-cli deixava a
+  ligação `modules\posh-git`. Aponta para `current`, que o `uninstall` já tirou; o `exists()` seguia a ligação
+  partida e dizia que não estava lá (o `Test-Path` do oficial diz que está). Corrigido no `uninstall_psmodule`, com
+  teste.
+- Terceira volta (2026-11-27, só o lado `rscoop`, com as mesmas versões): **os quatro passos iguais** — 11 272,
+  11 272, 10 956 e 60 entradas na raiz, as variáveis, o registo e os atalhos; códigos de saída 0 dos dois lados.
+  O `reset` e o `uninstall` continuam atrás de `RSCOOP_NATIVE=1` até o utilizador decidir tirá-lo.

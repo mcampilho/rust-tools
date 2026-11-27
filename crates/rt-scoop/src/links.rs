@@ -153,10 +153,11 @@ pub fn module_name(manifest: &Manifest) -> Option<String> {
 }
 
 /// `uninstall_psmodule`: the module's link goes. Returns its path when it
-/// was there.
+/// was there. It points to `current`, which `uninstall` has already
+/// removed: a broken link counts as there (as for `Test-Path`).
 pub fn uninstall_psmodule(scoop: &Scoop, manifest: &Manifest, global: bool) -> Option<PathBuf> {
     let link = modules_dir(scoop, global).join(module_name(manifest)?);
-    if !link.exists() {
+    if !exists(&link) {
         return None;
     }
     let _ = remove_tree(&link);
@@ -272,5 +273,14 @@ mod tests {
         assert!(link.join("Mod.psm1").is_file());
         assert_eq!(uninstall_psmodule(&scoop, &m, false), Some(link.clone()));
         assert!(!exists(&link) && dir.join("Mod.psm1").is_file());
+
+        // As in `uninstall`: the module points to `current`, gone already.
+        let version = t.dir("root/apps/mod/1.0");
+        let current = link_current(&scoop, &version).unwrap();
+        install_psmodule(&scoop, &s, &m, &current, false).unwrap();
+        unlink_current(&scoop, &version).unwrap();
+        assert!(exists(&link) && !link.exists());
+        assert_eq!(uninstall_psmodule(&scoop, &m, false), Some(link.clone()));
+        assert!(!exists(&link));
     }
 }

@@ -7,7 +7,8 @@ Escrito a 2026-11-27 (Sonnet 5.5) para a sessão com o Opus 5.5. Ler primeiro es
 
 **2026-11-27, à noite:** a fase 3 está escrita e testada em instalações fictícias (`docs/rscoop.pt.md` §12). O
 `reset` e o `uninstall` nativos ficam atrás de `RSCOOP_NATIVE=1` até à comparação no Windows Sandbox, que é o passo
-seguinte. O resto deste ficheiro é o que foi escrito antes da fase.
+seguinte: está preparada em `apps/rscoop-cli/sandbox/` (como correr em `docs/rscoop.pt.md` §12), falta a primeira
+volta. O resto deste ficheiro é o que foi escrito antes da fase.
 
 - Fases 0 a 2 feitas, commit `7caafa8`, enviado para o GitHub. **Sem release** (versão 0.2.0 no `Cargo.toml`; o
   último publicado é o 0.1.3). No release, `bucket/rscoop-cli.json` passa a criar também o comando `sco`.

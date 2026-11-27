@@ -24,6 +24,8 @@ Plano, fases e o que cada uma deixou em `docs/rscoop.pt.md`. O Scoop oficial é 
 - Casos que reporiam ou substituiriam alguma coisa (repositório do Scoop, bucket `main`) vão para o Scoop.
 - Remover só com `rt_scoop::disk::remove_tree`, que nunca segue ligações. Nomes de bucket e de alias são validados
   antes de qualquer caminho se formar.
+- `sandbox/sandbox.ps1` faz a comparação diferencial no Windows Sandbox (o Scoop e o rscoop-cli nos mesmos passos,
+  cada um numa Sandbox nova; descarrega da Internet dentro delas). Ver `docs/rscoop.pt.md` §12.
 - `compare.ps1 -Exe … [-Root …]` compara com o Scoop oficial (só leituras). Correr depois de mexer em `cmd/` ou no
   `rt-scoop`.
 - Os testes que escrevem (`cmd/tests_write.rs`) usam instalações fictícias, repositórios git no disco, um servidor
