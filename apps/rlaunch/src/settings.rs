@@ -165,6 +165,8 @@ pub struct Settings {
     pub colour: u8,
     /// Taller rows with larger icons.
     pub large: bool,
+    /// Categories in the order the user dragged them to, not by name.
+    pub custom_order: bool,
     /// Where the menu opens.
     pub position: Position,
     /// Changes to programs and programs added.
@@ -189,6 +191,7 @@ impl Default for Settings {
             always_admin: false,
             colour: 0,
             large: false,
+            custom_order: false,
             position: Position::Right,
             items: Items::default(),
         }
@@ -255,6 +258,7 @@ impl Settings {
             always_admin: flag("always_admin", false),
             colour: s.get("colour").and_then(|v| v.parse().ok()).filter(|c| *c < CHOICES).unwrap_or(0),
             large: flag("large", false),
+            custom_order: flag("custom_order", false),
             position: s.get("position").and_then(|v| Position::ALL.into_iter().find(|p| p.key() == v)).unwrap_or_default(),
             items: Items::load(s, own),
         }
@@ -279,6 +283,7 @@ impl Settings {
         s.set("always_admin", bit(self.always_admin));
         s.set("colour", self.colour.to_string());
         s.set("large", bit(self.large));
+        s.set("custom_order", bit(self.custom_order));
         s.set("position", self.position.key());
         self.items.save(&mut s, own);
         s
@@ -310,6 +315,7 @@ mod tests {
             always_admin: true,
             colour: 3,
             large: true,
+            custom_order: true,
             position: Position::Pointer,
             ..Settings::default()
         };

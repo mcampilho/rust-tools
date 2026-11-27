@@ -17,7 +17,7 @@ use rlaunch::sources::{self, Entry};
 use rlaunch::storage;
 use rlaunch::ui::gfx::{Color, Gfx, Rect};
 use rlaunch::ui::theme::{self, Theme};
-use rlaunch::ui::view::{self, Drawn, Editing, Field, Hit, Model, Place, SIZE};
+use rlaunch::ui::view::{self, Drawn, DropMark, Editing, Field, Hit, Model, Place, SIZE};
 use rt_core::textedit::TextEdit;
 use rt_gfx::menu::{Act, Item, Menu, MenuStyle};
 use rt_ui::Message;
@@ -32,7 +32,7 @@ use winit::dpi::LogicalSize;
 use winit::event::{ElementState, Ime, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
 use winit::keyboard::{Key, ModifiersState, NamedKey};
-use winit::window::{Theme as WinTheme, Window, WindowId, WindowLevel};
+use winit::window::{CursorIcon, Theme as WinTheme, Window, WindowId, WindowLevel};
 
 /// How long the caret stays on, and off.
 const BLINK: Duration = Duration::from_millis(530);
@@ -52,6 +52,14 @@ enum Cmd {
     NewCategory,
     RenameGroup,
     RemoveGroup,
+    /// Makes the category a subgroup of this one.
+    MoveInto(Group),
+    /// Makes the subgroup a category.
+    Promote,
+    Up,
+    Down,
+    #[cfg(windows)]
+    Console,
     ChangeIcon,
     DefaultIcon,
     Hide,
@@ -91,6 +99,25 @@ const IDENT: rt_sys::win::Ident = rt_sys::win::Ident { name: "rlaunch", copydata
 #[cfg(windows)]
 const ELEVATED_RESTART: &str = "--elevated-restart";
 
+/// What the pointer can drag.
+enum Dragged {
+    Programs(Vec<PathBuf>),
+    Group(Group),
+}
+
+/// A button held down on a row, which becomes a drag when the pointer moves.
+struct Press {
+    what: Dragged,
+    at: (f32, f32),
+    dragging: bool,
+}
+
+/// Programs opened in a console are of these kinds.
+#[cfg(windows)]
+fn takes_console(path: &Path) -> bool {
+    path.extension().is_some_and(|e| ["exe", "bat", "cmd"].iter().any(|k| e.eq_ignore_ascii_case(k)))
+}
+
 struct Win {
     window: Rc<Window>,
     surface: softbuffer::Surface<Rc<Window>, Rc<Window>>,
@@ -110,6 +137,9 @@ struct Shell {
     menu_group: Option<Group>,
     /// A name being typed in a row.
     rename: Option<(Editing, TextEdit)>,
+    press: Option<Press>,
+    /// Where what is dragged would go.
+    drop: Option<(usize, DropMark)>,
     /// Stays open when the focus goes elsewhere.
     pinned: bool,
     /// Running with administrator rights.
@@ -364,6 +394,10 @@ impl Shell {
             }
             Field::Theme => self.settings.theme = pick(&[0, 1, 2], self.settings.theme, forward),
             Field::Rows => self.settings.large = !self.settings.large,
+            Field::Order => {
+                self.settings.custom_order = !self.settings.custom_order;
+                self.refresh(None);
+            }
             // Applies when the menu opens next: it does not jump while chosen.
             Field::Position => {
                 // Elsewhere than on Windows the pointer is not known.
@@ -539,6 +573,8 @@ impl Shell {
         self.cursor = None;
         self.menu.close();
         self.rename = None;
+        self.press = None;
+        self.drop = None;
         self.pinned = false;
         // Release the frame buffer while hidden.
         self.gfx.resize(1, 1);
@@ -620,6 +656,8 @@ impl Shell {
 
     /// The programs with the user's changes, keeping `keep` selected.
     fn refresh(&mut self, keep: Option<&Path>) {
+        self.app.custom_order = self.settings.custom_order;
+        self.app.order = self.settings.items.order().to_vec();
         self.app.set_entries(self.settings.items.apply(&self.raw));
         let rows = self.app.rows();
         let at = keep.and_then(|p| rows.iter().position(|r| matches!(r, Row::Entry(i) if self.app.entries[*i].path == p)));
@@ -643,7 +681,14 @@ impl Shell {
     /// Opens a program; `admin`: with administrator rights (Windows).
     fn launch(&mut self, el: &ActiveEventLoop, entry: &Entry, admin: bool) {
         #[cfg(windows)]
-        let opened = if admin { rt_sys::win::launch_as_admin(&entry.path) } else { open_entry(entry) };
+        let opened = if takes_console(&entry.path) && entry.console.unwrap_or_else(|| sources::console_program(&entry.path)) {
+            // So that what it writes can be read, and it can be run again.
+            rt_sys::win::launch_in_console(&entry.path, admin)
+        } else if admin {
+            rt_sys::win::launch_as_admin(&entry.path)
+        } else {
+            open_entry(entry)
+        };
         #[cfg(not(windows))]
         let opened = {
             let _ = admin;
@@ -661,18 +706,34 @@ impl Shell {
         let item = |label: String, cmd: Cmd| Item::new(&label.replace('&', "&&"), Some(cmd), true);
         let i = match self.app.rows().get(k) {
             Some(&Row::Entry(i)) => i,
-            // A category or subgroup of the user.
-            Some(&Row::Category(group, _)) if group.is_own() => {
-                let items = vec![item(tr("Rename"), Cmd::RenameGroup), item(tr("Remove category"), Cmd::RemoveGroup)];
-                self.menu_group = Some(group);
-                self.app.selected = k;
-                self.menu.open(None, items, at, keyboard);
+            Some(&Row::Category(group, _)) => {
+                let items = self.group_menu(group);
+                if !items.is_empty() {
+                    self.app.clear_marks();
+                    self.menu_group = Some(group);
+                    self.app.selected = k;
+                    self.menu.open(None, items, at, keyboard);
+                }
                 return;
             }
             _ => return,
         };
         let e = &self.app.entries[i];
         self.menu_group = None;
+        // On one of the marked programs: what can be done to all of them.
+        if self.app.marked.contains(&e.path) {
+            let mut to = Item::new(&tf("Move {} programs to", &[&self.app.marked.len().to_string()]), None, true);
+            to.sub = self.category_items(None);
+            let items = vec![to, item(tr("Add to favorites"), Cmd::Favourite), item(tr("Hide"), Cmd::Hide)];
+            self.menu_for = e.path.clone();
+            self.app.selected = k;
+            let at = (at.0.min(24.0 * self.scale()), at.1);
+            self.menu.open(None, items, at, keyboard);
+            return;
+        }
+        let group = e.group();
+        self.app.clear_marks();
+        let e = &self.app.entries[i];
         let mut items = vec![item(tr("Open"), Cmd::Open)];
         #[cfg(windows)]
         {
@@ -687,18 +748,14 @@ impl Shell {
         items.push(item(favourite, Cmd::Favourite));
         items.push(item(tr("Rename"), Cmd::Rename));
         let mut categories = Item::new(&tr("Category"), None, true);
-        categories.sub = self
-            .app
-            .groups()
-            .into_iter()
-            .map(|g| {
-                let mut it = item(g.full_title(), Cmd::Category(g));
-                it.checked = g == e.group();
-                it
-            })
-            .chain([Item::separator(), item(tr("New category…"), Cmd::NewCategory)])
-            .collect();
+        categories.sub = self.category_items(Some(group));
         items.push(categories);
+        #[cfg(windows)]
+        if takes_console(&e.path) {
+            let mut console = item(tr("Keep the console open"), Cmd::Console);
+            console.checked = e.console.unwrap_or_else(|| sources::console_program(&e.path));
+            items.push(console);
+        }
         items.push(item(tr("Change icon…"), Cmd::ChangeIcon));
         if e.icon.is_some() {
             items.push(item(tr("Default icon"), Cmd::DefaultIcon));
@@ -713,6 +770,206 @@ impl Shell {
         // Towards the left, so the categories fit beside it.
         let at = (at.0.min(24.0 * self.scale()), at.1);
         self.menu.open(None, items, at, keyboard);
+    }
+
+    /// The groups a program can be moved to, `checked` the one it is in.
+    fn category_items(&self, checked: Option<Group>) -> Vec<Item<Cmd>> {
+        let item = |label: String, cmd: Cmd| Item::new(&label.replace('&', "&&"), Some(cmd), true);
+        self.app
+            .groups()
+            .into_iter()
+            .map(|g| {
+                let mut it = item(g.full_title(), Cmd::Category(g));
+                it.checked = Some(g) == checked;
+                it
+            })
+            .chain([Item::separator(), item(tr("New category…"), Cmd::NewCategory)])
+            .collect()
+    }
+
+    /// The menu of a category or subgroup; empty when nothing can be done.
+    fn group_menu(&self, group: Group) -> Vec<Item<Cmd>> {
+        let item = |label: String, cmd: Cmd| Item::new(&label.replace('&', "&&"), Some(cmd), true);
+        let mut items = Vec::new();
+        if group.is_own() {
+            items.push(item(tr("Rename"), Cmd::RenameGroup));
+            if group.sub.is_some() {
+                items.push(item(tr("Make it a category"), Cmd::Promote));
+            } else {
+                let mut into = Item::new(&tr("Move into"), None, true);
+                into.sub = self
+                    .app
+                    .groups()
+                    .into_iter()
+                    .filter(|g| g.sub.is_none() && g.category != group.category)
+                    .map(|g| item(g.title(), Cmd::MoveInto(g)))
+                    .collect();
+                items.push(into);
+            }
+        }
+        if self.settings.custom_order {
+            items.extend([item(tr("Move up"), Cmd::Up), item(tr("Move down"), Cmd::Down)]);
+        }
+        if group.is_own() {
+            items.extend([Item::separator(), item(tr("Remove category"), Cmd::RemoveGroup)]);
+        }
+        items
+    }
+
+    /// Selects the row of `group`, if shown.
+    fn select_group(&mut self, group: Group) {
+        let rows = self.app.rows();
+        if let Some(k) = rows.iter().position(|r| matches!(r, Row::Category(g, _) if *g == group)) {
+            self.app.selected = k;
+            self.app.reveal_selection(self.drawn.visible);
+        }
+    }
+
+    /// Renames a category or subgroup, or moves it to another level.
+    fn move_group(&mut self, from: Group, to: Group) {
+        self.settings.items.rename_group(from, to);
+        self.save();
+        self.refresh(None);
+        self.select_group(to);
+    }
+
+    /// `group` as a subgroup of the category `inside`.
+    fn move_into(&mut self, group: Group, inside: Group) {
+        let to = Group { category: inside.category, sub: Some(rlaunch::category::intern(&group.title())) };
+        self.move_group(group, to);
+        self.select_group(to.top());
+    }
+
+    fn promote(&mut self, group: Group) {
+        self.move_group(group, Group::from(rlaunch::category::Category::named(&group.title())));
+    }
+
+    fn reorder(&mut self, group: Group, siblings: Option<Vec<Group>>) {
+        if let Some(siblings) = siblings {
+            self.settings.items.set_order(&siblings);
+            self.save();
+            self.refresh(None);
+            self.select_group(group);
+        }
+    }
+
+    /// Where dropping at `(x, y)` would put what is dragged.
+    fn drop_at(&self, what: &Dragged, x: f32, y: f32) -> Option<(usize, DropMark)> {
+        let (r, k) = self.drawn.hits.iter().rev().find_map(|(r, h)| match h {
+            Hit::Row(k) if r.contains(x, y) => Some((*r, *k)),
+            _ => None,
+        })?;
+        let mark = match (what, *self.app.rows().get(k)?) {
+            (Dragged::Programs(_), Row::Category(..)) => DropMark::Into,
+            // Up from a subgroup to its category.
+            (Dragged::Programs(_), Row::Back) if matches!(self.app.view, View::Inside(g) if g.sub.is_some()) => DropMark::Into,
+            (Dragged::Group(g), Row::Back) if g.sub.is_some() => DropMark::Into,
+            (&Dragged::Group(g), Row::Category(t, _)) if t != g => {
+                let into = g.is_own() && g.sub.is_none() && t.sub.is_none();
+                let beside = self.settings.custom_order && g.sub.is_some() == t.sub.is_some();
+                let at = (y - r.y) / r.h.max(1.0);
+                // The edges of a row put it beside, the middle inside.
+                let edge = if into { 0.3 } else { 0.5 };
+                match (beside, into) {
+                    (true, _) if at < edge => DropMark::Before,
+                    (true, _) if at >= 1.0 - edge => DropMark::After,
+                    (_, true) => DropMark::Into,
+                    _ => return None,
+                }
+            }
+            _ => return None,
+        };
+        Some((k, mark))
+    }
+
+    fn drop_on(&mut self, what: Dragged, k: usize, mark: DropMark) {
+        let Some(row) = self.app.rows().get(k).copied() else { return };
+        match (what, row) {
+            (Dragged::Programs(paths), Row::Category(to, _)) => self.move_many(&paths, to),
+            (Dragged::Programs(paths), Row::Back) => {
+                if let View::Inside(g) = self.app.view {
+                    self.move_many(&paths, g.top());
+                }
+            }
+            (Dragged::Group(g), Row::Back) => self.promote(g),
+            (Dragged::Group(g), Row::Category(t, _)) => match mark {
+                DropMark::Into => self.move_into(g, t),
+                beside => {
+                    let siblings = self.app.reordered(g, t, beside == DropMark::After);
+                    self.reorder(g, siblings);
+                }
+            },
+            _ => {}
+        }
+    }
+
+    /// A button went down on a row: it may become a drag.
+    fn press_row(&mut self, x: f32, y: f32) {
+        let Some(Hit::Row(k)) = self.drawn.hit(x, y) else { return };
+        let what = match self.app.rows().get(k) {
+            Some(&Row::Entry(i)) => {
+                let path = self.app.entries[i].path.clone();
+                if self.app.marked.contains(&path) {
+                    Dragged::Programs(self.app.marked.iter().cloned().collect())
+                } else {
+                    Dragged::Programs(vec![path])
+                }
+            }
+            Some(&Row::Category(g, _)) => Dragged::Group(g),
+            _ => return,
+        };
+        self.press = Some(Press { what, at: (x, y), dragging: false });
+    }
+
+    /// The pointer moved with a button held; true while something is dragged.
+    fn drag(&mut self, x: f32, y: f32) -> bool {
+        let far = 6.0 * self.scale();
+        let Some(press) = &mut self.press else { return false };
+        press.dragging |= (x - press.at.0).abs() > far || (y - press.at.1).abs() > far;
+        if !press.dragging {
+            return false;
+        }
+        let Some(press) = self.press.take() else { return false };
+        self.drop = self.drop_at(&press.what, x, y);
+        self.press = Some(press);
+        self.hot = None;
+        if let Some(w) = &self.win {
+            w.window.set_cursor(if self.drop.is_some() { CursorIcon::Grabbing } else { CursorIcon::NotAllowed });
+        }
+        self.redraw();
+        true
+    }
+
+    /// The button went up; true when it ended a drag.
+    fn end_drag(&mut self) -> bool {
+        let press = self.press.take();
+        let drop = self.drop.take();
+        let Some(press) = press.filter(|p| p.dragging) else { return false };
+        if let Some(w) = &self.win {
+            w.window.set_cursor(CursorIcon::Default);
+        }
+        if let Some((k, mark)) = drop {
+            self.drop_on(press.what, k, mark);
+        }
+        self.redraw();
+        true
+    }
+
+    /// A click on a row with Ctrl or Shift marks programs; with programs
+    /// marked, a plain click only unmarks them. True when it did.
+    fn mark_click(&mut self, k: usize) -> bool {
+        if !matches!(self.app.rows().get(k), Some(Row::Entry(_))) {
+            return false;
+        }
+        // Ctrl+Shift runs as administrator.
+        match (self.mods.control_key() || self.mods.super_key(), self.mods.shift_key()) {
+            (true, false) => self.app.toggle_mark(k),
+            (false, true) => self.app.mark_to(k),
+            (false, false) if !self.app.marked.is_empty() => self.app.clear_marks(),
+            _ => return false,
+        }
+        self.redraw();
+        true
     }
 
     /// [`Self::open_menu`] from the keyboard, under the selected row.
@@ -731,7 +988,7 @@ impl Shell {
         self.redraw();
     }
 
-    /// The menu of a category or subgroup.
+    /// What the menu of a category or subgroup does.
     fn run_on_group(&mut self, group: Group, cmd: Cmd) {
         match cmd {
             Cmd::RenameGroup => {
@@ -744,8 +1001,25 @@ impl Shell {
                 self.save();
                 self.refresh(None);
             }
+            Cmd::MoveInto(to) => self.move_into(group, to),
+            Cmd::Promote => self.promote(group),
+            Cmd::Up | Cmd::Down => {
+                let siblings = self.app.shifted(group, cmd == Cmd::Down);
+                self.reorder(group, siblings);
+            }
             _ => {}
         }
+    }
+
+    /// Puts programs in a group the user chose.
+    fn move_many(&mut self, paths: &[PathBuf], group: Group) {
+        self.settings.items.keep_group(group);
+        for path in paths {
+            self.settings.items.change(path, |c| c.category = Some(group));
+        }
+        self.save();
+        self.app.clear_marks();
+        self.refresh(None);
     }
 
     /// Puts a program in a group the user chose.
@@ -761,6 +1035,24 @@ impl Shell {
         }
         let path = self.menu_for.clone();
         let Some(entry) = self.entry(&path).cloned() else { return };
+        // The menu of the marked programs.
+        if self.app.marked.contains(&path) {
+            let paths: Vec<PathBuf> = self.app.marked.iter().cloned().collect();
+            match cmd {
+                Cmd::Category(to) => self.move_many(&paths, to),
+                Cmd::NewCategory => self.rename = Some((Editing::NewCategory(path), TextEdit::new(""))),
+                Cmd::Favourite | Cmd::Hide => {
+                    for p in &paths {
+                        self.settings.items.change(p, |c| if cmd == Cmd::Hide { c.hidden = true } else { c.favourite = true });
+                    }
+                    self.save();
+                    self.app.clear_marks();
+                    self.refresh(None);
+                }
+                _ => {}
+            }
+            return;
+        }
         match cmd {
             Cmd::Open => self.launch(el, &entry, entry.admin),
             #[cfg(windows)]
@@ -781,7 +1073,13 @@ impl Shell {
             }
             Cmd::Category(to) => self.move_to(&path, to),
             Cmd::NewCategory => self.rename = Some((Editing::NewCategory(path), TextEdit::new(""))),
-            Cmd::RenameGroup | Cmd::RemoveGroup => {}
+            Cmd::RenameGroup | Cmd::RemoveGroup | Cmd::MoveInto(_) | Cmd::Promote | Cmd::Up | Cmd::Down => {}
+            #[cfg(windows)]
+            Cmd::Console => {
+                let kind = sources::console_program(&path);
+                let on = !entry.console.unwrap_or(kind);
+                self.change(&path, |c| c.console = (on != kind).then_some(on));
+            }
             Cmd::ChangeIcon => {
                 let filter = if cfg!(windows) {
                     [(tr("Icons"), "*.ico;*.png;*.exe;*.dll;*.lnk"), (tr("All files"), "*.*")]
@@ -822,7 +1120,13 @@ impl Shell {
             }
             Editing::NewCategory(path) => {
                 if let Some(group) = Group::typed(&name) {
-                    self.move_to(&path, group);
+                    // Typed for all the marked programs, when it is one.
+                    if self.app.marked.contains(&path) {
+                        let paths: Vec<PathBuf> = self.app.marked.iter().cloned().collect();
+                        self.move_many(&paths, group);
+                    } else {
+                        self.move_to(&path, group);
+                    }
                 }
             }
             Editing::Group(from) => {
@@ -833,12 +1137,7 @@ impl Shell {
                     Some(_) => Group { category: from.category, sub: Some(rlaunch::category::intern(name.trim())) },
                     None => typed,
                 };
-                self.settings.items.rename_group(from, to);
-                self.save();
-                self.refresh(None);
-                let rows = self.app.rows();
-                self.app.selected = rows.iter().position(|r| matches!(r, Row::Category(g, _) if *g == to)).unwrap_or(0);
-                self.app.reveal_selection(self.drawn.visible);
+                self.move_group(from, to);
             }
         }
     }
@@ -1040,8 +1339,18 @@ impl Shell {
         let page = self.drawn.visible.max(1) as isize;
         let command = self.mods.control_key() || self.mods.super_key();
         match &event.logical_key {
-            Key::Named(NamedKey::ArrowUp) => self.app.step(-1),
-            Key::Named(NamedKey::ArrowDown) => self.app.step(1),
+            // With Shift, marking the programs passed over.
+            Key::Named(arrow @ (NamedKey::ArrowUp | NamedKey::ArrowDown)) => {
+                let shift = self.mods.shift_key();
+                if shift {
+                    self.app.mark_to(self.app.selected);
+                }
+                self.app.step(if *arrow == NamedKey::ArrowUp { -1 } else { 1 });
+                if shift {
+                    self.app.mark_to(self.app.selected);
+                }
+            }
+            Key::Character(c) if command && c.eq_ignore_ascii_case("a") => self.app.mark_all(),
             Key::Named(NamedKey::PageUp) => self.app.step(-page),
             Key::Named(NamedKey::PageDown) => self.app.step(page),
             Key::Named(NamedKey::Home) => self.app.step(isize::MIN / 2),
@@ -1063,7 +1372,9 @@ impl Shell {
                 }
             }
             Key::Named(NamedKey::Escape) => {
-                if !self.app.query.is_empty() {
+                if !self.app.marked.is_empty() {
+                    self.app.clear_marks();
+                } else if !self.app.query.is_empty() {
                     self.app.set_query(String::new());
                 } else if self.app.view != View::Categories {
                     self.app.back();
@@ -1129,11 +1440,18 @@ impl Shell {
         let elevated_note = self.elevated.then(|| tr("Running as administrator: what it opens does too."));
         let new_category_note =
             matches!(self.rename, Some((Editing::NewCategory(_), _))).then(|| tr("New category: type a name, or Name/Subgroup."));
+        let marked_note = (!self.app.marked.is_empty())
+            .then(|| tf("{} programs selected: drag them or right-click one.", &[&self.app.marked.len().to_string()]));
         let model = Model {
             app: &self.app,
             settings: &self.settings,
             icons: &self.icons,
-            note: new_category_note.as_deref().or(self.note.as_deref()).or(elevated_note.as_deref()).or(self.hotkey_note.as_deref()),
+            note: new_category_note
+                .as_deref()
+                .or(marked_note.as_deref())
+                .or(self.note.as_deref())
+                .or(elevated_note.as_deref())
+                .or(self.hotkey_note.as_deref()),
             autostart: self.autostart,
             hot: self.hot,
             disk: self.disk.clone(),
@@ -1141,6 +1459,7 @@ impl Shell {
             pinned: self.pinned,
             elevated: self.elevated,
             accent: self.accent,
+            drop: self.drop,
             rename: self.rename.as_ref().map(|(what, edit)| (what, edit)),
         };
         self.drawn = view::draw(&mut self.gfx, &model, &theme, s);
@@ -1207,6 +1526,7 @@ impl Shell {
                         Field::Language => tr("Language"),
                         Field::Rows => tr("Rows"),
                         Field::Position => tr("Position"),
+                        Field::Order => tr("Order"),
                     };
                     format!("{option} {}", if forward { "›" } else { "‹" })
                 }
@@ -1409,6 +1729,9 @@ impl ApplicationHandler<UserEvent> for Shell {
                     self.hot = None;
                     return;
                 }
+                if self.drag(x, y) {
+                    return;
+                }
                 let hot = if self.dialog.is_none() { self.drawn.hit(x, y) } else { None };
                 if let Some(Hit::Row(k)) = hot.filter(|_| moved && self.rename.is_none()) {
                     self.app.selected = k;
@@ -1423,7 +1746,17 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.hot = None;
                 self.redraw();
             }
+            WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, .. }
+                if self.dialog.is_none() && !self.menu.is_open() && self.rename.is_none() =>
+            {
+                if let Some((x, y)) = self.cursor {
+                    self.press_row(x, y);
+                }
+            }
             WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Left, .. } => {
+                if self.end_drag() {
+                    return;
+                }
                 let Some((x, y)) = self.cursor else { return };
                 if let Some(message) = &self.dialog {
                     if message.closes_at(x, y) {
@@ -1457,7 +1790,9 @@ impl ApplicationHandler<UserEvent> for Shell {
                             self.redraw();
                         }
                     } else if let Some(hit) = hit {
-                        self.act(el, hit);
+                        if !matches!(hit, Hit::Row(k) if self.mark_click(k)) {
+                            self.act(el, hit);
+                        }
                     }
                 }
             }
@@ -1600,6 +1935,8 @@ fn main() {
         menu: Menu::default(),
         menu_for: PathBuf::new(),
         menu_group: None,
+        press: None,
+        drop: None,
         rename: None,
         pinned: false,
         #[cfg(windows)]

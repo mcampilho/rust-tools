@@ -20,6 +20,8 @@ pub struct Custom {
     pub hidden: bool,
     /// Always opened with administrator rights (Windows).
     pub admin: bool,
+    /// Opened in a console that stays, or not; None: console programs are.
+    pub console: Option<bool>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -31,6 +33,8 @@ pub struct Items {
     /// Categories and subgroups of the user renamed or removed: where the
     /// programs that would be in the first one go. Folders keep their names.
     aliases: BTreeMap<Group, Group>,
+    /// The order the user gave categories and subgroups.
+    order: Vec<Group>,
 }
 
 impl Items {
@@ -64,6 +68,16 @@ impl Items {
         self.custom.remove(path);
     }
 
+    pub fn order(&self) -> &[Group] {
+        &self.order
+    }
+
+    /// Keeps `siblings` (categories, or the subgroups of one) in this order.
+    pub fn set_order(&mut self, siblings: &[Group]) {
+        self.order.retain(|g| !siblings.contains(g));
+        self.order.extend_from_slice(siblings);
+    }
+
     /// Where a program that would be in `group` goes.
     fn aliased(&self, mut group: Group) -> Group {
         // A renamed category and then a renamed subgroup of it take two steps.
@@ -84,7 +98,8 @@ impl Items {
         match self.aliases.get(&group.top()).filter(|_| group.sub.is_some()) {
             // The subgroups of a removed category go with it.
             Some(to) if to.category == Category::Other => *to,
-            Some(to) => Group { category: to.category, sub: group.sub },
+            // Moved inside another category, its subgroups become one.
+            Some(to) => Group { category: to.category, sub: to.sub.or(group.sub) },
             None => group,
         }
     }
@@ -101,7 +116,9 @@ impl Items {
         if from == to || !from.is_own() {
             return;
         }
-        let moved = |g: Group| from.holds(g).then(|| Group { category: to.category, sub: to.sub.or(g.sub) });
+        // A subgroup is one group; a category takes its subgroups along.
+        let moved =
+            |g: Group| from.holds(g).then(|| if from.sub.is_some() { to } else { Group { category: to.category, sub: to.sub.or(g.sub) } });
         for c in self.custom.values_mut() {
             c.category = c.category.map(|g| moved(g).unwrap_or(g));
         }
@@ -111,13 +128,19 @@ impl Items {
         self.keep_group(to);
         // The subgroups renamed or removed before are so under the new name too.
         let subs: Vec<(Group, Group)> =
-            self.aliases.iter().filter(|(k, _)| k.sub.is_some() && from.holds(**k)).map(|(k, v)| (*k, *v)).collect();
+            self.aliases.iter().filter(|(k, _)| from.sub.is_none() && k.sub.is_some() && from.holds(**k)).map(|(k, v)| (*k, *v)).collect();
         for (key, target) in subs {
             if let Some(key) = moved(key) {
                 self.aliases.entry(key).or_insert(target);
             }
         }
         self.aliases.insert(from, to);
+        // It keeps its place when only the name changes.
+        for g in &mut self.order {
+            *g = moved(*g).unwrap_or(*g);
+        }
+        let mut seen = std::collections::BTreeSet::new();
+        self.order.retain(|g| seen.insert(*g));
     }
 
     /// Takes a category or subgroup of the user out: the programs of a
@@ -142,6 +165,7 @@ impl Items {
             }
         }
         self.aliases.insert(group, to);
+        self.order.retain(|g| !group.holds(*g));
     }
 
     /// The programs of the menu: those the folders gave (`found`) and those
@@ -167,6 +191,7 @@ impl Items {
             e.favourite = c.favourite;
             e.hidden = c.hidden;
             e.admin = c.admin;
+            e.console = c.console;
         }
         all.sort_by_cached_key(|e| e.name.to_lowercase());
         all
@@ -196,6 +221,10 @@ impl Items {
                 items.aliases.insert(from, to);
             }
         }
+        items.order = s.get_all("order").filter_map(Group::parse).collect();
+        for (p, on) in pairs("console") {
+            items.change(&p, |c| c.console = Some(on == "1"));
+        }
         for (p, icon) in pairs("icon") {
             items.change(&p, |c| c.icon = Some(unpack(&icon, own)));
         }
@@ -223,9 +252,15 @@ impl Items {
             if let Some(category) = c.category {
                 s.push("category", format!("{p}\t{}", category.key()));
             }
+            if let Some(console) = c.console {
+                s.push("console", format!("{p}\t{}", u8::from(console)));
+            }
             if let Some(icon) = &c.icon {
                 s.push("icon", format!("{p}\t{}", pack(icon, own)));
             }
+        }
+        for g in &self.order {
+            s.push("order", g.key());
         }
         for (from, to) in &self.aliases {
             s.push("group", format!("{}\t{}", from.key(), to.key()));
@@ -310,6 +345,30 @@ mod tests {
     }
 
     #[test]
+    fn a_category_goes_inside_another_and_comes_out() {
+        let group = |t: &str| Group::parse(t).unwrap();
+        let place = |name: &str, g: &str| {
+            let mut e = found(name);
+            e.set_group(group(g));
+            e
+        };
+        let scanned = [place("Alpha", "SysInternals"), place("Beta", "SysInternals/Net")];
+        let mut items = Items::default();
+        items.set_order(&[group("SysInternals"), group("System")]);
+        let places = |items: &Items| -> Vec<String> { items.apply(&scanned).iter().map(|e| e.group().key()).collect() };
+        // Two levels only: its subgroup joins it.
+        items.rename_group(group("SysInternals"), group("System/SysInternals"));
+        assert_eq!(places(&items), ["System/SysInternals", "System/SysInternals"]);
+        // Out again: everything as the folders say.
+        items.rename_group(group("System/SysInternals"), group("SysInternals"));
+        assert_eq!(places(&items), ["SysInternals", "SysInternals/Net"]);
+        assert_eq!(items.order(), [group("SysInternals"), group("System")]);
+        let mut store = Store::default();
+        items.save(&mut store, None);
+        assert_eq!(Items::load(&Store::parse(&store.serialize("x")), None), items);
+    }
+
+    #[test]
     fn they_are_kept_and_read_back() {
         let mut items = Items::default();
         items.add(Path::new("/tools/x.exe"));
@@ -320,6 +379,7 @@ mod tests {
             c.favourite = true;
             c.hidden = true;
             c.admin = true;
+            c.console = Some(false);
         });
         let mut store = Store::default();
         items.save(&mut store, None);

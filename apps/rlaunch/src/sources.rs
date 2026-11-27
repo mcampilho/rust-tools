@@ -5,8 +5,51 @@
 use crate::category::{self, Category, Group};
 use crate::portableapps;
 use crate::settings::{FolderMode, Settings};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
+
+/// A subgroup from a subfolder of the Start menu.
+pub const BY_MENU: u8 = 1;
+/// The category of a folder of the user.
+pub const BY_FOLDER: u8 = 2;
+/// How many programs make a subfolder of the Start menu a subgroup.
+const SUITE: usize = 4;
+
+/// Whether a program opens in a console: its header says it has no window of
+/// its own.
+pub fn console_program(path: &Path) -> bool {
+    use std::io::{Read, Seek, SeekFrom};
+    if !path.extension().is_some_and(|e| e.eq_ignore_ascii_case("exe")) {
+        return false;
+    }
+    let read = || -> std::io::Result<bool> {
+        let mut file = std::fs::File::open(path)?;
+        let mut head = [0u8; 64];
+        file.read_exact(&mut head)?;
+        if &head[..2] != b"MZ" {
+            return Ok(false);
+        }
+        let at = u32::from_le_bytes([head[60], head[61], head[62], head[63]]);
+        // "PE\0\0", the 20 bytes of the file header, and the subsystem 68
+        // bytes into the optional one.
+        let mut pe = [0u8; 94];
+        file.seek(SeekFrom::Start(at.into()))?;
+        file.read_exact(&mut pe)?;
+        // 3: IMAGE_SUBSYSTEM_WINDOWS_CUI.
+        Ok(&pe[..4] == b"PE\0\0" && u16::from_le_bytes([pe[92], pe[93]]) == 3)
+    };
+    read().unwrap_or(false)
+}
+
+/// Whether, among the `.exe` files of a folder (in lower case), another build
+/// of `name` suits this computer better: suites of tools ship `x.exe` (32
+/// bits), `x64.exe` and `x64a.exe` (ARM), as Sysinternals does.
+fn shadowed(name: &str, files: &HashSet<String>, arm: bool) -> bool {
+    let Some(stem) = name.to_lowercase().strip_suffix(".exe").map(str::to_string) else { return false };
+    let order: [&str; 3] = if arm { ["64a", "64", ""] } else { ["64", "", "64a"] };
+    let (base, own) = ["64a", "64"].iter().find_map(|s| stem.strip_suffix(s).map(|b| (b, *s))).unwrap_or((&stem, ""));
+    !base.is_empty() && order.iter().take_while(|s| **s != own).any(|s| files.contains(&format!("{base}{s}.exe")))
+}
 
 /// A program of the menu.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -17,8 +60,11 @@ pub struct Entry {
     pub category: Category,
     /// The subgroup of the category, if any.
     pub sub: Option<&'static str>,
-    /// The category comes from the folder the program is in.
-    pub placed: bool,
+    /// How sure the category is: 0 guessed from the name, [`BY_MENU`] or
+    /// [`BY_FOLDER`].
+    pub placed: u8,
+    /// Whether it opens in a console that stays; None: as its kind says.
+    pub console: Option<bool>,
     /// Linux: the command of a `.desktop` file.
     pub exec: Vec<String>,
     /// What the user chose (see [`crate::items`]).
@@ -37,7 +83,8 @@ impl Entry {
             path,
             category,
             sub: None,
-            placed: false,
+            placed: 0,
+            console: None,
             exec: Vec::new(),
             icon: None,
             favourite: false,
@@ -89,11 +136,17 @@ pub struct Root {
     pub skip: Vec<PathBuf>,
     /// Whether its folders say the categories.
     pub mode: FolderMode,
+    /// A part of the Start menu: its larger subfolders are subgroups.
+    pub menu: bool,
 }
 
 impl Root {
     fn plain(dir: PathBuf, skip: Vec<PathBuf>) -> Root {
-        Root { dir, skip, mode: FolderMode::Names }
+        Root { dir, skip, mode: FolderMode::Names, menu: false }
+    }
+
+    fn start_menu(dir: PathBuf, skip: Vec<PathBuf>) -> Root {
+        Root { menu: true, ..Root::plain(dir, skip) }
     }
 }
 
@@ -220,13 +273,8 @@ fn walk(dir: &Path, skip: &[PathBuf], depth: usize, found: &mut Vec<Entry>) {
     let Ok(read) = std::fs::read_dir(dir) else { return };
     let mut items: Vec<_> = read.flatten().collect();
     items.sort_by_key(|e| e.file_name());
-    // Suites of tools ship `x.exe` beside `x64.exe` and `x64a.exe` (as
-    // Sysinternals does): only the first is listed.
+    // Of the builds of a tool, only the one that suits this computer.
     let files: HashSet<String> = items.iter().map(|e| e.file_name().to_string_lossy().to_lowercase()).collect();
-    let variant = |name: &str| {
-        let n = name.to_lowercase();
-        ["64.exe", "64a.exe"].iter().any(|end| n.strip_suffix(end).is_some_and(|base| files.contains(&format!("{base}.exe"))))
-    };
     // Among the apps of a suite: its platform and shared files are not apps,
     // and a folder in another format gives only what is at its top.
     let suite = dir.join(portableapps::PLATFORM).is_dir();
@@ -244,7 +292,7 @@ fn walk(dir: &Path, skip: &[PathBuf], depth: usize, found: &mut Vec<Entry>) {
             if depth < DEPTH && !hidden && !shared && !skip.contains(&path) {
                 walk(&path, skip, if suite { DEPTH } else { depth + 1 }, found);
             }
-        } else if variant(&item.file_name().to_string_lossy()) {
+        } else if shadowed(&item.file_name().to_string_lossy(), &files, cfg!(target_arch = "aarch64")) {
             continue;
         } else if let Some(e) = entry_of(&path).or_else(|| unix_program(&path)) {
             found.push(e);
@@ -274,11 +322,11 @@ pub fn roots_in(st: &Settings, menus: &[PathBuf]) -> Vec<Root> {
     let mut out = Vec::new();
     let scoop: Vec<PathBuf> = menus.iter().map(|m| m.join("Scoop Apps")).collect();
     if st.scoop {
-        out.extend(scoop.iter().map(|d| Root::plain(d.clone(), Vec::new())));
+        out.extend(scoop.iter().map(|d| Root::start_menu(d.clone(), Vec::new())));
     }
-    out.extend(st.folders.iter().map(|d| Root { dir: d.clone(), skip: Vec::new(), mode: st.mode_of(d) }));
+    out.extend(st.folders.iter().map(|d| Root { mode: st.mode_of(d), ..Root::plain(d.clone(), Vec::new()) }));
     if st.start_menu {
-        out.extend(menus.iter().map(|d| Root::plain(d.clone(), scoop.clone())));
+        out.extend(menus.iter().map(|d| Root::start_menu(d.clone(), scoop.clone())));
     }
     out
 }
@@ -323,7 +371,44 @@ fn place(root: &Root, found: &mut [Entry]) {
         let mut folders = folders.into_iter();
         let Some(top) = folders.next() else { continue };
         e.set_group(Group { category: Category::named(&top), sub: folders.next().map(|s| category::intern(&s)) });
-        e.placed = true;
+        e.placed = BY_FOLDER;
+    }
+}
+
+/// Makes a subgroup of each subfolder of the Start menu with [`SUITE`] or more
+/// programs, in the category most of them are guessed to be.
+fn group_suites(menus: &[(&Root, std::ops::Range<usize>)], found: &mut [Entry]) {
+    // The user's part of the menu and everyone's count together.
+    let mut folders = BTreeMap::<Vec<String>, Vec<usize>>::new();
+    for (root, range) in menus {
+        for i in range.clone() {
+            let below: Vec<String> = folders_below(&root.dir, &found[i].path).iter().map(|f| f.to_lowercase()).collect();
+            if !below.is_empty() {
+                folders.entry(below).or_default().push(i);
+            }
+        }
+    }
+    for programs in folders.into_values() {
+        let names: HashSet<String> = programs.iter().map(|&i| found[i].name.to_lowercase()).collect();
+        if names.len() < SUITE {
+            continue;
+        }
+        let mut votes = BTreeMap::<Category, usize>::new();
+        for &i in &programs {
+            if found[i].category != Category::Other {
+                *votes.entry(found[i].category).or_default() += 1;
+            }
+        }
+        let category = votes.into_iter().rev().max_by_key(|(_, n)| *n).map_or(Category::Other, |(c, _)| c);
+        // As the folder is written.
+        let Some(name) = found[programs[0]].path.parent().and_then(Path::file_name).map(|n| n.to_string_lossy().into_owned()) else {
+            continue;
+        };
+        let group = Group { category, sub: Some(category::intern(&name)) };
+        for i in programs {
+            found[i].set_group(group);
+            found[i].placed = BY_MENU;
+        }
     }
 }
 
@@ -331,11 +416,16 @@ fn place(root: &Root, found: &mut [Entry]) {
 /// each name, sorted by name.
 pub fn collect(roots: &[Root], desktop_dirs: &[PathBuf]) -> Vec<Entry> {
     let mut found = Vec::new();
+    let mut menus = Vec::new();
     for r in roots {
         let from = found.len();
         walk(&r.dir, &r.skip, 0, &mut found);
         place(r, &mut found[from..]);
+        if r.menu {
+            menus.push((r, from..found.len()));
+        }
     }
+    group_suites(&menus, &mut found);
     for dir in desktop_dirs {
         desktop::read_dir(dir, &mut found);
     }
@@ -351,9 +441,9 @@ pub fn collect(roots: &[Root], desktop_dirs: &[PathBuf]) -> Vec<Entry> {
             }
             Some(&i) => {
                 let first: &mut Entry = &mut kept[i];
-                if e.placed && !first.placed {
+                if e.placed > first.placed {
                     first.set_group(e.group());
-                    first.placed = true;
+                    first.placed = e.placed;
                 }
             }
         }
@@ -563,7 +653,8 @@ mod tests {
                 pair("Loose", "Other"),
                 pair("Pad", "Editors/deeper"),
                 pair("Player", "Multimedia"),
-                pair("procexp", "SysInternals"),
+                // The 64 bit build, on this computer.
+                pair(if cfg!(target_arch = "aarch64") { "procexp64a" } else { "procexp64" }, "SysInternals"),
                 // Scoop's shortcut, in the category of the user's folder.
                 pair("Writer", "Office/LibreOffice"),
             ]
@@ -574,6 +665,61 @@ mod tests {
         st.modes.insert(links, FolderMode::Names);
         st.modes.insert(tools, FolderMode::Names);
         assert!(places(&st).iter().all(|(_, g)| !g.contains('/') && g != "SysInternals"));
+    }
+
+    #[test]
+    fn the_build_for_this_computer_is_listed() {
+        let files: HashSet<String> =
+            ["a.exe", "a64.exe", "a64a.exe", "b.exe", "b64a.exe", "c64.exe", "c64a.exe", "d64.exe"].map(String::from).into();
+        let shown = |arm: bool| {
+            let mut names: Vec<&str> = files.iter().map(String::as_str).filter(|f| !shadowed(f, &files, arm)).collect();
+            names.sort_unstable();
+            names
+        };
+        assert_eq!(shown(false), ["a64.exe", "b.exe", "c64.exe", "d64.exe"]);
+        assert_eq!(shown(true), ["a64a.exe", "b64a.exe", "c64a.exe", "d64.exe"]);
+    }
+
+    #[test]
+    fn console_programs_are_told_by_their_header() {
+        let d = scratch("console");
+        let exe = |subsystem: u16| {
+            let mut b = vec![0u8; 64 + 94];
+            b[..2].copy_from_slice(b"MZ");
+            b[60] = 64;
+            b[64..68].copy_from_slice(b"PE\0\0");
+            b[64 + 92..].copy_from_slice(&subsystem.to_le_bytes());
+            b
+        };
+        put(&d, "cli.exe", &exe(3));
+        put(&d, "gui.exe", &exe(2));
+        put(&d, "short.exe", b"MZ");
+        assert!(console_program(&d.join("cli.exe")));
+        for other in ["gui.exe", "short.exe", "none.exe", "cli.txt"] {
+            assert!(!console_program(&d.join(other)), "{other}");
+        }
+    }
+
+    #[test]
+    fn larger_folders_of_the_start_menu_are_subgroups() {
+        let d = scratch("suites");
+        for f in ["Steam", "Steam Support", "Zeta", "Quux"] {
+            put(&d, &format!("menu/Kit/{f}.exe"), b"x");
+        }
+        put(&d, "user/Kit/Extra.exe", b"x");
+        for f in ["One", "Two", "Three"] {
+            put(&d, &format!("menu/Small/{f}.exe"), b"x");
+        }
+        // A folder of the user wins over the menu's.
+        put(&d, "own/Mine/Zeta.exe", b"x");
+        let mut st = Settings { folders: vec![d.join("own")], scoop: false, ..Settings::default() };
+        st.set_mode(&d.join("own"), FolderMode::Subfolders);
+        let all = collect(&roots_in(&st, &[d.join("user"), d.join("menu")]), &[]);
+        let of = |name: &str| all.iter().find(|e| e.name == name).unwrap().group().key();
+        assert_eq!(of("Quux"), "Games/Kit");
+        assert_eq!(of("Extra"), "Games/Kit");
+        assert_eq!(of("Zeta"), "Mine");
+        assert_eq!(of("One"), "Other");
     }
 
     #[test]

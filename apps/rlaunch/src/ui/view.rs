@@ -31,6 +31,8 @@ pub enum Field {
     Language,
     Rows,
     Position,
+    /// Categories by name, or as the user arranged them.
+    Order,
 }
 
 /// The folders of the user in the right column.
@@ -122,6 +124,14 @@ impl Editing {
     }
 }
 
+/// Where what is dragged would go.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DropMark {
+    Into,
+    Before,
+    After,
+}
+
 pub struct Model<'a> {
     pub app: &'a App,
     pub settings: &'a Settings,
@@ -140,6 +150,8 @@ pub struct Model<'a> {
     pub elevated: bool,
     /// The system's accent colour, for the colour made from it.
     pub accent: Option<Color>,
+    /// The row something is dragged to.
+    pub drop: Option<(usize, DropMark)>,
     /// What is being named, and what was typed.
     pub rename: Option<(&'a Editing, &'a TextEdit)>,
 }
@@ -341,11 +353,24 @@ impl Painter<'_, '_> {
         let first = app.scroll.min(rows.len().saturating_sub(1));
         for (k, row) in rows.iter().enumerate().skip(first).take(self.out.visible) {
             let r = Rect::new(area.x + self.px(4.0), area.y + self.px(4.0) + (k - first) as f32 * row_h, area.w - self.px(14.0), row_h);
-            let selected = k == app.selected;
+            let marked = matches!(*row, Row::Entry(i) if app.marked.contains(&app.entries[i].path));
+            // While programs are marked, only they stand out.
+            let selected = k == app.selected && app.marked.is_empty() && self.m.drop.is_none();
+            if marked {
+                self.g.fill_rrect(r.inset(self.px(1.0).max(1.0)), self.px(5.0), t.accent.mix(t.list, 0.72));
+            }
             if selected {
                 self.g.fill_rrect(r, self.px(5.0), t.accent);
-            } else if self.m.hot == Some(Hit::Row(k)) {
+            } else if self.m.hot == Some(Hit::Row(k)) && !marked {
                 self.g.fill_rrect(r, self.px(5.0), t.hover);
+            }
+            match self.m.drop.filter(|d| d.0 == k) {
+                Some((_, DropMark::Into)) => self.g.stroke_rrect(r, self.px(5.0), self.px(2.0), t.accent),
+                Some((_, mark)) => {
+                    let y = if mark == DropMark::Before { r.y } else { r.bottom() - self.px(2.0) };
+                    self.g.fill_rect(Rect::new(r.x + self.px(4.0), y, r.w - self.px(8.0), self.px(2.0).max(2.0)), t.accent);
+                }
+                None => {}
             }
             let (ink, faint) = if selected { (t.on_accent, t.on_accent) } else { (t.text, t.dim) };
             let icon = Rect::new(r.x + self.px(6.0), r.y + ((r.h - self.px(side)) / 2.0).round(), self.px(side), self.px(side));
@@ -569,6 +594,9 @@ impl Painter<'_, '_> {
         y += 27.0;
         self.stepper(y, &tr("Position"), &tr(st.position.name()), Field::Position);
         y += 27.0;
+        let order = if st.custom_order { tr("My order") } else { tr("Alphabetical") };
+        self.stepper(y, &tr("Order"), &order, Field::Order);
+        y += 27.0;
         let hint = tr("Your own colors: a theme.ini file beside the settings.");
         for line in rt_gfx::dialog::wrap_words(self.g, &hint, self.px(318.0), small, FontId::Regular).into_iter().take(2) {
             let r = self.rect(16.0, y + 6.0, 318.0, 16.0);
@@ -686,6 +714,7 @@ mod tests {
             pinned: false,
             elevated: false,
             accent: None,
+            drop: None,
             rename: None,
         };
         let d = draw(&mut g, &m, &Theme::new(false, None, 0), 1.0);

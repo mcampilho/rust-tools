@@ -26,6 +26,7 @@ fn model<'a>(
         pinned: false,
         elevated: false,
         accent: None,
+        drop: None,
         rename: None,
     }
 }
@@ -75,7 +76,20 @@ fn every_view_is_translated() {
     for m in crate::settings::FolderMode::ALL {
         assert!(rt_core::i18n::has_key(m.name()), "{}", m.name());
     }
-    for key in ["New category…", "New category: type a name, or Name/Subgroup.", "Remove category"] {
+    for key in [
+        "New category…",
+        "New category: type a name, or Name/Subgroup.",
+        "Remove category",
+        "My order",
+        "Alphabetical",
+        "Move into",
+        "Make it a category",
+        "Move up",
+        "Move down",
+        "Move {} programs to",
+        "{} programs selected: drag them or right-click one.",
+        "Keep the console open",
+    ] {
         assert!(rt_core::i18n::has_key(key), "{key}");
     }
     for p in crate::settings::Position::ALL {

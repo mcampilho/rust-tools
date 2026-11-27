@@ -71,11 +71,14 @@ Fase 5 (2026-11-27): verificada no WSL com aplicações de exemplo (ícones PNG 
 Wayland durante 4 s; o executável Linux ficou com 7,6 MB (o resvg junta cerca de 0,8 MB). Não verificado num ambiente
 de trabalho Linux a sério (área de notificação, abrir programas, temas de ícones do GNOME/KDE, posição).
 
-Categorias em dois níveis (2026-11-27): pontos 1 a 3 do que o utilizador aprovou. Por fazer, também aprovados:
-4, selecionar vários (Ctrl/Shift) e "Mover para…"; 5, 4 ou mais atalhos na mesma subpasta do menu Iniciar formam um
-subgrupo (não adivinhar grupos pelo nome). As pastas dele: `E:\Portable\scoop\links` (arrumada em subpastas) e as
-Sysinternals em `E:\Portable\Tools\sys\SysInternals` e `…\sys\WSCC\Apps\Sysinternals Suite` (modo "Uma
-categoria"). Numa cópia de teste em `debug` há uma consola: escolher a janela pela largura.
+Categorias em dois níveis (2026-11-27, pontos 1 a 5 e melhorias pedidas): pastas, menu Iniciar (`sources::group_suites`),
+à mão, ordem própria (`Items::order`, `App::custom_order`), arrastar (`main.rs`: `Press`, `drop_at`, `drop_on`), marcar
+vários (`App::marked`), consolas (`sources::console_program` lê o subsistema do PE; `rt_sys::win::launch_in_console`).
+Experimentado numa cópia de teste: arrastar para dentro, promover, reordenar, marcar (o Ctrl simulado por um ficheiro,
+porque mensagens enviadas não mudam o estado das teclas), mover os marcados e o `Clockres64` numa consola. Não
+experimentado: Shift+clique, arrastar programas, consola como administrador. Pastas dele: `E:\Portable\scoop\links` e
+`E:\Portable\Tools\sys\SysInternals` / `...\sys\WSCC\Apps\Sysinternals Suite` (modo "Uma categoria").
+Numa cópia de teste em `debug` há uma consola: escolher a janela pela largura.
 
 ## Regras
 

@@ -3,6 +3,7 @@
 use crate::category::{Category, Group};
 use crate::sources::Entry;
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::PathBuf;
 
 /// The left side of the menu.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -41,6 +42,13 @@ pub struct App {
     pub loading: bool,
     /// The options page shows how the menu looks, not its programs.
     pub appearance: bool,
+    /// Categories in `order`, then by name; else all by name.
+    pub custom_order: bool,
+    pub order: Vec<Group>,
+    /// The programs chosen together, to act on all of them.
+    pub marked: BTreeSet<PathBuf>,
+    /// The row a range of marks starts at.
+    anchor: Option<usize>,
 }
 
 /// Letters without their accents, in lower case, for searching.
@@ -121,8 +129,76 @@ impl App {
             *counts.entry(e.category).or_default() += 1;
         }
         let mut all: Vec<_> = counts.into_iter().collect();
-        all.sort_by_cached_key(|(c, _)| order(*c));
+        all.sort_by_cached_key(|(c, _)| (self.place_of((*c).into()), order(*c)));
         all
+    }
+
+    /// Where the user put `g`; after all of those, when not put anywhere.
+    fn place_of(&self, g: Group) -> usize {
+        self.order.iter().position(|x| *x == g).filter(|_| self.custom_order).unwrap_or(usize::MAX)
+    }
+
+    /// The categories shown, or the subgroups beside `g`, in their order.
+    pub fn siblings(&self, g: Group) -> Vec<Group> {
+        match g.sub {
+            Some(_) => self.subgroups(g.top()).into_iter().map(|x| x.0).collect(),
+            None => self.categories().into_iter().map(|x| x.0.into()).collect(),
+        }
+    }
+
+    /// The siblings with `moved` just before `at`, or just after it.
+    pub fn reordered(&self, moved: Group, at: Group, after: bool) -> Option<Vec<Group>> {
+        let mut all = self.siblings(moved);
+        if moved == at || !all.contains(&at) {
+            return None;
+        }
+        all.retain(|g| *g != moved);
+        let i = all.iter().position(|g| *g == at)? + usize::from(after);
+        all.insert(i, moved);
+        Some(all)
+    }
+
+    /// The siblings with `g` one place up or down.
+    pub fn shifted(&self, g: Group, down: bool) -> Option<Vec<Group>> {
+        let all = self.siblings(g);
+        let i = all.iter().position(|x| *x == g)?;
+        let other = *all.get(if down { i + 1 } else { i.checked_sub(1)? })?;
+        self.reordered(g, other, down)
+    }
+
+    fn path_of(&self, k: usize) -> Option<PathBuf> {
+        match self.rows().get(k) {
+            Some(&Row::Entry(i)) => Some(self.entries[i].path.clone()),
+            _ => None,
+        }
+    }
+
+    /// Marks the program of row `k`, or takes its mark off.
+    pub fn toggle_mark(&mut self, k: usize) {
+        let Some(path) = self.path_of(k) else { return };
+        if !self.marked.remove(&path) {
+            self.marked.insert(path);
+        }
+        self.anchor = Some(k);
+    }
+
+    /// Marks the programs from the anchor to row `k`.
+    pub fn mark_to(&mut self, k: usize) {
+        let from = *self.anchor.get_or_insert(k);
+        for i in from.min(k)..=from.max(k) {
+            self.marked.extend(self.path_of(i));
+        }
+    }
+
+    pub fn mark_all(&mut self) {
+        for k in 0..self.rows().len() {
+            self.marked.extend(self.path_of(k));
+        }
+    }
+
+    pub fn clear_marks(&mut self) {
+        self.marked.clear();
+        self.anchor = None;
     }
 
     /// The subgroups of the category `g` (none for a subgroup).
@@ -137,12 +213,12 @@ impl App {
             }
         }
         let mut all: Vec<_> = counts.into_iter().map(|(sub, n)| (Group { category: g.category, sub: Some(sub) }, n)).collect();
-        all.sort_by_cached_key(|(g, _)| plain(&g.title()));
+        all.sort_by_cached_key(|(g, _)| (self.place_of(*g), plain(&g.title())));
         all
     }
 
     /// Every group a program can be moved to: the built-in categories and
-    /// those in use, each followed by its subgroups.
+    /// those in use, each followed by its subgroups, by name.
     pub fn groups(&self) -> Vec<Group> {
         let mut all: BTreeSet<Group> = Category::ALL.into_iter().map(Group::from).collect();
         for e in &self.entries {
@@ -170,12 +246,14 @@ impl App {
     }
 
     pub fn open_hidden(&mut self) {
+        self.clear_marks();
         self.view = View::Hidden;
         self.selected = 0;
         self.scroll = 0;
     }
 
     pub fn open_category(&mut self, g: Group) {
+        self.clear_marks();
         self.view = View::Inside(g);
         // On the first row, not on "back".
         self.selected = 1;
@@ -185,6 +263,7 @@ impl App {
     /// Up a level, with the group left selected; from the hidden programs,
     /// back to the options.
     pub fn back(&mut self) {
+        self.clear_marks();
         if self.view == View::Hidden {
             self.view = View::Options;
             return;
@@ -203,6 +282,7 @@ impl App {
 
     /// As when the menu is opened anew.
     pub fn reset(&mut self) {
+        self.clear_marks();
         self.appearance = false;
         self.view = View::Categories;
         self.query.clear();
@@ -211,6 +291,7 @@ impl App {
     }
 
     pub fn set_query(&mut self, query: String) {
+        self.clear_marks();
         self.query = query;
         self.selected = 0;
         self.scroll = 0;
@@ -222,6 +303,8 @@ impl App {
     pub fn set_entries(&mut self, entries: Vec<Entry>) {
         self.entries = entries;
         self.loading = false;
+        let there: BTreeSet<&PathBuf> = self.entries.iter().map(|e| &e.path).collect();
+        self.marked.retain(|p| there.contains(p));
         // The group shown may be gone: renamed, or its programs moved.
         while matches!(self.view, View::Inside(_)) && self.rows().len() <= 1 {
             self.back();
@@ -257,7 +340,6 @@ impl App {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use std::path::PathBuf;
 
     pub(crate) fn sample() -> App {
         let entry = |name: &str, category| Entry::new(name.into(), PathBuf::from(name), category);
@@ -301,6 +383,39 @@ pub(crate) mod tests {
         entries[2].sub = None;
         app.set_entries(entries);
         assert_eq!(app.view, View::Inside(Category::Internet.into()));
+    }
+
+    #[test]
+    fn categories_keep_the_order_of_the_user() {
+        let mut app = sample();
+        let (internet, other): (Group, Group) = (Category::Internet.into(), Category::Other.into());
+        let moved = app.reordered(other, internet, false).unwrap();
+        assert_eq!(moved, [other, internet, Category::Multimedia.into()]);
+        app.order = moved;
+        // Only when asked for.
+        assert_eq!(app.siblings(internet)[0], internet);
+        app.custom_order = true;
+        assert_eq!(app.siblings(internet)[0], other);
+        assert_eq!(app.shifted(other, true).unwrap()[..2], [internet, other]);
+        assert_eq!(app.shifted(other, false), None);
+    }
+
+    #[test]
+    fn programs_are_marked_one_by_one_or_in_a_range() {
+        let mut app = sample();
+        app.open_category(Category::Internet.into());
+        app.toggle_mark(1);
+        app.mark_to(3);
+        assert_eq!(app.marked.len(), 3);
+        app.toggle_mark(2);
+        assert_eq!(app.marked.len(), 2);
+        // "Back" is not a program.
+        app.toggle_mark(0);
+        assert_eq!(app.marked.len(), 2);
+        app.set_query("o".into());
+        assert!(app.marked.is_empty());
+        app.mark_all();
+        assert_eq!(app.marked.len(), 4);
     }
 
     #[test]

@@ -98,8 +98,14 @@ The names are `frame`, `frame_text`, `frame_dim`, `frame_hover`, `list`, `text`,
 
 Uninstallers, manuals and web page shortcuts are left out, and a program with
 the same name in two places is shown once (Scoop's first). Where one folder has
-`x.exe`, `x64.exe` and `x64a.exe` (as Sysinternals does), only the first is
-listed.
+`x.exe`, `x64.exe` and `x64a.exe` (as Sysinternals does), only the one that
+suits the computer is listed: `x64.exe` on a 64 bit PC, `x64a.exe` on ARM.
+
+**Console programs** (Windows): an `.exe` without a window of its own opens in a
+console that stays open, in its folder, so its output can be read and it can be
+run again with arguments. Right-click > **Keep the console open** turns this on
+or off per program (for `.bat` and `.cmd` too; shortcuts open as Windows opens
+them).
 
 ## Categories
 
@@ -119,6 +125,25 @@ that chooses where its categories come from:
 - **By name:** the folders do not count.
 
 A program Scoop also has goes in the category your folder gives it.
+
+**From the Start menu.** A subfolder of it with four or more programs
+(`Administrative Tools`, `Chrome Apps`) is a subgroup, in the category of most of
+them.
+
+**Dragging.** A category of yours dropped on the middle of another becomes its
+subcategory (any subgroups it had become one, until it comes out again); a
+subgroup dropped on the back arrow becomes a category. A program dropped on a
+category moves there.
+
+**Several at once.** Ctrl+click marks and unmarks, Shift+click or Shift+arrows
+marks a range, Ctrl+A marks all in the list (in a search too). Then drag them,
+or right-click > **Move N programs to**, **Add to favorites** or **Hide**. Esc
+unmarks.
+
+**Order.** **Options > Appearance > Order**: **Alphabetical** (Other last) or
+**My order**, where categories are dragged between others (the top or bottom
+edge of a row; the middle still puts one inside) or moved with **Move up/down**
+in their right-click menu.
 
 **By hand.** Right-click a program > **Category** picks another, or **New
 category…** (type `Name` or `Name/Subgroup`). Right-click a category of yours or
@@ -179,9 +204,8 @@ What differs from Windows:
 4. **Done for PortableApps:** its apps and the choices of its menu. Other suites
    are not read in their own format yet.
 5. **Done:** Linux in full (icons, programs of folders).
-6. **In progress:** categories from folders and of your own, on two levels.
-   Still to do: moving several programs at once and grouping the subfolders of
-   the Start menu.
+6. **Done:** categories from folders, the Start menu and your own, on two
+   levels; dragging, an order of your own, marking several, consoles.
 
 ## Build
 

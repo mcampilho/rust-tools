@@ -105,3 +105,13 @@ Automatic		Automatisch	Automático	Automatique	Automatico	自動	Automático		�
 Subfolders		Unterordner	Subcarpetas	Sous-dossiers	Sottocartelle	サブフォルダー	Subpastas		子文件夹
 One category		Eine Kategorie	Una categoría	Une catégorie	Una categoria	1 カテゴリ	Uma categoria		单一类别
 By name		Nach Name	Por nombre	Par nom	Per nome	名前で判定	Pelo nome		按名称
+Order		Reihenfolge	Orden	Ordre	Ordine	並び順	Ordem		排序
+Alphabetical		Alphabetisch	Alfabético	Alphabétique	Alfabetico	アルファベット順	Alfabética		按字母
+My order		Eigene	Mi orden	Mon ordre	Il mio ordine	自分の順	Minha ordem	A minha ordem	自定义
+Move into		Verschieben in	Mover dentro de	Déplacer dans	Sposta in	次の中へ移動	Mover para dentro de		移入
+Make it a category		Zur Kategorie machen	Convertir en categoría	En faire une catégorie	Rendila una categoria	カテゴリにする	Tornar categoria	Passar a categoria	设为类别
+Move up		Nach oben	Subir	Monter	Sposta su	上へ移動	Mover para cima		上移
+Move down		Nach unten	Bajar	Descendre	Sposta giù	下へ移動	Mover para baixo		下移
+Move {} programs to		{} Programme verschieben nach	Mover {} programas a	Déplacer {} programmes vers	Sposta {} programmi in	{} 個のプログラムを移動	Mover {} programas para		将 {} 个程序移到
+{} programs selected: drag them or right-click one.		{} ausgewählt: ziehen oder Rechtsklick.	{} seleccionados: arrástrelos o botón derecho.	{} sélectionnés : glissez-les ou clic droit.	{} selezionati: trascinarli o clic destro.	{} 個選択中: ドラッグするか右クリック。	{} selecionados: arraste ou clique com o botão direito.	{} selecionados: arraste-os ou clique com o botão direito.	已选 {} 个：拖动或右键单击。
+Keep the console open		Konsole offen lassen	Mantener la consola abierta	Garder la console ouverte	Mantieni aperta la console	コンソールを開いたままにする	Manter o console aberto	Manter a consola aberta	保持控制台打开

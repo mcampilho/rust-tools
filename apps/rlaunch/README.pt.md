@@ -99,8 +99,15 @@ Os nomes são `frame`, `frame_text`, `frame_dim`, `frame_hover`, `list`, `text`,
 
 Os desinstaladores, manuais e atalhos para páginas ficam de fora, e um programa
 com o mesmo nome em dois sítios aparece uma vez (primeiro o do Scoop). Onde há
-`x.exe`, `x64.exe` e `x64a.exe` na mesma pasta (como nas Sysinternals), só o
-primeiro é listado.
+`x.exe`, `x64.exe` e `x64a.exe` na mesma pasta (como nas Sysinternals), só é
+listado o que serve o computador: `x64.exe` num PC de 64 bits, `x64a.exe` num
+ARM.
+
+**Programas de consola** (Windows): um `.exe` sem janela própria abre numa
+consola que fica aberta, na pasta dele, para se ler o resultado e voltar a
+corrê-lo com argumentos. Botão direito > **Manter a consola aberta** liga ou
+desliga isto por programa (também em `.bat` e `.cmd`; os atalhos abrem como o
+Windows os abre).
 
 ## Categorias
 
@@ -119,6 +126,24 @@ que escolhe de onde vêm as categorias:
 - **Pelo nome:** as pastas não contam.
 
 Um programa que também esteja no Scoop fica na categoria que a tua pasta lhe dá.
+
+**Pelo menu Iniciar.** Uma subpasta dele com quatro ou mais programas (`Administrative
+Tools`, `Chrome Apps`) é um subgrupo, na categoria da maioria deles.
+
+**Arrastar.** Uma categoria tua para o meio de outra passa a subcategoria dela
+(os subgrupos que tivesse juntam-se num só, até voltar a sair); um subgrupo
+arrastado para a seta de voltar passa a categoria. Um programa arrastado para
+uma categoria muda para lá.
+
+**Vários de uma vez.** Ctrl+clique marca e desmarca, Shift+clique ou
+Shift+setas marca um intervalo, Ctrl+A marca todos os da lista (também numa
+procura). Depois arrasta-os, ou botão direito > **Mover N programas para**,
+**Adicionar aos favoritos** ou **Ocultar**. Esc desmarca.
+
+**Ordem.** **Opções > Aspeto > Ordem**: **Alfabética** (Outros no fim) ou **A
+minha ordem**, em que se arrastam as categorias para entre as outras (a borda de
+cima ou de baixo de uma linha; o meio continua a meter dentro) ou se usa
+**Mover para cima/baixo** no menu do botão direito.
 
 **À mão.** Botão direito num programa > **Categoria** escolhe outra, ou **Nova
 categoria…** (escreve `Nome` ou `Nome/Subgrupo`). Botão direito numa categoria
@@ -180,8 +205,8 @@ O que é diferente do Windows:
 4. **Feito para a PortableApps:** as aplicações e as escolhas do menu dela. As
    outras suites ainda não são lidas no seu próprio formato.
 5. **Feito:** Linux completo (ícones, programas das pastas).
-6. **Em curso:** categorias das pastas e do utilizador, em dois níveis. Falta
-   mover vários programas de uma vez e agrupar as subpastas do menu Iniciar.
+6. **Feito:** categorias das pastas, do menu Iniciar e do utilizador, em dois
+   níveis; arrastar, ordem própria, marcar vários, consolas.
 
 ## Compilar
 
