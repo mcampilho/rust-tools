@@ -1,7 +1,7 @@
 # rscoop-cli completo — análise e plano
 
-Escrito a 2026-11-27. **Estado:** fases 0, 1 e 2 feitas; fase 3 escrita e testada em instalações fictícias, à espera
-da comparação no Windows Sandbox (secção 12); versão 0.2.0 por lançar.
+Escrito a 2026-11-27. **Estado:** fases 0 a 3 feitas e comparadas no Windows Sandbox (secção 12); fase 4 com `install`
+e `update <app>` escritos e iguais ao oficial na Sandbox, falta o `import` (secção 13); versão 0.2.0 por lançar.
 
 ## 1. Resumo
 
@@ -350,6 +350,8 @@ atalhos reais por COM foram lidos de volta com o leitor de `.lnk`; o registo ver
 ./apps/rscoop-cli/sandbox/sandbox.ps1 -Side rscoop    # só um lado outra vez
 ./apps/rscoop-cli/sandbox/sandbox.ps1 -CompareOnly    # só a comparação
 ./apps/rscoop-cli/sandbox/sandbox.ps1 -Side rscoop -KeepOpen   # a Sandbox fica aberta, para ver
+# Desde a fase 4 os passos são cinco: 1-installed (`install`), 2-updated (`update --force`), 3-reset,
+# 4-uninstalled e 5-official; o git e os buckets continuam a ser postos pelo Scoop.
 ```
 
 - Duas Sandboxes novas, uma depois da outra, com o Scoop em `C:\scoop` nas duas. Os passos são os mesmos, só muda
@@ -380,3 +382,41 @@ atalhos reais por COM foram lidos de volta com o leitor de `.lnk`; o registo ver
 - Terceira volta (2026-11-27, só o lado `rscoop`, com as mesmas versões): **os quatro passos iguais** — 11 272,
   11 272, 10 956 e 60 entradas na raiz, as variáveis, o registo e os atalhos; códigos de saída 0 dos dois lados.
   O `reset` e o `uninstall` continuam atrás de `RSCOOP_NATIVE=1` até o utilizador decidir tirá-lo.
+
+## 13. Fase 4: o que ficou (em curso)
+
+Começada a 2026-11-27 (Opus 5.5). Executável de 3,5 MB.
+
+**Feito:** `install` e `update <app>|*`, atrás de `RSCOOP_NATIVE=1` como os da fase 3.
+
+- `install` (`cmd/install.rs`): opções `-g -i -k -s -u -a`, as dependências e os ajudantes (`Get-Dependency`),
+  o aviso de já instalada, `prune_installed`, o aviso do aria2, e para cada aplicação o `install_app` na ordem do
+  oficial. Feito aqui: a descarga para a cache e a soma (o mesmo código do `download`, com aria2 quando o Scoop o
+  usaria), a cópia para a pasta da versão, `ensure_install_dir_not_in_path`, `current`, shims, atalhos, módulo,
+  `env_add_path`, `env_set` (no código do Scoop quando o valor é uma expressão), `persist`, o `scoop-manifest.json`
+  (cópia byte a byte) e o `scoop-install.json` (`bucket`, depois `architecture`, CRLF), as notas e as sugestões.
+  No código do próprio Scoop, num PowerShell por aplicação: `Invoke-Extraction` (7-Zip, msi, Inno Setup, dark e
+  zip sem 7-Zip, tal e qual), `pre_install`, `Invoke-Installer` e `post_install`, com as variáveis do
+  `install_app` (`$cmd`, `$app`, `$version`, `$dir` — a pasta da versão, depois `current` —, `$original_dir`,
+  `$persist_dir`, `$fname`, `$manifest` pelo `Get-Manifest`…).
+- `update` (`cmd/update_apps.rs`): a lista como o oficial (desatualizadas, fixadas, já na última versão, `*` e
+  `-a`, `-g`, `-f`, `-q`), e para cada uma: a versão nova para a cache com a soma, depois a antiga desligada como no
+  `uninstall` mas sem apagar a pasta (fica para o `cleanup`; com `-f` e a mesma versão vai para `_<versão>.old`),
+  os scripts dela com `$cmd = 'update'` e as variáveis do `update` (`$old_version`, `$old_manifest`…), e a nova
+  instalada no mesmo PowerShell, com as dependências que faltem.
+- Vai inteiro para o Scoop: `app@versão`, manifestos de um ficheiro ou endereço (e as aplicações instaladas assim),
+  a cache SQLite, `show_manifest`, um proxy, descargas FTP/FossHub/release privado, e uma instalação falhada (que o
+  oficial repara com `reset` ou `uninstall`).
+
+**Testado:** em instalações fictícias, com um servidor HTTP local e a biblioteca do Scoop falsa: dependência
+instalada primeiro, a soma conferida, a cópia, os scripts pela ordem certa e com as variáveis certas, os dois JSON
+iguais aos do oficial, a remoção a seguir; o `update` da 1.0 para a 2.0 (scripts de remoção com `$cmd = 'update'`,
+a 1.0 fica, `current` na 2.0, variáveis novas) e o `--force` da mesma versão.
+
+**Comparado na Sandbox** (2026-11-27, as mesmas 11 aplicações, cinco passos, instalação e `update --force` feitos pela
+ferramenta de cada lado): **tudo igual** — 11 272, 11 541, 11 543, 10 969 e 60 entradas na raiz, as variáveis, o
+registo e os atalhos; códigos de saída 0. A primeira volta mostrou um erro do `inside.ps1` (a lista passada ao
+`scoop` como um só argumento; o `update` oficial não tinha corrido), corrigido.
+
+**Por fazer:** o `import`; a reversão quando algo falha a meio; descargas em paralelo entre aplicações (fase 5);
+decidir quando sai o `RSCOOP_NATIVE=1`.

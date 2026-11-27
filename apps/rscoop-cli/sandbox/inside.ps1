@@ -1,15 +1,18 @@
 # Runs in Windows Sandbox (Windows PowerShell 5.1), started by sandbox.ps1.
 # The same steps on a new Windows each time, with Scoop in C:\scoop; only who
-# does steps 2 and 3 changes:
+# does steps 1 to 4 changes (Scoop's installer, git and the buckets are
+# always Scoop's):
 #
-#   1-installed   Scoop, git and the extras bucket, then the apps, by Scoop
-#   2-reset       the same damage (current junctions, shims, shortcuts and
+#   1-installed   `install` of the apps
+#   2-updated     `update --force` of the updated apps (the same version
+#                 again: the whole path of an update, the old folder kept)
+#   3-reset       the same damage (current junctions, shims, shortcuts and
 #                 the variables of the apps gone), then `reset *`
-#   3-uninstalled `uninstall` of the first apps, the last of them with --purge
-#   4-official    `uninstall` of the others by Scoop (what the other one left
+#   4-uninstalled `uninstall` of the first apps, the last of them with --purge
+#   5-official    `uninstall` of the others by Scoop (what the other one left
 #                 must be removable by Scoop)
 #
-# -Side official: steps 2 and 3 by Scoop; -Side rscoop: by rscoop-cli, with
+# -Side official: by Scoop; -Side rscoop: by rscoop-cli, with
 # RSCOOP_NATIVE=1. A snapshot (snapshot.ps1) after each step goes to
 # C:\share\results\<side>, then done.txt (or failed.txt). The first side writes the commits of the buckets
 # to pins.json and the second one uses them, so both install the same
@@ -31,13 +34,16 @@ function Save-Step([string]$name) {
 }
 
 function Invoke-Tool {
-    $line = @($args | ForEach-Object { $_ }) -join ' '
+    # One list of words: `scoop @args` would pass a list inside the list as
+    # one argument (and the program, unfolded, would not).
+    $words = @($args | ForEach-Object { $_ })
+    $line = $words -join ' '
     Write-Host "> $Side $line" -ForegroundColor Cyan
     if ($Side -eq 'official') {
-        scoop @args
+        scoop @words
     } else {
         $env:RSCOOP_NATIVE = '1'
-        & "$Share\rscoop-cli.exe" --root $root @args
+        & "$Share\rscoop-cli.exe" --root $root @words
         Remove-Item Env:\RSCOOP_NATIVE
     }
     "$Side $line -> $LASTEXITCODE" | Add-Content -LiteralPath "$results\codes.txt"
@@ -68,11 +74,15 @@ try {
         foreach ($b in 'main', 'extras') { $commits[$b] = [string](git -C "$root\buckets\$b" rev-parse HEAD) }
         $commits | ConvertTo-Json | Set-Content -LiteralPath $pins
     }
-    scoop install @($plan.apps)
+    Invoke-Tool install @($plan.apps)
     scoop list 6>$null | Select-Object Name, Version | Format-Table | Out-String | Set-Content -LiteralPath "$results\versions.txt"
     Save-Step '1-installed'
 
-    # 2. The same damage on both sides, then reset.
+    # 2. The same version again, by the whole path of an update.
+    Invoke-Tool update @($plan.updated) --force
+    Save-Step '2-updated'
+
+    # 3. The same damage on both sides, then reset.
     foreach ($app in Get-ChildItem -LiteralPath "$root\apps" -Directory | Where-Object Name -ne 'scoop') {
         $current = Join-Path $app.FullName 'current'
         if (Test-Path -LiteralPath $current) {
@@ -97,18 +107,18 @@ try {
     $path = [Environment]::GetEnvironmentVariable('PATH', 'User') -split ';' | Where-Object { $_ -and $_ -notlike "$root\apps\*" }
     [Environment]::SetEnvironmentVariable('PATH', ($path -join ';'), 'User')
     Invoke-Tool reset '*'
-    Save-Step '2-reset'
+    Save-Step '3-reset'
 
-    # 3. Uninstall the first apps, the last of them with its persisted data.
+    # 4. Uninstall the first apps, the last of them with its persisted data.
     $first = @($plan.first)
     if ($first.Count -gt 1) { Invoke-Tool uninstall @($first[0..($first.Count - 2)]) }
     Invoke-Tool uninstall $first[-1] --purge
-    Save-Step '3-uninstalled'
+    Save-Step '4-uninstalled'
 
-    # 4. Scoop removes the rest.
+    # 5. Scoop removes the rest.
     $rest = @(Get-ChildItem -LiteralPath "$root\apps" -Directory | Where-Object Name -ne 'scoop' | ForEach-Object Name)
     if ($rest) { scoop uninstall @rest }
-    Save-Step '4-official'
+    Save-Step '5-official'
     'done' | Set-Content -LiteralPath "$results\done.txt"
 } catch {
     $_ | Out-String | Set-Content -LiteralPath "$results\failed.txt"

@@ -16,7 +16,9 @@ param(
     [ValidateSet('both', 'official', 'rscoop')][string]$Side = 'both',
     [string]$Exe = 'target\release-small\rscoop-cli.exe',
     [string[]]$Apps = @('jq', 'which', 'psutils', 'gsudo', 'oh-my-posh', 'extras/notepadplusplus', 'extras/everything', 'extras/posh-git', 'extras/ditto'),
-    # Removed in step 3 (the last one with --purge); the others by Scoop in step 4.
+    # Updated again (--force) in step 2.
+    [string[]]$Updated = @('jq', 'gsudo', 'notepadplusplus', 'everything'),
+    # Removed in step 4 (the last one with --purge); the others by Scoop in step 5.
     [string[]]$First = @('notepadplusplus', 'everything', 'posh-git', 'ditto'),
     [string]$Work = 'target\sandbox',
     [int]$Minutes = 90,
@@ -78,7 +80,7 @@ function Start-Side([string]$name) {
 function Compare-Steps {
     $report = New-Object System.Collections.Generic.List[string]
     $differences = 0
-    foreach ($step in '1-installed', '2-reset', '3-uninstalled', '4-official') {
+    foreach ($step in '1-installed', '2-updated', '3-reset', '4-uninstalled', '5-official') {
         $a = "$results\official\$step.json"
         $b = "$results\rscoop\$step.json"
         if (-not (Test-Path $a) -or -not (Test-Path $b)) {
@@ -118,7 +120,7 @@ if (-not $CompareOnly) {
     New-Item -ItemType Directory -Force -Path $share, (Join-Path $share 'cache') | Out-Null
     Copy-Item -LiteralPath $Exe -Destination (Join-Path $share 'rscoop-cli.exe') -Force
     Copy-Item -LiteralPath (Join-Path $here 'inside.ps1'), (Join-Path $here 'snapshot.ps1') -Destination $share -Force
-    [ordered]@{ apps = $Apps; first = $First } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $share 'plan.json')
+    [ordered]@{ apps = $Apps; updated = $Updated; first = $First } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $share 'plan.json')
     $sides = if ($Side -eq 'both') { 'official', 'rscoop' } else { @($Side) }
     # New versions for a new comparison; one side again keeps the other's.
     if ($Side -eq 'both' -and (Test-Path "$share\pins.json")) { Remove-Item -LiteralPath "$share\pins.json" }

@@ -177,6 +177,31 @@ pub fn env_rm_path(
     Ok(changes)
 }
 
+/// `find_dir_or_subdir`: (the entries of `value` that are not `dir` or under
+/// it, those that are).
+fn outside_dir(value: &str, dir: &str) -> (Vec<String>, Vec<String>) {
+    let dir = dir.trim_end_matches('\\');
+    value
+        .split(';')
+        .filter(|s| !s.is_empty())
+        .map(String::from)
+        .partition(|e| !(e.eq_ignore_ascii_case(dir) || like(e, &format!("{dir}\\*"))))
+}
+
+/// `ensure_install_dir_not_in_path`: what an installer put on `PATH` under
+/// the app's folder goes. Returns (what was taken out, what is in the
+/// machine's `PATH` and cannot be, for an app of the user).
+pub fn ensure_dir_not_in_path(system: &dyn System, dir: &Path, global: bool) -> Result<(Vec<String>, Vec<String>), String> {
+    let dir = dir.display().to_string();
+    let current = system.env_get("PATH", global).map(|(v, _)| v).unwrap_or_default();
+    let (kept, removed) = outside_dir(&current, &dir);
+    if !removed.is_empty() {
+        set_var(system, "PATH", Some(&kept.join(";")), global)?;
+    }
+    let machine = if global { Vec::new() } else { outside_dir(&system.env_get("PATH", true).map(|(v, _)| v).unwrap_or_default(), &dir).1 };
+    Ok((removed, machine))
+}
+
 /// The names and values of `env_set`, in the order of the manifest.
 pub fn env_set_values(manifest: &Manifest, arch: Arch) -> Vec<(String, String)> {
     match manifest.arch("env_set", arch) {

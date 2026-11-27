@@ -251,7 +251,6 @@ alias.bad_name	'{name}' is not a name for an alias.	'{name}' não serve para nom
 alias.exists	Alias '{name}' already exists.	O alias '{name}' já existe.	El alias '{name}' ya existe.
 alias.unknown	Alias '{name}' does not exist.	O alias '{name}' não existe.	El alias '{name}' no existe.
 alias.none	No alias found.	Não há aliases.	No hay alias.
-cmd.update	Update Scoop and the buckets (apps: Scoop does it).	Atualiza o Scoop e os buckets (aplicações: é o Scoop).	Actualiza Scoop y los buckets (aplicaciones: lo hace Scoop).
 cmd.download	Download apps into the cache and check them.	Descarrega aplicações para a cache e confere-as.	Descarga aplicaciones a la caché y las comprueba.
 cmd.cleanup	Remove old versions of apps.	Remove versões antigas das aplicações.	Elimina versiones antiguas de las aplicaciones.
 cmd.hold	Keep apps at their version.	Fixa a versão das aplicações.	Retiene la versión de las aplicaciones.
@@ -308,3 +307,34 @@ uninstall.start	Uninstalling '{app}' ({version}).	A desinstalar '{app}' ({versio
 uninstall.older	Removing older version ({version}).	A remover a versão antiga ({version}).	Eliminando la versión antigua ({version}).
 uninstall.purge	Removing persisted data.	A remover os dados persistentes.	Eliminando los datos persistentes.
 uninstall.done	'{app}' was uninstalled.	'{app}' foi desinstalada.	'{app}' se ha desinstalado.
+cmd.install	Install apps with their dependencies (-g global, -i without dependencies, -k without the cache, -s without the hash check, -u without updating Scoop).	Instala aplicações com as suas dependências (-g globais, -i sem dependências, -k sem a cache, -s sem conferir a soma, -u sem atualizar o Scoop).	Instala aplicaciones con sus dependencias (-g globales, -i sin dependencias, -k sin la caché, -s sin comprobar la suma, -u sin actualizar Scoop).
+install.outdated	Scoop is out of date.	O Scoop está desatualizado.	Scoop está desactualizado.
+install.already	'{app}' ({version}) is already installed. Use 'scoop update {app}{global}' to install a new version.	'{app}' ({version}) já está instalada. Use 'scoop update {app}{global}' para instalar uma versão nova.	'{app}' ({version}) ya está instalada. Use 'scoop update {app}{global}' para instalar una versión nueva.
+install.skipping	'{app}' ({version}) is already installed. Skipping.	'{app}' ({version}) já está instalada. Fica como está.	'{app}' ({version}) ya está instalada. Se omite.
+install.aria2	Scoop uses 'aria2c' for multi-connection downloads. Should it cause issues, run 'scoop config aria2-enabled false' to disable it. To disable this warning, run 'scoop config aria2-warning-enabled false'.	O Scoop usa o 'aria2c' para descarregar com várias ligações. Se der problemas, 'scoop config aria2-enabled false' desliga-o; 'scoop config aria2-warning-enabled false' desliga este aviso.	Scoop usa 'aria2c' para descargar con varias conexiones. Si da problemas, 'scoop config aria2-enabled false' lo desactiva; 'scoop config aria2-warning-enabled false' desactiva este aviso.
+install.suggest	'{app}' suggests installing '{choices}'.	'{app}' sugere instalar '{choices}'.	'{app}' sugiere instalar '{choices}'.
+install.no_version	Manifest doesn't specify a version.	O manifesto não diz a versão.	El manifiesto no indica la versión.
+install.bad_version	Manifest version has unsupported character '{char}'.	A versão do manifesto tem um carácter que não é aceite: '{char}'.	La versión del manifiesto tiene un carácter no admitido: '{char}'.
+install.nightly	This is a nightly version. Downloaded files won't be verified.	É uma versão nightly: os ficheiros descarregados não são conferidos.	Es una versión nightly: los archivos descargados no se comprueban.
+install.no_arch	'{app}' doesn't support current architecture!	'{app}' não existe para esta arquitetura!	¡'{app}' no existe para esta arquitectura!
+install.start	Installing '{app}' ({version}) [{arch}] from '{bucket}' bucket	A instalar '{app}' ({version}) [{arch}] do bucket '{bucket}'	Instalando '{app}' ({version}) [{arch}] del bucket '{bucket}'
+install.done	'{app}' ({version}) was installed successfully!	'{app}' ({version}) foi instalada!	¡'{app}' ({version}) se ha instalado!
+install.installer_path	Installer added '{path}' to path. Removing.	O instalador acrescentou '{path}' ao PATH. A tirar.	El instalador añadió '{path}' al PATH. Quitándolo.
+install.installer_system_path	Installer added '{path}' to system path. You might want to remove this manually (requires admin permission).	O instalador acrescentou '{path}' ao PATH do sistema. Talvez queira tirá-lo à mão (precisa de direitos de administrador).	El instalador añadió '{path}' al PATH del sistema. Quizá quiera quitarlo a mano (necesita derechos de administrador).
+module.path	Adding {path} to your PowerShell module path.	A acrescentar {path} aos caminhos dos módulos do PowerShell.	Añadiendo {path} a las rutas de módulos de PowerShell.
+module.path_global	Adding {path} to global PowerShell module path.	A acrescentar {path} aos caminhos globais dos módulos do PowerShell.	Añadiendo {path} a las rutas globales de módulos de PowerShell.
+module.installing	Installing PowerShell module '{name}'	A instalar o módulo do PowerShell '{name}'	Instalando el módulo de PowerShell '{name}'
+module.replaced	{path} already exists. It will be replaced.	{path} já existe e vai ser substituído.	{path} ya existe y se sustituirá.
+cmd.update	Update Scoop and the buckets; with apps (or *), install their new versions (-f even the same one, -g global, -i without dependencies, -k without the cache, -s without the hash check, -q quiet).	Atualiza o Scoop e os buckets; com aplicações (ou *), instala as versões novas (-f mesmo a mesma, -g globais, -i sem dependências, -k sem a cache, -s sem conferir a soma, -q em silêncio).	Actualiza Scoop y los buckets; con aplicaciones (o *), instala las versiones nuevas (-f incluso la misma, -g globales, -i sin dependencias, -k sin la caché, -s sin comprobar la suma, -q en silencio).
+update.held_app	'{app}' is held to version {version}	'{app}' está fixada na versão {version}	'{app}' está retenida en la versión {version}
+update.latest	{app}: {version} (latest version)	{app}: {version} (a versão mais recente)	{app}: {version} (la versión más reciente)
+update.reinstall	Please reinstall it or fix the manifest.	Reinstale-a ou corrija o manifesto.	Reinstálela o corrija el manifiesto.
+update.all_latest	Latest versions for all apps are installed! For more information try 'scoop status'	Estão instaladas as versões mais recentes de todas as aplicações! Mais informação: 'scoop status'	¡Están instaladas las versiones más recientes de todas las aplicaciones! Más información: 'scoop status'
+update.one	Updating one outdated app:	A atualizar uma aplicação desatualizada:	Actualizando una aplicación desactualizada:
+update.many	Updating {n} outdated apps:	A atualizar {n} aplicações desatualizadas:	Actualizando {n} aplicaciones desactualizadas:
+update.no_manifest	No manifest available for '{app}'.	Não há manifesto de '{app}'.	No hay manifiesto de '{app}'.
+update.already_latest	The latest version of '{app}' ({version}) is already installed.	A versão mais recente de '{app}' ({version}) já está instalada.	La versión más reciente de '{app}' ({version}) ya está instalada.
+update.updating	Updating '{app}' ({old} -> {new})	A atualizar '{app}' ({old} -> {new})	Actualizando '{app}' ({old} -> {new})
+update.running	Running process detected, skip updating.	Há programas a correr: não se atualiza.	Hay programas en ejecución: no se actualiza.
+update.downloading	Downloading new version	A descarregar a versão nova	Descargando la versión nueva
+update.uninstalling	Uninstalling '{app}' ({version})	A desinstalar '{app}' ({version})	Desinstalando '{app}' ({version})

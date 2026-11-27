@@ -1,8 +1,8 @@
 //! The commands of Scoop that rscoop-cli does itself: those that read, and
 //! the upkeep of the installation (update of Scoop and buckets, downloads,
-//! cleanup, hold, configuration), and `shim`, `reset` and `uninstall`.
-//! Installing and updating apps is handed to the Scoop of the installation
-//! (`delegate`).
+//! cleanup, hold, configuration), and `shim`, `install`, `update <app>`,
+//! `reset` and `uninstall` (these four only with RSCOOP_NATIVE=1 for now).
+//! The rest is handed to the Scoop of the installation (`delegate`).
 
 mod args;
 mod bucket;
@@ -10,6 +10,7 @@ mod checkup;
 mod delegate;
 mod download;
 mod git;
+mod install;
 mod listing;
 mod machinery;
 mod maintain;
@@ -26,6 +27,7 @@ mod tests_ops;
 mod tests_write;
 mod uninstall;
 mod update;
+mod update_apps;
 
 use crate::registry::Registry;
 use crate::text::{system_language, T};
@@ -38,13 +40,13 @@ use std::io::Write;
 use std::path::PathBuf;
 
 /// The commands of this program: name, usage, key of the description.
-pub const NATIVE: [(&str, &str, &str); 25] = [
+pub const NATIVE: [(&str, &str, &str); 26] = [
     ("list", "[query]", "cmd.list"),
     ("search", "[query]", "cmd.search"),
     ("info", "<app> [-v]", "cmd.info"),
     ("cat", "<app>", "cmd.cat"),
     ("status", "[--local]", "cmd.status"),
-    ("update", "", "cmd.update"),
+    ("update", "[app…|*] [-gfiksqa]", "cmd.update"),
     ("which", "<command>", "cmd.which"),
     ("prefix", "<app>", "cmd.prefix"),
     ("depends", "<app> [-a arch]", "cmd.depends"),
@@ -58,6 +60,7 @@ pub const NATIVE: [(&str, &str, &str); 25] = [
     ("unhold", "<app…> [-g]", "cmd.unhold"),
     ("alias", "add|rm|list", "cmd.alias"),
     ("shim", "add|rm|list|info [-g]", "cmd.shim"),
+    ("install", "<app…> [-giksu] [-a arch]", "cmd.install"),
     ("reset", "<app…>|*", "cmd.reset"),
     ("uninstall", "<app…> [-gp]", "cmd.uninstall"),
     ("export", "[-c]", "cmd.export"),
@@ -182,8 +185,6 @@ fn own_options(line: &mut Line) {
 pub fn is_native(command: &str, args: &[String]) -> bool {
     let first = args.first().map(String::as_str);
     match command {
-        // Updating apps is Scoop's; `update` alone is Scoop and the buckets.
-        "update" => args.iter().all(|a| ["-q", "--quiet", "scoop"].contains(&a.as_str())),
         "bucket" => matches!(first, Some("list" | "known" | "add" | "rm")),
         "config" => first != Some("--help"),
         "scoop" => false,
@@ -210,7 +211,9 @@ pub fn run(mut line: Line, outside: Outside, out: &mut dyn Write, err: &mut dyn 
     let env = Env::new(outside.vars.clone());
     // What removes apps stays Scoop's until it has been compared with Scoop
     // in a throw-away Windows (docs/rscoop.pt.md §7); RSCOOP_NATIVE=1 tries it.
-    let on_trial = matches!(line.command.as_str(), "reset" | "uninstall") && env.get("RSCOOP_NATIVE") != Some("1");
+    let writes_apps = matches!(line.command.as_str(), "install" | "reset" | "uninstall")
+        || (line.command == "update" && update_apps::updates_apps(&line.args));
+    let on_trial = writes_apps && env.get("RSCOOP_NATIVE") != Some("1");
     let native = is_native(&line.command, &line.args) && !on_trial;
     if native {
         own_options(&mut line);
@@ -250,6 +253,7 @@ pub fn run(mut line: Line, outside: Outside, out: &mut dyn Write, err: &mut dyn 
         "depends" => query::depends(&mut ctx, args),
         "home" => query::home(&mut ctx, args),
         "status" => state::status(&mut ctx, args),
+        "update" if update_apps::updates_apps(args) => update_apps::run(&mut ctx, args),
         "update" => update::sync(&mut ctx, args),
         "bucket" => match args.first().map(String::as_str) {
             Some("add") => bucket::add(&mut ctx, &args[1..]),
@@ -271,6 +275,7 @@ pub fn run(mut line: Line, outside: Outside, out: &mut dyn Write, err: &mut dyn 
         "unhold" => maintain::hold(&mut ctx, args, false),
         "alias" => maintain::alias(&mut ctx, args),
         "shim" => shim::run(&mut ctx, args),
+        "install" => install::run(&mut ctx, args),
         "reset" => reset::run(&mut ctx, args),
         "uninstall" => uninstall::run(&mut ctx, args),
         "checkup" => checkup::run(&mut ctx, args, &outside),

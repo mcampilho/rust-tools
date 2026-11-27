@@ -131,8 +131,10 @@ fn what_only_scoop_should_do_is_handed_over() {
     assert!(code == 0 && err.contains("handing it to Scoop"), "{err}");
     assert_eq!(handed(&root), "update");
     assert_eq!(rscoop(&root, &["update", "-q"]).0, 0);
-    assert_eq!(rscoop(&root, &["update", "git"]).0, 0);
-    assert_eq!(rscoop(&root, &["install", "x"]).0, 0);
+    // Without RSCOOP_NATIVE=1, what installs is still Scoop's.
+    let system = rt_scoop::system::FakeSystem::new(root.join("menu"));
+    assert_eq!(super::tests::rscoop_native(&root, &["update", "git"], &system, false).0, 0);
+    assert_eq!(super::tests::rscoop_native(&root, &["install", "x"], &system, false).0, 0);
     assert_eq!(handed(&root).lines().collect::<Vec<_>>(), ["update", "update -q", "update git", "install x"]);
 }
 
@@ -263,7 +265,7 @@ type Requests = std::sync::Arc<std::sync::Mutex<Vec<String>>>;
 
 /// Serves `/name` with the given bytes, `/moved` as a redirect to
 /// `/good.zip`, and 404 for anything else.
-fn server(files: Vec<(&'static str, &'static [u8])>) -> (String, Requests) {
+pub(super) fn server(files: Vec<(&'static str, &'static [u8])>) -> (String, Requests) {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let address = format!("http://{}", listener.local_addr().unwrap());
     let requests = Requests::default();

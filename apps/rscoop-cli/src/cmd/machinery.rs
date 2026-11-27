@@ -5,6 +5,7 @@
 use super::query::find_command;
 use super::Ctx;
 use rt_scoop::env::Change;
+use rt_scoop::hooks::{Host, Stop};
 use rt_scoop::manifest::{Arch, Manifest};
 use rt_scoop::shims;
 use std::path::{Path, PathBuf};
@@ -109,5 +110,67 @@ pub fn remove_shims(ctx: &mut Ctx, app: &str, manifest: &Manifest, global: bool,
     let dir = ctx.scoop.shims(global);
     for bin in manifest.bins(arch) {
         remove_shim(ctx, &dir, &shim_name(&bin), Some(app));
+    }
+}
+
+/// PowerShell for the scripts of one app, started when the first is needed.
+pub struct Scripts {
+    host: Option<Host>,
+    libs: &'static [&'static str],
+    setup: String,
+}
+
+impl Scripts {
+    /// `libs`: those the command loads; `setup`: its variables.
+    pub fn new(libs: &'static [&'static str], setup: String) -> Scripts {
+        Scripts { host: None, libs, setup }
+    }
+
+    /// More variables: run now if PowerShell is there, else when it starts.
+    pub fn set(&mut self, ctx: &mut Ctx, setup: &str) -> Result<(), i32> {
+        if self.host.is_none() {
+            self.setup = format!("{}\n{setup}", self.setup);
+            return Ok(());
+        }
+        for line in setup.lines() {
+            self.run(ctx, line)?;
+        }
+        Ok(())
+    }
+
+    /// Runs a line; Err is the exit code that ends the whole command.
+    pub fn run(&mut self, ctx: &mut Ctx, line: &str) -> Result<(), i32> {
+        let _ = ctx.out.flush();
+        if self.host.is_none() {
+            let powershell = super::delegate::powershell(ctx);
+            match Host::start(&powershell, &ctx.scoop, self.libs, &self.setup) {
+                Ok(h) => self.host = Some(h),
+                Err(stop) => return Err(stopped(ctx, stop)),
+            }
+        }
+        match self.host.as_mut().map(|h| h.run(line)) {
+            Some(Err(stop)) => {
+                self.host = None;
+                Err(stopped(ctx, stop))
+            }
+            _ => Ok(()),
+        }
+    }
+
+    pub fn hook(&mut self, ctx: &mut Ctx, kind: &str) -> Result<(), i32> {
+        self.run(ctx, &format!("Invoke-HookScript -HookType '{kind}' -Manifest $manifest -ProcessorArchitecture $architecture"))
+    }
+
+    pub fn finish(self) {
+        if let Some(h) = self.host {
+            h.finish();
+        }
+    }
+}
+
+fn stopped(ctx: &mut Ctx, stop: Stop) -> i32 {
+    match stop {
+        Stop::Start(why) => ctx.fail("error.start", &[("what", "PowerShell"), ("why", &why)]),
+        Stop::Ended(code) => code,
     }
 }

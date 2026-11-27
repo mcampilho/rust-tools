@@ -29,14 +29,14 @@ fn github_token(ctx: &Ctx) -> Option<String> {
         .or_else(|| ["GH_TOKEN", "GITHUB_TOKEN"].iter().find_map(|n| ctx.env.get(n).map(String::from)))
 }
 
-struct Job {
-    app: String,
-    bucket: Option<String>,
-    manifest: Manifest,
+pub(super) struct Job {
+    pub app: String,
+    pub bucket: Option<String>,
+    pub manifest: Manifest,
 }
 
 /// The app of one query, or why Scoop has to do the whole command (None).
-fn job(ctx: &Ctx, query: &str) -> Option<Result<Job, &'static str>> {
+pub(super) fn job(ctx: &Ctx, query: &str) -> Option<Result<Job, &'static str>> {
     let wanted = parse_app(query);
     let r = resolve::resolve(
         &ctx.scoop,
@@ -205,8 +205,8 @@ pub fn run(ctx: &mut Ctx, args: &[String]) -> i32 {
         let why = e.to_string();
         return ctx.fail("error.remove", &[("why", &why)]);
     }
-    let program = resolve::helper(&ctx.scoop, "aria2", "aria2c.exe")
-        .filter(|_| ctx.scoop.setting("aria2-enabled") != &rt_scoop::json::Json::Bool(false));
+    let program = aria2_program(ctx);
+
     let mut failed = false;
     for query in &apps {
         let job = match job(ctx, query) {
@@ -241,9 +241,39 @@ fn one(ctx: &mut Ctx, job: &Job, arch: Arch, use_cache: bool, mut verify: bool, 
     let from = job.bucket.clone().unwrap_or_default();
     let line = ctx.t.fill("download.start", &[("app", &app), ("arch", arch.name()), ("bucket", &from)]);
     ctx.say(line);
+    let good = to_cache(ctx, &app, &version, &job.manifest, arch, use_cache, verify, program).is_some();
+    if good {
+        let line = ctx.t.fill("download.done", &[("app", &app), ("version", &version)]);
+        ctx.say(line);
+    }
+    good
+}
 
+/// The aria2 Scoop would use, if any.
+pub(super) fn aria2_program(ctx: &Ctx) -> Option<PathBuf> {
+    resolve::helper(&ctx.scoop, "aria2", "aria2c.exe").filter(|_| ctx.scoop.setting("aria2-enabled") != &rt_scoop::json::Json::Bool(false))
+}
+
+/// The files of `manifest` into the cache (`Invoke-CachedDownload`, or aria2),
+/// with their hashes checked: (address, file in the cache) for each one, or
+/// None when one failed (the reason was shown).
+#[allow(clippy::too_many_arguments)]
+pub(super) fn to_cache(
+    ctx: &mut Ctx,
+    app: &str,
+    version: &str,
+    manifest: &Manifest,
+    arch: Arch,
+    use_cache: bool,
+    verify: bool,
+    program: Option<&Path>,
+) -> Option<Vec<(String, PathBuf)>> {
+    if let Err(e) = std::fs::create_dir_all(&ctx.scoop.cache) {
+        ctx.warn("error.remove", &[("why", &format!("{}: {e}", ctx.scoop.cache.display()))]);
+        return None;
+    }
     let files: Vec<(String, PathBuf)> =
-        job.manifest.urls(arch).into_iter().map(|u| (u.clone(), cache_path(&ctx.scoop.cache, &app, &version, &u))).collect();
+        manifest.urls(arch).into_iter().map(|u| (u.clone(), cache_path(&ctx.scoop.cache, app, version, &u))).collect();
     // A control file of aria2 beside one means it is only half there.
     let mut wanted: Vec<(String, PathBuf)> =
         files.iter().filter(|(_, c)| !use_cache || !c.is_file() || control_file(c).is_file()).cloned().collect();
@@ -252,7 +282,7 @@ fn one(ctx: &mut Ctx, job: &Job, arch: Arch, use_cache: bool, mut verify: bool, 
         ctx.say(line);
     }
     if let Some(program) = program.filter(|_| !wanted.is_empty()) {
-        if aria2(ctx, program, &app, &wanted, &job.manifest) {
+        if aria2(ctx, program, app, &wanted, manifest) {
             wanted.clear();
         } else if ctx.scoop.setting("aria2-fallback-enabled") == &rt_scoop::json::Json::Bool(false) {
             // What is half downloaded must not pass for a download.
@@ -260,16 +290,16 @@ fn one(ctx: &mut Ctx, job: &Job, arch: Arch, use_cache: bool, mut verify: bool, 
                 let _ = std::fs::remove_file(cached);
                 let _ = std::fs::remove_file(control_file(cached));
             }
-            ctx.warn("download.aria2_failed", &[("app", &app)]);
-            return false;
+            ctx.warn("download.aria2_failed", &[("app", app)]);
+            return None;
         } else {
             ctx.warn("download.aria2_fallback", &[]);
         }
     }
     for (url, cached) in &wanted {
-        if let Err(why) = fetch(ctx, url, cached, &job.manifest) {
+        if let Err(why) = fetch(ctx, url, cached, manifest) {
             ctx.warn("download.failed", &[("url", url), ("why", &why)]);
-            return false;
+            return None;
         }
         let _ = std::fs::remove_file(control_file(cached));
     }
@@ -281,7 +311,7 @@ fn one(ctx: &mut Ctx, job: &Job, arch: Arch, use_cache: bool, mut verify: bool, 
             continue;
         }
         let name = file_name(url).to_string();
-        let Some(expected) = expected_hash(&job.manifest, arch, url) else {
+        let Some(expected) = expected_hash(manifest, arch, url) else {
             ctx.warn("download.no_hash", &[("name", &name)]);
             continue;
         };
@@ -292,7 +322,7 @@ fn one(ctx: &mut Ctx, job: &Job, arch: Arch, use_cache: bool, mut verify: bool, 
             }
             Err(e) => {
                 let why = hash_message(ctx, &e);
-                ctx.warn("download.hash_failed", &[("app", &app), ("url", url), ("why", &why)]);
+                ctx.warn("download.hash_failed", &[("app", app), ("url", url), ("why", &why)]);
                 let _ = std::fs::remove_file(cached);
                 if url.contains("sourceforge.net") {
                     ctx.warn("download.sourceforge", &[]);
@@ -301,9 +331,5 @@ fn one(ctx: &mut Ctx, job: &Job, arch: Arch, use_cache: bool, mut verify: bool, 
             }
         }
     }
-    if good {
-        let line = ctx.t.fill("download.done", &[("app", &app), ("version", &version)]);
-        ctx.say(line);
-    }
-    good
+    good.then_some(files)
 }

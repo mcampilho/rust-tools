@@ -7,7 +7,7 @@ what reads and what keeps the installation up, and **hands to Scoop everything t
 removes apps**, so it can be used in place of `scoop`. The plan for the rest is in
 [docs/rscoop.pt.md](../../docs/rscoop.pt.md).
 
-Without a command it does what it did before: it **validates the installation**. One 3.4 MB
+Without a command it does what it did before: it **validates the installation**. One 3.5 MB
 executable; texts in English, Portuguese and Spanish.
 
 ## Commands
@@ -33,7 +33,7 @@ rscoop-cli install ripgrep      (handed to Scoop)
 | `cache show\|rm`, `cleanup <app…>\|* [-g] [-k]` | What is kept: downloads and old versions. |
 | `hold`, `unhold` | Keep apps (or `scoop` itself) at their version. |
 | `shim add\|rm\|list\|info [-g]` | Shims as Scoop makes them (`.exe` and `.shim`, `.cmd`, `.ps1`, `sh`); one of another app is kept aside and comes back. `shim alter` is Scoop's. |
-| `reset <app…>\|*`, `uninstall <app…> [-g] [-p]` | Done here only with `RSCOOP_NATIVE=1` while they are being compared with Scoop; otherwise Scoop's. The scripts of manifests run in Scoop's own code. |
+| `install <app…> [-giksu]`, `update <app…>\|* [-gfiksq]`, `reset <app…>\|*`, `uninstall <app…> [-g] [-p]` | Done here only with `RSCOOP_NATIVE=1` while they are being compared with Scoop; otherwise Scoop's. The extraction and the scripts of manifests run in Scoop's own code; `app@version` and manifests from a file or an address stay Scoop's. |
 | `help [command]`, `scoop <command…>` | Help; run any command with Scoop itself. |
 
 **Where it is more careful than Scoop:** `bucket rm` only takes the name of a bucket (`bucket rm ..`

@@ -12,8 +12,10 @@ Plano, fases e o que cada uma deixou em `docs/rscoop.pt.md`. O Scoop oficial é 
 
 - `cmd/` — `mod.rs` (linha de comandos, `is_native`, ajuda), um módulo por assunto e `delegate.rs`, que corre o
   `scoop.ps1` da instalação para tudo o resto. O que instala ou remove aplicações só passa a nativo quando passar os
-  testes de compatibilidade do plano (fases 3 e 4): até lá, o `reset` e o `uninstall` (fase 3, feitos) só são
-  nativos com `RSCOOP_NATIVE=1` (`cmd/mod.rs`, `on_trial`); os testes ligam-no.
+  testes de compatibilidade do plano (fases 3 e 4): até lá, o `install`, o `update <app>`, o `reset` e o
+  `uninstall` só são nativos com `RSCOOP_NATIVE=1` (`cmd/mod.rs`, `on_trial`); os testes ligam-no.
+- Fase 4 (em curso): `cmd/install.rs` (`install_app`, também usado pelo `update`) e `cmd/update_apps.rs`. A
+  extração (`Invoke-Extraction`) e os scripts correm no código do Scoop; o `download.rs` dá o `to_cache` a ambos.
 - Fase 3: `cmd/shim.rs` (`shim add|rm|list|info`), `cmd/reset.rs`, `cmd/uninstall.rs` e `cmd/machinery.rs` (o que
   partilham: shims de uma aplicação, mensagens do ambiente, processos a correr) sobre os módulos `shims`, `links`,
   `env`, `shortcuts`, `system` e `hooks` do `rt-scoop`. O `Ctx` leva um `rt_scoop::system::System`: o `WinSystem` no

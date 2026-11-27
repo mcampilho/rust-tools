@@ -6,13 +6,13 @@
 //! here. Uninstalling Scoop itself is Scoop's.
 
 use super::args::getopt;
-use super::machinery::{remove_shims, say_changes, still_running};
+use super::machinery::{remove_shims, say_changes, still_running, Scripts};
 use super::maintain::confirm;
-use super::{delegate, Ctx};
+use super::Ctx;
 use crate::sys::is_admin;
 use rt_scoop::apps;
 use rt_scoop::disk::remove_tree;
-use rt_scoop::hooks::{boolean, quote, Host, Stop, UNINSTALL_LIBS};
+use rt_scoop::hooks::{boolean, quote, UNINSTALL_LIBS};
 use rt_scoop::json::Json;
 use rt_scoop::links;
 use rt_scoop::manifest::{truthy, Arch, Manifest};
@@ -47,50 +47,6 @@ fn setup(app: &str, version: &str, global: bool, purge: bool) -> String {
         "$bucket = $install.bucket".into(),
     ]
     .join("\n")
-}
-
-/// PowerShell for the scripts of one app, started when the first is needed.
-struct Scripts {
-    host: Option<Host>,
-    setup: String,
-}
-
-impl Scripts {
-    /// Runs a line; Err is the exit code that ends the whole command.
-    fn run(&mut self, ctx: &mut Ctx, line: &str) -> Result<(), i32> {
-        let _ = ctx.out.flush();
-        if self.host.is_none() {
-            let powershell = delegate::powershell(ctx);
-            match Host::start(&powershell, &ctx.scoop, &UNINSTALL_LIBS, &self.setup) {
-                Ok(h) => self.host = Some(h),
-                Err(stop) => return Err(stopped(ctx, stop)),
-            }
-        }
-        match self.host.as_mut().map(|h| h.run(line)) {
-            Some(Err(stop)) => {
-                self.host = None;
-                Err(stopped(ctx, stop))
-            }
-            _ => Ok(()),
-        }
-    }
-
-    fn hook(&mut self, ctx: &mut Ctx, kind: &str) -> Result<(), i32> {
-        self.run(ctx, &format!("Invoke-HookScript -HookType '{kind}' -Manifest $manifest -ProcessorArchitecture $architecture"))
-    }
-
-    fn finish(self) {
-        if let Some(h) = self.host {
-            h.finish();
-        }
-    }
-}
-
-fn stopped(ctx: &mut Ctx, stop: Stop) -> i32 {
-    match stop {
-        Stop::Start(why) => ctx.fail("error.start", &[("what", "PowerShell"), ("why", &why)]),
-        Stop::Ended(code) => code,
-    }
 }
 
 pub fn run(ctx: &mut Ctx, args: &[String]) -> i32 {
@@ -143,7 +99,7 @@ fn uninstall_one(ctx: &mut Ctx, app: &str, global: bool, purge: bool) -> Result<
         let arch =
             apps::install_info(&ctx.scoop, app, version, global).and_then(|i| Arch::parse(&i.architecture)).unwrap_or_else(|| ctx.arch());
         let [pre, uninstaller, post] = scripts(&m, arch);
-        let mut host = Scripts { host: None, setup: setup(app, version, global, purge) };
+        let mut host = Scripts::new(&UNINSTALL_LIBS, setup(app, version, global, purge));
         let done = remove_version(ctx, app, global, &dir, &m, arch, [pre, uninstaller, post], &mut host);
         host.finish();
         match done {

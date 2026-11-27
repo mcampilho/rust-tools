@@ -83,11 +83,9 @@ fn what_installs_or_removes_apps_goes_to_scoop() {
     assert!(native("update", &[]) && native("update", &["-q"]) && native("status", &[]) && native("cleanup", &["*"]));
     assert!(native("bucket", &["add", "x"]) && native("config", &["a", "b"]) && native("download", &["x"]));
     assert!(native("uninstall", &["x", "-p"]) && native("reset", &["*"]) && native("shim", &["add", "x", "y"]) && native("shim", &[]));
+    assert!(native("install", &["x"]) && native("update", &["x"]) && native("update", &["*"]) && native("update", &["-a"]));
     for (command, args) in [
-        ("install", vec!["x"]),
-        ("update", vec!["x"]),
-        ("update", vec!["*"]),
-        ("update", vec!["-a"]),
+        ("update", vec!["--help"]),
         ("uninstall", vec!["x", "Scoop"]),
         ("reset", vec!["--help"]),
         ("import", vec!["x"]),

@@ -29,9 +29,16 @@ function Invoke-HookScript($HookType, $Manifest, $ProcessorArchitecture) {
     $script = $Manifest.$HookType
     if ($script) { Invoke-Command ([scriptblock]::Create($script -join "`r`n")) }
 }
-function Invoke-Installer($Path, $Manifest, $ProcessorArchitecture, [switch]$Global, [switch]$Uninstall) {
-    Note "uninstaller $Path $ProcessorArchitecture $Uninstall"
+function Invoke-Installer($Path, $Name, $Manifest, $ProcessorArchitecture, $AppName, [switch]$Global, [switch]$Uninstall) {
+    Note "installer $Path $ProcessorArchitecture $Uninstall"
 }
+function Get-Manifest($query) {
+    $bucket, $name = $query -split '/'
+    $m = Get-Content "$env:SCOOP\buckets\$bucket\bucket\$name.json" -Raw | ConvertFrom-Json
+    return $name, $m, $bucket, $null
+}
+function manifest($app, $bucket, $url) { (Get-Manifest "$bucket/$app")[1] }
+function Invoke-Extraction($Path, $Name, $Manifest, $ProcessorArchitecture) { Note "extract $($Name -join ',') $ProcessorArchitecture" }
 "#;
 
 /// An app `tool` with two versions installed (`current` on 2.0), another
@@ -129,7 +136,7 @@ fn uninstall_runs_the_scripts_and_puts_back_the_other_apps_shim() {
     assert_eq!(code, 0, "{out}{err}");
     let notes = read(&root.join("notes.txt"));
     let v2 = at(&root, "apps/tool/2.0");
-    assert_eq!(notes, format!("pre uninstall tool 2.0 False\r\nuninstaller {} 64bit True\r\npost {}\r\n", v2.display(), v2.display()));
+    assert_eq!(notes, format!("pre uninstall tool 2.0 False\r\ninstaller {} 64bit True\r\npost {}\r\n", v2.display(), v2.display()));
     assert!(!at(&root, "apps/tool").exists() && !at(&root, "persist/tool").exists(), "{out}");
     // The shim of the other app is back; this one's are gone.
     let shims = root.join("shims");
@@ -215,4 +222,92 @@ fn shims_are_added_listed_shown_and_removed() {
     // `alter` asks the user: Scoop's.
     rscoop_on(&root, &["shim", "alter", "tool"], &system);
     assert_eq!(read(&root.join("handed.txt")).trim(), "shim alter tool");
+}
+
+#[test]
+fn install_downloads_extracts_links_and_records_and_uninstall_takes_it_back() {
+    let root = installation("install");
+    let system = FakeSystem::new(root.join("menu"));
+    static HELLO: std::sync::OnceLock<Vec<u8>> = std::sync::OnceLock::new();
+    let body: &'static [u8] = HELLO.get_or_init(|| exe(3));
+    let (address, _) = super::tests_write::server(vec![("hello.exe", body), ("dep.exe", body)]);
+    let hash = rt_core::sha256::hex(body);
+    write(
+        &root,
+        "buckets/main/bucket/hello.json",
+        &format!(
+            r#"{{"version":"1.0","url":"{address}/hello.exe","hash":"{hash}","bin":"hello.exe","depends":"main/dep",
+            "shortcuts":[["hello.exe","Hello"]],"env_set":{{"HELLO":"$dir"}},"persist":"data","notes":"See $dir",
+            "pre_install":"Note \"pre $cmd $version\"","post_install":"Note \"post $dir\"","suggest":{{"x":"main/jq"}}}}"#
+        ),
+    );
+    write(&root, "buckets/main/bucket/dep.json", &format!(r#"{{"version":"2.0","url":"{address}/dep.exe","hash":"{hash}"}}"#));
+    let (code, out, err) = rscoop_on(&root, &["install", "hello", "-u"], &system);
+    assert_eq!(code, 0, "{out}{err}");
+    let notes = read(&at(&root, "notes.txt"));
+    let current = at(&root, "apps/hello/current");
+    let pre = notes.find("pre install 1.0").expect(&notes);
+    let post = notes.find(&format!("post {}", current.display())).expect(&notes);
+    assert!(pre < post && notes.starts_with("extract dep.exe 64bit"), "{notes}");
+    assert!(at(&root, "apps/hello/1.0/hello.exe").is_file() && at(&root, "apps/dep/2.0/dep.exe").is_file());
+    assert_eq!(read(&at(&root, "apps/hello/1.0/scoop-manifest.json")), read(&at(&root, "buckets/main/bucket/hello.json")));
+    assert_eq!(
+        read(&at(&root, "apps/hello/1.0/scoop-install.json")),
+        "{\r\n    \"bucket\": \"main\",\r\n    \"architecture\": \"64bit\"\r\n}\r\n"
+    );
+    assert_eq!(std::fs::metadata(current.join("hello.exe")).unwrap().len(), body.len() as u64);
+    assert!(read(&at(&root, "shims/hello.shim")).contains(&current.join("hello.exe").display().to_string()));
+    assert_eq!(system.var("HELLO", false), Some(current.display().to_string()));
+    assert!(at(&root, "persist/hello/data").is_dir() && at(&root, "menu/user/Programs/Scoop Apps/Hello.lnk").is_file());
+    assert!(out.contains("'hello' (1.0) was installed successfully!") && out.contains(&format!("See {}", current.display())), "{out}");
+    assert!(err.contains("'hello' suggests installing 'main/jq'."), "{err}");
+    assert!(std::fs::read_dir(at(&root, "cache")).unwrap().count() == 2);
+
+    let (code, _, err) = rscoop_on(&root, &["install", "hello", "-u"], &system);
+    assert!(code == 0 && err.contains("is already installed"), "{err}");
+    let (code, out, err) = rscoop_on(&root, &["uninstall", "hello"], &system);
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(!at(&root, "apps/hello").exists() && system.var("HELLO", false).is_none());
+    // Scoop's own: a version asked for.
+    rscoop_on(&root, &["install", "dep@1.0"], &system);
+    assert_eq!(read(&at(&root, "handed.txt")).trim(), "install dep@1.0");
+}
+
+#[test]
+fn update_unlinks_the_old_version_and_installs_the_new_one() {
+    let root = installation("update-app");
+    let system = FakeSystem::new(root.join("menu"));
+    // Scoop and the buckets were just updated: nothing to pull.
+    rt_scoop::config::set_member(&at(&root, "home/.config/scoop/config.json"), "last_update", Some(rt_scoop::json::string("2999-01-01")))
+        .unwrap();
+    static BODY: std::sync::OnceLock<Vec<u8>> = std::sync::OnceLock::new();
+    let body: &'static [u8] = BODY.get_or_init(|| exe(3));
+    let (address, _) = super::tests_write::server(vec![("one.exe", body), ("two.exe", body)]);
+    let hash = rt_core::sha256::hex(body);
+    let manifest = |version: &str, file: &str| {
+        format!(
+            r#"{{"version":"{version}","url":"{address}/{file}#/up.exe","hash":"{hash}","bin":"up.exe","env_set":{{"UP":"$version"}},
+            "pre_uninstall":"Note \"preun $cmd $version $old_version\"","post_install":"Note \"post $cmd $version\""}}"#
+        )
+    };
+    write(&root, "buckets/main/bucket/up.json", &manifest("1.0", "one.exe"));
+    let (code, out, err) = rscoop_on(&root, &["install", "up"], &system);
+    assert_eq!(code, 0, "{out}{err}");
+    let (code, out, _) = rscoop_on(&root, &["update", "up"], &system);
+    assert!(code == 0 && out.contains("up: 1.0 (latest version)"), "{out}");
+
+    write(&root, "buckets/main/bucket/up.json", &manifest("2.0", "two.exe"));
+    let (code, out, err) = rscoop_on(&root, &["update", "up"], &system);
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(out.contains("up: 1.0 -> 2.0") && out.contains("Updating 'up' (1.0 -> 2.0)"), "{out}");
+    let notes = read(&at(&root, "notes.txt"));
+    assert!(notes.contains("post install 1.0\r\npreun update 2.0 1.0\r\n") && notes.ends_with("post update 2.0\r\n"), "{notes}");
+    let current = at(&root, "apps/up/current");
+    assert_eq!(read(&current.join("scoop-manifest.json")), manifest("2.0", "two.exe"));
+    assert!(at(&root, "apps/up/1.0/up.exe").is_file() && current.join("up.exe").is_file());
+    assert_eq!(system.var("UP", false).as_deref(), Some("2.0"));
+    // The same version again, forced: the old folder is kept aside.
+    let (code, out, err) = rscoop_on(&root, &["update", "up", "--force"], &system);
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(at(&root, "apps/up/_2.0.old").is_dir() && at(&root, "apps/up/2.0/up.exe").is_file(), "{out}");
 }

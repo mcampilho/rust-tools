@@ -30,6 +30,26 @@ pub fn boolean(value: bool) -> &'static str {
 pub const UNINSTALL_LIBS: [&str; 12] =
     ["core", "buckets", "commands", "help", "getopt", "manifest", "system", "install", "download", "shortcuts", "psmodules", "versions"];
 
+/// Those of `scoop-install.ps1` (and of `scoop-update.ps1`, which installs).
+pub const INSTALL_LIBS: [&str; 16] = [
+    "core",
+    "buckets",
+    "commands",
+    "help",
+    "getopt",
+    "json",
+    "autoupdate",
+    "manifest",
+    "system",
+    "install",
+    "download",
+    "decompress",
+    "shortcuts",
+    "psmodules",
+    "versions",
+    "depends",
+];
+
 /// What PowerShell runs before the first command: the libraries of the
 /// installation, then `setup` (the variables of the command).
 #[cfg_attr(not(windows), allow(dead_code))]
