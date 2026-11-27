@@ -185,6 +185,8 @@ fn icon_thread(proxy: EventLoopProxy<UserEvent>) -> std::sync::mpsc::Sender<Path
         unsafe {
             windows_sys::Win32::System::Com::CoInitializeEx(std::ptr::null(), 2);
         }
+        #[cfg(not(windows))]
+        let dirs = rlaunch::xdg::IconDirs::system();
         for path in receive {
             let icon = if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("png")) {
                 std::fs::read(&path).ok().and_then(|b| Pixmap::decode_png(&b).ok())
@@ -195,7 +197,7 @@ fn icon_thread(proxy: EventLoopProxy<UserEvent>) -> std::sync::mpsc::Sender<Path
                 }
                 #[cfg(not(windows))]
                 {
-                    None
+                    rlaunch::ui::linux_icon::of(&dirs, &path)
                 }
             };
             if proxy.send_event(UserEvent::Icon(path, icon.map(Box::new))).is_err() {
@@ -218,10 +220,18 @@ fn open_entry(e: &Entry) -> bool {
             Some((program, args)) => {
                 let mut command = std::process::Command::new(program);
                 command.args(args);
-                if let Some(home) = std::env::var_os("HOME") {
-                    command.current_dir(home);
+                // A program of a folder starts in it, as portable ones expect.
+                let own = (e.path.as_os_str() == program.as_str()).then(|| e.path.parent()).flatten();
+                if let Some(dir) = own.map(Path::to_path_buf).or_else(|| std::env::var_os("HOME").map(PathBuf::from)) {
+                    command.current_dir(dir);
                 }
-                command.spawn().is_ok()
+                match command.spawn() {
+                    Ok(mut child) => {
+                        std::thread::spawn(move || child.wait());
+                        true
+                    }
+                    Err(_) => false,
+                }
             }
             None => {
                 rt_sys::linux::xdg_open(e.path.clone().into_os_string());
@@ -248,8 +258,11 @@ fn open_place(place: Place, location: &storage::Location) {
     #[cfg(not(windows))]
     {
         let home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| "/".into());
+        let config = std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from).unwrap_or_else(|| home.join(".config"));
+        let dirs = std::fs::read_to_string(config.join("user-dirs.dirs")).unwrap_or_default();
         let folder = |name: &str| {
-            let d = home.join(name);
+            let key = if name == "Downloads" { "DOWNLOAD".to_string() } else { name.to_uppercase() };
+            let d = rlaunch::xdg::user_dir(&dirs, &key, &home).unwrap_or_else(|| home.join(name));
             if d.is_dir() {
                 d
             } else {
@@ -288,6 +301,18 @@ impl Shell {
     /// is on.
     fn place(&self) {
         let Some(w) = &self.win else { return };
+        // X11 puts the window where asked; Wayland decides by itself. The
+        // pointer is not known, and a panel is left room at the bottom.
+        #[cfg(not(windows))]
+        if let Some(screen) = w.window.current_monitor().or_else(|| w.window.primary_monitor()) {
+            let _ = w.window.request_inner_size(self.size());
+            let (at, size, own) = (screen.position(), screen.size(), w.window.outer_size());
+            let area = (at.x, at.y, at.x + size.width as i32, at.y + size.height as i32 - 40);
+            let centre = ((area.0 + area.2) / 2, (area.1 + area.3) / 2);
+            let size = (own.width as i32, own.height as i32);
+            let (x, y) = self.settings.position.place(area, size, (centre.0 - size.0 / 2, centre.1 - size.1 / 2));
+            w.window.set_outer_position(winit::dpi::PhysicalPosition::new(x, y));
+        }
         #[cfg(windows)]
         if let Some((left, top, right, bottom, x, y)) = rt_sys::win::work_area_at_cursor() {
             // Moved first: the size depends on the scale of that screen.
@@ -335,7 +360,11 @@ impl Shell {
             Field::Theme => self.settings.theme = pick(&[0, 1, 2], self.settings.theme, forward),
             Field::Rows => self.settings.large = !self.settings.large,
             // Applies when the menu opens next: it does not jump while chosen.
-            Field::Position => self.settings.position = pick(&Position::ALL, self.settings.position, forward),
+            Field::Position => {
+                // Elsewhere than on Windows the pointer is not known.
+                let all = if cfg!(windows) { &Position::ALL[..] } else { &Position::ALL[..3] };
+                self.settings.position = pick(all, self.settings.position, forward);
+            }
             Field::Language => {
                 // None (the system's), then each language.
                 let at = self.settings.language.and_then(|l| i18n::Lang::ALL.iter().position(|x| *x == l)).map_or(0, |i| i + 1);
@@ -705,7 +734,11 @@ impl Shell {
             }
             Cmd::Category(to) => self.change(&path, |c| c.category = Some(to)),
             Cmd::ChangeIcon => {
-                let filter = [(tr("Icons"), "*.ico;*.png;*.exe;*.dll;*.lnk"), (tr("All files"), "*.*")];
+                let filter = if cfg!(windows) {
+                    [(tr("Icons"), "*.ico;*.png;*.exe;*.dll;*.lnk"), (tr("All files"), "*.*")]
+                } else {
+                    [(tr("Icons"), "*.png;*.svg;*.desktop"), (tr("All files"), "*")]
+                };
                 if let Some(icon) = self.pick_file(&tr("Choose an icon"), &filter) {
                     // Read again, should the file have changed.
                     self.icons.remove(&icon);
@@ -837,7 +870,12 @@ impl Shell {
             Hit::Pin => self.pinned = !self.pinned,
             Hit::ShowHidden => self.app.open_hidden(),
             Hit::AddProgram => {
-                let filter = [(tr("Programs"), "*.exe;*.lnk;*.bat;*.cmd;*.appref-ms"), (tr("All files"), "*.*")];
+                let filter = if cfg!(windows) {
+                    vec![(tr("Programs"), "*.exe;*.lnk;*.bat;*.cmd;*.appref-ms"), (tr("All files"), "*.*")]
+                } else {
+                    // Linux programs have no extension to ask for.
+                    vec![(tr("All files"), "*")]
+                };
                 if let Some(file) = self.pick_file(&tr("Choose a program"), &filter) {
                     self.add(file);
                 }

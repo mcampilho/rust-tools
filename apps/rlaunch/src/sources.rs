@@ -45,7 +45,7 @@ pub fn added_entry(path: &Path) -> Option<Entry> {
         .is_some_and(|e| e == "desktop")
         .then(|| std::fs::read_to_string(path).ok().and_then(|t| desktop::parse(&t, path)))
         .flatten();
-    let entry = match own {
+    let entry = match own.or_else(|| unix_program(path)) {
         Some(e) => e,
         None => {
             let name = path.file_stem()?.to_string_lossy().into_owned();
@@ -139,6 +139,44 @@ fn entry_of(path: &Path) -> Option<Entry> {
     Some(Entry::new(name, path.to_path_buf(), category))
 }
 
+/// A program of Linux in a folder: executable, and a binary (an AppImage too)
+/// or a script. On drives where every file is "executable" (FAT, NTFS), the
+/// first bytes still tell.
+#[cfg(unix)]
+fn unix_program(path: &Path) -> Option<Entry> {
+    use std::io::Read;
+    use std::os::unix::fs::PermissionsExt;
+    let ext = path.extension().map(|e| e.to_string_lossy().to_ascii_lowercase()).unwrap_or_default();
+    if ext == "desktop" {
+        return std::fs::read_to_string(path).ok().and_then(|t| desktop::parse(&t, path));
+    }
+    if !matches!(ext.as_str(), "" | "sh" | "appimage" | "run" | "bin" | "x86_64" | "py") {
+        return None;
+    }
+    let meta = std::fs::metadata(path).ok()?;
+    if !meta.is_file() || meta.permissions().mode() & 0o111 == 0 {
+        return None;
+    }
+    let mut magic = [0u8; 4];
+    std::fs::File::open(path).and_then(|mut f| f.read_exact(&mut magic)).ok()?;
+    if !(magic == *b"\x7fELF" || magic.starts_with(b"#!")) {
+        return None;
+    }
+    // `Tool-1.2.AppImage` and `run.sh` are called without the extension.
+    let name = path.file_stem()?.to_string_lossy().into_owned();
+    if is_junk(&name) {
+        return None;
+    }
+    let category = category::guess(&[&name]);
+    let exec = vec![path.to_string_lossy().into_owned()];
+    Some(Entry { exec, ..Entry::new(name, path.to_path_buf(), category) })
+}
+
+#[cfg(not(unix))]
+fn unix_program(_: &Path) -> Option<Entry> {
+    None
+}
+
 fn walk(dir: &Path, skip: &[PathBuf], depth: usize, found: &mut Vec<Entry>) {
     // An app of the PortableApps format says what starts it: nothing else of
     // its folder is a program of the menu.
@@ -166,7 +204,7 @@ fn walk(dir: &Path, skip: &[PathBuf], depth: usize, found: &mut Vec<Entry>) {
             if depth < DEPTH && !hidden && !shared && !skip.contains(&path) {
                 walk(&path, skip, if suite { DEPTH } else { depth + 1 }, found);
             }
-        } else if let Some(e) = entry_of(&path) {
+        } else if let Some(e) = entry_of(&path).or_else(|| unix_program(&path)) {
             found.push(e);
         }
     }
@@ -289,9 +327,21 @@ pub mod desktop {
         words
     }
 
-    /// The program of a `.desktop` file's text, if it belongs in a menu.
+    /// The program of a `.desktop` file's text, if it belongs in a menu, with
+    /// the menu's language and this desktop.
     pub fn parse(text: &str, path: &Path) -> Option<Entry> {
+        let desktop = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default();
+        parse_for(text, path, crate::i18n::lang().tag(), &desktop)
+    }
+
+    /// [`parse`] for the language `lang` (`pt-PT`) on `desktop`.
+    pub fn parse_for(text: &str, path: &Path, lang: &str, desktop: &str) -> Option<Entry> {
         let mut name = None;
+        // `Name[pt_PT]` is better than `Name[pt]`.
+        let full = format!("Name[{}]", lang.replace('-', "_"));
+        let short = format!("Name[{}]", lang.split('-').next().unwrap_or(lang));
+        let (mut by_full, mut by_short) = (None, None);
+        let (mut only, mut not) = ("", "");
         let (mut exec, mut categories, mut kind) = ("", "", "");
         let mut inside = false;
         for line in text.lines() {
@@ -302,6 +352,10 @@ pub mod desktop {
             let Some((k, v)) = line.split_once('=').filter(|_| inside) else { continue };
             match k.trim() {
                 "Name" => name = Some(v.trim().to_string()),
+                k if k == full => by_full = Some(v.trim().to_string()),
+                k if k == short => by_short = Some(v.trim().to_string()),
+                "OnlyShowIn" => only = v.trim(),
+                "NotShowIn" => not = v.trim(),
                 "Exec" => exec = v.trim(),
                 "Categories" => categories = v.trim(),
                 "Type" => kind = v.trim(),
@@ -309,9 +363,9 @@ pub mod desktop {
                 _ => {}
             }
         }
-        let name = name?;
+        let name = by_full.or(by_short).or(name)?;
         let exec = command(exec);
-        if kind != "Application" || exec.is_empty() {
+        if kind != "Application" || exec.is_empty() || !crate::xdg::shown_on(only, not, desktop) {
             return None;
         }
         let category = category_of(categories).unwrap_or_else(|| super::category::guess(&[&name]));
@@ -383,6 +437,39 @@ mod tests {
         let all = collect(&[Root { dir: d, skip: Vec::new() }], &[]);
         let names: Vec<&str> = all.iter().map(|e| e.name.as_str()).collect();
         assert_eq!(names, ["Git Bash", "Git GUI", "Mozilla Firefox, Edition", "Tool"]);
+    }
+
+    #[test]
+    fn desktop_names_follow_the_language_and_the_desktop() {
+        let text = "[Desktop Entry]\nType=Application\nName=Files\nName[pt]=Ficheiros\nName[pt_BR]=Arquivos\nExec=x\nNotShowIn=KDE;\n";
+        let name = |lang, on| desktop::parse_for(text, Path::new("x"), lang, on).map(|e| e.name);
+        assert_eq!(name("pt-PT", "GNOME").as_deref(), Some("Ficheiros"));
+        assert_eq!(name("pt-BR", "GNOME").as_deref(), Some("Arquivos"));
+        assert_eq!(name("de-DE", "").as_deref(), Some("Files"));
+        assert_eq!(name("pt-PT", "KDE"), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn folders_give_linux_programs() {
+        use std::os::unix::fs::PermissionsExt;
+        let d = scratch("unix");
+        for (file, bytes, mode) in [
+            ("Tool.AppImage", &b"\x7fELF...."[..], 0o755),
+            ("run.sh", b"#!/bin/sh\n", 0o755),
+            ("plain.sh", b"#!/bin/sh\n", 0o644),
+            ("photo", b"JFIF....", 0o755),
+            ("lib.so", b"\x7fELF....", 0o755),
+        ] {
+            put(&d, file, bytes);
+            std::fs::set_permissions(d.join(file), std::fs::Permissions::from_mode(mode)).unwrap();
+        }
+        let all = collect(&[Root { dir: d.clone(), skip: Vec::new() }], &[]);
+        let names: Vec<&str> = all.iter().map(|e| e.name.as_str()).collect();
+        // `target` may be on a drive without modes: then all are executable.
+        let modes = std::fs::metadata(d.join("plain.sh")).unwrap().permissions().mode() & 0o111 == 0;
+        assert_eq!(names, if modes { vec!["run", "Tool"] } else { vec!["plain", "run", "Tool"] });
+        assert!(all.iter().all(|e| e.exec == [e.path.to_string_lossy()]));
     }
 
     #[test]

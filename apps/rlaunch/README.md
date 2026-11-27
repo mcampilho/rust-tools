@@ -79,7 +79,7 @@ logo and a line says so: what it opens has those rights too.
 - **Size:** 100% (350×480), 115% or 130%. **Rows:** compact, or large with
   bigger icons.
 - **Transparency** (Windows): off, or 10% to 40%.
-- **Position** (Windows): right (by the notification area), left, center or at
+- **Position** (on Linux, X11 only, and without "at the pointer"): right (by the notification area), left, center or at
   the pointer.
 
 For colors of your own, put a `theme.ini` file beside `settings.ini`. It is read
@@ -124,10 +124,22 @@ Without that file, settings are in `%APPDATA%\rlaunch`.
 
 ## Linux
 
-The menu reads the installed applications (`.desktop` files, with their own
-categories) and your folders. There is no keyboard shortcut of its own (bind
-one in the desktop's settings to `rlaunch`), and icons are not shown yet.
-Without a notification area, closing the menu quits.
+The menu reads the installed applications (`.desktop` files: their names in the
+menu's language, their categories and icons, PNG or SVG, from the desktop's icon
+theme; those hidden from your desktop are left out) and your folders, where it
+lists `.desktop` files, executable programs, scripts and AppImages. A program of
+a folder starts in that folder. Documents, Downloads and the others follow the
+names in `user-dirs.dirs`.
+
+What differs from Windows:
+
+- no keyboard shortcut of its own: bind one in the desktop's settings to
+  `rlaunch` (starting it again opens the menu);
+- **Position** works on X11; on Wayland the desktop places the window;
+- dragging files onto the menu works on X11, not on Wayland;
+- no transparency and no administrator options;
+- the menu stays in the notification area where there is one (StatusNotifierItem;
+  on GNOME, with an extension). Without one, closing the menu quits.
 
 ## Phases
 
@@ -138,7 +150,7 @@ Without a notification area, closing the menu quits.
 3. **Done:** themes and looks.
 4. **Done for PortableApps:** its apps and the choices of its menu. Other suites
    are not read in their own format yet.
-5. Linux in full (icons).
+5. **Done:** Linux in full (icons, programs of folders).
 
 ## Build
 

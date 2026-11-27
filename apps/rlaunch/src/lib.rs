@@ -10,3 +10,4 @@ pub mod settings;
 pub mod sources;
 pub mod storage;
 pub mod ui;
+pub mod xdg;

@@ -157,6 +157,13 @@ struct Painter<'a, 'm> {
     out: Drawn,
 }
 
+/// The part of `r` that keeps the proportions of a `w`×`h` image, centred.
+fn fitted(r: Rect, w: u32, h: u32) -> Rect {
+    let scale = (r.w / w.max(1) as f32).min(r.h / h.max(1) as f32);
+    let (width, height) = (w as f32 * scale, h as f32 * scale);
+    Rect::new(r.x + (r.w - width) / 2.0, r.y + (r.h - height) / 2.0, width, height)
+}
+
 fn text_middle(g: &mut Gfx, text: &str, r: Rect, px: f32, font: FontId, c: Color) {
     let cut = ellipsize(g, text, r.w, px, font);
     g.text_in(&cut, r, px, font, c, Align::Left);
@@ -176,8 +183,9 @@ impl Painter<'_, '_> {
             let px = self.px(size);
             self.g.text_in(glyph, r, px, FontId::Icons, c, Align::Center);
         } else {
-            let d = self.px(4.0);
-            self.g.fill_circle(r.x + r.w / 2.0, r.center_y(), d, c);
+            let side = self.px(size);
+            let at = Rect::new(r.x + (r.w - side) / 2.0, r.y + (r.h - side) / 2.0, side, side);
+            super::symbols::draw(self.g, glyph, at, self.px(1.2).max(1.0), c);
         }
     }
 
@@ -351,7 +359,7 @@ impl Painter<'_, '_> {
                 Row::Entry(i) => {
                     let e = &app.entries[i];
                     match self.m.icons.get(e.icon_source()) {
-                        Some(Some(pm)) => self.g.draw_image(pm, icon),
+                        Some(Some(pm)) => self.g.draw_image(pm, fitted(icon, pm.width(), pm.height())),
                         _ => self.letter(icon, &e.name),
                     }
                     match self.m.rename {
@@ -531,10 +539,8 @@ impl Painter<'_, '_> {
         let rows = if st.large { tr("Large") } else { tr("Compact") };
         self.stepper(y, &tr("Rows"), &rows, Field::Rows);
         y += 27.0;
-        if cfg!(windows) {
-            self.stepper(y, &tr("Position"), &tr(st.position.name()), Field::Position);
-            y += 27.0;
-        }
+        self.stepper(y, &tr("Position"), &tr(st.position.name()), Field::Position);
+        y += 27.0;
         let hint = tr("Your own colors: a theme.ini file beside the settings.");
         for line in rt_gfx::dialog::wrap_words(self.g, &hint, self.px(318.0), small, FontId::Regular).into_iter().take(2) {
             let r = self.rect(16.0, y + 6.0, 318.0, 16.0);

@@ -79,7 +79,7 @@ Separador **Aspeto**:
 - **Tamanho:** 100% (350×480), 115% ou 130%. **Linhas:** compactas, ou grandes
   com ícones maiores.
 - **Transparência** (Windows): desativada, ou de 10% a 40%.
-- **Posição** (Windows): à direita (junto ao relógio), à esquerda, ao centro ou
+- **Posição** (em Linux só em X11, e sem "junto ao ponteiro"): à direita (junto ao relógio), à esquerda, ao centro ou
   junto ao ponteiro.
 
 Para cores à tua medida, põe um ficheiro `theme.ini` ao lado do `settings.ini`.
@@ -127,10 +127,22 @@ Sem esse ficheiro, as definições ficam em `%APPDATA%\rlaunch`.
 
 ## Linux
 
-O menu lê as aplicações instaladas (ficheiros `.desktop`, com as suas próprias
-categorias) e as tuas pastas. Não tem atalho de teclado próprio (associa um a
-`rlaunch` nas definições do ambiente de trabalho) e ainda não mostra ícones. Sem
-área de notificação, fechar o menu termina o programa.
+O menu lê as aplicações instaladas (ficheiros `.desktop`: o nome na língua do
+menu, as categorias e os ícones, PNG ou SVG, do tema de ícones do ambiente de
+trabalho; as escondidas do teu ambiente ficam de fora) e as tuas pastas, onde
+lista ficheiros `.desktop`, programas executáveis, scripts e AppImages. Um
+programa de uma pasta arranca nessa pasta. Documentos, Transferências e as
+outras seguem os nomes do `user-dirs.dirs`.
+
+O que é diferente do Windows:
+
+- não tem atalho de teclado próprio: associa um a `rlaunch` nas definições do
+  ambiente de trabalho (arrancá-lo outra vez abre o menu);
+- a **Posição** funciona em X11; em Wayland é o ambiente que coloca a janela;
+- arrastar ficheiros para o menu funciona em X11, não em Wayland;
+- não há transparência nem opções de administrador;
+- o menu fica na área de notificação onde a houver (StatusNotifierItem; no GNOME,
+  com uma extensão). Sem ela, fechar o menu termina o programa.
 
 ## Fases
 
@@ -141,7 +153,7 @@ categorias) e as tuas pastas. Não tem atalho de teclado próprio (associa um a
 3. **Feito:** temas e aspeto.
 4. **Feito para a PortableApps:** as aplicações e as escolhas do menu dela. As
    outras suites ainda não são lidas no seu próprio formato.
-5. Linux completo (ícones).
+5. **Feito:** Linux completo (ícones, programas das pastas).
 
 ## Compilar
 

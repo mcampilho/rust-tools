@@ -107,6 +107,13 @@ fn screenshots() {
             icons.insert(e.path.clone(), rt_sys::win::icon::of_file(&e.path).and_then(|(w, h, px)| crate::ui::view::pixmap(w, h, px)));
         }
     }
+    #[cfg(not(windows))]
+    {
+        let dirs = crate::xdg::IconDirs::system();
+        for e in &app.entries {
+            icons.insert(e.path.clone(), crate::ui::linux_icon::of(&dirs, e.icon_source()));
+        }
+    }
     let dev = app.entries.iter().find(|e| e.category == Category::Development).map_or(Category::Other, |e| e.category);
     for (name, lang, dark, view, query) in [
         ("pt-categories", Lang::PtPT, false, View::Categories, ""),

@@ -23,6 +23,9 @@ vários `rmenu`). Funcionalidades e fases no `README.md`.
   acrescentados; `apply` sobrepõe-o ao que a leitura deu (`main.rs` guarda `raw`), sem voltar a ler as pastas.
 - `portableapps.rs` — o formato PortableApps (`appinfo.ini`) e a importação do `PortableAppsMenu.ini` (UTF-16:
   `AppsFavorite`, `AppsHidden`, `AppsRenamed`, `AppsRecategorized`; só o primeiro visto num ficheiro real). Só lê.
+- `xdg.rs` — Linux, em ficheiros simples (testado em qualquer sistema): tema de ícones e procura do ícone, pastas do
+  utilizador, `OnlyShowIn`/`NotShowIn`. `ui/linux_icon.rs` desenha PNG e SVG (`resvg`, só em Linux). `ui/symbols.rs`:
+  os símbolos do menu em linhas, onde não há a fonte de ícones do Windows.
 - `app.rs` — vista (categorias com os favoritos no topo, dentro de uma, ocultos, opções), procura (sem acentos), seleção e scroll. Sem desenho.
 - `settings.rs` — `Settings`, `Hotkey`; `pack`/`unpack`: em modo portátil as pastas do disco do rlaunch ficam `*:\…`.
 - `ui/view.rs` — o menu numa função `draw` que devolve os alvos de clique (`Hit`), as linhas visíveis e os programas
@@ -59,6 +62,10 @@ executável fica o de teste.
 Fases 3 e 4 (2026-11-26): opções em dois separadores, cores (`ui/theme.rs`, `theme.ini`), linhas grandes, posição.
 Verificado com a PortableApps do utilizador em `S:\Portable\PortableApps`: 333 programas em 0,15 s, 37 escolhas.
 PStart, LiberKey e Lupo/ASuite não foram feitos: não há instalação para verificar o formato.
+
+Fase 5 (2026-11-27): verificada no WSL com aplicações de exemplo (ícones PNG e SVG, capturas) e arranque em X11 e
+Wayland durante 4 s; o executável Linux ficou com 7,6 MB (o resvg junta cerca de 0,8 MB). Não verificado num ambiente
+de trabalho Linux a sério (área de notificação, abrir programas, temas de ícones do GNOME/KDE, posição).
 
 ## Regras
 
