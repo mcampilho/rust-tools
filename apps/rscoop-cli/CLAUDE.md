@@ -36,7 +36,7 @@ Comparação diferencial no Windows Sandbox: `sandbox/` (`docs/rscoop.pt.md` §1
   HTTP local e um `scoop.ps1` que só regista o que lhe pedem. Nunca ensaiar escritas nas instalações verdadeiras sem
   pedir.
 - Os campos de `--json` e os textos de `Info` do `export` são os do Scoop, em inglês (o `import` lê-os).
-- No lançamento, o manifesto `bucket/rscoop-cli.json` passa a `"bin": ["rscoop-cli.exe", ["rscoop-cli.exe", "sco"]]`.
+- O manifesto `bucket/rscoop-cli.json` tem `"bin": ["rscoop-cli.exe", ["rscoop-cli.exe", "sco"]]` desde a 0.2.0 (lançada a 2026-11-27).
 
 ## Módulos da verificação
 

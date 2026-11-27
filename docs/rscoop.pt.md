@@ -2,7 +2,7 @@
 
 Escrito a 2026-11-27. **Estado:** fases 0 a 3 feitas e comparadas no Windows Sandbox (secção 12); fase 4 com `install`,
 `update <app>` e `import` iguais ao oficial na Sandbox (secção 13); fase 5 com os extras (secção 14); versão 0.2.0
-por lançar.
+lançada a 2026-11-27 (com o comando `sco` no bucket).
 
 ## 1. Resumo
 
@@ -247,7 +247,7 @@ Diferenças deliberadas ou por fazer:
 - `info -v` não mostra o tamanho da descarga.
 - Manifestos de um endereço web não são lidos (`status` dá-os como atualizados).
 - `which` não conhece os aliases nem as funções do PowerShell.
-- No lançamento, o manifesto `bucket/rscoop-cli.json` passa a criar também o comando `sco`.
+- O manifesto `bucket/rscoop-cli.json` cria também o comando `sco` (desde a 0.2.0).
 
 ## 11. Fase 2: o que ficou
 
