@@ -20,8 +20,23 @@ pub fn is_link(meta: &std::fs::Metadata) -> bool {
     }
 }
 
+/// `path` in the `\\?\` form, so that the Win32 calls take it past 260
+/// characters (the standard library does this for its own calls).
+#[cfg(windows)]
+fn verbatim(path: &Path) -> std::ffi::OsString {
+    let full = std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf());
+    let text = full.as_os_str().to_string_lossy();
+    if text.starts_with(r"\\?\") || text.starts_with(r"\\.\") {
+        full.into_os_string()
+    } else if let Some(unc) = text.strip_prefix(r"\\") {
+        format!(r"\\?\UNC\{unc}").into()
+    } else {
+        format!(r"\\?\{text}").into()
+    }
+}
+
 /// Takes the read-only attribute off `path` itself (not off what a link
-/// points to).
+/// points to: `SetFileAttributesW` changes the junction, as `attrib -R /L`).
 fn make_writable(path: &Path) {
     #[cfg(windows)]
     {
@@ -29,7 +44,7 @@ fn make_writable(path: &Path) {
         use windows_sys::Win32::Storage::FileSystem::{
             GetFileAttributesW, SetFileAttributesW, FILE_ATTRIBUTE_READONLY, INVALID_FILE_ATTRIBUTES,
         };
-        let wide: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
+        let wide: Vec<u16> = verbatim(path).encode_wide().chain(Some(0)).collect();
         // SAFETY: a NUL-terminated path.
         unsafe {
             let attributes = GetFileAttributesW(wide.as_ptr());
@@ -46,7 +61,8 @@ fn make_writable(path: &Path) {
 
 /// Tries `remove`; if it is refused, takes the read-only attribute off and
 /// tries again. The attribute is only touched when needed, because a hard
-/// link shares it with the persisted file.
+/// link shares it with the persisted file. In practice that is a folder or a
+/// junction: `std::fs::remove_file` deletes a read-only file as it is.
 fn insist(path: &Path, remove: fn(&Path) -> io::Result<()>) -> io::Result<()> {
     remove(path).or_else(|_| {
         make_writable(path);
@@ -123,10 +139,63 @@ mod tests {
         permissions.set_readonly(true);
         std::fs::set_permissions(&readonly, permissions).unwrap();
 
+        let ro = t.file("persist/ro.ini", "ro");
+        let mut permissions = std::fs::metadata(&ro).unwrap().permissions();
+        permissions.set_readonly(true);
+        std::fs::set_permissions(&ro, permissions).unwrap();
+        std::fs::hard_link(&ro, version.join("ro.ini")).unwrap();
+
         remove_tree(&version).unwrap();
         assert!(!version.exists());
         assert_eq!(std::fs::read_to_string(kept).unwrap(), "keep");
         assert_eq!(std::fs::read_to_string(single).unwrap(), "ini");
+        // The standard library deletes a read-only file without taking the
+        // attribute off, so the persisted file keeps it.
+        assert!(super::tests::readonly(&ro));
         remove_tree(&version).unwrap();
+    }
+
+    fn readonly(path: &Path) -> bool {
+        use std::os::windows::fs::MetadataExt;
+        std::fs::symlink_metadata(path).unwrap().file_attributes() & 1 != 0
+    }
+
+    #[test]
+    fn a_read_only_current_goes_and_its_version_stays_writable() {
+        let t = Tree::new("disk-current");
+        let version = t.dir("apps/x/1.0");
+        t.file("apps/x/1.0/x.exe", "x");
+        let current = t.dir("apps/x").join("current");
+        junction(&current, &version);
+        // As Scoop leaves it: `attrib +R /L` on the junction itself.
+        let made = std::process::Command::new("attrib").arg("+R").arg("/L").arg(&current).output().unwrap();
+        assert!(made.status.success() && readonly(&current) && !readonly(&version));
+
+        remove_tree(&current).unwrap();
+        assert!(std::fs::symlink_metadata(&current).is_err());
+        assert!(!readonly(&version));
+        assert_eq!(std::fs::read_to_string(version.join("x.exe")).unwrap(), "x");
+    }
+
+    #[test]
+    fn read_only_files_and_folders_past_260_characters() {
+        let t = Tree::new("disk-long");
+        let top = t.dir("long");
+        let mut deep = top.clone();
+        while deep.as_os_str().len() < 300 {
+            deep.push("a-folder-name-of-some-length");
+        }
+        std::fs::create_dir_all(&deep).unwrap();
+        let file = deep.join("ro.txt");
+        std::fs::write(&file, "r").unwrap();
+        for path in [&file, &deep] {
+            let mut permissions = std::fs::metadata(path).unwrap().permissions();
+            permissions.set_readonly(true);
+            std::fs::set_permissions(path, permissions).unwrap();
+        }
+        assert!(readonly(&deep));
+
+        remove_tree(&top).unwrap();
+        assert!(!top.exists());
     }
 }

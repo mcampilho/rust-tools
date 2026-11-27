@@ -194,7 +194,7 @@ pub fn run(ctx: &mut Ctx, args: &[String]) -> i32 {
         return delegate::run(ctx, &line, ctx.root_given);
     }
     // As Scoop: an old installation is updated first, unless `-u`.
-    if update::outdated(ctx) && (opts.has('u') || update::sync(ctx) != 0) {
+    if update::outdated(ctx) && (opts.has('u') || update::sync(ctx, &[]) != 0) {
         ctx.warn("download.outdated", &[]);
     }
     let use_cache = !opts.has('f');

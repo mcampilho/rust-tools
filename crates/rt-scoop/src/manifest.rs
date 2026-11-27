@@ -56,8 +56,23 @@ pub fn strings(v: &Json) -> Vec<String> {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Bin {
     pub target: String,
+    /// As written (`info` shows an empty one as it is); None or empty: the
+    /// shim is named after the target.
     pub alias: Option<String>,
-    pub args: Option<String>,
+    /// Every element after the name (`$target, $name, $arg = $item` gives
+    /// `$arg` the rest of the list); Scoop writes them joined by spaces.
+    pub args: Vec<String>,
+}
+
+/// A value as PowerShell turns it into text.
+fn text(v: &Json) -> Option<String> {
+    match v {
+        Json::Str(s) => Some(s.clone()),
+        Json::Num(n) if n.fract() == 0.0 && n.abs() < 9e15 => Some((*n as i64).to_string()),
+        Json::Num(n) => Some(n.to_string()),
+        Json::Bool(b) => Some(if *b { "True" } else { "False" }.to_string()),
+        _ => None,
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -104,13 +119,13 @@ impl Manifest {
 
     pub fn bins(&self, arch: Arch) -> Vec<Bin> {
         let one = |v: &Json| -> Option<Bin> {
-            let part = |i: usize| match v.at(i) {
-                Json::Str(s) => Some(s.clone()),
-                _ => None,
-            };
             match v {
-                Json::Str(s) if !s.is_empty() => Some(Bin { target: s.clone(), alias: None, args: None }),
-                Json::Arr(_) => Some(Bin { target: part(0)?, alias: part(1), args: part(2) }),
+                Json::Str(s) if !s.is_empty() => Some(Bin { target: s.clone(), alias: None, args: Vec::new() }),
+                Json::Arr(items) => Some(Bin {
+                    target: items.first().and_then(text).filter(|t| !t.is_empty())?,
+                    alias: items.get(1).and_then(text),
+                    args: items.iter().skip(2).filter_map(text).collect(),
+                }),
                 _ => None,
             }
         };
@@ -161,12 +176,20 @@ mod tests {
 
     #[test]
     fn bins_with_names_and_arguments() {
-        let x = m(r#"{"bin":["a.exe",["b\\c.exe","c","-x $dir"]],"shortcuts":[["a.exe","App\\A"]]}"#);
+        let x = m(r#"{"bin":["a.exe",["b\\c.exe","c","-x $dir"],["d.exe","","-a","-b",2],["e.exe"]],"shortcuts":[["a.exe","App\\A"]]}"#);
+        let bin = |target: &str, alias: Option<&str>, args: &[&str]| Bin {
+            target: target.into(),
+            alias: alias.map(String::from),
+            args: args.iter().map(|a| a.to_string()).collect(),
+        };
         assert_eq!(
             x.bins(Arch::X64),
             [
-                Bin { target: "a.exe".into(), alias: None, args: None },
-                Bin { target: "b\\c.exe".into(), alias: Some("c".into()), args: Some("-x $dir".into()) }
+                bin("a.exe", None, &[]),
+                bin("b\\c.exe", Some("c"), &["-x $dir"]),
+                // Everything after the name is an argument.
+                bin("d.exe", Some(""), &["-a", "-b", "2"]),
+                bin("e.exe", None, &[]),
             ]
         );
         assert_eq!(x.shortcut_names(Arch::X64), ["App\\A"]);

@@ -130,9 +130,10 @@ fn what_only_scoop_should_do_is_handed_over() {
     let (code, _, err) = rscoop(&root, &["update"]);
     assert!(code == 0 && err.contains("handing it to Scoop"), "{err}");
     assert_eq!(handed(&root), "update");
+    assert_eq!(rscoop(&root, &["update", "-q"]).0, 0);
     assert_eq!(rscoop(&root, &["update", "git"]).0, 0);
     assert_eq!(rscoop(&root, &["install", "x"]).0, 0);
-    assert_eq!(handed(&root).lines().collect::<Vec<_>>(), ["update", "update git", "install x"]);
+    assert_eq!(handed(&root).lines().collect::<Vec<_>>(), ["update", "update -q", "update git", "install x"]);
 }
 
 #[test]

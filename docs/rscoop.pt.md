@@ -260,6 +260,26 @@ manifestos de um endereço da web, descargas com `proxy`, FTP, FossHub, metalink
 Mais cauteloso do que o oficial: nomes de bucket só simples; `cleanup` sem versão atual conhecida não apaga; remoção
 que nunca segue ligações; um `config.json` ilegível não é reescrito.
 
+Desvios conhecidos do oficial (revisão de 2026-11-27, deixados de propósito):
+
+- `update` sem o bucket `main`: o oficial aborta ("Failed to remove local 'main' bucket", porque o `rm_bucket` de um
+  bucket que não existe devolve 1); aqui os outros buckets são atualizados.
+- `update` com um bucket cujo `pull` falha: o oficial não dá por isso e sai com 0; aqui avisa e sai com 1 (o
+  `last_update` é gravado na mesma, como no oficial).
+- `scoop config <nome> 8` guarda o número 8 e `$true` guarda `true`, como quando o `scoop` é chamado do PowerShell;
+  chamado do `cmd`, o oficial guardaria os textos `"8"` e `"$true"`.
+- Uma ligação física só de leitura do `persist` é apagada e o ficheiro guardado mantém o atributo (o
+  `std::fs::remove_file` do Rust 1.100 apaga sem o tirar); o `Remove-Item -Force` do oficial tira-o ao ficheiro
+  guardado. A junção `current` só de leitura perde o atributo ela própria (`attrib -R /L`); a versão para onde aponta
+  não é tocada (testado).
+
+Na mesma revisão: o `bin` de um manifesto passou a levar como argumentos todos os elementos depois do nome
+(`$target, $name, $arg = $item`), que o Scoop escreve no `.shim` separados por espaços; o `remove_tree` passou a tirar
+o atributo só de leitura às pastas também para lá dos 260 caracteres; o `update -q` entregue ao Scoop leva o `-q`.
+Ficou por tratar (menor): no Linux, o `rt_sys::net::download` deixa o `curl` seguir os redirecionamentos com os mesmos
+cabeçalhos e sem limite de tempo; um redirecionamento relativo só com `?…` e um `Location` de mais de 8192 caracteres
+falham; o `checkup --json` com `--help` ou `--version` não dá JSON válido.
+
 Ensaiado só em instalações fictícias, com repositórios git no disco e um servidor HTTP local. Nas instalações
 verdadeiras só correram comandos de leitura. Por experimentar: `update` e `status` contra o GitHub, uma descarga
 HTTPS verdadeira, o aria2, e o `-g` como administrador.

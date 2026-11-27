@@ -217,7 +217,7 @@ pub fn run(mut line: Line, outside: Outside, out: &mut dyn Write, err: &mut dyn 
         "depends" => query::depends(&mut ctx, args),
         "home" => query::home(&mut ctx, args),
         "status" => state::status(&mut ctx, args),
-        "update" => update::sync(&mut ctx),
+        "update" => update::sync(&mut ctx, args),
         "bucket" => match args.first().map(String::as_str) {
             Some("add") => bucket::add(&mut ctx, &args[1..]),
             Some("rm") => bucket::rm(&mut ctx, &args[1..]),

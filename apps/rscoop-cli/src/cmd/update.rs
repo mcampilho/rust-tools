@@ -154,12 +154,14 @@ fn pull(git: &Git, ctx_dir: &Path, name: &str, show_log: bool) -> Result<String,
     Ok(previous.filter(|_| show_log).map(|p| log(git, ctx_dir, name, &p)).unwrap_or_default())
 }
 
-/// Updates Scoop and every bucket, the buckets at the same time.
-pub fn sync(ctx: &mut Ctx) -> i32 {
+/// Updates Scoop and every bucket, the buckets at the same time. `args` (`-q`,
+/// `scoop`) go with the command when Scoop is given it.
+pub fn sync(ctx: &mut Ctx, args: &[String]) -> i32 {
     let Some(git) = Git::find(ctx) else { return ctx.fail("error.no_git", &[]) };
     if hand_over(ctx, &git) {
         ctx.warn("update.by_scoop", &[]);
-        return delegate::run(ctx, &["update".to_string()], ctx.root_given);
+        let line: Vec<String> = std::iter::once("update".to_string()).chain(args.iter().cloned()).collect();
+        return delegate::run(ctx, &line, ctx.root_given);
     }
     let held = match core_held(ctx) {
         Ok(held) => held,
