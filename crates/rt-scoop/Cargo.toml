@@ -1,0 +1,20 @@
+[package]
+name = "rt-scoop"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.93"
+description = "A Scoop installation as Scoop itself reads it: roots, configuration, manifests, buckets and installed apps"
+license = "MIT"
+publish = false
+
+[dependencies]
+rt-core = { path = "../rt-core" }
+# Scoop's queries and private hosts are regular expressions.
+regex-lite = "0.1"
+# The hash kinds of a manifest, as rpack uses them.
+md-5 = "0.11"
+sha1 = "0.11"
+sha2 = "0.11"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Storage_FileSystem"] }

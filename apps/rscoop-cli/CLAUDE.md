@@ -5,7 +5,28 @@ aponta para uma raiz antiga. É o port em Rust de `E:\Projects\AI\Claude\scoop-c
 códigos de problema, opções e relatório; a versão Python serve de referência para comparar resultados
 (`--json` de ambas).
 
-## Módulos
+## Comandos do Scoop (desde 2026-11-27)
+
+Plano, fases e o que cada uma deixou em `docs/rscoop.pt.md`. O Scoop oficial é a especificação (clone em
+`E:\Projects\Git\Categories\System\scoop\Apps\scoop`, v0.6.0, commit e6aa3b36). Feitas as fases 0 a 2.
+
+- `cmd/` — `mod.rs` (linha de comandos, `is_native`, ajuda), um módulo por assunto e `delegate.rs`, que corre o
+  `scoop.ps1` da instalação para tudo o resto. O que instala ou remove aplicações só passa a nativo quando passar os
+  testes de compatibilidade do plano (fases 3 e 4).
+- A leitura da instalação e as escritas comuns (configuração, remoção) estão no crate `rt-scoop`; não duplicar regras
+  do Scoop aqui.
+- Casos que reporiam ou substituiriam alguma coisa (repositório do Scoop, bucket `main`) vão para o Scoop.
+- Remover só com `rt_scoop::disk::remove_tree`, que nunca segue ligações. Nomes de bucket e de alias são validados
+  antes de qualquer caminho se formar.
+- `compare.ps1 -Exe … [-Root …]` compara com o Scoop oficial (só leituras). Correr depois de mexer em `cmd/` ou no
+  `rt-scoop`.
+- Os testes que escrevem (`cmd/tests_write.rs`) usam instalações fictícias, repositórios git no disco, um servidor
+  HTTP local e um `scoop.ps1` que só regista o que lhe pedem. Nunca ensaiar escritas nas instalações verdadeiras sem
+  pedir.
+- Os campos de `--json` e os textos de `Info` do `export` são os do Scoop, em inglês (o `import` lê-os).
+- No lançamento, o manifesto `bucket/rscoop-cli.json` passa a `"bin": ["rscoop-cli.exe", ["rscoop-cli.exe", "sco"]]`.
+
+## Módulos da verificação
 
 - `paths.rs` — `clean`/`normpath`/`norm`, `extract_paths` (regra das aspas: só contam se estiverem mesmo à volta do
   caminho, incluindo o `\"` dos `.reg`), `scoop_root_of`, leitura de texto (BOM, UTF-16 sem BOM, Windows-1252).
@@ -25,6 +46,7 @@ códigos de problema, opções e relatório; a versão Python serve de referênc
 
 ## Regras
 
-- Perfil `release-small`. Dependências: `rt-core` (só o leitor JSON), `rusqlite` com `bundled`, `windows-sys`.
+- Perfil `release-small`. Dependências: `rt-scoop`, `rt-sys` (`net`), `rt-core` (JSON), `rt-cli`, `regex-lite`,
+  `rusqlite` com `bundled`, `windows-sys`.
 - Os testes criam as árvores em `target\rscoop-tests` (nunca no TEMP, por causa do Bitdefender).
 - Em Linux compila (o CI corre clippy no workspace todo) mas só diz que precisa do Windows.

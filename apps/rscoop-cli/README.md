@@ -2,15 +2,66 @@
 
 *Read this in [Portuguese](README.pt.md).*
 
-Validates a [Scoop](https://scoop.sh) installation on Windows, wherever it lives, and
-reports what is broken or still points to an old Scoop root — for example after moving
-Scoop from `D:\Portable\scoop` to `E:\Portable\scoop`. By default it **changes nothing**:
-it only reads files and the registry. With `--fix` it repairs what it can (see
-[Repairing](#repairing)).
+[Scoop](https://scoop.sh), faster. It works on the same installation as Scoop: rscoop-cli does itself
+what reads and what keeps the installation up, and **hands to Scoop everything that installs or
+removes apps**, so it can be used in place of `scoop`. The plan for the rest is in
+[docs/rscoop.pt.md](../../docs/rscoop.pt.md).
+
+Without a command it does what it did before: it **validates the installation**. One 3.0 MB
+executable; texts in English, Portuguese and Spanish.
+
+## Commands
+
+```bat
+rscoop-cli list
+rscoop-cli search ripgrep
+rscoop-cli update
+rscoop-cli status
+rscoop-cli install ripgrep      (handed to Scoop)
+```
+
+| Command | What it does |
+|---|---|
+| `list [query]`, `search [query]` | The installed apps; the apps of the local buckets (by name and by program). |
+| `info <app> [-v]`, `cat <app>`, `home <app>` | What is known about an app, its manifest, its web page. |
+| `status [--local]` | Whether Scoop and the buckets are behind (asked at the same time), then the outdated, broken, deprecated and removed apps. `--local` skips the network. |
+| `which`, `prefix`, `depends` | The program behind a command, the folder of an app, what an app needs. |
+| `export [-c]`, `checkup` | The installation as JSON; the tests of `scoop checkup`, then the checks below (their options apply). |
+| `update` | Pulls Scoop and the buckets, the buckets at the same time. `update <app>` is Scoop's. |
+| `bucket list\|known\|add\|rm`, `config [name [value]]`, `alias add\|rm\|list` | Buckets, settings and aliases. |
+| `download <app…> [-f] [-s] [-a arch]` | The files of apps into the cache, with their hashes checked (aria2 when Scoop would use it). |
+| `cache show\|rm`, `cleanup <app…>\|* [-g] [-k]` | What is kept: downloads and old versions. |
+| `hold`, `unhold` | Keep apps (or `scoop` itself) at their version. |
+| `help [command]`, `scoop <command…>` | Help; run any command with Scoop itself. |
+
+**Where it is more careful than Scoop:** `bucket rm` only takes the name of a bucket (`bucket rm ..`
+would remove the installation); `cleanup` removes nothing when the current version cannot be told, and
+never goes through a link into `persist`. **What it leaves to Scoop:** an update that would reset
+Scoop's own repository (another repository or branch, no git), the SQLite cache, `app@version`,
+manifests from a web address, and downloads through a proxy, FTP or FossHub.
+
+`--json` gives the data of every command done here, `--root PATH` chooses the installation and
+`--lang en|pt|es` the language. The installation is the one Scoop would use: `--root`, `SCOOP`,
+`root_path`, where the `scoop` on `PATH` is, then `~\scoop`; a portable `config.json` in the root
+counts. `compare.ps1` compares the answers with the official Scoop.
+
+On a PC with two installations (one reading of each, not a benchmark):
+
+| | Scoop, 361 apps | rscoop-cli, 361 apps | rscoop-cli, 1500 apps |
+|---|---:|---:|---:|
+| `list` | 10.7 s | 0.4 s | 1.5 s |
+| `status --local` | 24.8 s | 0.5 s | 2.0 s |
+| `search` | 4.6 s | 0.5 s | 1.2 s |
+
+## Checking an installation
+
+Without a command, rscoop-cli validates a Scoop installation, wherever it lives, and reports what
+is broken or still points to an old Scoop root — for example after moving Scoop from
+`D:\Portable\scoop` to `E:\Portable\scoop`. By default it **changes nothing**: it only reads files
+and the registry. With `--fix` it repairs what it can (see [Repairing](#repairing)).
 
 A Rust port of the Python `scoop-check`, with the same checks, options and report, plus
-two uses of SQLite to make it faster (see [Speed](#speed)). One 2.4 MB executable; texts in
-English, Portuguese and Spanish.
+two uses of SQLite to make it faster (see [Speed](#speed)).
 
 ## Running
 

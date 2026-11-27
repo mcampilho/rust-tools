@@ -139,6 +139,7 @@ fn help(t: &T) -> String {
     for (k, v) in rows {
         s += &format!("  {k:<20} {v}\n");
     }
+    s += &format!("\n{}\n", t.get("cli.see_commands"));
     s
 }
 

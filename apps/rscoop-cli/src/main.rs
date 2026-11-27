@@ -1,6 +1,7 @@
-//! rscoop-cli: validates a Scoop installation, finds what still points to an old
-//! Scoop root and, with --fix, repairs it. A Rust port of scoop-check, with a
-//! SQLite cache of the files already read.
+//! rscoop-cli: Scoop, faster. The commands that only read are done here
+//! (`cmd`, over the `rt-scoop` crate) and the others are handed to Scoop.
+//! Without a command it validates the installation, finds what still points to
+//! an old Scoop root and, with --fix, repairs it (a Rust port of scoop-check).
 
 // Scoop is Windows only: elsewhere the program just says so.
 #![cfg_attr(not(windows), allow(dead_code))]
@@ -8,6 +9,7 @@
 mod cache;
 mod checks;
 mod cli;
+mod cmd;
 mod fix;
 mod lnk;
 mod paths;
@@ -26,11 +28,26 @@ fn main() {
 
 #[cfg(windows)]
 fn run_here(args: &[String]) -> i32 {
-    let environ = std::env::vars().collect();
+    let environ: std::collections::HashMap<String, String> = std::env::vars().collect();
     let home = std::env::var("USERPROFILE").unwrap_or_default();
-    let mut out = std::io::stdout().lock();
+    // Buffered: some commands write thousands of lines. Flushed before
+    // anything else writes to the console.
+    let mut out = std::io::BufWriter::new(std::io::stdout().lock());
     let mut err = std::io::stderr();
-    cli::run(args, &registry::WinRegistry, environ, &home, &mut out, &mut err, None)
+    let code = match cmd::command_line(args) {
+        Some(line) => {
+            let outside = cmd::Outside {
+                vars: environ,
+                exe: std::env::current_exe().ok(),
+                system_arch: sys::system_arch(),
+                registry: &registry::WinRegistry,
+            };
+            cmd::run(line, outside, &mut out, &mut err)
+        }
+        None => cli::run(args, &registry::WinRegistry, environ, &home, &mut out, &mut err, None),
+    };
+    let _ = std::io::Write::flush(&mut out);
+    code
 }
 
 #[cfg(not(windows))]

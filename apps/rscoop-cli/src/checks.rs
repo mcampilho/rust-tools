@@ -9,6 +9,7 @@ use crate::paths::{
 use crate::registry::{Registry, MACHINE_ENV, REG_EXPAND_SZ, USER_ENV};
 use crate::sys::{expand, link_kind, read_link, same_file, LinkKind};
 use rt_core::json::{self, Json};
+use rt_scoop::install::{core_root, has_core, Env};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, OnceLock};
@@ -178,7 +179,13 @@ pub fn config_file(environ: &HashMap<String, String>, home: &str) -> String {
 
 /// Work out the Scoop root and global root the way Scoop does.
 pub fn find_roots(reg: &dyn Registry, environ: &HashMap<String, String>, home: &str, root_option: Option<&str>) -> Roots {
-    let config_path = config_file(environ, home);
+    // Where Scoop itself is (on PATH, or this program installed with it), and
+    // the portable `config.json` an installation may carry.
+    let env = Env::new(environ.clone());
+    let located = core_root(&env, std::env::current_exe().ok().as_deref()).map(|p| p.display().to_string());
+    let core = root_option.map(str::to_string).or_else(|| env.get("SCOOP").map(str::to_string)).or_else(|| located.clone());
+    let portable = core.filter(|r| has_core(r.as_ref())).map(|r| join(&r, "config.json")).filter(|p| is_file(p));
+    let config_path = portable.unwrap_or_else(|| config_file(environ, home));
     let config = load_json(&config_path).unwrap_or(Json::Obj(Vec::new()));
     let mut vars = Vec::new();
     for name in ["SCOOP", "SCOOP_GLOBAL"] {
@@ -197,6 +204,7 @@ pub fn find_roots(reg: &dyn Registry, environ: &HashMap<String, String>, home: &
         Some(r) => (r.to_string(), "option".to_string()),
         None => first("SCOOP")
             .or_else(|| cfg("root_path").map(|r| (r, "config".into())))
+            .or_else(|| located.map(|r| (r, "location".into())))
             .unwrap_or_else(|| (join(home, "scoop"), "default".into())),
     };
     let (global_root, global_source) =

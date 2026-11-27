@@ -25,6 +25,8 @@ Monorepo (workspace Cargo) com nove aplicações, cada uma um único `.exe`, e o
   `apps/rcare/CLAUDE.md`. As apps pequenas ficam.
 - `apps/rscoop-cli` — linha de comandos, só Windows (desde 2026-11-17): verifica uma instalação do Scoop e corrige o que
   aponta para uma raiz antiga (`--fix`); port do `scoop-check` em Python, com cache SQLite (`rusqlite` bundled).
+  Desde 2026-11-27 é também um Scoop mais rápido (crate `rt-scoop`; plano e fases em `docs/rscoop.pt.md`): lê e
+  mantém a instalação ele próprio, e entrega ao Scoop o que instala ou remove aplicações.
   Não tem janela nem `--tray`; textos só em en/pt/es.
 - `apps/rsize-cli` — linha de comandos, Windows e Linux (desde 2026-11-18): o `du` do rsize (`-h`, `-s`, `-d`, `-a`,
   `-c`, `--apparent-size`, mais `--top`, `--sort`, `--json`, `--csv`, `--no-index`); lê com o `rt-scan` (Everything →
@@ -72,7 +74,10 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
   `SHA256SUMS.txt` do release (`rt_sys::update`, `rt_sys::net` — o cliente HTTPS que era do rwall —,
   `rt_ui::update` para os diálogos; instalado pelo Scoop → `scoop update <app>`). E, desde 2026-11-24 (pedido do
   utilizador), o rview descarrega as imagens `http(s)` de um documento, só se ele ligar Ver › Mostrar imagens da web
-  (desligado por omissão; GET simples por `rt_sys::net`, nunca a `localhost` nem a redes privadas). Nenhuma outra.
+  (desligado por omissão; GET simples por `rt_sys::net`, nunca a `localhost` nem a redes privadas). E, desde
+  2026-11-27 (aprovado pelo utilizador), o rscoop-cli, limitado ao que o `scoop` faz: git do Scoop e dos buckets
+  (`update`, `status`, `bucket add`) e os endereços dos manifestos (`download`, por `rt_sys::net::download` ou aria2).
+  Nenhuma outra.
 - Bucket do Scoop na pasta `bucket/` (desde 2026-11-17): um manifesto por app com release (rpack, rinst e rclean
   entram com o primeiro), `checkver` pelo `tag_name` dos releases e `autoupdate` com a soma do `SHA256SUMS.txt`;
   depois de um release, `checkver.ps1 -Dir bucket -Update`.
@@ -128,7 +133,7 @@ colidirem (testes em Windows e no WSL).
 O código comum está em `crates/` (ver `crates/README.pt.md`): `rt-core` (traduções, definições, árvore de
 menus), `rt-gfx` (desenho, texto, menus desenhados), `rt-sys` (Windows e Linux), `rt-ops` (apagar de vez e mover em vários fios conforme o disco: `media::threads`, medidos em 2026-11-25), `rt-scan` (leitura dos
 discos: Everything, MFT do NTFS, pasta a pasta; a árvore `model`, `volumes` e `format`; usado pelo rsize e
-pelo rdup; o rinst usa a pesquisa livre `everything::search` para os restos), `rt-ui` (base da janela: criar a janela, tema, menus desenhados, painel de mensagem, modo residente em Linux, menu do Explorador, painel "Aplicação predefinida por tipo de ficheiro" `assoc` do rview e do rpad, controlos das páginas de definições), `rt-syntax` (realce), `rt-build` (recursos do `.exe`) e `rt-dups` (a procura de duplicados do rdup e do rdup-cli: `search`, `cache`, `folders`, `filter`, `testing`) e `rt-cli` (o que as aplicações `-cli` partilham: `Texts` en/pt/es, `language`, `table_problems`, `human`). As aplicações guardam módulos pequenos com o mesmo nome de antes
+pelo rdup; o rinst usa a pesquisa livre `everything::search` para os restos), `rt-ui` (base da janela: criar a janela, tema, menus desenhados, painel de mensagem, modo residente em Linux, menu do Explorador, painel "Aplicação predefinida por tipo de ficheiro" `assoc` do rview e do rpad, controlos das páginas de definições), `rt-syntax` (realce), `rt-build` (recursos do `.exe`) e `rt-dups` (a procura de duplicados do rdup e do rdup-cli: `search`, `cache`, `folders`, `filter`, `testing`) `rt-scoop` (uma instalação do Scoop lida como o Scoop a lê; usado pelo rscoop-cli) e `rt-cli` (o que as aplicações `-cli` partilham: `Texts` en/pt/es, `language`, `table_problems`, `human`). As aplicações guardam módulos pequenos com o mesmo nome de antes
 (`ui/gfx.rs`, `storage.rs`, `win/mod.rs`, `linux/mod.rs`...) que reexportam dos crates e lhes dão a
 identidade da aplicação. Uma correção num destes assuntos faz-se no crate, uma vez.
 

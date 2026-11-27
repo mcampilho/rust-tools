@@ -3,9 +3,10 @@
 //!
 //! The tools stay off the network. The exceptions are rwall (the picture
 //! services and the weather the user turned on), rview (the pictures of a
-//! document, only with View › Show Online Images on) and checking for updates
-//! when the user asks (`crate::update`). Only GET requests, no cookies, no
-//! account, no telemetry.
+//! document, only with View › Show Online Images on), checking for updates
+//! when the user asks (`crate::update`) and rscoop-cli's `download` (the
+//! addresses of a manifest, with the headers Scoop would send). Only GET
+//! requests, no account, no telemetry.
 
 use std::time::Duration;
 
@@ -83,9 +84,62 @@ pub fn get(url: &str, limit: usize, agent: &str) -> Result<Response, String> {
     imp::get(url, limit, agent)
 }
 
+/// What to send with the request for an address.
+pub type Headers<'a> = dyn Fn(&str) -> Vec<(String, String)> + 'a;
+
+/// Downloads `url` into the file `to`, with no limit of size; `progress` gets
+/// the bytes so far and the total (0 when unknown). Returns the size. Any
+/// status but 200 is an error, and the file is then not created.
+///
+/// Redirects are followed one at a time, and `headers` is asked again for
+/// each address, so that what is meant for one host (a token, a cookie) is
+/// decided anew for the next.
+pub fn download(
+    url: &str,
+    to: &std::path::Path,
+    headers: &Headers,
+    agent: &str,
+    progress: &mut dyn FnMut(u64, u64),
+) -> Result<u64, String> {
+    split_url(url).ok_or_else(|| format!("not a web address: {url}"))?;
+    imp::download(url, to, headers, agent, progress)
+}
+
+/// The headers for `url`, refused if one would break the request.
+fn headers_for(headers: &Headers, url: &str) -> Result<Vec<(String, String)>, String> {
+    let sent = headers(url);
+    if sent.iter().any(|(k, v)| k.contains(['\r', '\n', ':']) || v.contains(['\r', '\n'])) {
+        return Err("a header with a line break".into());
+    }
+    Ok(sent)
+}
+
+/// The address a redirect from `base` to `location` goes to (`curl` follows
+/// them itself).
+#[cfg(any(windows, test))]
+fn redirected(base: &str, location: &str) -> Option<String> {
+    if split_url(location).is_some() {
+        return Some(location.to_string());
+    }
+    let u = split_url(base)?;
+    let scheme = if u.secure { "https" } else { "http" };
+    if let Some(rest) = location.strip_prefix("//") {
+        return Some(format!("{scheme}://{rest}"));
+    }
+    // Another scheme is not followed.
+    if location.contains("://") {
+        return None;
+    }
+    let origin = format!("{scheme}://{}:{}", u.host, u.port);
+    if location.starts_with('/') {
+        return Some(format!("{origin}{location}"));
+    }
+    let folder = u.path.split('?').next().unwrap_or("/").rsplit_once('/').map_or("", |(f, _)| f);
+    Some(format!("{origin}{folder}/{location}"))
+}
 #[cfg(windows)]
 mod imp {
-    use super::{no_connection, split_url, Response, TIMEOUT};
+    use super::{headers_for, no_connection, redirected, split_url, Headers, Response, TIMEOUT};
     use crate::win::{from_wide, wide};
     use std::ffi::c_void;
     use windows_sys::Win32::Networking::WinHttp::*;
@@ -117,7 +171,21 @@ mod imp {
         }
     }
 
-    pub fn get(url: &str, limit: usize, user_agent: &str) -> Result<Response, String> {
+    /// An answered request; the handles close in the order of the fields.
+    struct Request {
+        request: H,
+        _connect: H,
+        _session: H,
+    }
+
+    enum Opened {
+        Answer(Request),
+        /// The `Location` of a redirect, when they are not followed.
+        Redirect(String),
+    }
+
+    /// Sends `GET url` and waits for status 200.
+    fn open(url: &str, user_agent: &str, headers: &str, follow: bool) -> Result<Opened, String> {
         let u = split_url(url).ok_or("bad address")?;
         let (agent, host, path, verb) = (wide(user_agent), wide(u.host), wide(u.path), wide("GET"));
         let ms = TIMEOUT.as_millis() as i32;
@@ -139,24 +207,137 @@ mod imp {
             if request.0.is_null() {
                 return Err(last_error(u.host));
             }
+            if !follow {
+                let never: u32 = WINHTTP_OPTION_REDIRECT_POLICY_NEVER;
+                if WinHttpSetOption(request.0, WINHTTP_OPTION_REDIRECT_POLICY, (&never as *const u32).cast(), 4) == 0 {
+                    return Err(last_error(u.host));
+                }
+            }
+            if !headers.is_empty() {
+                let lines = wide(headers);
+                if WinHttpAddRequestHeaders(request.0, lines.as_ptr(), u32::MAX, WINHTTP_ADDREQ_FLAG_ADD | WINHTTP_ADDREQ_FLAG_REPLACE) == 0
+                {
+                    return Err(last_error(u.host));
+                }
+            }
             if WinHttpSendRequest(request.0, std::ptr::null(), 0, std::ptr::null(), 0, 0, 0) == 0
                 || WinHttpReceiveResponse(request.0, std::ptr::null_mut()) == 0
             {
                 return Err(last_error(u.host));
             }
-            let mut status: u32 = 0;
-            let mut len = std::mem::size_of::<u32>() as u32;
-            WinHttpQueryHeaders(
-                request.0,
-                WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
-                std::ptr::null(),
-                (&mut status as *mut u32).cast(),
-                &mut len,
-                std::ptr::null_mut(),
-            );
+            let status = number(&request, WINHTTP_QUERY_STATUS_CODE).unwrap_or(0);
+            if !follow && matches!(status, 301 | 302 | 303 | 307 | 308) {
+                return location(&request).map(Opened::Redirect).ok_or_else(|| format!("{}: HTTP {status} without an address", u.host));
+            }
             if status != 200 {
                 return Err(format!("{}: HTTP {status}", u.host));
             }
+            Ok(Opened::Answer(Request { request, _connect: connect, _session: session }))
+        }
+    }
+
+    fn location(request: &H) -> Option<String> {
+        let mut buf = vec![0u16; 8192];
+        let mut bytes = (buf.len() * 2) as u32;
+        // SAFETY: the buffer and its size in bytes.
+        let ok = unsafe {
+            WinHttpQueryHeaders(
+                request.0,
+                WINHTTP_QUERY_LOCATION,
+                std::ptr::null(),
+                buf.as_mut_ptr().cast(),
+                &mut bytes,
+                std::ptr::null_mut(),
+            )
+        };
+        (ok != 0).then(|| from_wide(&buf))
+    }
+
+    fn number(request: &H, header: u32) -> Option<u32> {
+        let mut value: u32 = 0;
+        let mut len = std::mem::size_of::<u32>() as u32;
+        // SAFETY: `value` has the size given.
+        let ok = unsafe {
+            WinHttpQueryHeaders(
+                request.0,
+                header | WINHTTP_QUERY_FLAG_NUMBER,
+                std::ptr::null(),
+                (&mut value as *mut u32).cast(),
+                &mut len,
+                std::ptr::null_mut(),
+            )
+        };
+        (ok != 0).then_some(value)
+    }
+
+    /// Reads the answer in pieces into `take`.
+    fn read(request: &H, host: &str, take: &mut dyn FnMut(&[u8]) -> Result<(), String>) -> Result<(), String> {
+        let mut chunk = vec![0u8; 64 * 1024];
+        loop {
+            let mut read = 0u32;
+            // SAFETY: the buffer and its size.
+            if unsafe { WinHttpReadData(request.0, chunk.as_mut_ptr().cast(), chunk.len() as u32, &mut read) } == 0 {
+                return Err(last_error(host));
+            }
+            if read == 0 {
+                return Ok(());
+            }
+            take(&chunk[..read as usize])?;
+        }
+    }
+
+    pub fn download(
+        url: &str,
+        to: &std::path::Path,
+        headers: &Headers,
+        user_agent: &str,
+        progress: &mut dyn FnMut(u64, u64),
+    ) -> Result<u64, String> {
+        let mut address = url.to_string();
+        let mut answered = None;
+        for _ in 0..10 {
+            let mut sent = headers_for(headers, &address)?;
+            // Nothing private goes in the clear after a secure address.
+            if url.starts_with("https:") && address.starts_with("http:") {
+                sent.retain(|(name, _)| !["authorization", "cookie"].contains(&name.to_ascii_lowercase().as_str()));
+            }
+            let lines: String = sent.iter().map(|(k, v)| format!("{k}: {v}\r\n")).collect();
+            match open(&address, user_agent, &lines, false)? {
+                Opened::Answer(request) => {
+                    answered = Some(request);
+                    break;
+                }
+                Opened::Redirect(location) => {
+                    address = redirected(&address, &location).ok_or_else(|| format!("redirected to {location}"))?;
+                }
+            }
+        }
+        let answered = answered.ok_or_else(|| format!("too many redirects: {url}"))?;
+        let host = split_url(&address).ok_or("bad address")?.host;
+        // A length over 4 GB does not fit the number; progress is then without a total.
+        let total = number(&answered.request, WINHTTP_QUERY_CONTENT_LENGTH).map_or(0, u64::from);
+        let fail = |e: std::io::Error| format!("{}: {e}", to.display());
+        let mut file = std::fs::File::create(to).map_err(fail)?;
+        let mut size = 0u64;
+        progress(0, total);
+        read(&answered.request, host, &mut |bytes| {
+            std::io::Write::write_all(&mut file, bytes).map_err(fail)?;
+            size += bytes.len() as u64;
+            progress(size, total);
+            Ok(())
+        })?;
+        if total > 0 && size != total {
+            return Err(format!("{host}: {size} bytes of {total}"));
+        }
+        Ok(size)
+    }
+
+    pub fn get(url: &str, limit: usize, user_agent: &str) -> Result<Response, String> {
+        let host = split_url(url).ok_or("bad address")?.host;
+        let Opened::Answer(answered) = open(url, user_agent, "", true)? else { return Err(format!("{host}: redirect")) };
+        let request = &answered.request;
+        // SAFETY: the handle is live and the buffer has the size given.
+        unsafe {
             // The address after redirects.
             let mut buf = vec![0u16; 4096];
             let mut bytes = (buf.len() * 2) as u32;
@@ -166,28 +347,42 @@ mod imp {
                 url.to_string()
             };
             let mut body = Vec::new();
-            let mut chunk = vec![0u8; 64 * 1024];
-            loop {
-                let mut read = 0u32;
-                if WinHttpReadData(request.0, chunk.as_mut_ptr().cast(), chunk.len() as u32, &mut read) == 0 {
-                    return Err(last_error(u.host));
-                }
-                if read == 0 {
-                    break;
-                }
-                body.extend_from_slice(&chunk[..read as usize]);
+            read(request, host, &mut |bytes| {
+                body.extend_from_slice(bytes);
                 if body.len() > limit {
-                    return Err(format!("{}: answer larger than {} MB", u.host, limit >> 20));
+                    return Err(format!("{host}: answer larger than {} MB", limit >> 20));
                 }
-            }
+                Ok(())
+            })?;
             Ok(Response { body, url: final_url })
         }
     }
 }
-
 #[cfg(not(windows))]
 mod imp {
-    use super::{no_connection, split_url, Response, TIMEOUT};
+    use super::{headers_for, no_connection, split_url, Headers, Response, TIMEOUT};
+
+    pub fn download(
+        url: &str,
+        to: &std::path::Path,
+        headers: &Headers,
+        user_agent: &str,
+        progress: &mut dyn FnMut(u64, u64),
+    ) -> Result<u64, String> {
+        let mut curl = std::process::Command::new("curl");
+        curl.args(["--silent", "--show-error", "--fail", "--location", "--proto", "=https,http", "--user-agent", user_agent]);
+        for (name, value) in headers_for(headers, url)? {
+            curl.arg("--header").arg(format!("{name}: {value}"));
+        }
+        let out = curl.arg("--output").arg(to).arg("--").arg(url).output().map_err(|e| format!("curl: {e}"))?;
+        if !out.status.success() {
+            let _ = std::fs::remove_file(to);
+            return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+        }
+        let size = std::fs::metadata(to).map_err(|e| e.to_string())?.len();
+        progress(size, size);
+        Ok(size)
+    }
 
     pub fn get(url: &str, limit: usize, user_agent: &str) -> Result<Response, String> {
         // The address after redirects goes to stderr, the body to stdout.
@@ -233,6 +428,16 @@ mod tests {
         let e = format!("bing: {}", no_connection("www.bing.com", 12029));
         assert_eq!(unreachable(&e), Some(("www.bing.com", 12029)));
         assert_eq!(unreachable("www.bing.com: HTTP 500"), None);
+    }
+
+    #[test]
+    fn redirects_are_resolved() {
+        let base = "https://a.org/x/y.zip?q=1";
+        assert_eq!(redirected(base, "http://b.org/z").as_deref(), Some("http://b.org/z"));
+        assert_eq!(redirected(base, "//b.org/z").as_deref(), Some("https://b.org/z"));
+        assert_eq!(redirected(base, "/z").as_deref(), Some("https://a.org:443/z"));
+        assert_eq!(redirected(base, "z.zip").as_deref(), Some("https://a.org:443/x/z.zip"));
+        assert_eq!(redirected(base, "file:///c:/x"), None);
     }
 
     #[test]

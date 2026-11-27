@@ -123,3 +123,137 @@ cli.version	Show the version.	Mostra a versão.	Muestra la versión.
 cli.bad_value	Invalid value for {opt}: {value}	Valor inválido para {opt}: {value}	Valor no válido para {opt}: {value}
 cli.unknown_option	Unknown option: {opt}	Opção desconhecida: {opt}	Opción desconocida: {opt}
 cli.needs_value	{opt} needs a value.	{opt} precisa de um valor.	{opt} necesita un valor.
+src.location	from where Scoop is	pela localização do Scoop	por la ubicación de Scoop
+cli.command	command	comando	comando
+cli.others	Any other command (install, update, uninstall…) is handed to the Scoop of the installation.	Qualquer outro comando (install, update, uninstall…) é entregue ao Scoop da instalação.	Cualquier otra orden (install, update, uninstall…) se entrega al Scoop de la instalación.
+cli.checker	Without a command the installation is checked; see: rscoop-cli --help	Sem comando, a instalação é verificada; ver: rscoop-cli --help	Sin orden, se comprueba la instalación; vea: rscoop-cli --help
+cli.see_commands	Commands (list, search, status…): rscoop-cli help	Comandos (list, search, status…): rscoop-cli help	Órdenes (list, search, status…): rscoop-cli help
+cmd.list	List the installed apps.	Lista as aplicações instaladas.	Lista las aplicaciones instaladas.
+cmd.search	Search the apps of the local buckets.	Procura aplicações nos buckets locais.	Busca aplicaciones en los buckets locales.
+cmd.info	Show what is known about an app.	Mostra o que se sabe de uma aplicação.	Muestra la información de una aplicación.
+cmd.cat	Show the manifest of an app.	Mostra o manifesto de uma aplicação.	Muestra el manifiesto de una aplicación.
+cmd.status	Show outdated and broken apps (--local: without the network).	Mostra aplicações desatualizadas ou estragadas (--local: sem rede).	Muestra aplicaciones desactualizadas o rotas (--local: sin red).
+cmd.which	Show the program a command runs.	Mostra o programa que um comando executa.	Muestra el programa que ejecuta una orden.
+cmd.prefix	Show the folder of an installed app.	Mostra a pasta de uma aplicação instalada.	Muestra la carpeta de una aplicación instalada.
+cmd.depends	List what an app needs, in order of installation.	Lista o que uma aplicação precisa, pela ordem de instalação.	Lista lo que necesita una aplicación, en orden de instalación.
+cmd.home	Open the web page of an app.	Abre a página de uma aplicação.	Abre la página de una aplicación.
+cmd.bucket	List, add and remove buckets.	Lista, acrescenta e remove buckets.	Lista, añade y elimina buckets.
+cmd.cache	Show and remove the downloads kept.	Mostra e remove as descargas guardadas.	Muestra y elimina las descargas guardadas.
+cmd.config	Show and change the configuration.	Mostra e altera a configuração.	Muestra y cambia la configuración.
+cmd.export	Export the apps and buckets as JSON.	Exporta as aplicações e os buckets em JSON.	Exporta las aplicaciones y los buckets en JSON.
+cmd.checkup	Look for problems: Scoop's checks and those of rscoop-cli.	Procura problemas: as verificações do Scoop e as do rscoop-cli.	Busca problemas: las comprobaciones de Scoop y las de rscoop-cli.
+cmd.help	Show the help of a command.	Mostra a ajuda de um comando.	Muestra la ayuda de una orden.
+cmd.scoop	Run a command with Scoop itself.	Executa um comando com o próprio Scoop.	Ejecuta una orden con el propio Scoop.
+error.no_scoop	There is no Scoop in {root} to do this.	Não há Scoop em {root} para fazer isto.	No hay Scoop en {root} para hacer esto.
+error.start	{what} could not be started: {why}	Não foi possível arrancar {what}: {why}	No se pudo iniciar {what}: {why}
+error.regex	Invalid regular expression: {why}	Expressão regular inválida: {why}	Expresión regular no válida: {why}
+error.missing	{what} is missing.	Falta {what}.	Falta {what}.
+error.no_manifest	Could not find a manifest for '{app}'.	Não foi encontrado nenhum manifesto de '{app}'.	No se encontró ningún manifiesto de '{app}'.
+error.remote	'{app}' is a web address, which only Scoop reads: rscoop-cli scoop …	'{app}' é um endereço da web, que só o Scoop lê: rscoop-cli scoop …	'{app}' es una dirección web, que solo lee Scoop: rscoop-cli scoop …
+error.no_homepage	No web page in the manifest of '{app}'.	O manifesto de '{app}' não tem página da web.	El manifiesto de '{app}' no tiene página web.
+error.no_path	'{app}' is not installed.	'{app}' não está instalada.	'{app}' no está instalada.
+error.arch	Invalid architecture: '{arch}'	Arquitetura inválida: '{arch}'	Arquitectura no válida: '{arch}'
+error.circular	Circular dependency: '{from}' -> '{to}'.	Dependência circular: '{from}' -> '{to}'.	Dependencia circular: '{from}' -> '{to}'.
+warn.buckets	Several buckets have '{app}'; using '{chosen}'.	Vários buckets têm '{app}'; é usado '{chosen}'.	Varios buckets tienen '{app}'; se usa '{chosen}'.
+which.none	'{command}' was not found, is not a Scoop shim, or is a broken shim.	'{command}' não foi encontrado, não é um shim do Scoop, ou é um shim estragado.	'{command}' no se encontró, no es un shim de Scoop, o es un shim roto.
+list.none	No apps are installed in {root}.	Não há aplicações instaladas em {root}.	No hay aplicaciones instaladas en {root}.
+list.installed	Apps installed in {root}:	Aplicações instaladas em {root}:	Aplicaciones instaladas en {root}:
+list.matching	Apps installed in {root} matching '{query}':	Aplicações instaladas em {root} que correspondem a '{query}':	Aplicaciones instaladas en {root} que coinciden con '{query}':
+search.none	Nothing in the local buckets matches '{query}' (scoop search also looks in the known buckets not added).	Nada nos buckets locais corresponde a '{query}' (o scoop search procura também nos buckets conhecidos não acrescentados).	Nada en los buckets locales coincide con '{query}' (scoop search busca además en los buckets conocidos no añadidos).
+info.failed	Install failed	Instalação falhada	Instalación fallida
+info.deprecated_package	Deprecated package	Pacote descontinuado	Paquete obsoleto
+info.deprecated	Deprecated	Descontinuada	Obsoleta
+info.global	Global install	Instalação global	Instalación global
+info.held	Held package	Versão fixada	Versión retenida
+info.removed	Manifest removed	Manifesto removido	Manifiesto eliminado
+info.update	{version} (Update to {latest} available)	{version} (disponível a atualização para {latest})	{version} (disponible la actualización a {latest})
+size.current	Current version	Versão atual	Versión actual
+size.old	Old versions	Versões antigas	Versiones antiguas
+size.persisted	Persisted data	Dados persistentes	Datos persistentes
+size.cached	Cached downloads	Descargas em cache	Descargas en caché
+size.total	Total	Total	Total
+status.ok	Everything is ok!	Está tudo em ordem!	¡Todo está en orden!
+bucket.none	No bucket found. Run 'scoop bucket add main'.	Não há buckets. Execute 'scoop bucket add main'.	No hay buckets. Ejecute 'scoop bucket add main'.
+cache.total	Total: {n} files, {size}	Total: {n} ficheiros, {size}	Total: {n} archivos, {size}
+config.unset	'{name}' is not set	'{name}' não está definido	'{name}' no está definido
+checkup.title	Scoop checkup	Verificação do Scoop	Comprobación de Scoop
+checkup.none	No problems identified.	Não foram identificados problemas.	No se identificaron problemas.
+checkup.defender	Windows Defender may slow down or disrupt installs: {path} is not excluded.	O Windows Defender pode atrasar ou perturbar instalações: {path} não está excluída.	Windows Defender puede ralentizar o interrumpir instalaciones: {path} no está excluida.
+checkup.main	The main bucket is not added.	O bucket main não está acrescentado.	El bucket main no está añadido.
+checkup.long_paths	Long paths support is not enabled.	O suporte de caminhos longos não está ativo.	La compatibilidad con rutas largas no está activada.
+checkup.developer	Windows Developer Mode is not enabled (symbolic links may fail).	O modo de programador do Windows não está ativo (as ligações simbólicas podem falhar).	El modo de desarrollador de Windows no está activado (los enlaces simbólicos pueden fallar).
+checkup.helper	{name} is not installed; some apps need it.	{name} não está instalado; algumas aplicações precisam dele.	{name} no está instalado; algunas aplicaciones lo necesitan.
+checkup.ntfs	Scoop needs NTFS, and {path} is on {fs}.	O Scoop precisa de NTFS, e {path} está em {fs}.	Scoop necesita NTFS, y {path} está en {fs}.
+error.config	{why}	{why}	{why}
+error.remove	Could not remove or create: {why}	Não foi possível remover ou criar: {why}	No se pudo eliminar o crear: {why}
+error.admin	Administrator rights are needed for global apps.	São precisos direitos de administrador para aplicações globais.	Se necesitan derechos de administrador para las aplicaciones globales.
+error.no_git	Git is needed. Run 'scoop install git' and try again.	É preciso o Git. Execute 'scoop install git' e tente de novo.	Se necesita Git. Ejecute 'scoop install git' e inténtelo de nuevo.
+update.by_scoop	This update needs changes only Scoop makes; handing it to Scoop.	Esta atualização precisa de alterações que só o Scoop faz; é entregue ao Scoop.	Esta actualización necesita cambios que solo hace Scoop; se entrega a Scoop.
+update.held	Scoop itself is held until {date}: not updated.	O próprio Scoop está fixado até {date}: não é atualizado.	Scoop está retenido hasta {date}: no se actualiza.
+update.hold_over	The update of Scoop is enabled again.	A atualização do Scoop volta a estar ativa.	La actualización de Scoop vuelve a estar activa.
+update.scoop	Updating Scoop...	A atualizar o Scoop...	Actualizando Scoop...
+update.buckets	Updating buckets...	A atualizar os buckets...	Actualizando los buckets...
+update.uncommitted	Uncommitted changes in Scoop: it was not updated.	Há alterações por gravar no Scoop: não foi atualizado.	Hay cambios sin confirmar en Scoop: no se actualizó.
+update.stashing	Uncommitted changes in Scoop: stashing them.	Há alterações por gravar no Scoop: são postas de lado (stash).	Hay cambios sin confirmar en Scoop: se guardan aparte (stash).
+update.failed	Updating {name} failed: {why}	A atualização de {name} falhou: {why}	La actualización de {name} falló: {why}
+update.not_git	'{name}' is not a git repository. Skipped.	'{name}' não é um repositório git. Ignorado.	'{name}' no es un repositorio git. Omitido.
+update.done	Scoop was updated successfully!	O Scoop foi atualizado!	¡Scoop se actualizó correctamente!
+status.scoop_behind	Scoop is out of date. Run 'rscoop-cli update'.	O Scoop está desatualizado. Execute 'rscoop-cli update'.	Scoop está desactualizado. Ejecute 'rscoop-cli update'.
+status.buckets_behind	Buckets are out of date. Run 'rscoop-cli update'.	Há buckets desatualizados. Execute 'rscoop-cli update'.	Hay buckets desactualizados. Ejecute 'rscoop-cli update'.
+status.up_to_date	Scoop is up to date.	O Scoop está atualizado.	Scoop está actualizado.
+status.unreachable	Some repositories could not be asked:	Não foi possível consultar alguns repositórios:	No se pudieron consultar algunos repositorios:
+bucket.bad_name	'{name}' is not a bucket name.	'{name}' não é um nome de bucket.	'{name}' no es un nombre de bucket.
+bucket.unknown	Unknown bucket '{name}': give its repository.	Bucket '{name}' desconhecido: indique o repositório.	Bucket '{name}' desconocido: indique su repositorio.
+bucket.exists	The '{name}' bucket already exists.	O bucket '{name}' já existe.	El bucket '{name}' ya existe.
+bucket.bad_url	'{url}' is not a git address.	'{url}' não é um endereço git.	'{url}' no es una dirección git.
+bucket.same_repo	The bucket {name} already has {url}.	O bucket {name} já tem {url}.	El bucket {name} ya tiene {url}.
+bucket.checking	Checking the repository...	A verificar o repositório...	Comprobando el repositorio...
+bucket.not_a_repo	'{url}' does not look like a git repository: {why}	'{url}' não parece um repositório git: {why}	'{url}' no parece un repositorio git: {why}
+bucket.clone_failed	Failed to clone '{url}': {why}	Não foi possível clonar '{url}': {why}	No se pudo clonar '{url}': {why}
+bucket.added	The {name} bucket was added.	O bucket {name} foi acrescentado.	Se añadió el bucket {name}.
+bucket.not_found	'{name}' bucket not found.	Bucket '{name}' não encontrado.	No se encontró el bucket '{name}'.
+bucket.removed	The {name} bucket was removed.	O bucket {name} foi removido.	Se eliminó el bucket {name}.
+download.outdated	Scoop is out of date.	O Scoop está desatualizado.	Scoop está desactualizado.
+download.no_cache	The cache is being ignored.	A cache é ignorada.	Se ignora la caché.
+download.bad_version	The version of '{app}' is missing or not usable: '{version}'.	A versão de '{app}' falta ou não serve: '{version}'.	La versión de '{app}' falta o no sirve: '{version}'.
+download.no_arch	'{app}' does not support this architecture.	'{app}' não suporta esta arquitetura.	'{app}' no admite esta arquitectura.
+download.start	Downloading '{app}' [{arch}] from {bucket}	A descarregar '{app}' [{arch}] de {bucket}	Descargando '{app}' [{arch}] de {bucket}
+download.cached	{name}: already in the cache	{name}: já está na cache	{name}: ya está en la caché
+download.got	{name} ({size}) downloaded	{name} ({size}) descarregado	{name} ({size}) descargado
+download.failed	Download of {url} failed: {why}	A descarga de {url} falhou: {why}	La descarga de {url} falló: {why}
+download.aria2_failed	aria2 could not download '{app}'.	O aria2 não conseguiu descarregar '{app}'.	aria2 no pudo descargar '{app}'.
+download.aria2_fallback	aria2 failed; using the built-in downloader.	O aria2 falhou; é usado o descarregador próprio.	aria2 falló; se usa el descargador propio.
+download.no_check	Skipping hash verification.	A soma de verificação não é conferida.	No se comprueba la suma.
+download.no_hash	No hash in the manifest for {name}: not verified.	O manifesto não tem soma para {name}: não conferido.	El manifiesto no tiene suma para {name}: no comprobado.
+download.hash_ok	{name}: hash OK	{name}: soma correta	{name}: suma correcta
+download.hash_kind	Hash type '{kind}' is not supported.	O tipo de soma '{kind}' não é suportado.	El tipo de suma '{kind}' no se admite.
+download.hash_differs	expected {expected}, got {actual}	esperada {expected}, obtida {actual}	esperada {expected}, obtenida {actual}
+download.hash_failed	Hash check failed for '{app}' ({url}): {why}. The file was removed.	A soma de '{app}' não confere ({url}): {why}. O ficheiro foi removido.	La suma de '{app}' no coincide ({url}): {why}. Se eliminó el archivo.
+download.sourceforge	SourceForge often gives wrong files; try again before reporting.	O SourceForge dá muitas vezes ficheiros errados; tente de novo antes de reportar.	SourceForge entrega a menudo archivos erróneos; inténtelo de nuevo antes de informar.
+download.done	'{app}' ({version}) was downloaded.	'{app}' ({version}) foi descarregada.	Se descargó '{app}' ({version}).
+cache.removing	Removing {name}...	A remover {name}...	Eliminando {name}...
+cache.deleted	Deleted: {n} files, {size}	Apagados: {n} ficheiros, {size}	Eliminados: {n} archivos, {size}
+app.other_scope	'{app}' is installed in the other scope (see --global).	'{app}' está instalada no outro âmbito (ver --global).	'{app}' está instalada en el otro ámbito (vea --global).
+app.not_global	'{app}' is not installed globally.	'{app}' não está instalada globalmente.	'{app}' no está instalada globalmente.
+cleanup.unknown_current	The current version of '{app}' is not known: nothing removed.	Não se sabe qual é a versão atual de '{app}': nada foi removido.	No se sabe cuál es la versión actual de '{app}': no se eliminó nada.
+cleanup.clean	{app} is already clean.	{app} já está limpa.	{app} ya está limpia.
+cleanup.removing	Removing {app}: {versions}	A remover {app}: {versions}	Eliminando {app}: {versions}
+cleanup.done	Everything is shiny now!	Está tudo a brilhar!	¡Todo reluce!
+hold.failed	Could not change '{app}'.	Não foi possível alterar '{app}'.	No se pudo cambiar '{app}'.
+hold.already	'{app}' is already held.	'{app}' já está fixada.	'{app}' ya está retenida.
+hold.not_held	'{app}' is not held.	'{app}' não está fixada.	'{app}' no está retenida.
+hold.held	{app} is now held and cannot be updated.	{app} ficou fixada e não é atualizada.	{app} queda retenida y no se actualizará.
+hold.released	{app} is no longer held.	{app} deixou de estar fixada.	{app} ya no está retenida.
+hold.scoop	Scoop is now held until {date}.	O Scoop ficou fixado até {date}.	Scoop queda retenido hasta {date}.
+config.set	'{name}' has been set to '{value}'	'{name}' ficou com o valor '{value}'	'{name}' tiene ahora el valor '{value}'
+config.removed	'{name}' has been removed	'{name}' foi removido	'{name}' se ha eliminado
+alias.bad_name	'{name}' is not a name for an alias.	'{name}' não serve para nome de um alias.	'{name}' no sirve como nombre de alias.
+alias.exists	Alias '{name}' already exists.	O alias '{name}' já existe.	El alias '{name}' ya existe.
+alias.unknown	Alias '{name}' does not exist.	O alias '{name}' não existe.	El alias '{name}' no existe.
+alias.none	No alias found.	Não há aliases.	No hay alias.
+cmd.update	Update Scoop and the buckets (apps: Scoop does it).	Atualiza o Scoop e os buckets (aplicações: é o Scoop).	Actualiza Scoop y los buckets (aplicaciones: lo hace Scoop).
+cmd.download	Download apps into the cache and check them.	Descarrega aplicações para a cache e confere-as.	Descarga aplicaciones a la caché y las comprueba.
+cmd.cleanup	Remove old versions of apps.	Remove versões antigas das aplicações.	Elimina versiones antiguas de las aplicaciones.
+cmd.hold	Keep apps at their version.	Fixa a versão das aplicações.	Retiene la versión de las aplicaciones.
+cmd.unhold	Let held apps be updated again.	Volta a deixar atualizar aplicações fixadas.	Permite actualizar de nuevo las aplicaciones retenidas.
+cmd.alias	Manage Scoop aliases.	Gere os aliases do Scoop.	Gestiona los alias de Scoop.

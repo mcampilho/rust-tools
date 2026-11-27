@@ -265,6 +265,173 @@ pub fn stamp() -> String {
     format!("{y:04}{m:02}{d:02}-{:02}{:02}{:02}", rem / 3600, rem % 3600 / 60, rem % 60)
 }
 
+/// A moment in local time.
+pub struct LocalTime {
+    /// `2026-11-27 14:05:09`
+    pub short: String,
+    /// `2026-11-27T14:05:09+00:00`
+    pub iso: String,
+}
+
+fn local(short: [u32; 6], offset_minutes: i64) -> LocalTime {
+    let [y, mo, d, h, mi, s] = short;
+    let sign = if offset_minutes < 0 { '-' } else { '+' };
+    let off = offset_minutes.abs();
+    LocalTime {
+        short: format!("{y:04}-{mo:02}-{d:02} {h:02}:{mi:02}:{s:02}"),
+        iso: format!("{y:04}-{mo:02}-{d:02}T{h:02}:{mi:02}:{s:02}{sign}{:02}:{:02}", off / 60, off % 60),
+    }
+}
+
+#[cfg(windows)]
+pub fn local_time(time: std::time::SystemTime) -> LocalTime {
+    use windows_sys::Win32::Foundation::FILETIME;
+    use windows_sys::Win32::System::Time::{FileTimeToSystemTime, SystemTimeToFileTime, SystemTimeToTzSpecificLocalTime};
+    // 100 ns steps since 1601.
+    let unix = time.duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos() / 100).unwrap_or(0) as u64;
+    let ticks = unix + 116_444_736_000_000_000;
+    let utc = FILETIME { dwLowDateTime: ticks as u32, dwHighDateTime: (ticks >> 32) as u32 };
+    // SAFETY: zeroed SYSTEMTIME and FILETIME are valid out-parameters.
+    unsafe {
+        let mut system = std::mem::zeroed();
+        let mut shown = std::mem::zeroed();
+        let mut back: FILETIME = std::mem::zeroed();
+        FileTimeToSystemTime(&utc, &mut system);
+        SystemTimeToTzSpecificLocalTime(std::ptr::null(), &system, &mut shown);
+        SystemTimeToFileTime(&shown, &mut back);
+        let local_ticks = (u64::from(back.dwHighDateTime) << 32) | u64::from(back.dwLowDateTime);
+        // Rounded to minutes: the milliseconds are lost on the way.
+        let offset = ((local_ticks as i64 - ticks as i64) as f64 / 600_000_000.0).round() as i64;
+        let t = shown;
+        local([t.wYear.into(), t.wMonth.into(), t.wDay.into(), t.wHour.into(), t.wMinute.into(), t.wSecond.into()], offset)
+    }
+}
+
+#[cfg(not(windows))]
+pub fn local_time(_time: std::time::SystemTime) -> LocalTime {
+    local([0; 6], 0)
+}
+
+/// Today as `yyyyMMdd`, for nightly versions.
+pub fn today() -> String {
+    local_time(std::time::SystemTime::now()).short.chars().take(10).filter(char::is_ascii_digit).collect()
+}
+
+/// The architecture of the system, as `Get-DefaultArchitecture` sees it.
+pub fn system_arch() -> rt_scoop::manifest::Arch {
+    use rt_scoop::manifest::Arch;
+    if std::env::var_os("ProgramFiles(Arm)").is_some() {
+        Arch::Arm64
+    } else if cfg!(target_pointer_width = "64") || std::env::var_os("PROCESSOR_ARCHITEW6432").is_some() {
+        Arch::X64
+    } else {
+        Arch::X86
+    }
+}
+
+/// Windows 11 runs x64 programs on ARM64; Windows 10 only x86 ones.
+#[cfg(windows)]
+pub fn windows_11() -> bool {
+    use crate::registry::{Registry, WinRegistry};
+    let key = r"SOFTWARE\Microsoft\Windows NT\CurrentVersion";
+    WinRegistry.get("HKLM", key, "CurrentBuildNumber").and_then(|(v, _)| v.parse::<u32>().ok()).is_some_and(|build| build >= 22000)
+}
+
+#[cfg(not(windows))]
+pub fn windows_11() -> bool {
+    false
+}
+
+/// Seconds that local time is ahead of UTC now.
+pub fn utc_offset() -> i64 {
+    let now = std::time::SystemTime::now();
+    let iso = local_time(now).iso;
+    let seconds = now.duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+    rt_scoop::config::parse_time(&iso[..19.min(iso.len())], 0).map_or(0, |local| ((local - seconds) as f64 / 60.0).round() as i64 * 60)
+}
+
+/// Opens a web address in the browser.
+#[cfg(windows)]
+pub fn open_url(url: &str) -> bool {
+    use windows_sys::Win32::UI::Shell::ShellExecuteW;
+    let (verb, file) = (wide("open"), wide(url));
+    // SAFETY: both strings end in NUL and outlive the call.
+    let result = unsafe { ShellExecuteW(std::ptr::null_mut(), verb.as_ptr(), file.as_ptr(), std::ptr::null(), std::ptr::null(), 1) };
+    result as usize > 32
+}
+
+#[cfg(not(windows))]
+pub fn open_url(_url: &str) -> bool {
+    false
+}
+
+#[cfg(windows)]
+pub fn is_admin() -> bool {
+    // SAFETY: no arguments.
+    unsafe { windows_sys::Win32::UI::Shell::IsUserAnAdmin() != 0 }
+}
+
+#[cfg(not(windows))]
+pub fn is_admin() -> bool {
+    false
+}
+
+/// A number of `HKLM`.
+#[cfg(windows)]
+pub fn registry_dword(path: &str, name: &str) -> Option<u32> {
+    use windows_sys::Win32::System::Registry::{RegGetValueW, HKEY_LOCAL_MACHINE, RRF_RT_REG_DWORD};
+    let (path, name) = (wide(path), wide(name));
+    let mut value = 0u32;
+    let mut size = 4u32;
+    // SAFETY: `value` has the four bytes asked for.
+    let status = unsafe {
+        RegGetValueW(
+            HKEY_LOCAL_MACHINE,
+            path.as_ptr(),
+            name.as_ptr(),
+            RRF_RT_REG_DWORD,
+            std::ptr::null_mut(),
+            (&mut value as *mut u32).cast(),
+            &mut size,
+        )
+    };
+    (status == 0).then_some(value)
+}
+
+#[cfg(not(windows))]
+pub fn registry_dword(_path: &str, _name: &str) -> Option<u32> {
+    None
+}
+
+/// The file system of the drive `path` is on ("NTFS").
+#[cfg(windows)]
+pub fn filesystem_name(path: &std::path::Path) -> Option<String> {
+    use windows_sys::Win32::Storage::FileSystem::GetVolumeInformationW;
+    let root: std::path::PathBuf = path.components().take(2).collect();
+    let root = wide(&root.display().to_string());
+    let mut name = [0u16; 32];
+    // SAFETY: only the file system name is asked for, into its buffer.
+    let ok = unsafe {
+        GetVolumeInformationW(
+            root.as_ptr(),
+            std::ptr::null_mut(),
+            0,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            name.as_mut_ptr(),
+            name.len() as u32,
+        )
+    };
+    let end = name.iter().position(|&c| c == 0).unwrap_or(0);
+    (ok != 0).then(|| String::from_utf16_lossy(&name[..end]))
+}
+
+#[cfg(not(windows))]
+pub fn filesystem_name(_path: &std::path::Path) -> Option<String> {
+    None
+}
+
 /// Tell running programs (Explorer) that the environment changed.
 pub fn broadcast_environment_change() {
     #[cfg(windows)]

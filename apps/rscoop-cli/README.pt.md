@@ -2,15 +2,66 @@
 
 *Ler em [inglês](README.md).*
 
-Valida uma instalação do [Scoop](https://scoop.sh) no Windows, esteja onde estiver, e
-indica o que está estragado ou ainda aponta para uma raiz antiga do Scoop — por exemplo
-depois de mudar o Scoop de `D:\Portable\scoop` para `E:\Portable\scoop`. Por omissão
-**não altera nada**: só lê ficheiros e o registo. Com `--fix` corrige o que conseguir (ver
-[Correções](#correções)).
+O [Scoop](https://scoop.sh), mais rápido. Trabalha sobre a mesma instalação do Scoop: o rscoop-cli
+faz ele próprio o que lê e o que mantém a instalação, e **entrega ao Scoop tudo o que instala ou
+remove aplicações**, por isso pode usar-se em vez do `scoop`. O plano do resto está em
+[docs/rscoop.pt.md](../../docs/rscoop.pt.md).
+
+Sem comando faz o que já fazia: **valida a instalação**. Um só executável de 3,0 MB; textos em
+inglês, português e espanhol.
+
+## Comandos
+
+```bat
+rscoop-cli list
+rscoop-cli search ripgrep
+rscoop-cli update
+rscoop-cli status
+rscoop-cli install ripgrep      (entregue ao Scoop)
+```
+
+| Comando | O que faz |
+|---|---|
+| `list [query]`, `search [query]` | As aplicações instaladas; as dos buckets locais (pelo nome e pelo programa). |
+| `info <app> [-v]`, `cat <app>`, `home <app>` | O que se sabe de uma aplicação, o manifesto, a página. |
+| `status [--local]` | Se o Scoop e os buckets estão atrasados (consultados ao mesmo tempo) e depois as aplicações desatualizadas, estragadas, descontinuadas e removidas. `--local` não usa a rede. |
+| `which`, `prefix`, `depends` | O programa de um comando, a pasta de uma aplicação, o que ela precisa. |
+| `export [-c]`, `checkup` | A instalação em JSON; os testes do `scoop checkup` e depois as verificações abaixo (valem as opções delas). |
+| `update` | Atualiza o Scoop e os buckets, estes ao mesmo tempo. O `update <app>` é do Scoop. |
+| `bucket list\|known\|add\|rm`, `config [nome [valor]]`, `alias add\|rm\|list` | Buckets, definições e aliases. |
+| `download <app…> [-f] [-s] [-a arq]` | Os ficheiros das aplicações para a cache, com as somas conferidas (aria2 quando o Scoop o usaria). |
+| `cache show\|rm`, `cleanup <app…>\|* [-g] [-k]` | O que fica guardado: descargas e versões antigas. |
+| `hold`, `unhold` | Fixar a versão de aplicações (ou do próprio `scoop`). |
+| `help [comando]`, `scoop <comando…>` | Ajuda; executar qualquer comando com o próprio Scoop. |
+
+**Onde é mais cauteloso do que o Scoop:** o `bucket rm` só aceita o nome de um bucket (`bucket rm ..`
+apagaria a instalação); o `cleanup` não remove nada quando não sabe qual é a versão atual, e nunca
+segue uma ligação para dentro do `persist`. **O que deixa para o Scoop:** uma atualização que
+reporia o repositório do próprio Scoop (outro repositório ou ramo, sem git), a cache SQLite,
+`app@versão`, manifestos de um endereço da web e descargas por proxy, FTP ou FossHub.
+
+`--json` dá os dados de todos os comandos feitos aqui, `--root CAMINHO` escolhe a instalação e
+`--lang en|pt|es` a língua. A instalação é a que o Scoop usaria: `--root`, `SCOOP`, `root_path`, a
+pasta do `scoop` que está no `PATH` e por fim `~\scoop`; um `config.json` portátil na raiz conta. O
+`compare.ps1` compara as respostas com as do Scoop oficial.
+
+Num PC com duas instalações (uma leitura de cada, não é um benchmark):
+
+| | Scoop, 361 aplicações | rscoop-cli, 361 | rscoop-cli, 1500 |
+|---|---:|---:|---:|
+| `list` | 10,7 s | 0,4 s | 1,5 s |
+| `status --local` | 24,8 s | 0,5 s | 2,0 s |
+| `search` | 4,6 s | 0,5 s | 1,2 s |
+
+## Verificar uma instalação
+
+Sem comando, o rscoop-cli valida uma instalação do Scoop, esteja onde estiver, e indica o que está
+estragado ou ainda aponta para uma raiz antiga do Scoop — por exemplo depois de mudar o Scoop de
+`D:\Portable\scoop` para `E:\Portable\scoop`. Por omissão **não altera nada**: só lê ficheiros e o
+registo. Com `--fix` corrige o que conseguir (ver [Correções](#correções)).
 
 É a versão em Rust do `scoop-check` em Python, com as mesmas verificações, opções e
-relatório, e duas utilizações do SQLite para ser mais rápido (ver [Rapidez](#rapidez)). Um
-só executável de 2,4 MB; textos em inglês, português e espanhol.
+relatório, e duas utilizações do SQLite para ser mais rápido (ver [Rapidez](#rapidez)).
 
 ## Como correr
 
