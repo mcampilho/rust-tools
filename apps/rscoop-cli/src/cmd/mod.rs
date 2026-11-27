@@ -1,7 +1,8 @@
 //! The commands of Scoop that rscoop-cli does itself: those that read, and
 //! the upkeep of the installation (update of Scoop and buckets, downloads,
-//! cleanup, hold, configuration). Everything that installs or removes apps is
-//! handed to the Scoop of the installation (`delegate`).
+//! cleanup, hold, configuration), and `shim`, `reset` and `uninstall`.
+//! Installing and updating apps is handed to the Scoop of the installation
+//! (`delegate`).
 
 mod args;
 mod bucket;
@@ -10,14 +11,20 @@ mod delegate;
 mod download;
 mod git;
 mod listing;
+mod machinery;
 mod maintain;
 mod query;
+mod reset;
+mod shim;
 mod state;
 pub mod table;
 #[cfg(all(test, windows))]
 mod tests;
 #[cfg(all(test, windows))]
+mod tests_ops;
+#[cfg(all(test, windows))]
 mod tests_write;
+mod uninstall;
 mod update;
 
 use crate::registry::Registry;
@@ -25,12 +32,13 @@ use crate::text::{system_language, T};
 use rt_scoop::install::{core_root, Env, Scoop};
 use rt_scoop::json::{self, Json};
 use rt_scoop::manifest::Arch;
+use rt_scoop::system::System;
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::PathBuf;
 
 /// The commands of this program: name, usage, key of the description.
-pub const NATIVE: [(&str, &str, &str); 22] = [
+pub const NATIVE: [(&str, &str, &str); 25] = [
     ("list", "[query]", "cmd.list"),
     ("search", "[query]", "cmd.search"),
     ("info", "<app> [-v]", "cmd.info"),
@@ -49,6 +57,9 @@ pub const NATIVE: [(&str, &str, &str); 22] = [
     ("hold", "<app…> [-g]", "cmd.hold"),
     ("unhold", "<app…> [-g]", "cmd.unhold"),
     ("alias", "add|rm|list", "cmd.alias"),
+    ("shim", "add|rm|list|info [-g]", "cmd.shim"),
+    ("reset", "<app…>|*", "cmd.reset"),
+    ("uninstall", "<app…> [-gp]", "cmd.uninstall"),
     ("export", "[-c]", "cmd.export"),
     ("checkup", "", "cmd.checkup"),
     ("help", "[command]", "cmd.help"),
@@ -65,6 +76,8 @@ pub struct Ctx<'a> {
     /// `--root` was given: Scoop, when it takes over, works on that one.
     pub root_given: bool,
     pub system_arch: Arch,
+    /// The registry, the Start menu and the processes.
+    pub system: &'a dyn System,
     pub out: &'a mut dyn Write,
     pub err: &'a mut dyn Write,
 }
@@ -174,6 +187,11 @@ pub fn is_native(command: &str, args: &[String]) -> bool {
         "bucket" => matches!(first, Some("list" | "known" | "add" | "rm")),
         "config" => first != Some("--help"),
         "scoop" => false,
+        // Scoop shows its own help; lter asks the user to choose.
+        _ if matches!(first, Some("-h" | "--help" | "/?")) => false,
+        "shim" => first != Some("alter"),
+        // Uninstalling Scoop itself is Scoop's.
+        "uninstall" => !args.iter().any(|a| a.eq_ignore_ascii_case("scoop")),
         other => NATIVE.iter().any(|(name, _, _)| *name == other),
     }
 }
@@ -184,12 +202,16 @@ pub struct Outside<'a> {
     pub exe: Option<PathBuf>,
     pub system_arch: Arch,
     pub registry: &'a dyn Registry,
+    pub system: &'a dyn System,
 }
 
 /// Runs a command; returns the exit code.
 pub fn run(mut line: Line, outside: Outside, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let env = Env::new(outside.vars.clone());
-    let native = is_native(&line.command, &line.args);
+    // What removes apps stays Scoop's until it has been compared with Scoop
+    // in a throw-away Windows (docs/rscoop.pt.md §7); RSCOOP_NATIVE=1 tries it.
+    let on_trial = matches!(line.command.as_str(), "reset" | "uninstall") && env.get("RSCOOP_NATIVE") != Some("1");
+    let native = is_native(&line.command, &line.args) && !on_trial;
     if native {
         own_options(&mut line);
     }
@@ -197,7 +219,18 @@ pub fn run(mut line: Line, outside: Outside, out: &mut dyn Write, err: &mut dyn 
     let located = core_root(&env, outside.exe.as_deref());
     let scoop = Scoop::locate(&env, line.root.as_deref(), located);
     let root_given = line.root.is_some();
-    let mut ctx = Ctx { scoop, env, t, lang: line.lang.clone(), json: line.json, root_given, system_arch: outside.system_arch, out, err };
+    let mut ctx = Ctx {
+        scoop,
+        env,
+        t,
+        lang: line.lang.clone(),
+        json: line.json,
+        root_given,
+        system_arch: outside.system_arch,
+        system: outside.system,
+        out,
+        err,
+    };
     if !native {
         let mut args = line.args.clone();
         if line.command != "scoop" {
@@ -237,6 +270,9 @@ pub fn run(mut line: Line, outside: Outside, out: &mut dyn Write, err: &mut dyn 
         "hold" => maintain::hold(&mut ctx, args, true),
         "unhold" => maintain::hold(&mut ctx, args, false),
         "alias" => maintain::alias(&mut ctx, args),
+        "shim" => shim::run(&mut ctx, args),
+        "reset" => reset::run(&mut ctx, args),
+        "uninstall" => uninstall::run(&mut ctx, args),
         "checkup" => checkup::run(&mut ctx, args, &outside),
         _ => help(&mut ctx, args),
     }

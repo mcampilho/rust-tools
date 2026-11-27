@@ -35,27 +35,132 @@ fn verbatim(path: &Path) -> std::ffi::OsString {
     }
 }
 
-/// Takes the read-only attribute off `path` itself (not off what a link
-/// points to: `SetFileAttributesW` changes the junction, as `attrib -R /L`).
-fn make_writable(path: &Path) {
+/// Puts the read-only attribute on `path` itself or takes it off, not on what
+/// a link points to: `SetFileAttributesW` changes the junction, as
+/// `attrib ±R /L` does. False when the path is not there.
+pub fn set_link_readonly(path: &Path, readonly: bool) -> bool {
     #[cfg(windows)]
     {
         use std::os::windows::ffi::OsStrExt;
         use windows_sys::Win32::Storage::FileSystem::{
-            GetFileAttributesW, SetFileAttributesW, FILE_ATTRIBUTE_READONLY, INVALID_FILE_ATTRIBUTES,
+            GetFileAttributesW, SetFileAttributesW, FILE_ATTRIBUTE_NORMAL, FILE_ATTRIBUTE_READONLY, INVALID_FILE_ATTRIBUTES,
         };
         let wide: Vec<u16> = verbatim(path).encode_wide().chain(Some(0)).collect();
         // SAFETY: a NUL-terminated path.
         unsafe {
             let attributes = GetFileAttributesW(wide.as_ptr());
-            if attributes != INVALID_FILE_ATTRIBUTES && attributes & FILE_ATTRIBUTE_READONLY != 0 {
-                SetFileAttributesW(wide.as_ptr(), attributes & !FILE_ATTRIBUTE_READONLY);
+            if attributes == INVALID_FILE_ATTRIBUTES {
+                return false;
             }
+            let wanted = if readonly { attributes | FILE_ATTRIBUTE_READONLY } else { attributes & !FILE_ATTRIBUTE_READONLY };
+            if wanted != attributes {
+                SetFileAttributesW(wide.as_ptr(), if wanted == 0 { FILE_ATTRIBUTE_NORMAL } else { wanted });
+            }
+            true
         }
     }
     #[cfg(not(windows))]
     {
-        let _ = path;
+        let _ = readonly;
+        std::fs::symlink_metadata(path).is_ok()
+    }
+}
+
+fn make_writable(path: &Path) {
+    set_link_readonly(path, false);
+}
+
+/// A path as text without the `\\?\` prefix.
+pub fn plain(path: &Path) -> std::path::PathBuf {
+    let text = path.as_os_str().to_string_lossy();
+    match text.strip_prefix(r"\\?\UNC\") {
+        Some(rest) => format!(r"\\{rest}").into(),
+        None => text.strip_prefix(r"\\?\").map_or_else(|| path.to_path_buf(), std::path::PathBuf::from),
+    }
+}
+
+/// A directory junction `link` -> `target`, as `New-Item -ItemType Junction`
+/// (no administrator rights needed). `link` must not be there.
+#[cfg(windows)]
+pub fn make_junction(link: &Path, target: &Path) -> io::Result<()> {
+    use std::os::windows::fs::OpenOptionsExt;
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::System::IO::DeviceIoControl;
+    const FSCTL_SET_REPARSE_POINT: u32 = 0x0009_00A4;
+    const IO_REPARSE_TAG_MOUNT_POINT: u32 = 0xA000_0003;
+    let target = plain(&std::path::absolute(target)?);
+    let target = target.to_string_lossy();
+    let target = target.trim_end_matches('\\');
+    let target = if target.ends_with(':') { format!("{target}\\") } else { target.to_string() };
+    std::fs::create_dir(link)?;
+    let sub: Vec<u16> = format!(r"\??\{target}").encode_utf16().collect();
+    let print: Vec<u16> = target.encode_utf16().collect();
+    let path_bytes = (sub.len() + 1 + print.len() + 1) * 2;
+    let mut buf: Vec<u8> = Vec::new();
+    buf.extend_from_slice(&IO_REPARSE_TAG_MOUNT_POINT.to_le_bytes());
+    buf.extend_from_slice(&((8 + path_bytes) as u16).to_le_bytes());
+    buf.extend_from_slice(&0u16.to_le_bytes());
+    buf.extend_from_slice(&0u16.to_le_bytes());
+    buf.extend_from_slice(&((sub.len() * 2) as u16).to_le_bytes());
+    buf.extend_from_slice(&((sub.len() * 2 + 2) as u16).to_le_bytes());
+    buf.extend_from_slice(&((print.len() * 2) as u16).to_le_bytes());
+    for u in sub.iter().chain(&[0]).chain(print.iter()).chain(&[0]) {
+        buf.extend_from_slice(&u.to_le_bytes());
+    }
+    let result = (|| {
+        // GENERIC_WRITE; backup semantics and the reparse point itself.
+        let f = std::fs::OpenOptions::new().access_mode(0x4000_0000).custom_flags(0x0200_0000 | 0x0020_0000).open(link)?;
+        let mut returned = 0u32;
+        // SAFETY: the buffer is a REPARSE_DATA_BUFFER of the length given.
+        let ok = unsafe {
+            DeviceIoControl(
+                f.as_raw_handle(),
+                FSCTL_SET_REPARSE_POINT,
+                buf.as_ptr().cast(),
+                buf.len() as u32,
+                std::ptr::null_mut(),
+                0,
+                &mut returned,
+                std::ptr::null_mut(),
+            )
+        };
+        if ok == 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_dir(link);
+    }
+    result
+}
+
+#[cfg(not(windows))]
+pub fn make_junction(link: &Path, target: &Path) -> io::Result<()> {
+    std::os::unix::fs::symlink(target, link)
+}
+
+/// How many names the file has (more than one: a hard link, as PowerShell's
+/// `LinkType` says `HardLink`).
+pub fn link_count(path: &Path) -> u32 {
+    #[cfg(windows)]
+    {
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::Storage::FileSystem::{GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION};
+        let Ok(file) = std::fs::File::open(path) else { return 0 };
+        // SAFETY: an open handle and a structure to fill.
+        unsafe {
+            let mut info: BY_HANDLE_FILE_INFORMATION = std::mem::zeroed();
+            if GetFileInformationByHandle(file.as_raw_handle(), &mut info) == 0 {
+                return 0;
+            }
+            info.nNumberOfLinks
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        use std::os::unix::fs::MetadataExt;
+        std::fs::metadata(path).map_or(0, |m| m.nlink() as u32)
     }
 }
 

@@ -125,7 +125,7 @@ cli.unknown_option	Unknown option: {opt}	Opção desconhecida: {opt}	Opción des
 cli.needs_value	{opt} needs a value.	{opt} precisa de um valor.	{opt} necesita un valor.
 src.location	from where Scoop is	pela localização do Scoop	por la ubicación de Scoop
 cli.command	command	comando	comando
-cli.others	Any other command (install, update, uninstall…) is handed to the Scoop of the installation.	Qualquer outro comando (install, update, uninstall…) é entregue ao Scoop da instalação.	Cualquier otra orden (install, update, uninstall…) se entrega al Scoop de la instalación.
+cli.others	Any other command (install, update of apps, import…) is handed to the Scoop of the installation.	Qualquer outro comando (install, update de aplicações, import…) é entregue ao Scoop da instalação.	Cualquier otra orden (install, update de aplicaciones, import…) se entrega al Scoop de la instalación.
 cli.checker	Without a command the installation is checked; see: rscoop-cli --help	Sem comando, a instalação é verificada; ver: rscoop-cli --help	Sin orden, se comprueba la instalación; vea: rscoop-cli --help
 cli.see_commands	Commands (list, search, status…): rscoop-cli help	Comandos (list, search, status…): rscoop-cli help	Órdenes (list, search, status…): rscoop-cli help
 cmd.list	List the installed apps.	Lista as aplicações instaladas.	Lista las aplicaciones instaladas.
@@ -257,3 +257,54 @@ cmd.cleanup	Remove old versions of apps.	Remove versões antigas das aplicaçõe
 cmd.hold	Keep apps at their version.	Fixa a versão das aplicações.	Retiene la versión de las aplicaciones.
 cmd.unhold	Let held apps be updated again.	Volta a deixar atualizar aplicações fixadas.	Permite actualizar de nuevo las aplicaciones retenidas.
 cmd.alias	Manage Scoop aliases.	Gere os aliases do Scoop.	Gestiona los alias de Scoop.
+cmd.shim	Manage shims (alter is Scoop's).	Gere os shims (o alter é do Scoop).	Gestiona los shims (alter es de Scoop).
+cmd.reset	Make an installed version the one in use again.	Volta a pôr em uso uma versão instalada.	Vuelve a poner en uso una versión instalada.
+cmd.uninstall	Uninstall apps (-g global, -p also their persisted data).	Desinstala aplicações (-g globais, -p também os dados persistentes).	Desinstala aplicaciones (-g globales, -p también los datos persistentes).
+app.failed	'{app}' isn't installed correctly.	'{app}' não está bem instalada.	'{app}' no está bien instalada.
+running.stop	The following instances of "{app}" are still running. Close them and try again.	Ainda estão a correr estas instâncias de "{app}". Feche-as e tente de novo.	Aún se están ejecutando estas instancias de "{app}". Ciérrelas e inténtelo de nuevo.
+running.ignored	The following instances of "{app}" are still running. Scoop is configured to ignore this condition.	Ainda estão a correr estas instâncias de "{app}". O Scoop está configurado para não fazer caso disso.	Aún se están ejecutando estas instancias de "{app}". Scoop está configurado para no tenerlo en cuenta.
+path.adding	Adding {path} to your path.	A acrescentar {path} ao seu PATH.	Añadiendo {path} a su PATH.
+path.adding_global	Adding {path} to global path.	A acrescentar {path} ao PATH global.	Añadiendo {path} al PATH global.
+path.removing	Removing {path} from your path.	A tirar {path} do seu PATH.	Quitando {path} de su PATH.
+path.removing_global	Removing {path} from global path.	A tirar {path} do PATH global.	Quitando {path} del PATH global.
+env.setting	Setting user environment variable: {name} = {value}	A definir a variável de ambiente do utilizador: {name} = {value}	Definiendo la variable de entorno del usuario: {name} = {value}
+env.setting_global	Setting system environment variable: {name} = {value}	A definir a variável de ambiente do sistema: {name} = {value}	Definiendo la variable de entorno del sistema: {name} = {value}
+env.removing	Removing user environment variable: {name}	A remover a variável de ambiente do utilizador: {name}	Eliminando la variable de entorno del usuario: {name}
+env.removing_global	Removing system environment variable: {name}	A remover a variável de ambiente do sistema: {name}	Eliminando la variable de entorno del sistema: {name}
+shim.creating	Creating shim for '{name}'.	A criar o shim de '{name}'.	Creando el shim de '{name}'.
+shim.removing	Removing shim '{name}'.	A remover o shim '{name}'.	Eliminando el shim '{name}'.
+shim.overwriting	Overwriting shim ('{shim}' -> '{target}') installed from {app}	A substituir o shim ('{shim}' -> '{target}') instalado por {app}	Sustituyendo el shim ('{shim}' -> '{target}') instalado por {app}
+shim.overwriting_external	Overwriting shim ('{shim}' -> '{target}')	A substituir o shim ('{shim}' -> '{target}')	Sustituyendo el shim ('{shim}' -> '{target}')
+shim.gui	Making {path} a GUI binary.	{path} passa a ser um programa com janela.	{path} pasa a ser un programa con ventana.
+shim.missing	Can't shim '{target}': File doesn't exist.	Não é possível criar o shim de '{target}': o ficheiro não existe.	No se puede crear el shim de '{target}': el archivo no existe.
+shim.no_subcommand	<subcommand> missing: add, rm, list, info or alter.	Falta o subcomando: add, rm, list, info ou alter.	Falta el subcomando: add, rm, list, info o alter.
+shim.bad_subcommand	'{sub}' is not one of available subcommands: add, rm, list, info, alter	'{sub}' não é nenhum dos subcomandos: add, rm, list, info, alter	'{sub}' no es ninguno de los subcomandos: add, rm, list, info, alter
+shim.no_name	<shim_name> must be specified for subcommand '{sub}'	É preciso o nome do shim para o subcomando '{sub}'	Se necesita el nombre del shim para el subcomando '{sub}'
+shim.no_path	<command_path> must be specified for subcommand 'add'	É preciso o caminho do comando para o subcomando 'add'	Se necesita la ruta del comando para el subcomando 'add'
+shim.no_command	Command path does not exist: {path}	O caminho do comando não existe: {path}	La ruta del comando no existe: {path}
+shim.adding	Adding local shim {name}...	A acrescentar o shim local {name}...	Añadiendo el shim local {name}...
+shim.adding_global	Adding global shim {name}...	A acrescentar o shim global {name}...	Añadiendo el shim global {name}...
+shim.not_found	Local shim not found: {name}	Não há nenhum shim local {name}	No hay ningún shim local {name}
+shim.not_found_global	Global shim not found: {name}	Não há nenhum shim global {name}	No hay ningún shim global {name}
+shim.global_exists	But a global shim exists, run 'scoop shim info {name} --global' to show its info.	Mas há um shim global: 'scoop shim info {name} --global' mostra-o.	Pero hay un shim global: 'scoop shim info {name} --global' lo muestra.
+shim.local_exists	But a local shim exists, run 'scoop shim info {name}' to show its info.	Mas há um shim local: 'scoop shim info {name}' mostra-o.	Pero hay un shim local: 'scoop shim info {name}' lo muestra.
+shim.bad_pattern	Invalid pattern: {pattern}	Padrão inválido: {pattern}	Patrón no válido: {pattern}
+shortcut.creating	Creating shortcut for {name} ({file})	A criar o atalho de {name} ({file})	Creando el acceso directo de {name} ({file})
+shortcut.no_target	Creating shortcut for {name} ({file}) failed: Couldn't find {path}	Não foi possível criar o atalho de {name} ({file}): não existe {path}	No se pudo crear el acceso directo de {name} ({file}): no existe {path}
+shortcut.no_icon	Creating shortcut for {name} ({file}) failed: Couldn't find icon {path}	Não foi possível criar o atalho de {name} ({file}): não existe o ícone {path}	No se pudo crear el acceso directo de {name} ({file}): no existe el icono {path}
+shortcut.failed	Creating shortcut for {name} failed: {why}	Não foi possível criar o atalho de {name}: {why}	No se pudo crear el acceso directo de {name}: {why}
+shortcut.removing	Removing shortcut {path}	A remover o atalho {path}	Eliminando el acceso directo {path}
+link.linking	Linking {from} => {to}	A ligar {from} => {to}	Enlazando {from} => {to}
+link.unlinking	Unlinking {path}	A desligar {path}	Desenlazando {path}
+module.uninstalling	Uninstalling PowerShell module '{name}'.	A desinstalar o módulo do PowerShell '{name}'.	Desinstalando el módulo de PowerShell '{name}'.
+module.removing	Removing {path}	A remover {path}	Eliminando {path}
+persist.persisting	Persisting {name}	A persistir {name}	Persistiendo {name}
+remove.in_use	Couldn't remove '{path}'; it may be in use.	Não foi possível remover '{path}'; talvez esteja em uso.	No se pudo eliminar '{path}'; quizá esté en uso.
+reset.start	Resetting {app} ({version}).	A repor {app} ({version}).	Restableciendo {app} ({version}).
+reset.no_version	'{app} ({version})' isn't installed.	'{app} ({version})' não está instalada.	'{app} ({version})' no está instalada.
+reset.global_admin	'{app}' ({version}) is a global app. You need admin rights to reset it. Skipping.	'{app}' ({version}) é uma aplicação global: são precisos direitos de administrador para a repor. Fica como está.	'{app}' ({version}) es una aplicación global: se necesitan derechos de administrador para restablecerla. Se omite.
+reset.by_scoop	The value of '{name}' in env_set is a PowerShell expression: handing the command to Scoop.	O valor de '{name}' em env_set é uma expressão do PowerShell: o comando vai para o Scoop.	El valor de '{name}' en env_set es una expresión de PowerShell: la orden pasa a Scoop.
+uninstall.start	Uninstalling '{app}' ({version}).	A desinstalar '{app}' ({version}).	Desinstalando '{app}' ({version}).
+uninstall.older	Removing older version ({version}).	A remover a versão antiga ({version}).	Eliminando la versión antigua ({version}).
+uninstall.purge	Removing persisted data.	A remover os dados persistentes.	Eliminando los datos persistentes.
+uninstall.done	'{app}' was uninstalled.	'{app}' foi desinstalada.	'{app}' se ha desinstalado.

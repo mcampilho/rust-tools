@@ -51,6 +51,9 @@ Compare-Set "search $Query" (Get-Official "search $Query") (Get-Ours 'search', $
 Compare-Set 'bucket list' (Get-Official 'bucket list') (Get-Ours 'bucket', 'list') { "$($_.Name)|$($_.Source)|$($_.Manifests)" }
 Compare-Set 'bucket known' (Get-Official 'bucket known') (Get-Ours 'bucket', 'known') { "$_" }
 Compare-Set 'cache show' (Get-Official 'cache show') (Get-Ours 'cache', 'show') { "$($_.Name)|$($_.Version)|$($_.Length)" }
+# Scoop's `shim list` gives objects: the properties are taken as they are.
+$shimKey = { "$($_.Name)|$($_.Path)|$($_.Source)|$($_.Alternatives)|$($_.IsGlobal)|$($_.IsHidden)".ToLower() }
+Compare-Set 'shim list' (Get-Official 'shim list | Select-Object Name,Path,Source,Alternatives,IsGlobal,IsHidden') (Get-Ours 'shim', 'list') $shimKey
 foreach ($app in $Apps) {
     Compare-Set "depends $app" (Get-Official "depends $app") (Get-Ours 'depends', $app) { "$($_.Source)|$($_.Name)" }
     Compare-Set "prefix $app" (Get-Official "prefix $app") (Get-Ours 'prefix', $app) { "$_" }

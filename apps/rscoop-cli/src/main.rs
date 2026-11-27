@@ -41,6 +41,7 @@ fn run_here(args: &[String]) -> i32 {
                 exe: std::env::current_exe().ok(),
                 system_arch: sys::system_arch(),
                 registry: &registry::WinRegistry,
+                system: &rt_scoop::system::WinSystem,
             };
             cmd::run(line, outside, &mut out, &mut err)
         }

@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 /// PowerShell 7 when it is there, as Scoop's own shims prefer.
-fn powershell(ctx: &Ctx) -> PathBuf {
+pub(super) fn powershell(ctx: &Ctx) -> PathBuf {
     ctx.env.path().map(|d| d.join("pwsh.exe")).find(|p| p.is_file()).unwrap_or_else(|| PathBuf::from("powershell.exe"))
 }
 

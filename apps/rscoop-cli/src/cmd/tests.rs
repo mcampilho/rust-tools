@@ -38,16 +38,27 @@ fn installation(name: &str) -> std::path::PathBuf {
 
 /// (exit code, stdout, stderr)
 pub(super) fn rscoop(root: &Path, args: &[&str]) -> (i32, String, String) {
+    rscoop_on(root, args, &rt_scoop::system::FakeSystem::new(root.join("menu")))
+}
+
+/// The same, with the registry, Start menu and processes of `system`.
+pub(super) fn rscoop_on(root: &Path, args: &[&str], system: &rt_scoop::system::FakeSystem) -> (i32, String, String) {
+    rscoop_native(root, args, system, true)
+}
+
+/// `native`: with RSCOOP_NATIVE=1, which `reset` and `uninstall` need to be done here.
+pub(super) fn rscoop_native(root: &Path, args: &[&str], system: &rt_scoop::system::FakeSystem, native: bool) -> (i32, String, String) {
     let mut all = vec!["--lang".to_string(), "en".into(), "--root".into(), root.display().to_string()];
     all.extend(args.iter().map(|a| a.to_string()));
     let line = command_line(&all).expect("a command");
     let registry = FakeRegistry::new();
     let vars = HashMap::from([
+        ("RSCOOP_NATIVE".to_string(), if native { "1" } else { "" }.to_string()),
         ("USERPROFILE".to_string(), root.join("home").display().to_string()),
         // The shims of the installation, then the real programs (git, PowerShell).
         ("PATH".to_string(), format!("{};{}", root.join("shims").display(), std::env::var("PATH").unwrap_or_default())),
     ]);
-    let outside = Outside { vars, exe: None, system_arch: Arch::X64, registry: &registry };
+    let outside = Outside { vars, exe: None, system_arch: Arch::X64, registry: &registry, system };
     let (mut out, mut err) = (Vec::new(), Vec::new());
     let code = run(line, outside, &mut out, &mut err);
     (code, String::from_utf8(out).unwrap(), String::from_utf8(err).unwrap())
@@ -71,16 +82,17 @@ fn what_installs_or_removes_apps_goes_to_scoop() {
     assert!(native("bucket", &["list"]) && native("cache", &[]) && native("cache", &["git"]));
     assert!(native("update", &[]) && native("update", &["-q"]) && native("status", &[]) && native("cleanup", &["*"]));
     assert!(native("bucket", &["add", "x"]) && native("config", &["a", "b"]) && native("download", &["x"]));
+    assert!(native("uninstall", &["x", "-p"]) && native("reset", &["*"]) && native("shim", &["add", "x", "y"]) && native("shim", &[]));
     for (command, args) in [
         ("install", vec!["x"]),
         ("update", vec!["x"]),
         ("update", vec!["*"]),
         ("update", vec!["-a"]),
-        ("uninstall", vec!["x"]),
-        ("reset", vec!["x"]),
+        ("uninstall", vec!["x", "Scoop"]),
+        ("reset", vec!["--help"]),
         ("import", vec!["x"]),
         ("config", vec!["--help"]),
-        ("shim", vec!["add"]),
+        ("shim", vec!["alter", "x"]),
         ("scoop", vec!["list"]),
     ] {
         assert!(!native(command, &args), "{command} {args:?}");

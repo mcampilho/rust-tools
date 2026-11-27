@@ -28,7 +28,7 @@ fn cache_files(ctx: &Ctx) -> Vec<(String, PathBuf, u64)> {
     files
 }
 
-fn remove_file(ctx: &mut Ctx, path: &Path) -> bool {
+pub(super) fn remove_file(ctx: &mut Ctx, path: &Path) -> bool {
     match remove_tree(path) {
         Ok(()) => true,
         Err(e) => {
@@ -83,7 +83,7 @@ pub fn cache_rm(ctx: &mut Ctx, apps: &[String]) -> i32 {
 
 /// The apps a command names, in one scope; errors are shown for the others
 /// (`Confirm-InstallationStatus`).
-fn confirm(ctx: &mut Ctx, names: &[String], global: bool) -> (Vec<(String, bool)>, bool) {
+pub(super) fn confirm(ctx: &mut Ctx, names: &[String], global: bool) -> (Vec<(String, bool)>, bool) {
     let mut found = Vec::new();
     let mut missing = false;
     for name in names.iter().filter(|n| !n.eq_ignore_ascii_case("scoop")) {

@@ -7,7 +7,7 @@ faz ele próprio o que lê e o que mantém a instalação, e **entrega ao Scoop 
 remove aplicações**, por isso pode usar-se em vez do `scoop`. O plano do resto está em
 [docs/rscoop.pt.md](../../docs/rscoop.pt.md).
 
-Sem comando faz o que já fazia: **valida a instalação**. Um só executável de 3,0 MB; textos em
+Sem comando faz o que já fazia: **valida a instalação**. Um só executável de 3,4 MB; textos em
 inglês, português e espanhol.
 
 ## Comandos
@@ -32,6 +32,8 @@ rscoop-cli install ripgrep      (entregue ao Scoop)
 | `download <app…> [-f] [-s] [-a arq]` | Os ficheiros das aplicações para a cache, com as somas conferidas (aria2 quando o Scoop o usaria). |
 | `cache show\|rm`, `cleanup <app…>\|* [-g] [-k]` | O que fica guardado: descargas e versões antigas. |
 | `hold`, `unhold` | Fixar a versão de aplicações (ou do próprio `scoop`). |
+| `shim add\|rm\|list\|info [-g]` | Shims como o Scoop os faz (`.exe` e `.shim`, `.cmd`, `.ps1`, `sh`); o de outra aplicação fica de lado e volta. O `shim alter` é do Scoop. |
+| `reset <app…>\|*`, `uninstall <app…> [-g] [-p]` | Feitos aqui só com `RSCOOP_NATIVE=1`, enquanto se comparam com o Scoop; sem isso, do Scoop. Os scripts dos manifestos correm no código do próprio Scoop. |
 | `help [comando]`, `scoop <comando…>` | Ajuda; executar qualquer comando com o próprio Scoop. |
 
 **Onde é mais cauteloso do que o Scoop:** o `bucket rm` só aceita o nome de um bucket (`bucket rm ..`

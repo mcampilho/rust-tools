@@ -151,59 +151,8 @@ fn expand_env(value: &str) -> String {
 }
 
 /// Create a directory junction `link` -> `target` (no admin rights needed).
-#[cfg(windows)]
 pub fn make_junction(link: &str, target: &str) -> std::io::Result<()> {
-    use std::os::windows::fs::OpenOptionsExt;
-    use std::os::windows::io::AsRawHandle;
-    use windows_sys::Win32::System::IO::DeviceIoControl;
-    const FSCTL_SET_REPARSE_POINT: u32 = 0x0009_00A4;
-    let target = normpath(&strip_prefix(target));
-    std::fs::create_dir(link)?;
-    let sub: Vec<u16> = format!(r"\??\{target}").encode_utf16().collect();
-    let print: Vec<u16> = target.encode_utf16().collect();
-    let mut buf: Vec<u8> = Vec::new();
-    let path_bytes = (sub.len() + 1 + print.len() + 1) * 2;
-    buf.extend_from_slice(&IO_REPARSE_TAG_MOUNT_POINT.to_le_bytes());
-    buf.extend_from_slice(&((8 + path_bytes) as u16).to_le_bytes());
-    buf.extend_from_slice(&0u16.to_le_bytes());
-    buf.extend_from_slice(&0u16.to_le_bytes());
-    buf.extend_from_slice(&((sub.len() * 2) as u16).to_le_bytes());
-    buf.extend_from_slice(&((sub.len() * 2 + 2) as u16).to_le_bytes());
-    buf.extend_from_slice(&((print.len() * 2) as u16).to_le_bytes());
-    for u in sub.iter().chain(&[0]).chain(print.iter()).chain(&[0]) {
-        buf.extend_from_slice(&u.to_le_bytes());
-    }
-    let result = (|| {
-        // GENERIC_WRITE, backup semantics + open reparse point.
-        let f = std::fs::OpenOptions::new().access_mode(0x4000_0000).custom_flags(0x0200_0000 | 0x0020_0000).open(link)?;
-        let mut returned = 0u32;
-        // SAFETY: the buffer is a valid REPARSE_DATA_BUFFER of the given length.
-        let ok = unsafe {
-            DeviceIoControl(
-                f.as_raw_handle(),
-                FSCTL_SET_REPARSE_POINT,
-                buf.as_ptr().cast(),
-                buf.len() as u32,
-                std::ptr::null_mut(),
-                0,
-                &mut returned,
-                std::ptr::null_mut(),
-            )
-        };
-        if ok == 0 {
-            return Err(std::io::Error::last_os_error());
-        }
-        Ok(())
-    })();
-    if result.is_err() {
-        let _ = std::fs::remove_dir(link);
-    }
-    result
-}
-
-#[cfg(not(windows))]
-pub fn make_junction(link: &str, target: &str) -> std::io::Result<()> {
-    std::os::unix::fs::symlink(target, link)
+    rt_scoop::disk::make_junction(Path::new(link), Path::new(&strip_prefix(target)))
 }
 
 /// Remove a junction or symbolic link without touching what it points to.

@@ -83,16 +83,22 @@ fn shim_target(shims: &Path, name: &str) -> Option<PathBuf> {
 }
 
 /// `Get-CommandPath`, without PowerShell's aliases and functions.
-pub fn which(ctx: &mut Ctx, args: &[String]) -> i32 {
-    let Some(command) = args.first() else { return ctx.fail("error.missing", &[("what", "<command>")]) };
+/// The file `Get-Command` finds for a program name on `PATH` (`.ps1` first,
+/// then `PATHEXT`). Aliases and functions of PowerShell are not known here.
+pub(super) fn find_command(ctx: &Ctx, command: &str) -> Option<PathBuf> {
     let extensions: Vec<String> = std::iter::once(".ps1".to_string())
         .chain(ctx.env.get("PATHEXT").unwrap_or(".COM;.EXE;.BAT;.CMD").split(';').filter(|e| !e.is_empty()).map(str::to_ascii_lowercase))
         .collect();
     let has_extension = Path::new(command).extension().is_some();
-    let file = ctx.env.path().find_map(|dir| {
+    ctx.env.path().find_map(|dir| {
         let exact = has_extension.then(|| dir.join(command)).filter(|p| p.is_file());
         exact.or_else(|| extensions.iter().map(|e| dir.join(format!("{command}{e}"))).find(|p| p.is_file()))
-    });
+    })
+}
+
+pub fn which(ctx: &mut Ctx, args: &[String]) -> i32 {
+    let Some(command) = args.first() else { return ctx.fail("error.missing", &[("what", "<command>")]) };
+    let file = find_command(ctx, command);
     let found = file.and_then(|file| {
         let dir = file.parent()?;
         let same = |a: &Path, b: &Path| a.to_string_lossy().eq_ignore_ascii_case(&b.to_string_lossy());

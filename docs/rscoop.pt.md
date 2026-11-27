@@ -1,6 +1,7 @@
 # rscoop-cli completo — análise e plano
 
-Escrito a 2026-11-27. **Estado:** fases 0, 1 e 2 feitas, versão 0.2.0 por lançar (ver as secções 10 e 11).
+Escrito a 2026-11-27. **Estado:** fases 0, 1 e 2 feitas; fase 3 escrita e testada em instalações fictícias, à espera
+da comparação no Windows Sandbox (secção 12); versão 0.2.0 por lançar.
 
 ## 1. Resumo
 
@@ -286,3 +287,57 @@ HTTPS verdadeira, o aria2, e o `-g` como administrador.
 
 Diferenças por tratar: o `update` não volta a criar o shim do Scoop nem a verificar a pasta dos shims no `PATH`
 (fase 3); em `E:`, o git recusa os repositórios enquanto o proprietário das pastas for o SID antigo.
+
+## 12. Fase 3: o que ficou
+
+Feito a 2026-11-27 (Opus 5.5). Executável de 3,4 MB.
+
+**No `rt-scoop`** (cada função diz a do Scoop que segue):
+
+- `shims`: o `shim` oficial para cada tipo (`.exe`/`.com` → cópia do `shim.exe` escolhido por `shim` mais `.shim`
+  com `path`/`args`, subsistema gráfico copiado, `System32`↔`Sysnative` para um `shim.exe` de 32 bits; `.bat`/`.cmd`,
+  `.ps1` (caminho relativo a partir da pasta dos shims, ou absoluto noutro disco), `.jar`, `.py` e o resto para
+  `bash`, cada um com o `.cmd` e o script `sh` ao lado, com os mesmos textos e fins de linha). O shim de outra
+  aplicação fica como `nome.ext.<app>` (`warn_on_overwrite`) e o `rm_shim` repõe o mais recente.
+  `Get-ShimTarget`, `get_app_name`, `Get-PESubsystem`/`Get-PEMachine`.
+- `links`: `link_current`/`unlink_current` (junção só de leitura na própria junção), `persist_data` (junção para
+  pastas, ligação física para ficheiros, `.original`, pasta vazia quando não há nada), `unlink_persist_data` (junções e
+  ficheiros com mais de um nome), `persist_permission` (`icacls … /grant:r *S-1-5-32-545:(OI)(W)`), módulos.
+- `env`: `Split-PathLikeEnvVar` com o `-like`, `Add-Path`, `Remove-Path`, `Set-EnvVar` (`REG_EXPAND_SZ` com `%`, a
+  espécie antiga, apagar quando fica vazia, `WM_SETTINGCHANGE`), `env_add_path`/`env_rm_path` com
+  `use_isolated_path`, `env_set`/`env_rm`. O `ExpandString` dos valores de `env_set` é feito aqui para `$nome`,
+  `${nome}` e `$env:NOME`; outra coisa (`$(…)`, um acento grave, `$HOME`) entrega o `reset` inteiro ao Scoop.
+- `shortcuts`: `Scoop Apps` e subpastas, alvo e ícone que têm de existir, `$dir`/`$original_dir`/`$persist_dir`.
+- `system`: o que sai das pastas do Scoop, num trait — `WinSystem` (registo, `IShellLinkW`/`IPersistFile` como o
+  `WScript.Shell`, pastas conhecidas, processos) e `FakeSystem` para os testes.
+- `hooks`: o anfitrião dos scripts. Um PowerShell por aplicação (`pwsh` se houver, como o `delegate`) carrega as
+  bibliotecas que o `scoop.ps1` e o comando carregam, define as variáveis do comando (`$cmd = 'uninstall'`, que 580
+  manifestos com scripts de remoção consultam, `$app`, `$dir`, `$manifest`, `$architecture`…) e recebe as linhas a
+  correr por pipes anónimos herdados; a consola fica livre para o que os scripts escrevem e para o `Read-Host`. As
+  linhas são as funções do próprio Scoop (`Invoke-HookScript`, `Invoke-Installer -Uninstall`), na mesma sessão,
+  por isso o `$global:` passa de um script para o seguinte, como no oficial. Um `exit`, um `abort` ou um erro que
+  pare o PowerShell acabam o comando com o mesmo código.
+
+**No `rscoop-cli`:** `shim add|rm|list|info` (o `alter`, que pede uma escolha, é do Scoop), `reset` e `uninstall`
+(o de `scoop` é do Scoop). A ordem do `uninstall` é a do oficial; o `reset` decide antes de mexer se o entrega ao
+Scoop. **O `reset` e o `uninstall` só são nativos com `RSCOOP_NATIVE=1`** até passarem a comparação diferencial
+(secção 7); sem isso continuam a ir para o Scoop.
+
+**Comparado:** `compare.ps1` passou a comparar também o `shim list`: 873 shims iguais em `C:\Users\Miguel\scoop`
+(nome, caminho, origem, alternativas, global, escondido), em 1,3 s contra 41 s. O `IsHidden` conta com os aliases e
+funções do PowerShell por omissão (`pwsh` 7 e 5.1, listas fixas) e com as funções das bibliotecas do Scoop. Os
+atalhos reais por COM foram lidos de volta com o leitor de `.lnk`; o registo verdadeiro não foi tocado.
+
+**Desvios conhecidos:**
+
+- Um `bin` de um só elemento (`["x.exe"]`) não tem nome no `rm_shims` oficial e o shim fica; aqui sai.
+- `persist_data` pára no primeiro erro (por exemplo, um `.original` que é uma pasta); o oficial escreve o erro e
+  continua.
+- O `current` que seja uma pasta verdadeira, no fim do `uninstall`, é removido; o oficial pára com um erro.
+- `shim add` por cima de um shim de uma aplicação, com um alvo de fora do Scoop: o oficial apaga o shim antigo
+  (`"$shim."` é o próprio ficheiro no Windows); aqui o antigo fica de lado como `nome.ext.<app>`.
+- Sem manifesto instalado, o `uninstall` segue com um manifesto vazio (o oficial parava no `Invoke-HookScript`).
+
+**Por fazer:** a comparação no Windows Sandbox (secção 7: a mesma lista de aplicações removida e reposta pelos dois,
+comparando ficheiros, shims, junções, atalhos e variáveis); o `update` voltar a criar o shim do Scoop; o
+`install_psmodule` já existe para a fase 4.
