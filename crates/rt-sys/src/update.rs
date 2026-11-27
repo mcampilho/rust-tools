@@ -232,10 +232,7 @@ pub fn restart(exe: &Path) -> Result<(), String> {
     let flags: Vec<String> = std::env::args().skip(1).filter(|a| a.starts_with("--")).collect();
     #[cfg(windows)]
     {
-        use std::os::windows::process::CommandExt;
-        let quoted: Vec<String> = flags.iter().map(|f| format!("\"{f}\"")).collect();
-        let line = format!("timeout /t 2 /nobreak >nul & start \"\" \"{}\" {}", exe.display(), quoted.join(" "));
-        std::process::Command::new("cmd").args(["/c", &line]).creation_flags(0x0800_0000).spawn().map(|_| ()).map_err(|e| e.to_string())
+        restart_command(exe, &flags).spawn().map(|_| ()).map_err(|e| e.to_string())
     }
     #[cfg(not(windows))]
     {
@@ -248,6 +245,25 @@ pub fn restart(exe: &Path) -> Result<(), String> {
             .map(|_| ())
             .map_err(|e| e.to_string())
     }
+}
+
+/// The command line of [`restart`], for `cmd`: waits about two seconds, then
+/// starts `exe`. `ping` does the waiting, because `timeout` gives up at once
+/// without a console to read from.
+#[cfg(windows)]
+fn restart_line(exe: &Path, flags: &[String]) -> String {
+    let flags: String = flags.iter().map(|f| format!(" \"{f}\"")).collect();
+    format!("ping -n 3 127.0.0.1 >nul & start \"\" \"{}\"{flags}", exe.display())
+}
+
+/// The line goes to `cmd` as it is (`raw_arg`): `Command`'s own quoting
+/// writes `\"`, which `cmd` does not read, and `start` then looked for `\\`.
+#[cfg(windows)]
+fn restart_command(exe: &Path, flags: &[String]) -> std::process::Command {
+    use std::os::windows::process::CommandExt;
+    let mut cmd = std::process::Command::new("cmd");
+    cmd.raw_arg(format!("/d /s /c \"{}\"", restart_line(exe, flags))).creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    cmd
 }
 
 /// Opens a console that waits for this program to end and runs
@@ -330,6 +346,18 @@ mod tests {
         assert!(!under_scoop_root(Path::new(r"D:\Apps\rpad.exe"), "rpad", &roots));
     }
 
+    /// `cmd` gets the quotes as written, not `\"` (it then looked for `\\`).
+    #[cfg(windows)]
+    #[test]
+    fn the_restart_line_reaches_cmd_as_written() {
+        let exe = Path::new(r"C:\a folder & more\app.exe");
+        let flags = ["--tray".to_string()];
+        let line = restart_line(exe, &flags);
+        assert!(line.ends_with(r#"& start "" "C:\a folder & more\app.exe" "--tray""#), "{line}");
+        let cmd = restart_command(exe, &flags);
+        let args: Vec<_> = cmd.get_args().map(|a| a.to_string_lossy().into_owned()).collect();
+        assert_eq!(args, [format!("/d /s /c \"{line}\"")]);
+    }
     #[test]
     fn a_program_is_replaced_and_the_old_one_kept_aside() {
         let d = std::env::temp_dir().join(format!("rt-update-test-{}", std::process::id()));
