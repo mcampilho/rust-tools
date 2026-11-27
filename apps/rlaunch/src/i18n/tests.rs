@@ -89,6 +89,8 @@ fn every_view_is_translated() {
         "Move {} programs to",
         "{} programs selected: drag them or right-click one.",
         "Keep the console open",
+        "Run with arguments…",
+        "Arguments for {}: Enter runs, Up and Down repeat earlier ones.",
     ] {
         assert!(rt_core::i18n::has_key(key), "{key}");
     }

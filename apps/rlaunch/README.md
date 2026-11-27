@@ -107,6 +107,12 @@ run again with arguments. Right-click > **Keep the console open** turns this on
 or off per program (for `.bat` and `.cmd` too; shortcuts open as Windows opens
 them).
 
+**Run with arguments…** (Windows; right-click an `.exe`, `.bat`, `.cmd` or
+shortcut): type the arguments in the program's row and press Enter. The last
+eight are kept per program: the latest is offered, and Up/Down go through the
+others. Esc, or a click elsewhere, gives up. In a console the line is the
+console's, so `|` and `>` work.
+
 ## Categories
 
 There are ten built-in categories, guessed from the names of well-known programs

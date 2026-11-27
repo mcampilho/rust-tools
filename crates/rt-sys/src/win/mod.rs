@@ -38,18 +38,31 @@ pub fn launch_as_admin(path: &std::path::Path) -> bool {
     start(path, "runas")
 }
 
-/// Runs a console program in a console window that stays open, in the
-/// program's folder, so its output can be read and it can be run again with
-/// arguments. `admin`: with administrator rights, which Windows asks for.
-pub fn launch_in_console(path: &std::path::Path, admin: bool) -> bool {
+/// [`launch`] with arguments, written as on a command line; for a shortcut
+/// they go to what it opens. `admin`: as [`launch_as_admin`].
+pub fn launch_with(path: &std::path::Path, args: &str, admin: bool) -> bool {
+    let dir = path.parent().map(|d| d.to_string_lossy().into_owned()).unwrap_or_default();
+    execute(if admin { "runas" } else { "open" }, &path.to_string_lossy(), args, &dir)
+}
+
+/// Runs a console program with `args` in a console window that stays open, in
+/// the program's folder, so its output can be read and it can be run again.
+/// The line is the console's: `|` and `>` work. `admin`: with administrator
+/// rights, which Windows asks for.
+pub fn launch_in_console(path: &std::path::Path, args: &str, admin: bool) -> bool {
     // By its full path: never a `cmd.exe` of the program's folder.
     let system = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".into());
     let dir = path.parent().map(|d| d.to_string_lossy().into_owned()).unwrap_or_default();
     // `/s` takes the outer quotes off; `pushd` because elevated consoles
     // start elsewhere.
-    let params = format!("/d /s /k \"pushd \"{dir}\" & \"{}\"\"", path.display());
-    let (op, file, params) = (wide(if admin { "runas" } else { "open" }), wide(&format!("{system}\\System32\\cmd.exe")), wide(&params));
-    let dir = wide(&dir);
+    let space = if args.is_empty() { "" } else { " " };
+    let params = format!("/d /s /k \"pushd \"{dir}\" & \"{}\"{space}{args}\"", path.display());
+    execute(if admin { "runas" } else { "open" }, &format!("{system}\\System32\\cmd.exe"), &params, &dir)
+}
+
+/// `ShellExecuteW` of `file` with `params`, in `dir`.
+fn execute(verb: &str, file: &str, params: &str, dir: &str) -> bool {
+    let (op, file, params, dir) = (wide(verb), wide(file), wide(params), wide(dir));
     // SAFETY: NUL-terminated strings that live during the call.
     let r = unsafe {
         windows_sys::Win32::UI::Shell::ShellExecuteW(

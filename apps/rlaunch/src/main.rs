@@ -60,6 +60,8 @@ enum Cmd {
     Down,
     #[cfg(windows)]
     Console,
+    #[cfg(windows)]
+    Args,
     ChangeIcon,
     DefaultIcon,
     Hide,
@@ -683,7 +685,7 @@ impl Shell {
         #[cfg(windows)]
         let opened = if takes_console(&entry.path) && entry.console.unwrap_or_else(|| sources::console_program(&entry.path)) {
             // So that what it writes can be read, and it can be run again.
-            rt_sys::win::launch_in_console(&entry.path, admin)
+            rt_sys::win::launch_in_console(&entry.path, "", admin)
         } else if admin {
             rt_sys::win::launch_as_admin(&entry.path)
         } else {
@@ -738,6 +740,9 @@ impl Shell {
         #[cfg(windows)]
         {
             items.push(item(tr("Run as administrator"), Cmd::Admin));
+            if takes_console(&e.path) || e.path.extension().is_some_and(|x| x.eq_ignore_ascii_case("lnk")) {
+                items.push(item(tr("Run with arguments…"), Cmd::Args));
+            }
             let mut always = item(tr("Always run as administrator"), Cmd::AlwaysAdmin);
             always.checked = e.admin;
             items.push(always);
@@ -1074,6 +1079,13 @@ impl Shell {
             Cmd::Category(to) => self.move_to(&path, to),
             Cmd::NewCategory => self.rename = Some((Editing::NewCategory(path), TextEdit::new(""))),
             Cmd::RenameGroup | Cmd::RemoveGroup | Cmd::MoveInto(_) | Cmd::Promote | Cmd::Up | Cmd::Down => {}
+            // The latest ones are offered, selected, to be typed over.
+            #[cfg(windows)]
+            Cmd::Args => {
+                let mut edit = TextEdit::new(self.settings.items.of(&path).args.last().map_or("", String::as_str));
+                edit.select_all();
+                self.rename = Some((Editing::Args(path, 0), edit));
+            }
             #[cfg(windows)]
             Cmd::Console => {
                 let kind = sources::console_program(&path);
@@ -1102,12 +1114,54 @@ impl Shell {
         }
     }
 
+    /// Runs a program with the arguments typed in its row.
+    fn run_with_args(&mut self, el: &ActiveEventLoop) {
+        #[cfg(windows)]
+        if let Some((Editing::Args(path, _), edit)) = self.rename.take() {
+            let Some(entry) = self.entry(&path).cloned() else { return };
+            let args = edit.text.trim().to_string();
+            if !args.is_empty() {
+                self.settings.items.used_args(&path, &args);
+                self.save();
+            }
+            // A script's output is wanted too, unless it was said otherwise.
+            let script = entry.path.extension().is_some_and(|x| x.eq_ignore_ascii_case("bat") || x.eq_ignore_ascii_case("cmd"));
+            let console = takes_console(&entry.path) && entry.console.unwrap_or_else(|| script || sources::console_program(&entry.path));
+            let opened = if console {
+                rt_sys::win::launch_in_console(&entry.path, &args, entry.admin)
+            } else {
+                rt_sys::win::launch_with(&entry.path, &args, entry.admin)
+            };
+            if !opened {
+                self.note = Some(tf("Cannot open {}.", &[&entry.name]));
+            } else if !self.pinned {
+                self.hide(el);
+            }
+        }
+        #[cfg(not(windows))]
+        let _ = el;
+    }
+
+    /// Up and Down in the arguments: the ones used before.
+    fn earlier_args(&mut self, older: bool) {
+        let Some((Editing::Args(path, back), edit)) = &mut self.rename else { return };
+        let used = self.settings.items.of(path).args;
+        if used.is_empty() {
+            return;
+        }
+        *back = if older { (*back + 1).min(used.len() - 1) } else { back.saturating_sub(1) };
+        *edit = TextEdit::new(&used[used.len() - 1 - *back]);
+        edit.select_all();
+    }
+
     /// Keeps the name typed. For a program, none (or its own) forgets the
     /// change; for a category, none leaves everything as it was.
     fn finish_rename(&mut self) {
         let Some((what, edit)) = self.rename.take() else { return };
         let name = edit.text.trim().to_string();
         match what {
+            // Only Enter runs: leaving the field forgets what was typed.
+            Editing::Args(..) => {}
             Editing::Name(path) => {
                 let own = self
                     .raw
@@ -1142,12 +1196,15 @@ impl Shell {
         }
     }
 
-    fn rename_key(&mut self, event: &KeyEvent) {
+    fn rename_key(&mut self, el: &ActiveEventLoop, event: &KeyEvent) {
         let command = self.mods.control_key() && !self.mods.alt_key();
         let shift = self.mods.shift_key();
-        let Some((_, edit)) = &mut self.rename else { return };
+        let Some((what, edit)) = &mut self.rename else { return };
+        let args = matches!(what, Editing::Args(..));
         match &event.logical_key {
+            Key::Named(NamedKey::Enter) if args => self.run_with_args(el),
             Key::Named(NamedKey::Enter) => self.finish_rename(),
+            Key::Named(arrow @ (NamedKey::ArrowUp | NamedKey::ArrowDown)) => self.earlier_args(*arrow == NamedKey::ArrowUp),
             Key::Named(NamedKey::Escape) => self.rename = None,
             Key::Named(NamedKey::Backspace) => edit.delete(false, command),
             Key::Named(NamedKey::Delete) => edit.delete(true, command),
@@ -1308,7 +1365,7 @@ impl Shell {
             return;
         }
         if self.rename.is_some() {
-            self.rename_key(event);
+            self.rename_key(el, event);
             self.caret = true;
             self.caret_at = Instant::now();
             self.redraw();
@@ -1442,12 +1499,22 @@ impl Shell {
             matches!(self.rename, Some((Editing::NewCategory(_), _))).then(|| tr("New category: type a name, or Name/Subgroup."));
         let marked_note = (!self.app.marked.is_empty())
             .then(|| tf("{} programs selected: drag them or right-click one.", &[&self.app.marked.len().to_string()]));
+        let args_note = match &self.rename {
+            Some((Editing::Args(path, _), _)) => self
+                .app
+                .entries
+                .iter()
+                .find(|e| e.path == *path)
+                .map(|e| tf("Arguments for {}: Enter runs, Up and Down repeat earlier ones.", &[&e.name])),
+            _ => None,
+        };
         let model = Model {
             app: &self.app,
             settings: &self.settings,
             icons: &self.icons,
-            note: new_category_note
+            note: args_note
                 .as_deref()
+                .or(new_category_note.as_deref())
                 .or(marked_note.as_deref())
                 .or(self.note.as_deref())
                 .or(elevated_note.as_deref())

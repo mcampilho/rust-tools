@@ -80,6 +80,10 @@ experimentado: Shift+clique, arrastar programas, consola como administrador. Pas
 `E:\Portable\Tools\sys\SysInternals` / `...\sys\WSCC\Apps\Sysinternals Suite` (modo "Uma categoria").
 Numa cópia de teste em `debug` há uma consola: escolher a janela pela largura.
 
+Executar com argumentos (2026-11-27, Windows): escritos na linha do programa (`Editing::Args`), os últimos 8 por programa em
+`Custom::args`; só o Enter executa. O utilizador testou as categorias, o arrastar, a seleção e os argumentos: "todos os
+testes que fiz estavam operacionais". Saiu na 0.3.0.
+
 ## Regras
 
 - Nunca mexer nos atalhos nem nos programas: o menu só os lê e abre.

@@ -22,7 +22,12 @@ pub struct Custom {
     pub admin: bool,
     /// Opened in a console that stays, or not; None: console programs are.
     pub console: Option<bool>,
+    /// The arguments it was last run with, the latest last.
+    pub args: Vec<String>,
 }
+
+/// How many of the arguments typed are kept per program.
+const ARGS: usize = 8;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Items {
@@ -52,6 +57,15 @@ impl Items {
         } else {
             self.custom.insert(path.to_path_buf(), c);
         }
+    }
+
+    /// Keeps `args` as the latest `path` was run with.
+    pub fn used_args(&mut self, path: &Path, args: &str) {
+        self.change(path, |c| {
+            c.args.retain(|a| a != args);
+            c.args.push(args.to_string());
+            c.args.drain(..c.args.len().saturating_sub(ARGS));
+        });
     }
 
     /// Adds a program of its own, shown again if it was hidden.
@@ -225,6 +239,9 @@ impl Items {
         for (p, on) in pairs("console") {
             items.change(&p, |c| c.console = Some(on == "1"));
         }
+        for (p, args) in pairs("args") {
+            items.used_args(&p, &args);
+        }
         for (p, icon) in pairs("icon") {
             items.change(&p, |c| c.icon = Some(unpack(&icon, own)));
         }
@@ -254,6 +271,9 @@ impl Items {
             }
             if let Some(console) = c.console {
                 s.push("console", format!("{p}\t{}", u8::from(console)));
+            }
+            for args in &c.args {
+                s.push("args", format!("{p}\t{args}"));
             }
             if let Some(icon) = &c.icon {
                 s.push("icon", format!("{p}\t{}", pack(icon, own)));
@@ -381,6 +401,15 @@ mod tests {
             c.admin = true;
             c.console = Some(false);
         });
+        // The latest last, each once, and not too many.
+        for args in ["-a \"C:\\x y\"", "-b", "-a \"C:\\x y\""] {
+            items.used_args(Path::new("/menu/a.lnk"), args);
+        }
+        assert_eq!(items.of(Path::new("/menu/a.lnk")).args, ["-b", "-a \"C:\\x y\""]);
+        for i in 0..20 {
+            items.used_args(Path::new("/menu/b.exe"), &i.to_string());
+        }
+        assert_eq!(items.of(Path::new("/menu/b.exe")).args, ["12", "13", "14", "15", "16", "17", "18", "19"]);
         let mut store = Store::default();
         items.save(&mut store, None);
         // Through the text of the file, tabs and all.

@@ -113,6 +113,9 @@ pub enum Editing {
     Name(PathBuf),
     /// A new category for a program, typed in its row.
     NewCategory(PathBuf),
+    /// The arguments to run a program with, typed in its row; the number is
+    /// how far back among the earlier ones.
+    Args(PathBuf, usize),
     /// The name of a category or subgroup.
     Group(Group),
 }
@@ -120,7 +123,7 @@ pub enum Editing {
 impl Editing {
     /// Whether it is typed in the row of the program at `path`.
     pub fn is_program(&self, path: &Path) -> bool {
-        matches!(self, Editing::Name(p) | Editing::NewCategory(p) if p == path)
+        matches!(self, Editing::Name(p) | Editing::NewCategory(p) | Editing::Args(p, _) if p == path)
     }
 }
 

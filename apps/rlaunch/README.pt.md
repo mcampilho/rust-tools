@@ -109,6 +109,12 @@ corrê-lo com argumentos. Botão direito > **Manter a consola aberta** liga ou
 desliga isto por programa (também em `.bat` e `.cmd`; os atalhos abrem como o
 Windows os abre).
 
+**Executar com argumentos…** (Windows; botão direito num `.exe`, `.bat`, `.cmd`
+ou atalho): escreve os argumentos na linha do programa e carrega em Enter. Os
+últimos oito ficam guardados por programa: aparece o mais recente, e Cima/Baixo
+percorrem os outros. Esc, ou um clique fora, desiste. Numa consola a linha é a
+dela, por isso `|` e `>` funcionam.
+
 ## Categorias
 
 Há dez categorias de origem, deduzidas do nome dos programas conhecidos (os
