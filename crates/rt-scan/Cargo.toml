@@ -29,4 +29,4 @@ libc = "0.2"
 
 [dev-dependencies]
 # Unpacks the NTFS image the MFT reader is tested on.
-miniz_oxide = "0.8"
+miniz_oxide = "0.9"

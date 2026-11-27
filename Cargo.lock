@@ -3123,7 +3123,7 @@ name = "rt-scan"
 version = "0.1.0"
 dependencies = [
  "libc",
- "miniz_oxide 0.8.9",
+ "miniz_oxide 0.9.1",
  "rt-core",
  "rt-svc",
  "rt-sys",
