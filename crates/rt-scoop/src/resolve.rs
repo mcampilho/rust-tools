@@ -150,8 +150,33 @@ pub fn needs_7zip(url: &str) -> bool {
     is_kind(last) || (second_counts && parts.next().is_some_and(is_kind))
 }
 
-/// `Get-InstallationHelper`: the helpers still missing to install `manifest`.
-pub fn helpers_for(scoop: &Scoop, manifest: &Manifest, arch: Arch) -> Vec<String> {
+/// The apps that can be each helper.
+fn helper_apps(name: &str) -> &'static [&'static str] {
+    match name {
+        "7zip" => &["7zip"],
+        "lessmsi" => &["lessmsi"],
+        "innounp" => &["innounp-unicode", "innounp"],
+        "dark" => &["dark", "wixtoolset"],
+        _ => &[],
+    }
+}
+
+/// What an app needs installed: for each need, the apps that meet it (one
+/// for each of `depends`, the alternatives for a helper).
+pub fn needs(scoop: &Scoop, manifest: &Manifest, arch: Arch) -> Vec<Vec<String>> {
+    let mut out: Vec<Vec<String>> =
+        helpers_needed(scoop, manifest, arch).iter().map(|h| helper_apps(h).iter().map(|a| a.to_string()).collect()).collect();
+    for d in manifest.depends() {
+        let app = parse_app(&d).app;
+        if !out.iter().any(|alts| alts.iter().any(|a| a.eq_ignore_ascii_case(&app))) {
+            out.push(vec![app]);
+        }
+    }
+    out
+}
+
+/// The helpers `manifest` needs, installed or not.
+fn helpers_needed(scoop: &Scoop, manifest: &Manifest, arch: Arch) -> Vec<&'static str> {
     let mut script = strings(manifest.arch("pre_install", arch));
     script.extend(strings(manifest.arch("installer", arch).get("script")));
     script.extend(strings(manifest.arch("post_install", arch)));
@@ -170,7 +195,12 @@ pub fn helpers_for(scoop: &Scoop, manifest: &Manifest, arch: Arch) -> Vec<String
     if calls("Expand-DarkArchive ") {
         helpers.push("dark");
     }
-    helpers.into_iter().filter(|h| !helper_installed(scoop, h)).map(String::from).collect()
+    helpers
+}
+
+/// `Get-InstallationHelper`: the helpers still missing to install `manifest`.
+pub fn helpers_for(scoop: &Scoop, manifest: &Manifest, arch: Arch) -> Vec<String> {
+    helpers_needed(scoop, manifest, arch).into_iter().filter(|h| !helper_installed(scoop, h)).map(String::from).collect()
 }
 
 /// `Get-Dependency`: what `query` needs, in the order of installation, with

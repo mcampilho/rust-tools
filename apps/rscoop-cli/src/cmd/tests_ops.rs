@@ -261,6 +261,7 @@ fn install_downloads_extracts_links_and_records_and_uninstall_takes_it_back() {
     assert!(at(&root, "persist/hello/data").is_dir() && at(&root, "menu/user/Programs/Scoop Apps/Hello.lnk").is_file());
     assert!(out.contains("'hello' (1.0) was installed successfully!") && out.contains(&format!("See {}", current.display())), "{out}");
     assert!(err.contains("'hello' suggests installing 'main/jq'."), "{err}");
+    assert!(out.contains("Downloading 2 files at the same time.") && out.contains("already in the cache"), "{out}");
     assert!(std::fs::read_dir(at(&root, "cache")).unwrap().count() == 2);
 
     let (code, _, err) = rscoop_on(&root, &["install", "hello", "-u"], &system);

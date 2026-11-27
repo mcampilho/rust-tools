@@ -12,7 +12,7 @@
 //! installation, `show_manifest`) sends the whole command to Scoop.
 
 use super::args::{getopt, Spec};
-use super::download::{aria2_program, job, to_cache};
+use super::download::{aria2_program, job, prefetch, to_cache};
 use super::machinery::{create_shims, remove_shims, say_changes, Scripts};
 use super::{delegate, update, Ctx};
 use crate::sys::{is_admin, today, windows_11};
@@ -161,6 +161,10 @@ pub fn run(ctx: &mut Ctx, args: &[String]) -> i32 {
         ctx.warn("install.aria2", &[]);
     }
     let options = Options { global, use_cache: !opts.has('k'), check_hash: !opts.has('s'), arch, command: "install" };
+    if options.use_cache {
+        let planned = planned(ctx, &to_install, arch);
+        prefetch(ctx, &planned);
+    }
     let mut suggested: Vec<(String, Json)> = Vec::new();
     for entry in &to_install {
         match install_app(ctx, entry, &options, None) {
@@ -171,6 +175,24 @@ pub fn run(ctx: &mut Ctx, args: &[String]) -> i32 {
     }
     show_suggestions(ctx, &suggested);
     0
+}
+
+/// What each app of the list would download: (app, version, manifest, arch),
+/// as `install_app` works them out.
+pub fn planned(ctx: &Ctx, entries: &[String], arch: Arch) -> Vec<(String, String, Manifest, Arch)> {
+    entries
+        .iter()
+        .filter_map(|entry| {
+            let r = resolve::resolve(&ctx.scoop, entry);
+            let manifest = r.manifest?;
+            let version = match manifest.version() {
+                "nightly" => format!("nightly-{}", today()),
+                v => v.to_string(),
+            };
+            let arch = manifest.supported_arch(arch, windows_11())?;
+            Some((r.app, version, manifest, arch))
+        })
+        .collect()
 }
 
 /// `show_suggestions`.

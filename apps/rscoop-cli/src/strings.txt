@@ -125,7 +125,6 @@ cli.unknown_option	Unknown option: {opt}	Opção desconhecida: {opt}	Opción des
 cli.needs_value	{opt} needs a value.	{opt} precisa de um valor.	{opt} necesita un valor.
 src.location	from where Scoop is	pela localização do Scoop	por la ubicación de Scoop
 cli.command	command	comando	comando
-cli.others	Any other command (install, update of apps, import…) is handed to the Scoop of the installation.	Qualquer outro comando (install, update de aplicações, import…) é entregue ao Scoop da instalação.	Cualquier otra orden (install, update de aplicaciones, import…) se entrega al Scoop de la instalación.
 cli.checker	Without a command the installation is checked; see: rscoop-cli --help	Sem comando, a instalação é verificada; ver: rscoop-cli --help	Sin orden, se comprueba la instalación; vea: rscoop-cli --help
 cli.see_commands	Commands (list, search, status…): rscoop-cli help	Comandos (list, search, status…): rscoop-cli help	Órdenes (list, search, status…): rscoop-cli help
 cmd.list	List the installed apps.	Lista as aplicações instaladas.	Lista las aplicaciones instaladas.
@@ -137,7 +136,6 @@ cmd.which	Show the program a command runs.	Mostra o programa que um comando exec
 cmd.prefix	Show the folder of an installed app.	Mostra a pasta de uma aplicação instalada.	Muestra la carpeta de una aplicación instalada.
 cmd.depends	List what an app needs, in order of installation.	Lista o que uma aplicação precisa, pela ordem de instalação.	Lista lo que necesita una aplicación, en orden de instalación.
 cmd.home	Open the web page of an app.	Abre a página de uma aplicação.	Abre la página de una aplicación.
-cmd.bucket	List, add and remove buckets.	Lista, acrescenta e remove buckets.	Lista, añade y elimina buckets.
 cmd.cache	Show and remove the downloads kept.	Mostra e remove as descargas guardadas.	Muestra y elimina las descargas guardadas.
 cmd.config	Show and change the configuration.	Mostra e altera a configuração.	Muestra y cambia la configuración.
 cmd.export	Export the apps and buckets as JSON.	Exporta as aplicações e os buckets em JSON.	Exporta las aplicaciones y los buckets en JSON.
@@ -343,3 +341,17 @@ import.invalid	Input file not a valid JSON.	O ficheiro não é JSON válido.	El 
 import.set	'{name}' has been set to '{value}'	'{name}' passou a ser '{value}'	'{name}' pasa a ser '{value}'
 install.rolling_back	The installation of '{app}' failed: what it had done is undone.	A instalação de '{app}' falhou: o que já tinha feito é desfeito.	La instalación de '{app}' falló: se deshace lo que ya había hecho.
 update.restoring	'{app}' ({version}) is the version in use again.	'{app}' ({version}) volta a ser a versão em uso.	'{app}' ({version}) vuelve a ser la versión en uso.
+download.parallel	Downloading {n} files at the same time.	A descarregar {n} ficheiros ao mesmo tempo.	Descargando {n} archivos a la vez.
+cmd.bucket	The local buckets; the known ones; add or remove one; those no installed app came from (unused).	Os buckets locais; os conhecidos; acrescentar ou remover um; os de onde não veio nenhuma aplicação instalada (unused).	Los buckets locales; los conocidos; añadir o quitar uno; aquellos de los que no vino ninguna aplicación instalada (unused).
+cmd.outdated	The installed apps with a newer version in their bucket (not in Scoop).	As aplicações instaladas com versão mais recente no bucket (não há no Scoop).	Las aplicaciones instaladas con una versión más reciente en su bucket (no existe en Scoop).
+cmd.leaves	The installed apps no other installed app needs (not in Scoop).	As aplicações instaladas de que nenhuma outra precisa (não há no Scoop).	Las aplicaciones instaladas que ninguna otra necesita (no existe en Scoop).
+cmd.uses	The installed apps that need an app (not in Scoop).	As aplicações instaladas que precisam de uma aplicação (não há no Scoop).	Las aplicaciones instaladas que necesitan una aplicación (no existe en Scoop).
+cmd.size	What each app takes: its folder, its persisted data and its downloads (not in Scoop).	O espaço de cada aplicação: a pasta, os dados persistentes e as descargas (não há no Scoop).	El espacio de cada aplicación: su carpeta, sus datos persistentes y sus descargas (no existe en Scoop).
+cmd.hook	A 'scoop' function for the PowerShell profile that goes through rscoop-cli: rscoop-cli hook | Out-String | Invoke-Expression	Uma função 'scoop' para o perfil do PowerShell que passa pelo rscoop-cli: rscoop-cli hook | Out-String | Invoke-Expression	Una función 'scoop' para el perfil de PowerShell que pasa por rscoop-cli: rscoop-cli hook | Out-String | Invoke-Expression
+outdated.none	Every installed app is up to date.	Todas as aplicações instaladas estão atualizadas.	Todas las aplicaciones instaladas están actualizadas.
+leaves.none	No app is installed.	Não há aplicações instaladas.	No hay aplicaciones instaladas.
+uses.none	No installed app needs '{app}'.	Nenhuma aplicação instalada precisa de '{app}'.	Ninguna aplicación instalada necesita '{app}'.
+size.apps_total	{n} apps, {size} in all.	{n} aplicações, {size} ao todo.	{n} aplicaciones, {size} en total.
+bucket.none_unused	Every bucket has installed apps.	Todos os buckets têm aplicações instaladas.	Todos los buckets tienen aplicaciones instaladas.
+hook.comment	The scoop command through rscoop-cli. In the profile: rscoop-cli hook | Out-String | Invoke-Expression	O comando scoop pelo rscoop-cli. No perfil: rscoop-cli hook | Out-String | Invoke-Expression	La orden scoop a través de rscoop-cli. En el perfil: rscoop-cli hook | Out-String | Invoke-Expression
+cli.others	Any other command (virustotal, create, shim alter…) is handed to the Scoop of the installation, and so are install, update <app>, import, reset and uninstall unless RSCOOP_NATIVE=1.	Qualquer outro comando (virustotal, create, shim alter…) é entregue ao Scoop da instalação, e também install, update <app>, import, reset e uninstall, a não ser com RSCOOP_NATIVE=1.	Cualquier otra orden (virustotal, create, shim alter…) se entrega al Scoop de la instalación, y también install, update <app>, import, reset y uninstall, salvo con RSCOOP_NATIVE=1.

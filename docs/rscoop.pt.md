@@ -1,7 +1,8 @@
 # rscoop-cli completo — análise e plano
 
 Escrito a 2026-11-27. **Estado:** fases 0 a 3 feitas e comparadas no Windows Sandbox (secção 12); fase 4 com `install`,
-`update <app>` e `import` iguais ao oficial na Sandbox (secção 13); versão 0.2.0 por lançar.
+`update <app>` e `import` iguais ao oficial na Sandbox (secção 13); fase 5 com os extras (secção 14); versão 0.2.0
+por lançar.
 
 ## 1. Resumo
 
@@ -439,3 +440,33 @@ registo e os atalhos; códigos de saída 0. A primeira volta mostrou um erro do 
 
 **Por fazer:** descargas em paralelo entre aplicações (fase 5);
 decidir quando sai o `RSCOOP_NATIVE=1`.
+
+## 14. Fase 5: o que ficou
+
+Começada a 2026-11-27 (Opus 5.5). Executável de 3,5 MB. Comandos que o Scoop não tem; só leem, menos as descargas.
+
+- **Descargas em paralelo** (`download::prefetch`): o `install` de várias aplicações (com as dependências) e o
+  `update` de várias descarregam primeiro, quatro de cada vez, o que não está na cache; depois cada uma instala-se
+  como antes e confere a soma do que encontra na cache. O que falhe aqui é descarregado outra vez pela instalação,
+  que diz porquê. Não com aria2 (que já faz as suas ligações) nem com `--no-cache`.
+- **`outdated`**: as aplicações com versão mais recente no bucket (o `app_status` do `status`), com fixadas e globais
+  marcadas; `--json`. 1,9 s nas 360 de `C:`.
+- **`leaves`** e **`uses <app>`**: quem precisa de quem, pelas `depends` do manifesto instalado e pelos ajudantes
+  que o Scoop acrescenta (`rt_scoop::resolve::needs`: 7-Zip, lessmsi, innounp ou innounp-unicode, dark ou
+  wixtoolset). 1,4 s.
+- **`size [app…]`**: a pasta de cada aplicação (todas as versões, sem seguir ligações), o `persist` e a cache dela,
+  da maior para a menor; `--json` em bytes. Lê o disco todo: 56 s nas 360 de `C:` a frio.
+- **`bucket unused`**: os buckets locais de onde não veio nenhuma aplicação instalada.
+- **`hook`**: escreve uma função `scoop` para o perfil do PowerShell (`rscoop-cli hook | Out-String |
+  Invoke-Expression`) que manda tudo ao `rscoop-cli`: sem argumentos dá a ajuda, uma opção primeiro vai ao Scoop
+  (`--version`), o resto como está. Diferença: um comando entregue ao Scoop corre noutro processo, por isso o que ele
+  muda na sessão (o `PATH` do próprio terminal) só se vê num terminal novo.
+
+**Fora:** `virustotal` e `create` são do Scoop e continuam a ir para ele (o `virustotal` pediria a API do
+VirusTotal, que a regra de rede do repositório não dá ao `rscoop-cli`).
+
+**Testado:** os extras numa instalação fictícia (desatualizada e fixada, dependência, tamanhos e cache, bucket sem
+uso, o texto do `hook`) e as duas descargas do teste do `install` feitas ao mesmo tempo; nas instalações verdadeiras
+só as leituras e o `hook` numa sessão à parte. Na Sandbox, com a cache vazia antes do lado `rscoop`:
+10 ficheiros descarregados ao mesmo tempo no `install` e os seis passos iguais aos do oficial. (A cache é partilhada:
+o lado que corre primeiro enche-a; para repetir, apagar `target\sandbox\share\cache` antes de `-Side rscoop`.)

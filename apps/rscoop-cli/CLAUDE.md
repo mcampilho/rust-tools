@@ -8,7 +8,7 @@ códigos de problema, opções e relatório; a versão Python serve de referênc
 ## Comandos do Scoop (desde 2026-11-27)
 
 Plano, fases e o que cada uma deixou em `docs/rscoop.pt.md`. O Scoop oficial é a especificação (clone em
-`E:\Projects\Git\Categories\System\scoop\Apps\scoop`, v0.6.0, commit e6aa3b36). Feitas as fases 0 a 3; a 4 em curso.
+`E:\Projects\Git\Categories\System\scoop\Apps\scoop`, v0.6.0, commit e6aa3b36). Feitas as fases 0 a 4; a 5 (extras: `cmd/extras.rs`, `download::prefetch`) em curso.
 Comparação diferencial no Windows Sandbox: `sandbox/` (`docs/rscoop.pt.md` §12).
 
 - `cmd/` — `mod.rs` (linha de comandos, `is_native`, ajuda), um módulo por assunto e `delegate.rs`, que corre o

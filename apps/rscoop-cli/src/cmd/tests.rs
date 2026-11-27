@@ -171,3 +171,34 @@ fn the_state_of_the_installation() {
     let (code, _, err) = rscoop(&root, &["install", "x"]);
     assert!(code == 1 && err.contains("There is no Scoop"), "{err}");
 }
+
+#[test]
+fn outdated_leaves_uses_size_unused_and_hook() {
+    let root = installation("extras");
+    for folder in ["1.0", "current"] {
+        write(&root, &format!("apps/tool/{folder}/scoop-manifest.json"), r#"{"version":"1.0","depends":"ripgrep"}"#);
+    }
+    let (code, out, _) = rscoop(&root, &["outdated"]);
+    assert!(code == 0 && out.contains("tool") && out.contains("2.0") && out.contains("Held package") && !out.contains("ripgrep"), "{out}");
+    let (_, out, _) = rscoop(&root, &["--json", "outdated"]);
+    assert_eq!(rt_scoop::json::parse(&out).unwrap().at(0).get("Latest").str(), "2.0");
+    // tool needs ripgrep: only tool is a leaf, and it is what uses ripgrep.
+    let (_, out, _) = rscoop(&root, &["leaves"]);
+    assert!(out.contains("tool") && !out.contains("ripgrep"), "{out}");
+    let (_, out, _) = rscoop(&root, &["uses", "ripgrep"]);
+    assert!(out.contains("tool"), "{out}");
+    let (_, out, _) = rscoop(&root, &["uses", "tool"]);
+    assert!(out.contains("No installed app needs 'tool'."), "{out}");
+    let (_, out, _) = rscoop(&root, &["--json", "size"]);
+    let sizes = rt_scoop::json::parse(&out).unwrap();
+    let ripgrep = sizes.items().iter().find(|s| s.get("Name").str() == "ripgrep").cloned().unwrap();
+    assert_eq!(ripgrep.get("Cache"), &rt_scoop::json::Json::Num(5.0));
+    assert!(matches!(ripgrep.get("Apps"), rt_scoop::json::Json::Num(n) if *n > 0.0));
+    let (_, out, _) = rscoop(&root, &["bucket", "unused"]);
+    assert!(out.contains("Every bucket has installed apps."), "{out}");
+    write(&root, "buckets/spare/bucket/x.json", "{}");
+    let (_, out, _) = rscoop(&root, &["bucket", "unused"]);
+    assert_eq!(out.trim(), "spare");
+    let (_, out, _) = rscoop(&root, &["hook"]);
+    assert!(out.contains("function scoop {") && out.contains("rscoop-cli") && out.contains("@args"), "{out}");
+}

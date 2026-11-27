@@ -34,7 +34,7 @@ rscoop-cli install ripgrep      (entregue ao Scoop)
 | `hold`, `unhold` | Fixar a versão de aplicações (ou do próprio `scoop`). |
 | `shim add\|rm\|list\|info [-g]` | Shims como o Scoop os faz (`.exe` e `.shim`, `.cmd`, `.ps1`, `sh`); o de outra aplicação fica de lado e volta. O `shim alter` é do Scoop. |
 | `install <app…> [-giksu]`, `update <app…>\|* [-gfiksq]`, `import <scoopfile.json>`, `reset <app…>\|*`, `uninstall <app…> [-g] [-p]` | Feitos aqui só com `RSCOOP_NATIVE=1`, enquanto se comparam com o Scoop; sem isso, do Scoop. A extração e os scripts dos manifestos correm no código do próprio Scoop; `app@versão` e manifestos de um ficheiro ou endereço ficam com o Scoop. |
-| `help [comando]`, `scoop <comando…>` | Ajuda; executar qualquer comando com o próprio Scoop. |
+| `outdated`, `leaves`, `uses <app>`, `size [app…]`, `bucket unused` | Não há no Scoop: as aplicações atrás do bucket, as de que nada precisa, as que precisam de uma, o espaço de cada uma, buckets de onde não veio nada. |
 
 **Onde é mais cauteloso do que o Scoop:** o `bucket rm` só aceita o nome de um bucket (`bucket rm ..`
 apagaria a instalação); o `cleanup` não remove nada quando não sabe qual é a versão atual, e nunca

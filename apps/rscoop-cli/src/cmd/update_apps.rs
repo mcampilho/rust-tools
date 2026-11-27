@@ -116,6 +116,17 @@ pub fn run(ctx: &mut Ctx, args: &[String]) -> i32 {
         };
         ctx.say(line);
     }
+    // The new versions into the cache, several at a time.
+    let mut planned = Vec::new();
+    for (app, g) in &outdated {
+        let Some(old) = apps::current_version(&ctx.scoop, app, *g) else { continue };
+        let info = apps::install_info(&ctx.scoop, app, &old, *g).unwrap_or_default();
+        let arch = Arch::parse(&info.architecture).unwrap_or_else(|| ctx.arch());
+        let bucket = info.bucket.unwrap_or_else(|| "main".into());
+        planned.extend(super::install::planned(ctx, &[format!("{bucket}/{app}")], arch));
+    }
+    super::download::prefetch(ctx, &planned);
+
     let mut suggested = Vec::new();
     for (app, g) in outdated {
         let o = Options { global: g, use_cache: !opts.has('k'), check_hash: !opts.has('s'), arch: ctx.arch(), command: "update" };

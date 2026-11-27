@@ -101,6 +101,69 @@ fn fetch(ctx: &mut Ctx, url: &str, to: &Path, manifest: &Manifest) -> Result<(),
     }
 }
 
+/// One file of [`prefetch`].
+struct Wanted {
+    url: String,
+    to: PathBuf,
+    manifest: Manifest,
+}
+
+/// The files of several apps into the cache, four at a time, before they
+/// are installed one after the other (`(app, version, manifest, arch)` for
+/// each). The hashes are checked by each installation, which also downloads
+/// again, and says why, what failed here. Not with aria2, which does its own.
+pub(super) fn prefetch(ctx: &mut Ctx, apps: &[(String, String, Manifest, Arch)]) {
+    if aria2_program(ctx).is_some() {
+        return;
+    }
+    let mut wanted = Vec::new();
+    for (app, version, manifest, arch) in apps {
+        for url in manifest.urls(*arch) {
+            let to = cache_path(&ctx.scoop.cache, app, version, &url);
+            if !to.is_file() && !wanted.iter().any(|w: &Wanted| w.to == to) {
+                wanted.push(Wanted { url, to, manifest: manifest.clone() });
+            }
+        }
+    }
+    if wanted.len() < 2 || std::fs::create_dir_all(&ctx.scoop.cache).is_err() {
+        return;
+    }
+    let line = ctx.t.fill("download.parallel", &[("n", &wanted.len().to_string())]);
+    ctx.say(line);
+    let _ = ctx.out.flush();
+    let (scoop, token, agent) = (ctx.scoop.clone(), github_token(ctx), agent());
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let results: Vec<std::sync::Mutex<Option<Result<u64, String>>>> = wanted.iter().map(|_| std::sync::Mutex::new(None)).collect();
+    std::thread::scope(|s| {
+        for _ in 0..wanted.len().min(4) {
+            s.spawn(|| loop {
+                let i = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                let Some(w) = wanted.get(i) else { break };
+                let sent = |address: &str| headers(&scoop, &w.manifest, address, token.as_deref());
+                let mut partial = w.to.as_os_str().to_os_string();
+                partial.push(".download");
+                let partial = PathBuf::from(partial);
+                let got = rt_sys::net::download(&request_url(&w.url), &partial, &sent, &agent, &mut |_, _| {})
+                    .and_then(|size| std::fs::rename(&partial, &w.to).map(|()| size).map_err(|e| e.to_string()));
+                if got.is_err() {
+                    let _ = std::fs::remove_file(&partial);
+                }
+                *results[i].lock().unwrap() = Some(got);
+            });
+        }
+    });
+    for (w, result) in wanted.iter().zip(results) {
+        let name = file_name(&w.url).to_string();
+        match result.into_inner().unwrap() {
+            Some(Ok(size)) => {
+                let line = ctx.t.fill("download.got", &[("name", &name), ("size", &filesize(size))]);
+                ctx.say(line);
+            }
+            Some(Err(why)) => ctx.warn("download.failed", &[("url", &w.url), ("why", &why)]),
+            None => {}
+        }
+    }
+}
 /// Downloads with aria2, with the options Scoop gives it; false if it failed.
 fn aria2(ctx: &mut Ctx, program: &Path, app: &str, files: &[(String, PathBuf)], manifest: &Manifest) -> bool {
     let list = ctx.scoop.cache.join(format!("{app}.txt"));

@@ -9,6 +9,7 @@ mod bucket;
 mod checkup;
 mod delegate;
 mod download;
+mod extras;
 mod git;
 mod import;
 mod install;
@@ -41,7 +42,7 @@ use std::io::Write;
 use std::path::PathBuf;
 
 /// The commands of this program: name, usage, key of the description.
-pub const NATIVE: [(&str, &str, &str); 27] = [
+pub const NATIVE: [(&str, &str, &str); 32] = [
     ("list", "[query]", "cmd.list"),
     ("search", "[query]", "cmd.search"),
     ("info", "<app> [-v]", "cmd.info"),
@@ -52,7 +53,7 @@ pub const NATIVE: [(&str, &str, &str); 27] = [
     ("prefix", "<app>", "cmd.prefix"),
     ("depends", "<app> [-a arch]", "cmd.depends"),
     ("home", "<app>", "cmd.home"),
-    ("bucket", "list|known|add|rm", "cmd.bucket"),
+    ("bucket", "list|known|add|rm|unused", "cmd.bucket"),
     ("cache", "show|rm [app…]", "cmd.cache"),
     ("config", "[name [value]] | rm name", "cmd.config"),
     ("download", "<app…>", "cmd.download"),
@@ -66,6 +67,11 @@ pub const NATIVE: [(&str, &str, &str); 27] = [
     ("reset", "<app…>|*", "cmd.reset"),
     ("uninstall", "<app…> [-gp]", "cmd.uninstall"),
     ("export", "[-c]", "cmd.export"),
+    ("outdated", "", "cmd.outdated"),
+    ("leaves", "", "cmd.leaves"),
+    ("uses", "<app>", "cmd.uses"),
+    ("size", "[app…]", "cmd.size"),
+    ("hook", "", "cmd.hook"),
     ("checkup", "", "cmd.checkup"),
     ("help", "[command]", "cmd.help"),
     ("scoop", "<command…>", "cmd.scoop"),
@@ -187,7 +193,7 @@ fn own_options(line: &mut Line) {
 pub fn is_native(command: &str, args: &[String]) -> bool {
     let first = args.first().map(String::as_str);
     match command {
-        "bucket" => matches!(first, Some("list" | "known" | "add" | "rm")),
+        "bucket" => matches!(first, Some("list" | "known" | "add" | "rm" | "unused")),
         "config" => first != Some("--help"),
         "scoop" => false,
         // Scoop shows its own help; lter asks the user to choose.
@@ -260,6 +266,7 @@ pub fn run(mut line: Line, outside: Outside, out: &mut dyn Write, err: &mut dyn 
         "bucket" => match args.first().map(String::as_str) {
             Some("add") => bucket::add(&mut ctx, &args[1..]),
             Some("rm") => bucket::rm(&mut ctx, &args[1..]),
+            Some("unused") => extras::unused_buckets(&mut ctx),
             _ => state::bucket(&mut ctx, args),
         },
         "cache" => match args.first().map(String::as_str) {
@@ -279,6 +286,11 @@ pub fn run(mut line: Line, outside: Outside, out: &mut dyn Write, err: &mut dyn 
         "shim" => shim::run(&mut ctx, args),
         "install" => install::run(&mut ctx, args),
         "import" => import::run(&mut ctx, args),
+        "outdated" => extras::outdated(&mut ctx),
+        "leaves" => extras::leaves(&mut ctx),
+        "uses" => extras::uses(&mut ctx, args),
+        "size" => extras::size(&mut ctx, args),
+        "hook" => extras::hook(&mut ctx),
         "reset" => reset::run(&mut ctx, args),
         "uninstall" => uninstall::run(&mut ctx, args),
         "checkup" => checkup::run(&mut ctx, args, &outside),
