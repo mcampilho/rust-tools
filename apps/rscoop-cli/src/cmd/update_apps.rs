@@ -195,6 +195,10 @@ fn update_app(ctx: &mut Ctx, app: &str, o: &Options, force: bool, quiet: bool, i
 
     let dir = ctx.scoop.app(app, global).join(&old);
     let mut host = Scripts::new(&INSTALL_LIBS, setup(app, &old, &new, arch, &bucket, o, force));
+    // What to undo if the new version fails: the old one was unlinked, and
+    // maybe moved aside.
+    let mut unlinked = false;
+    let mut aside_at: Option<std::path::PathBuf> = None;
     let done = (|| -> Result<Vec<(String, Json)>, i32> {
         host.run(ctx, "Invoke-HookScript -HookType 'pre_uninstall' -Manifest $old_manifest -ProcessorArchitecture $architecture")?;
         let line = ctx.t.fill("update.uninstalling", &[("app", app), ("version", &old)]);
@@ -210,6 +214,7 @@ fn update_app(ctx: &mut Ctx, app: &str, o: &Options, force: bool, quiet: bool, i
             ctx.say(line);
         }
         let refdir = links::unlink_current(&ctx.scoop, &dir).map_err(|why| ctx.fail("error.config", &[("why", &why)]))?;
+        unlinked = true;
         if let Some(name) = links::module_name(&old_manifest) {
             let line = ctx.t.fill("module.uninstalling", &[("name", &name)]);
             ctx.say(line);
@@ -236,6 +241,7 @@ fn update_app(ctx: &mut Ctx, app: &str, o: &Options, force: bool, quiet: bool, i
                 i += 1;
             }
             std::fs::rename(&dir, &aside).map_err(|e| ctx.fail("error.remove", &[("why", &e.to_string())]))?;
+            aside_at = Some(aside);
         }
         host.run(ctx, "Invoke-HookScript -HookType 'post_uninstall' -Manifest $old_manifest -ProcessorArchitecture $architecture")?;
 
@@ -255,5 +261,15 @@ fn update_app(ctx: &mut Ctx, app: &str, o: &Options, force: bool, quiet: bool, i
         Ok(suggested)
     })();
     host.finish();
+    if done.is_err() && unlinked {
+        // The new version was rolled back: the old one is the one in use again.
+        ctx.warn("update.restoring", &[("app", app), ("version", &old)]);
+        if let Some(aside) = aside_at {
+            let _ = rt_scoop::disk::remove_tree(&dir);
+            let _ = std::fs::rename(&aside, &dir);
+        }
+        let target = super::reset::Target { app: app.to_string(), global, version: old.clone(), manifest: old_manifest };
+        let _ = super::reset::reset_one(ctx, &target);
+    }
     done
 }

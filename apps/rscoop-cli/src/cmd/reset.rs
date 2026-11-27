@@ -14,11 +14,11 @@ use rt_scoop::shortcuts::{self, Made};
 use std::path::{Path, PathBuf};
 
 /// One app to reset, as Scoop works it out.
-struct Target {
-    app: String,
-    global: bool,
-    version: String,
-    manifest: Manifest,
+pub(super) struct Target {
+    pub app: String,
+    pub global: bool,
+    pub version: String,
+    pub manifest: Manifest,
 }
 
 /// The variables `env_set` can name while `reset` runs (`$name` is the
@@ -146,7 +146,7 @@ pub fn run(ctx: &mut Ctx, args: &[String]) -> i32 {
 }
 
 /// Err: the exit code when Scoop would stop the whole command.
-fn reset_one(ctx: &mut Ctx, t: &Target) -> Result<(), i32> {
+pub(super) fn reset_one(ctx: &mut Ctx, t: &Target) -> Result<(), i32> {
     let line = ctx.t.fill("reset.start", &[("app", &t.app), ("version", &t.version)]);
     ctx.say(line);
     let original = env::absolute(&ctx.scoop.app(&t.app, t.global).join(&t.version));

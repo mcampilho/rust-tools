@@ -13,10 +13,11 @@
 
 use super::args::{getopt, Spec};
 use super::download::{aria2_program, job, to_cache};
-use super::machinery::{create_shims, say_changes, Scripts};
+use super::machinery::{create_shims, remove_shims, say_changes, Scripts};
 use super::{delegate, update, Ctx};
 use crate::sys::{is_admin, today, windows_11};
 use rt_scoop::apps;
+use rt_scoop::disk::remove_tree;
 use rt_scoop::download::file_name;
 use rt_scoop::env::{self, Vars};
 use rt_scoop::hooks::{boolean, quote, INSTALL_LIBS};
@@ -275,44 +276,56 @@ pub fn install_app(ctx: &mut Ctx, entry: &str, o: &Options, scripts: Option<&mut
     let original = env::absolute(&version_dir);
     let persist_dir = ctx.scoop.persist(&app, o.global);
 
-    // The files, from the cache into the version folder.
-    let Some(cached) = to_cache(ctx, &app, &version, &manifest, arch, o.use_cache, check_hash, aria2_program(ctx).as_deref()) else {
-        return Err(1);
-    };
-    let mut names = Vec::new();
-    for (url, file) in &cached {
-        let name = file_name(url).to_string();
-        let to = original.join(&name);
-        let copied = if o.use_cache { std::fs::copy(file, &to).map(|_| ()) } else { std::fs::rename(file, &to) };
-        copied.map_err(|e| ctx.fail("error.remove", &[("why", &format!("{}: {e}", to.display()))]))?;
-        names.push(name);
-    }
-
-    let variables = setup(&app, &bucket, &version, arch, &names, o);
-    let dir = match scripts {
-        Some(host) => {
-            host.set(ctx, &variables)?;
-            link_in(ctx, host, &app, &bucket, &version, &manifest, arch, &original, &persist_dir, o.global)?
+    let placed = (|| -> Result<PathBuf, i32> {
+        // The files, from the cache into the version folder.
+        let Some(cached) = to_cache(ctx, &app, &version, &manifest, arch, o.use_cache, check_hash, aria2_program(ctx).as_deref()) else {
+            return Err(1);
+        };
+        let mut names = Vec::new();
+        for (url, file) in &cached {
+            let name = file_name(url).to_string();
+            let to = original.join(&name);
+            let copied = if o.use_cache { std::fs::copy(file, &to).map(|_| ()) } else { std::fs::rename(file, &to) };
+            copied.map_err(|e| ctx.fail("error.remove", &[("why", &format!("{}: {e}", to.display()))]))?;
+            names.push(name);
         }
-        None => {
-            let mut host = Scripts::new(&INSTALL_LIBS, variables);
-            let done = link_in(ctx, &mut host, &app, &bucket, &version, &manifest, arch, &original, &persist_dir, o.global);
-            host.finish();
-            done?
+
+        let variables = setup(&app, &bucket, &version, arch, &names, o);
+        let dir = match scripts {
+            Some(host) => {
+                host.set(ctx, &variables)?;
+                link_in(ctx, host, &app, &bucket, &version, &manifest, arch, &original, &persist_dir, o.global)?
+            }
+            None => {
+                let mut host = Scripts::new(&INSTALL_LIBS, variables);
+                let done = link_in(ctx, &mut host, &app, &bucket, &version, &manifest, arch, &original, &persist_dir, o.global);
+                host.finish();
+                done?
+            }
+        };
+
+        // `save_installed_manifest` and `save_install_info`.
+        let saved = dir.join("scoop-manifest.json");
+        std::fs::copy(&path, &saved).map_err(|e| ctx.fail("error.remove", &[("why", &format!("{}: {e}", saved.display()))]))?;
+        let mut info = Vec::new();
+        if !bucket.is_empty() {
+            info.push(("bucket".to_string(), json::string(bucket.clone())));
+        }
+        info.push(("architecture".to_string(), json::string(arch.name())));
+        let text = format!("{}\r\n", json::pretty(&Json::Obj(info)).replace('\n', "\r\n"));
+        let file = dir.join("scoop-install.json");
+        std::fs::write(&file, text).map_err(|e| ctx.fail("error.remove", &[("why", &format!("{}: {e}", file.display()))]))?;
+        Ok(dir)
+    })();
+    // Scoop leaves a failed installation for the next `install` to purge;
+    // here it goes at once.
+    let dir = match placed {
+        Ok(dir) => dir,
+        Err(code) => {
+            roll_back(ctx, &app, &original, &manifest, arch, o.global);
+            return Err(code);
         }
     };
-
-    // `save_installed_manifest` and `save_install_info`.
-    let saved = dir.join("scoop-manifest.json");
-    std::fs::copy(&path, &saved).map_err(|e| ctx.fail("error.remove", &[("why", &format!("{}: {e}", saved.display()))]))?;
-    let mut info = Vec::new();
-    if !bucket.is_empty() {
-        info.push(("bucket".to_string(), json::string(bucket.clone())));
-    }
-    info.push(("architecture".to_string(), json::string(arch.name())));
-    let text = format!("{}\r\n", json::pretty(&Json::Obj(info)).replace('\n', "\r\n"));
-    let file = dir.join("scoop-install.json");
-    std::fs::write(&file, text).map_err(|e| ctx.fail("error.remove", &[("why", &format!("{}: {e}", file.display()))]))?;
 
     let line = ctx.t.fill("install.done", &[("app", &app), ("version", &version)]);
     ctx.say(line);
@@ -439,4 +452,39 @@ fn link_in(
     links::persist_permission(&ctx.scoop, manifest, global, is_admin());
     host.hook(ctx, "post_install")?;
     Ok(dir)
+}
+
+/// What a failed installation left, gone as Scoop's `uninstall` of it would
+/// take it (without its scripts, which did not finish): shims (another
+/// app's come back), shortcuts, `current` if it points here, module, `PATH`,
+/// variables, the persisted links and the version folder. The persisted
+/// data stays.
+pub fn roll_back(ctx: &mut Ctx, app: &str, version_dir: &Path, manifest: &Manifest, arch: Arch, global: bool) {
+    ctx.warn("install.rolling_back", &[("app", app)]);
+    remove_shims(ctx, app, manifest, global, arch);
+    shortcuts::remove(ctx.system, manifest, global, arch);
+    let app_dir = version_dir.parent().unwrap_or(version_dir).to_path_buf();
+    let current = app_dir.join("current");
+    let ours = std::fs::read_link(&current).is_ok_and(|t| env::absolute(&t) == env::absolute(version_dir));
+    if ours {
+        let _ = links::unlink_current(&ctx.scoop, version_dir);
+    }
+    let refdir = if ctx.scoop.enabled("no_junction") { version_dir.to_path_buf() } else { current };
+    let module_here = links::module_name(manifest).is_some_and(|n| {
+        let link = links::modules_dir(&ctx.scoop, global).join(n);
+        std::fs::read_link(&link)
+            .is_ok_and(|t| env::absolute(&t) == env::absolute(&refdir) || env::absolute(&t) == env::absolute(version_dir))
+    });
+    if module_here {
+        links::uninstall_psmodule(&ctx.scoop, manifest, global);
+    }
+    let _ = env::env_rm_path(ctx.system, &ctx.scoop, manifest, &refdir, global, arch);
+    let _ = env::env_rm(ctx.system, manifest, global, arch);
+    links::unlink_persist_data(manifest, version_dir);
+    if let Err(e) = remove_tree(version_dir) {
+        ctx.warn("error.remove", &[("why", &e.to_string())]);
+    }
+    if std::fs::read_dir(&app_dir).is_ok_and(|mut d| d.next().is_none()) {
+        let _ = remove_tree(&app_dir);
+    }
 }

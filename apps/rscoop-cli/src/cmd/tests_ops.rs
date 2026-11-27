@@ -347,3 +347,48 @@ fn import_sets_adds_installs_and_holds() {
     let (code, _, err) = rscoop_on(&root, &["import", &at(&root, "none.json").display().to_string()], &system);
     assert!(code == 1 && err.contains("not a valid JSON"), "{err}");
 }
+
+#[test]
+fn a_failed_install_is_undone_and_a_failed_update_puts_the_old_version_back() {
+    let root = installation("roll-back");
+    let system = FakeSystem::new(root.join("menu"));
+    rt_scoop::config::set_member(&at(&root, "home/.config/scoop/config.json"), "last_update", Some(rt_scoop::json::string("2999-01-01")))
+        .unwrap();
+    static BODY: std::sync::OnceLock<Vec<u8>> = std::sync::OnceLock::new();
+    let body: &'static [u8] = BODY.get_or_init(|| exe(3));
+    let (address, _) = super::tests_write::server(vec![("one.exe", body), ("two.exe", body)]);
+    let hash = rt_core::sha256::hex(body);
+    // `tool` is the name of the other app's shim: it must come back.
+    let manifest = |version: &str, file: &str, post: &str| {
+        format!(
+            r#"{{"version":"{version}","url":"{address}/{file}#/tool.exe","hash":"{hash}","bin":"tool.exe","env_set":{{"BAD":"$version"}},
+            "env_add_path":".","persist":"data","post_install":"{post}"}}"#
+        )
+    };
+    write(&root, "buckets/main/bucket/bad.json", &manifest("1.0", "one.exe", "throw 'broken'"));
+    let path_before = system.var("PATH", false);
+    let (code, out, err) = rscoop_on(&root, &["install", "bad"], &system);
+    assert_ne!(code, 0, "{out}{err}");
+    assert!(err.contains("The installation of 'bad' failed"), "{err}");
+    assert!(!at(&root, "apps/bad").exists(), "{out}");
+    assert!(read(&at(&root, "shims/tool.shim")).contains(r"apps\other\1.0\tool.exe"));
+    assert!(!at(&root, "shims/tool.shim.other").exists());
+    assert_eq!(system.var("BAD", false), None);
+    assert_eq!(system.var("PATH", false).filter(|p| p.contains(r"apps\bad")), None, "{path_before:?}");
+    assert!(at(&root, "persist/bad/data").is_dir(), "the persisted data stays");
+
+    // 1.0 that works, then a 2.0 that fails: 1.0 is in use again.
+    write(&root, "buckets/main/bucket/bad.json", &manifest("1.0", "one.exe", "Note 'ok'"));
+    let (code, out, err) = rscoop_on(&root, &["install", "bad"], &system);
+    assert_eq!(code, 0, "{out}{err}");
+    write(&root, "buckets/main/bucket/bad.json", &manifest("2.0", "two.exe", "throw 'broken'"));
+    let (code, out, err) = rscoop_on(&root, &["update", "bad"], &system);
+    assert_ne!(code, 0, "{out}{err}");
+    assert!(err.contains("'bad' (1.0) is the version in use again."), "{err}");
+    let current = at(&root, "apps/bad/current");
+    assert_eq!(rt_scoop::env::absolute(&std::fs::read_link(&current).unwrap()), at(&root, "apps/bad/1.0"));
+    assert!(!at(&root, "apps/bad/2.0").exists());
+    assert!(read(&at(&root, "shims/tool.shim")).contains(&current.join("tool.exe").display().to_string()));
+    assert_eq!(system.var("BAD", false).as_deref(), Some("1.0"));
+    assert!(system.var("PATH", false).unwrap().contains(&current.display().to_string()));
+}

@@ -338,8 +338,7 @@ atalhos reais por COM foram lidos de volta com o leitor de `.lnk`; o registo ver
   (`"$shim."` é o próprio ficheiro no Windows); aqui o antigo fica de lado como `nome.ext.<app>`.
 - Sem manifesto instalado, o `uninstall` segue com um manifesto vazio (o oficial parava no `Invoke-HookScript`).
 
-**Por fazer:** correr a comparação no Windows Sandbox (abaixo); o `update` voltar a criar o shim do Scoop; o
-`install_psmodule` já existe para a fase 4.
+**Por fazer:** o `update` voltar a criar o shim do Scoop. (A comparação no Windows Sandbox, abaixo, já correu.)
 
 ### Comparação no Windows Sandbox (preparada a 2026-11-27, por correr)
 
@@ -428,5 +427,15 @@ registo e os atalhos; códigos de saída 0. A primeira volta mostrou um erro do 
   Na Sandbox (2026-11-27, os dois lados, seis passos): **tudo igual** também no `6-imported` (11 312 entradas, as
   variáveis, o registo e os atalhos); códigos de saída 0.
 
-**Por fazer:** a reversão quando algo falha a meio; descargas em paralelo entre aplicações (fase 5);
+- Reversão (2026-11-27): o oficial deixa uma instalação falhada, que o `install` seguinte apaga com um `uninstall`;
+  aqui isso faz-se logo. Se o `install_app` falha depois de criar a pasta da versão (descarga, soma, extração,
+  scripts, ligações), `install::roll_back` tira o que a aplicação já tinha posto — shims (os de outra aplicação voltam),
+  atalhos, `current` se aponta para esta versão, módulo se é o dela, `PATH`, variáveis do `env_set`, ligações do
+  `persist` e a pasta da versão; os dados persistidos ficam. Num `update`, se a versão nova falha depois de a antiga
+  ter sido desligada, a antiga volta a estar em uso (o `reset` dela; com `--force` a `_<versão>.old` volta ao lugar).
+  O que os scripts já fizeram (o `uninstaller` da versão antiga, um `pre_install`) não se desfaz. Testado com um
+  `post_install` que falha, no `install` e no `update`; a Sandbox voltou a dar os seis passos iguais (a reversão só
+  muda o caminho da falha, que o oficial não tem igual).
+
+**Por fazer:** descargas em paralelo entre aplicações (fase 5);
 decidir quando sai o `RSCOOP_NATIVE=1`.

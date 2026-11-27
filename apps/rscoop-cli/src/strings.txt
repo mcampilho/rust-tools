@@ -341,3 +341,5 @@ update.uninstalling	Uninstalling '{app}' ({version})	A desinstalar '{app}' ({ver
 cmd.import	Install the settings, buckets and apps of an export (a scoopfile.json).	Instala as definições, os buckets e as aplicações de um export (um scoopfile.json).	Instala la configuración, los buckets y las aplicaciones de un export (un scoopfile.json).
 import.invalid	Input file not a valid JSON.	O ficheiro não é JSON válido.	El archivo no es JSON válido.
 import.set	'{name}' has been set to '{value}'	'{name}' passou a ser '{value}'	'{name}' pasa a ser '{value}'
+install.rolling_back	The installation of '{app}' failed: what it had done is undone.	A instalação de '{app}' falhou: o que já tinha feito é desfeito.	La instalación de '{app}' falló: se deshace lo que ya había hecho.
+update.restoring	'{app}' ({version}) is the version in use again.	'{app}' ({version}) volta a ser a versão em uso.	'{app}' ({version}) vuelve a ser la versión en uso.
