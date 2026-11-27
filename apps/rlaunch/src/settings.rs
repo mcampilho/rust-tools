@@ -3,6 +3,7 @@
 use crate::i18n::Lang;
 use crate::items::Items;
 use crate::storage::Store;
+use crate::ui::theme::CHOICES;
 use std::path::{Component, Path, PathBuf};
 
 /// The key combinations offered to open the menu (Windows).
@@ -53,6 +54,55 @@ impl Hotkey {
     }
 }
 
+/// Where on the screen the menu opens.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Position {
+    /// The bottom right corner, by the notification area.
+    #[default]
+    Right,
+    Left,
+    Centre,
+    Pointer,
+}
+
+impl Position {
+    pub const ALL: [Position; 4] = [Position::Right, Position::Left, Position::Centre, Position::Pointer];
+
+    pub fn key(self) -> &'static str {
+        match self {
+            Position::Right => "right",
+            Position::Left => "left",
+            Position::Centre => "centre",
+            Position::Pointer => "pointer",
+        }
+    }
+
+    /// The English name, which is also the translation key.
+    pub fn name(self) -> &'static str {
+        match self {
+            Position::Right => "Right",
+            Position::Left => "Left",
+            Position::Centre => "Center",
+            Position::Pointer => "At the pointer",
+        }
+    }
+
+    /// The top left corner of a menu of `size` in the work area `(left, top,
+    /// right, bottom)`, with the pointer at `at`.
+    pub fn place(self, area: (i32, i32, i32, i32), size: (i32, i32), at: (i32, i32)) -> (i32, i32) {
+        let (left, top, right, bottom) = area;
+        let (width, height) = size;
+        let (x, y) = match self {
+            Position::Right => (right - width - 8, bottom - height - 8),
+            Position::Left => (left + 8, bottom - height - 8),
+            Position::Centre => ((left + right - width) / 2, (top + bottom - height) / 2),
+            Position::Pointer => at,
+        };
+        // Always inside the work area.
+        (x.min(right - width).max(left), y.min(bottom - height).max(top))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Settings {
     /// 0 as the system, 1 light, 2 dark.
@@ -71,6 +121,12 @@ pub struct Settings {
     pub transparency: u8,
     /// Ask for administrator rights at every start (Windows).
     pub always_admin: bool,
+    /// The colour of the frame (see `ui::theme`).
+    pub colour: u8,
+    /// Taller rows with larger icons.
+    pub large: bool,
+    /// Where the menu opens.
+    pub position: Position,
     /// Changes to programs and programs added.
     pub items: Items,
 }
@@ -90,6 +146,9 @@ impl Default for Settings {
             size: 100,
             transparency: 0,
             always_admin: false,
+            colour: 0,
+            large: false,
+            position: Position::Right,
             items: Items::default(),
         }
     }
@@ -136,6 +195,9 @@ impl Settings {
             size: s.get("size").and_then(|v| v.parse().ok()).filter(|v| SIZES.contains(v)).unwrap_or(d.size),
             transparency: s.get("transparency").and_then(|v| v.parse().ok()).filter(|v| TRANSPARENCIES.contains(v)).unwrap_or(0),
             always_admin: flag("always_admin", false),
+            colour: s.get("colour").and_then(|v| v.parse().ok()).filter(|c| *c < CHOICES).unwrap_or(0),
+            large: flag("large", false),
+            position: s.get("position").and_then(|v| Position::ALL.into_iter().find(|p| p.key() == v)).unwrap_or_default(),
             items: Items::load(s, own),
         }
     }
@@ -154,6 +216,9 @@ impl Settings {
         s.set("size", self.size.to_string());
         s.set("transparency", self.transparency.to_string());
         s.set("always_admin", bit(self.always_admin));
+        s.set("colour", self.colour.to_string());
+        s.set("large", bit(self.large));
+        s.set("position", self.position.key());
         self.items.save(&mut s, own);
         s
     }
@@ -162,6 +227,15 @@ impl Settings {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_menu_stays_in_the_work_area() {
+        let (area, size) = ((0, 0, 1920, 1040), (350, 480));
+        assert_eq!(Position::Right.place(area, size, (0, 0)), (1562, 552));
+        assert_eq!(Position::Left.place(area, size, (0, 0)), (8, 552));
+        assert_eq!(Position::Centre.place(area, size, (0, 0)), (785, 280));
+        assert_eq!(Position::Pointer.place(area, size, (1900, 20)), (1570, 20));
+    }
 
     #[test]
     fn settings_come_back() {
@@ -173,6 +247,9 @@ mod tests {
             size: 130,
             transparency: 20,
             always_admin: true,
+            colour: 3,
+            large: true,
+            position: Position::Pointer,
             ..Settings::default()
         };
         st.folders = vec![PathBuf::from("D:\\Apps"), PathBuf::from("/opt/apps")];

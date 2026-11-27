@@ -3,6 +3,7 @@
 //! `.desktop` files.
 
 use crate::category::{self, Category};
+use crate::portableapps;
 use crate::settings::Settings;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -139,9 +140,18 @@ fn entry_of(path: &Path) -> Option<Entry> {
 }
 
 fn walk(dir: &Path, skip: &[PathBuf], depth: usize, found: &mut Vec<Entry>) {
+    // An app of the PortableApps format says what starts it: nothing else of
+    // its folder is a program of the menu.
+    if let Some(apps) = portableapps::app(dir) {
+        found.extend(apps);
+        return;
+    }
     let Ok(read) = std::fs::read_dir(dir) else { return };
     let mut items: Vec<_> = read.flatten().collect();
     items.sort_by_key(|e| e.file_name());
+    // Among the apps of a suite: its platform and shared files are not apps,
+    // and a folder in another format gives only what is at its top.
+    let suite = dir.join(portableapps::PLATFORM).is_dir();
     for item in items {
         if found.len() >= MOST {
             return;
@@ -150,9 +160,11 @@ fn walk(dir: &Path, skip: &[PathBuf], depth: usize, found: &mut Vec<Entry>) {
         // `file_type` does not follow links, so a junction is never entered.
         let Ok(kind) = item.file_type() else { continue };
         if kind.is_dir() {
-            let hidden = item.file_name().to_string_lossy().starts_with(['.', '$']);
-            if depth < DEPTH && !hidden && !skip.contains(&path) {
-                walk(&path, skip, depth + 1, found);
+            let name = item.file_name().to_string_lossy().into_owned();
+            let hidden = name.starts_with(['.', '$']);
+            let shared = suite && [portableapps::PLATFORM, "CommonFiles"].iter().any(|s| name.eq_ignore_ascii_case(s));
+            if depth < DEPTH && !hidden && !shared && !skip.contains(&path) {
+                walk(&path, skip, if suite { DEPTH } else { depth + 1 }, found);
             }
         } else if let Some(e) = entry_of(&path) {
             found.push(e);
@@ -363,6 +375,14 @@ mod tests {
         assert_eq!(all[1].path, menu.join("Firefox.lnk"));
         st.start_menu = false;
         assert_eq!(collect(&roots_in(&st, &[menu]), &[]).len(), 1);
+    }
+
+    #[test]
+    fn a_suite_gives_its_apps_and_not_their_insides() {
+        let d = crate::portableapps::tests::suite("pa-walk");
+        let all = collect(&[Root { dir: d, skip: Vec::new() }], &[]);
+        let names: Vec<&str> = all.iter().map(|e| e.name.as_str()).collect();
+        assert_eq!(names, ["Git Bash", "Git GUI", "Mozilla Firefox, Edition", "Tool"]);
     }
 
     #[test]

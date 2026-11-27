@@ -8,6 +8,7 @@ use crate::app::{App, Row, View};
 use crate::category::Category;
 use crate::i18n::{tf, tr, Lang};
 use crate::settings::{Hotkey, Settings};
+use crate::ui::theme::{colour_name, frame_of, CHOICES};
 use rt_core::textedit::TextEdit;
 use rt_gfx::dialog::{ellipsize, ellipsize_middle};
 use std::collections::HashMap;
@@ -28,6 +29,8 @@ pub enum Field {
     Transparency,
     Theme,
     Language,
+    Rows,
+    Position,
 }
 
 /// The folders of the user in the right column.
@@ -92,6 +95,9 @@ pub enum Hit {
     AlwaysAdmin,
     /// The next value of an option, or the one before.
     Step(Field, bool),
+    /// A page of the options: its appearance, or else its programs.
+    Page(bool),
+    Colour(u8),
     CheckUpdates,
     Done,
 }
@@ -112,6 +118,8 @@ pub struct Model<'a> {
     pub pinned: bool,
     /// rlaunch has administrator rights, so what it opens has them too.
     pub elevated: bool,
+    /// The system's accent colour, for the colour made from it.
+    pub accent: Option<Color>,
     /// The program being renamed, and the name being typed.
     pub rename: Option<(&'a Path, &'a TextEdit)>,
 }
@@ -279,9 +287,13 @@ impl Painter<'_, '_> {
         let t = *self.t;
         let app = self.m.app;
         let rows = app.rows();
-        let row_h = self.px(26.0);
+        let large = self.m.settings.large;
+        let row_h = self.px(if large { 36.0 } else { 26.0 });
+        // The side of an icon, and where the name starts.
+        let side = if large { 24.0 } else { 18.0 };
+        let indent = side + 13.0;
         self.out.visible = ((area.h - self.px(8.0)) / row_h).floor().max(1.0) as usize;
-        let size = self.px(13.0);
+        let size = self.px(if large { 14.0 } else { 13.0 });
         if rows.is_empty() {
             let text = if app.loading {
                 tr("Reading the programs…")
@@ -308,13 +320,13 @@ impl Painter<'_, '_> {
                 self.g.fill_rrect(r, self.px(5.0), t.hover);
             }
             let (ink, faint) = if selected { (t.on_accent, t.on_accent) } else { (t.text, t.dim) };
-            let icon = Rect::new(r.x + self.px(6.0), r.y + self.px(4.0), self.px(18.0), self.px(18.0));
+            let icon = Rect::new(r.x + self.px(6.0), r.y + ((r.h - self.px(side)) / 2.0).round(), self.px(side), self.px(side));
             let count_w = match *row {
                 Row::Category(..) => 36.0,
                 Row::Entry(i) if app.entries[i].admin => 22.0,
                 _ => 4.0,
             };
-            let text = Rect::new(r.x + self.px(31.0), r.y, r.w - self.px(31.0 + count_w), r.h);
+            let text = Rect::new(r.x + self.px(indent), r.y, r.w - self.px(indent + count_w), r.h);
             match *row {
                 Row::Category(c, n) => {
                     // A line parts the favourites from the categories.
@@ -401,9 +413,9 @@ impl Painter<'_, '_> {
             Category::Utilities => 0x1FA0A8,
             Category::Other => 0xB49B3C,
         });
-        let tab = Rect::new(r.x + self.px(1.0), r.y + self.px(2.0), self.px(8.0), self.px(5.0));
+        let tab = Rect::new(r.x + self.px(1.0), r.y + r.h * 0.11, r.w * 0.45, r.h * 0.28);
         self.g.fill_rrect(tab, self.px(2.0), color);
-        let body = Rect::new(r.x + self.px(1.0), r.y + self.px(4.0), r.w - self.px(2.0), r.h - self.px(6.0));
+        let body = Rect::new(r.x + self.px(1.0), r.y + r.h * 0.22, r.w - self.px(2.0), r.h * 0.66);
         self.g.fill_rrect(body, self.px(3.0), color);
     }
 
@@ -466,19 +478,87 @@ impl Painter<'_, '_> {
     }
 
     fn options(&mut self) {
+        let appearance = self.m.app.appearance;
+        for (x, label, page) in [(16.0, tr("Programs"), false), (178.0, tr("Appearance"), true)] {
+            let r = self.rect(x, 48.0, 156.0, 26.0);
+            self.button(r, &label, Hit::Page(page));
+            if page == appearance {
+                let line = Rect::new(r.x + self.px(8.0), r.bottom() - self.px(3.0), r.w - self.px(16.0), self.px(2.0));
+                let c = self.t.accent;
+                self.g.fill_rect(line, c);
+            }
+        }
+        if appearance {
+            self.appearance_page();
+        } else {
+            self.programs_page();
+        }
+    }
+
+    fn appearance_page(&mut self) {
         let st = self.m.settings;
         let t = *self.t;
-        self.heading(48.0, &tr("Programs from"));
-        if cfg!(windows) {
-            self.check(16.0, 70.0, 128.0, &tr("Scoop"), st.scoop, Hit::Scoop);
-            self.check(148.0, 70.0, 186.0, &tr("Start menu"), st.start_menu, Hit::StartMenu);
-        } else {
-            self.check(16.0, 70.0, 318.0, &tr("Installed applications"), st.start_menu, Hit::StartMenu);
+        let theme = match st.theme {
+            1 => tr("Light"),
+            2 => tr("Dark"),
+            _ => tr("As the system"),
+        };
+        self.stepper(86.0, &tr("Theme"), &theme, Field::Theme);
+        let name = self.rect(16.0, 116.0, 90.0, 26.0);
+        let size = self.px(13.0);
+        text_middle(self.g, &tr("Color"), name, size, FontId::Regular, t.text);
+        for c in 0..CHOICES {
+            let r = self.rect(110.0 + f32::from(c) * 28.0, 116.0, 26.0, 26.0);
+            let (cx, cy) = (r.x + r.w / 2.0, r.y + r.h / 2.0);
+            if c == st.colour {
+                self.g.fill_circle(cx, cy, self.px(13.0), t.accent);
+                self.g.fill_circle(cx, cy, self.px(11.0), t.list);
+            }
+            self.g.fill_circle(cx, cy, self.px(9.0), frame_of(c, false, self.m.accent));
+            self.out.hits.push((r, Hit::Colour(c)));
         }
-        self.heading(100.0, &tr("My folders"));
-        let mut y = 122.0;
-        // Room for three; more are kept and read, only not listed.
-        for (i, folder) in st.folders.iter().take(3).enumerate() {
+        let chosen = self.rect(110.0, 142.0, 224.0, 18.0);
+        let small = self.px(11.0);
+        let label = tr(colour_name(st.colour));
+        self.g.text_in(&label, chosen, small, FontId::Regular, t.dim, Align::Center);
+        self.stepper(168.0, &tr("Size"), &format!("{}%", st.size), Field::Size);
+        let mut y = 195.0;
+        if cfg!(windows) {
+            let value = if st.transparency == 0 { tr("Off") } else { format!("{}%", st.transparency) };
+            self.stepper(y, &tr("Transparency"), &value, Field::Transparency);
+            y += 27.0;
+        }
+        let rows = if st.large { tr("Large") } else { tr("Compact") };
+        self.stepper(y, &tr("Rows"), &rows, Field::Rows);
+        y += 27.0;
+        if cfg!(windows) {
+            self.stepper(y, &tr("Position"), &tr(st.position.name()), Field::Position);
+            y += 27.0;
+        }
+        let hint = tr("Your own colors: a theme.ini file beside the settings.");
+        for line in rt_gfx::dialog::wrap_words(self.g, &hint, self.px(318.0), small, FontId::Regular).into_iter().take(2) {
+            let r = self.rect(16.0, y + 6.0, 318.0, 16.0);
+            self.g.text_in(&line, r, small, FontId::Regular, t.dim, Align::Left);
+            y += 16.0;
+        }
+        let done = self.rect(234.0, 397.0, 100.0, 26.0);
+        self.button(done, &tr("Done"), Hit::Done);
+    }
+
+    fn programs_page(&mut self) {
+        let st = self.m.settings;
+        let t = *self.t;
+        self.heading(80.0, &tr("Programs from"));
+        if cfg!(windows) {
+            self.check(16.0, 102.0, 128.0, &tr("Scoop"), st.scoop, Hit::Scoop);
+            self.check(148.0, 102.0, 186.0, &tr("Start menu"), st.start_menu, Hit::StartMenu);
+        } else {
+            self.check(16.0, 102.0, 318.0, &tr("Installed applications"), st.start_menu, Hit::StartMenu);
+        }
+        self.heading(130.0, &tr("My folders"));
+        let mut y = 152.0;
+        // Room for four; more are kept and read, only not listed.
+        for (i, folder) in st.folders.iter().take(4).enumerate() {
             let r = self.rect(18.0, y, 286.0, 22.0);
             let size = self.px(12.0);
             let cut = ellipsize_middle(self.g, &folder.to_string_lossy(), r.w, size, FontId::Regular);
@@ -491,7 +571,7 @@ impl Painter<'_, '_> {
         self.button(add, &tr("Add a folder…"), Hit::AddFolder);
         let program = self.rect(178.0, y, 156.0, 26.0);
         self.button(program, &tr("Add a program…"), Hit::AddProgram);
-        y += 30.0;
+        y += 32.0;
         let start = if cfg!(windows) { tr("Start with Windows") } else { tr("Start at login") };
         self.check(16.0, y, 188.0, &start, self.m.autostart, Hit::Autostart);
         let hidden = self.rect(210.0, y - 1.0, 124.0, 26.0);
@@ -500,29 +580,15 @@ impl Painter<'_, '_> {
             y += 23.0;
             self.check(16.0, y, 318.0, &tr("Always start as administrator"), st.always_admin, Hit::AlwaysAdmin);
         }
-        y += 27.0;
+        y += 29.0;
         if cfg!(windows) {
             let keys = if st.hotkey == Hotkey::Off { tr("Off") } else { st.hotkey.label().to_string() };
             self.stepper(y, &tr("Keyboard shortcut"), &keys, Field::Hotkey);
             y += 27.0;
         }
-        self.stepper(y, &tr("Size"), &format!("{}%", st.size), Field::Size);
-        y += 27.0;
-        if cfg!(windows) {
-            let value = if st.transparency == 0 { tr("Off") } else { format!("{}%", st.transparency) };
-            self.stepper(y, &tr("Transparency"), &value, Field::Transparency);
-            y += 27.0;
-        }
-        let theme = match st.theme {
-            1 => tr("Light"),
-            2 => tr("Dark"),
-            _ => tr("As the system"),
-        };
-        self.stepper(y, &tr("Theme"), &theme, Field::Theme);
-        y += 27.0;
         let language = st.language.map_or_else(|| tr("As the system"), |l: Lang| l.native_name().to_string());
         self.stepper(y, &tr("Language"), &language, Field::Language);
-        y += 29.0;
+        y += 30.0;
         let updates = self.rect(16.0, y, 208.0, 26.0);
         self.button(updates, &tr("Check for updates"), Hit::CheckUpdates);
         let done = self.rect(234.0, y, 100.0, 26.0);
@@ -583,9 +649,10 @@ mod tests {
             caret: true,
             pinned: false,
             elevated: false,
+            accent: None,
             rename: None,
         };
-        let d = draw(&mut g, &m, &Theme::new(false, None), 1.0);
+        let d = draw(&mut g, &m, &Theme::new(false, None, 0), 1.0);
         let hits: Vec<Hit> = d.hits.iter().map(|(_, h)| *h).collect();
         for want in [Hit::Row(0), Hit::Row(2), Hit::Place(Place::Explore), Hit::Options, Hit::Exit, Hit::Close] {
             assert!(hits.contains(&want), "{want:?}");

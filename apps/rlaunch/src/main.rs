@@ -11,11 +11,12 @@ use rlaunch::app::{App, Row, View};
 use rlaunch::category::Category;
 use rlaunch::i18n::{self, tf, tr};
 use rlaunch::items::Custom;
-use rlaunch::settings::{Hotkey, Settings, SIZES, TRANSPARENCIES};
+use rlaunch::portableapps;
+use rlaunch::settings::{Hotkey, Position, Settings, SIZES, TRANSPARENCIES};
 use rlaunch::sources::{self, Entry};
 use rlaunch::storage;
 use rlaunch::ui::gfx::{Color, Gfx, Rect};
-use rlaunch::ui::theme::Theme;
+use rlaunch::ui::theme::{self, Theme};
 use rlaunch::ui::view::{self, Drawn, Field, Hit, Model, Place, SIZE};
 use rt_core::textedit::TextEdit;
 use rt_gfx::menu::{Act, Item, Menu, MenuStyle};
@@ -108,6 +109,8 @@ struct Shell {
     pinned: bool,
     /// Running with administrator rights.
     elevated: bool,
+    /// The colours of `theme.ini`, read each time the menu opens.
+    colours: storage::Store,
     settings: Settings,
     location: storage::Location,
     gfx: Gfx,
@@ -149,6 +152,13 @@ struct Shell {
 /// drive by `*:`.
 fn own_dir(location: &storage::Location) -> Option<PathBuf> {
     location.portable.then(|| location.dir.clone()).flatten()
+}
+
+/// A PortableApps suite beside the folder of rlaunch, or at the usual places
+/// of its drive.
+fn suite_near(own: &Path) -> Option<PathBuf> {
+    let drive = own.ancestors().last()?;
+    [own.parent(), Some(drive), Some(&drive.join("Portable"))].into_iter().flatten().find_map(portableapps::suite_in)
 }
 
 /// The drive the footer shows and Explore opens: rlaunch's when portable,
@@ -274,18 +284,19 @@ impl Shell {
         LogicalSize::new(SIZE.0 * self.zoom(), SIZE.1 * self.zoom())
     }
 
-    /// Sizes the menu and puts it by the notification area (the bottom right
-    /// corner) of the screen the pointer is on.
+    /// Sizes the menu and puts it where Options say, on the screen the pointer
+    /// is on.
     fn place(&self) {
         let Some(w) = &self.win else { return };
         #[cfg(windows)]
-        if let Some((left, top, right, bottom, _, _)) = rt_sys::win::work_area_at_cursor() {
+        if let Some((left, top, right, bottom, x, y)) = rt_sys::win::work_area_at_cursor() {
             // Moved first: the size depends on the scale of that screen.
             w.window.set_outer_position(winit::dpi::PhysicalPosition::new(left, top));
             let _ = w.window.request_inner_size(self.size());
             let size = w.window.outer_size();
             let (width, height) = (size.width as i32, size.height as i32);
-            w.window.set_outer_position(winit::dpi::PhysicalPosition::new((right - width - 8).max(left), (bottom - height - 8).max(top)));
+            let (at_x, at_y) = self.settings.position.place((left, top, right, bottom), (width, height), (x, y));
+            w.window.set_outer_position(winit::dpi::PhysicalPosition::new(at_x, at_y));
             return;
         }
         let _ = w.window.request_inner_size(self.size());
@@ -322,6 +333,9 @@ impl Shell {
                 self.apply_transparency();
             }
             Field::Theme => self.settings.theme = pick(&[0, 1, 2], self.settings.theme, forward),
+            Field::Rows => self.settings.large = !self.settings.large,
+            // Applies when the menu opens next: it does not jump while chosen.
+            Field::Position => self.settings.position = pick(&Position::ALL, self.settings.position, forward),
             Field::Language => {
                 // None (the system's), then each language.
                 let at = self.settings.language.and_then(|l| i18n::Lang::ALL.iter().position(|x| *x == l)).map_or(0, |i| i + 1);
@@ -340,7 +354,7 @@ impl Shell {
             2 => true,
             _ => self.system_dark,
         };
-        Theme::new(dark, self.accent)
+        Theme::new(dark, self.accent, self.settings.colour).with(&self.colours)
     }
 
     fn redraw(&self) {
@@ -441,6 +455,13 @@ impl Shell {
             return;
         }
         self.app.reset();
+        self.colours = self
+            .location
+            .dir
+            .as_ref()
+            .and_then(|d| std::fs::read_to_string(d.join("theme.ini")).ok())
+            .map(|t| storage::Store::parse(&t))
+            .unwrap_or_default();
         self.menu.close();
         self.rename = None;
         self.note = None;
@@ -532,6 +553,19 @@ impl Shell {
         })
     }
 
+    /// Adds a folder of programs; a PortableApps one brings its menu's choices.
+    fn take_folder(&mut self, folder: PathBuf) {
+        let taken = portableapps::suite_in(&folder).map_or(0, |suite| portableapps::import(&suite, &mut self.settings.items));
+        if !self.settings.folders.contains(&folder) {
+            self.settings.folders.push(folder);
+        }
+        self.save();
+        self.scan();
+        if taken > 0 {
+            self.note = Some(tf("Took {} choices from PortableApps.", &[&taken.to_string()]));
+        }
+    }
+
     fn add_folder(&mut self) {
         self.asking = true;
         #[cfg(windows)]
@@ -543,11 +577,7 @@ impl Shell {
         let picked = rt_sys::linux::dialogs::pick_folder(&tr("Choose a folder of programs"));
         self.asking = false;
         if let Some(folder) = picked {
-            if !self.settings.folders.contains(&folder) {
-                self.settings.folders.push(folder);
-                self.save();
-                self.scan();
-            }
+            self.take_folder(folder);
         }
         if let Some(w) = &self.win {
             rt_ui::window::focus(&w.window);
@@ -758,11 +788,7 @@ impl Shell {
     /// A file (or folder) chosen or dropped on the menu.
     fn add(&mut self, path: PathBuf) {
         if path.is_dir() {
-            if !self.settings.folders.contains(&path) {
-                self.settings.folders.push(path);
-                self.save();
-                self.scan();
-            }
+            self.take_folder(path);
         } else {
             self.settings.items.add(&path);
             self.save();
@@ -796,6 +822,11 @@ impl Shell {
                 self.app.view = View::Options;
             }
             Hit::Done => self.app.back(),
+            Hit::Page(appearance) => self.app.appearance = appearance,
+            Hit::Colour(c) => {
+                self.settings.colour = c;
+                self.save();
+            }
             Hit::About => self.about(),
             Hit::Exit => self.quit(el),
             #[cfg(windows)]
@@ -981,6 +1012,7 @@ impl Shell {
             caret: self.caret,
             pinned: self.pinned,
             elevated: self.elevated,
+            accent: self.accent,
             rename: self.rename.as_ref().map(|(p, e)| (p.as_path(), e)),
         };
         self.drawn = view::draw(&mut self.gfx, &model, &theme, s);
@@ -1031,6 +1063,9 @@ impl Shell {
                 Hit::AlwaysAdmin => tr("Always start as administrator"),
                 Hit::Scoop => "Scoop".to_string(),
                 Hit::StartMenu => tr("Start menu"),
+                Hit::Page(true) => tr("Appearance"),
+                Hit::Page(false) => tr("Programs"),
+                Hit::Colour(c) => format!("{} {}", tr("Color"), tr(theme::colour_name(c))),
                 Hit::Step(field, forward) => {
                     let option = match field {
                         Field::Hotkey => tr("Keyboard shortcut"),
@@ -1038,6 +1073,8 @@ impl Shell {
                         Field::Transparency => tr("Transparency"),
                         Field::Theme => tr("Theme"),
                         Field::Language => tr("Language"),
+                        Field::Rows => tr("Rows"),
+                        Field::Position => tr("Position"),
                     };
                     format!("{option} {}", if forward { "›" } else { "‹" })
                 }
@@ -1304,7 +1341,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             WindowEvent::MouseWheel { delta, .. } if self.dialog.is_none() => {
                 let lines = match delta {
                     MouseScrollDelta::LineDelta(_, y) => y * 3.0,
-                    MouseScrollDelta::PixelDelta(p) => p.y as f32 / (26.0 * self.scale()),
+                    MouseScrollDelta::PixelDelta(p) => p.y as f32 / (if self.settings.large { 36.0 } else { 26.0 } * self.scale()),
                 };
                 self.menu.close();
                 self.app.scroll_by(-lines.round() as isize, self.drawn.visible);
@@ -1379,7 +1416,14 @@ fn main() {
     }
     let mut location = storage::detect();
     let store = location.load();
-    let settings = Settings::load(&store, own_dir(&location).as_deref());
+    let mut settings = Settings::load(&store, own_dir(&location).as_deref());
+    // The first time on a pen: a PortableApps suite beside rlaunch is found.
+    if store.get("theme").is_none() {
+        if let Some(suite) = own_dir(&location).and_then(|own| suite_near(&own)) {
+            portableapps::import(&suite, &mut settings.items);
+            settings.folders.push(suite);
+        }
+    }
     i18n::set_lang(settings.language.unwrap_or_else(i18n::system_lang));
     // Asked for in Options: start again with the rights. Said no (or already
     // tried): carry on without them.
@@ -1415,6 +1459,7 @@ fn main() {
         elevated: rt_sys::win::elevated(),
         #[cfg(not(windows))]
         elevated: false,
+        colours: storage::Store::default(),
         settings,
         location,
         gfx,

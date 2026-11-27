@@ -8,7 +8,7 @@ vários `rmenu`). Funcionalidades e fases no `README.md`.
 ## Comandos
 
 ```powershell
-./dev.ps1 build --profile release-small -p rlaunch      # ~1,7 MB
+./dev.ps1 build --profile release-small -p rlaunch      # ~1,9 MB
 ./dev.ps1 test -p rlaunch
 ./dev.ps1 test -p rlaunch --lib screenshots '--' --ignored --nocapture   # target/screens/*.png com os programas deste PC
 ```
@@ -21,6 +21,8 @@ vários `rmenu`). Funcionalidades e fases no `README.md`.
 - `category.rs` — `Category` e `guess` por palavras inteiras; a primeira categoria da lista `KNOWN` ganha.
 - `items.rs` — o que o utilizador mudou (nome, categoria, ícone, favorito, oculto, por caminho) e os programas
   acrescentados; `apply` sobrepõe-o ao que a leitura deu (`main.rs` guarda `raw`), sem voltar a ler as pastas.
+- `portableapps.rs` — o formato PortableApps (`appinfo.ini`) e a importação do `PortableAppsMenu.ini` (UTF-16:
+  `AppsFavorite`, `AppsHidden`, `AppsRenamed`, `AppsRecategorized`; só o primeiro visto num ficheiro real). Só lê.
 - `app.rs` — vista (categorias com os favoritos no topo, dentro de uma, ocultos, opções), procura (sem acentos), seleção e scroll. Sem desenho.
 - `settings.rs` — `Settings`, `Hotkey`; `pack`/`unpack`: em modo portátil as pastas do disco do rlaunch ficam `*:\…`.
 - `ui/view.rs` — o menu numa função `draw` que devolve os alvos de clique (`Hit`), as linhas visíveis e os programas
@@ -53,6 +55,10 @@ arrastar, o ícone, abrir a localização e o escudo; o arranque sempre elevado 
 
 Numa cópia de teste com o código alterado, ao repor o ficheiro atualizar-lhe a data, ou o cargo não recompila e o
 executável fica o de teste.
+
+Fases 3 e 4 (2026-11-26): opções em dois separadores, cores (`ui/theme.rs`, `theme.ini`), linhas grandes, posição.
+Verificado com a PortableApps do utilizador em `S:\Portable\PortableApps`: 333 programas em 0,15 s, 37 escolhas.
+PStart, LiberKey e Lupo/ASuite não foram feitos: não há instalação para verificar o formato.
 
 ## Regras
 

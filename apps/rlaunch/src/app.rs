@@ -36,6 +36,8 @@ pub struct App {
     pub scroll: usize,
     /// The folders are being read for the first time.
     pub loading: bool,
+    /// The options page shows how the menu looks, not its programs.
+    pub appearance: bool,
 }
 
 /// Letters without their accents, in lower case, for searching.
@@ -149,6 +151,7 @@ impl App {
 
     /// As when the menu is opened anew.
     pub fn reset(&mut self) {
+        self.appearance = false;
         self.view = View::Categories;
         self.query.clear();
         self.selected = 0;

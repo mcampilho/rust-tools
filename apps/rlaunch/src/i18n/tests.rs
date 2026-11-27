@@ -25,6 +25,7 @@ fn model<'a>(
         caret: true,
         pinned: false,
         elevated: false,
+        accent: None,
         rename: None,
     }
 }
@@ -62,11 +63,21 @@ fn every_view_is_translated() {
     set_lang(Lang::DeDE);
     for view in [View::Categories, View::Inside(Category::Internet), View::Hidden, View::Options] {
         app.view = view;
-        draw(&mut g, &model(&app, &settings, &icons, None), &Theme::new(false, None), 1.0);
+        draw(&mut g, &model(&app, &settings, &icons, None), &Theme::new(false, None, 0), 1.0);
+    }
+    app.view = View::Options;
+    app.appearance = true;
+    draw(&mut g, &model(&app, &settings, &icons, None), &Theme::new(false, None, 0), 1.0);
+    // Names looked up from tables, which no literal in the drawing shows.
+    for c in 0..crate::ui::theme::CHOICES {
+        assert!(rt_core::i18n::has_key(crate::ui::theme::colour_name(c)));
+    }
+    for p in crate::settings::Position::ALL {
+        assert!(rt_core::i18n::has_key(p.name()), "{}", p.name());
     }
     app.view = View::Categories;
     app.query = "zzz".into();
-    draw(&mut g, &model(&app, &settings, &icons, None), &Theme::new(true, None), 1.0);
+    draw(&mut g, &model(&app, &settings, &icons, None), &Theme::new(true, None, 0), 1.0);
     let misses = rt_core::i18n::take_misses();
     rt_core::i18n::record_misses(false);
     set_lang(Lang::EnUS);
@@ -110,7 +121,7 @@ fn screenshots() {
         app.query = query.into();
         app.selected = 1;
         let note = (name == "de-options-dark").then(|| tf("Another program is using {}.", &["Ctrl+Alt+Space"]));
-        draw(&mut g, &model(&app, &settings, &icons, note.as_deref()), &Theme::new(dark, None), 1.0);
+        draw(&mut g, &model(&app, &settings, &icons, note.as_deref()), &Theme::new(dark, None, 0), 1.0);
         let (w, h) = (SIZE.0 as u32, SIZE.1 as u32);
         let mut buf = vec![0u32; (w * h) as usize];
         g.copy_to(&mut buf);
@@ -129,7 +140,7 @@ fn screenshots() {
     }
     let note = tr("Running as administrator: what it opens does too.");
     let m = Model { elevated: true, ..model(&app, &settings, &icons, Some(&note)) };
-    draw(&mut g, &m, &Theme::new(false, None), 1.0);
+    draw(&mut g, &m, &Theme::new(false, None, 0), 1.0);
     let (w, h) = (SIZE.0 as u32, SIZE.1 as u32);
     let mut buf = vec![0u32; (w * h) as usize];
     g.copy_to(&mut buf);
