@@ -1,13 +1,13 @@
 {
-    "version": "0.3.0",
+    "version": "0.3.1",
     "description": "Portable application menu: Scoop, the Start menu and your own folders, in the notification area",
     "homepage": "https://github.com/mcampilho/rust-tools/tree/master/apps/rlaunch",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/mcampilho/rust-tools/releases/download/rlaunch-v0.3.0/rlaunch-0.3.0-windows-x86_64.zip",
-            "hash": "1c7bcde746292894da23e8edfd200bd02c456e84071b893ae06807286598fc5b",
-            "extract_dir": "rlaunch-0.3.0-windows-x86_64"
+            "url": "https://github.com/mcampilho/rust-tools/releases/download/rlaunch-v0.3.1/rlaunch-0.3.1-windows-x86_64.zip",
+            "hash": "f1cd2968e6dc5409f37bb4f1e069599a028fa9c8cdccbff8539ad5322be57129",
+            "extract_dir": "rlaunch-0.3.1-windows-x86_64"
         }
     },
     "bin": "rlaunch.exe",
