@@ -1,7 +1,7 @@
 # rscoop-cli completo — análise e plano
 
 Escrito a 2026-11-27. **Estado (2026-11-28):** os comandos que instalam e removem iguais ao oficial nos quatro cenários
-da Sandbox (secção 15) e nativos por omissão desde a 0.3.0 (por lançar; secção 16).
+da Sandbox (secção 15) e nativos por omissão desde a 0.3.0 (lançada a 2026-11-28; secção 16).
 **Antes:** fases 0 a 3 feitas e comparadas no Windows Sandbox (secção 12); fase 4 com `install`,
 `update <app>` e `import` iguais ao oficial na Sandbox (secção 13); fase 5 com os extras (secção 14); versão 0.2.0
 lançada a 2026-11-27 (com o comando `sco` no bucket).
@@ -522,4 +522,4 @@ desempenho, e cada um escolhe numa definição quais vão para o Scoop.
   `sco config` como `scoop config` a escrevem): os comandos a entregar ao Scoop, numa lista ou num texto com vírgulas
   ou espaços — `sco config rscoop_use_scoop install,uninstall`. Vale para qualquer comando (`update` inteiro, `list`…).
 - **`RSCOOP_NATIVE=0`** fica como interruptor de segurança: entrega ao Scoop tudo o que instala ou remove aplicações.
-- A versão passou a 0.3.0 no `Cargo.toml` (por lançar).
+- Lançada como 0.3.0 a 2026-11-28 (bucket atualizado).
