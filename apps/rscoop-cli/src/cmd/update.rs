@@ -215,7 +215,7 @@ pub fn sync(ctx: &mut Ctx, args: &[String]) -> i32 {
         return 1;
     }
     let done = ctx.t.get("update.done").to_string();
-    ctx.say(done);
+    ctx.say_as(done, super::paint::GOOD);
     0
 }
 

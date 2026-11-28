@@ -2,6 +2,7 @@
 //! `Invoke-CachedAria2Download`): the files of apps into the cache, checked.
 
 use super::args::{getopt, Spec};
+use super::paint;
 use super::table::filesize;
 use super::{delegate, update, Ctx};
 use crate::sys::{today, windows_11};
@@ -315,11 +316,11 @@ fn one(ctx: &mut Ctx, job: &Job, arch: Arch, use_cache: bool, mut verify: bool, 
     };
     let from = job.bucket.clone().unwrap_or_default();
     let line = ctx.t.fill("download.start", &[("app", &app), ("arch", arch.name()), ("bucket", &from)]);
-    ctx.say(line);
+    ctx.say_as(line, paint::NAME);
     let good = to_cache(ctx, &app, &version, &job.manifest, arch, use_cache, verify, program).is_some();
     if good {
         let line = ctx.t.fill("download.done", &[("app", &app), ("version", &version)]);
-        ctx.say(line);
+        ctx.say_as(line, paint::GOOD);
     }
     good
 }

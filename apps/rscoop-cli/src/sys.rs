@@ -394,3 +394,24 @@ pub fn broadcast_environment_change() {
         }
     }
 }
+
+/// Lets the console show ANSI colours (`ENABLE_VIRTUAL_TERMINAL_PROCESSING`;
+/// Windows Terminal does it already, the old console needs it).
+pub fn enable_colors() {
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::System::Console::{
+            GetConsoleMode, GetStdHandle, SetConsoleMode, ENABLE_VIRTUAL_TERMINAL_PROCESSING, STD_ERROR_HANDLE, STD_OUTPUT_HANDLE,
+        };
+        for which in [STD_OUTPUT_HANDLE, STD_ERROR_HANDLE] {
+            // SAFETY: a standard handle and an out-parameter.
+            unsafe {
+                let handle = GetStdHandle(which);
+                let mut mode = 0u32;
+                if GetConsoleMode(handle, &mut mode) != 0 {
+                    SetConsoleMode(handle, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+                }
+            }
+        }
+    }
+}

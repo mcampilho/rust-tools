@@ -1,6 +1,6 @@
 //! `list`, `search` and `export`.
 
-use super::{state, table, Ctx};
+use super::{state, Ctx};
 use crate::checks::parallel;
 use crate::sys::local_time;
 use regex_lite::{Regex, RegexBuilder};
@@ -123,9 +123,7 @@ pub fn list(ctx: &mut Ctx, args: &[String]) -> i32 {
         .collect();
     ctx.say(head);
     ctx.say("");
-    for line in table::lines(&["Name", "Version", "Source", "Updated", "Info"], &cells) {
-        ctx.say(line);
-    }
+    ctx.table(&["Name", "Version", "Source", "Updated", "Info"], &cells);
     0
 }
 
@@ -206,9 +204,7 @@ pub fn search(ctx: &mut Ctx, args: &[String]) -> i32 {
         return ctx.fail("search.none", &[("query", &text)]);
     }
     let cells: Vec<Vec<String>> = found.into_iter().map(|f| vec![f.name, f.version, f.source, f.binaries]).collect();
-    for line in table::lines(&["Name", "Version", "Source", "Binaries"], &cells) {
-        ctx.say(line);
-    }
+    ctx.table(&["Name", "Version", "Source", "Binaries"], &cells);
     0
 }
 

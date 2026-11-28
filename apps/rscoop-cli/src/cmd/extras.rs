@@ -2,7 +2,8 @@
 //! `bucket unused` and `hook`. They only read, except `hook`, which only
 //! prints.
 
-use super::table::{self, filesize};
+use super::paint;
+use super::table::filesize;
 use super::Ctx;
 use crate::checks::parallel;
 use crate::sys::today;
@@ -55,11 +56,9 @@ pub fn outdated(ctx: &mut Ctx) -> i32 {
         ctx.print_json(&Json::Arr(found));
     } else if rows.is_empty() {
         let line = ctx.t.get("outdated.none").to_string();
-        ctx.say(line);
+        ctx.say_as(line, paint::GOOD);
     } else {
-        for line in table::lines(&["Name", "Installed", "Latest", "Info"], &rows) {
-            ctx.say(line);
-        }
+        ctx.table(&["Name", "Installed", "Latest", "Info"], &rows);
     }
     0
 }
@@ -106,9 +105,7 @@ fn show_apps(ctx: &mut Ctx, list: &[(String, bool)], none: &str, values: &[(&str
         let line = ctx.t.fill(none, values);
         ctx.say(line);
     } else {
-        for line in table::lines(&["Name", "Version", "Source", "Info"], &rows) {
-            ctx.say(line);
-        }
+        ctx.table(&["Name", "Version", "Source", "Info"], &rows);
     }
 }
 
@@ -206,9 +203,7 @@ pub fn size(ctx: &mut Ctx, args: &[String]) -> i32 {
             ]
         })
         .collect();
-    for line in table::lines(&["Name", "Apps", "Persist", "Cache", "Versions", "Total"], &shown) {
-        ctx.say(line);
-    }
+    ctx.table(&["Name", "Apps", "Persist", "Cache", "Versions", "Total"], &shown);
     let line = ctx.t.fill("size.apps_total", &[("size", &filesize(total)), ("n", &rows.len().to_string())]);
     ctx.say(line);
     0

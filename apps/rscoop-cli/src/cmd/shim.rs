@@ -4,7 +4,7 @@
 use super::args::getopt;
 use super::machinery::{remove_shim, say_made};
 use super::query::find_command;
-use super::{table, Ctx};
+use super::Ctx;
 use regex_lite::RegexBuilder;
 use rt_scoop::json::{string, Json};
 use rt_scoop::shims;
@@ -277,9 +277,7 @@ fn list(ctx: &mut Ctx, other: &[String], global: bool) -> i32 {
         .map(|i| vec![i.name.clone(), i.source.clone(), i.alternatives.clone().unwrap_or_default(), yes(i.global), yes(i.hidden)])
         .collect();
     if !rows.is_empty() {
-        for line in table::lines(&["Name", "Source", "Alternatives", "IsGlobal", "IsHidden"], &rows) {
-            ctx.say(line);
-        }
+        ctx.table(&["Name", "Source", "Alternatives", "IsGlobal", "IsHidden"], &rows);
     }
     0
 }
@@ -310,8 +308,6 @@ fn info(ctx: &mut Ctx, name: &str, global: bool) -> i32 {
     }
     pairs.push(("IsGlobal".into(), yes(info.global)));
     pairs.push(("IsHidden".into(), yes(info.hidden)));
-    for line in table::pairs(&pairs) {
-        ctx.say(line);
-    }
+    ctx.pairs(&pairs);
     0
 }

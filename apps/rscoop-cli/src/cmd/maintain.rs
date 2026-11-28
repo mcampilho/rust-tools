@@ -2,7 +2,8 @@
 //! `config <name> <value>|rm` and `alias`.
 
 use super::args::{getopt, Spec};
-use super::table::{self, filesize};
+use super::paint;
+use super::table::filesize;
 use super::{delegate, update, Ctx};
 use crate::sys::{is_admin, local_time};
 use regex_lite::{escape, RegexBuilder};
@@ -183,7 +184,7 @@ pub fn cleanup(ctx: &mut Ctx, args: &[String]) -> i32 {
     }
     if all && !failed {
         let line = ctx.t.get("cleanup.done").to_string();
-        ctx.say(line);
+        ctx.say_as(line, paint::GOOD);
     }
     i32::from(failed)
 }
@@ -349,9 +350,7 @@ pub fn alias(ctx: &mut Ctx, args: &[String]) -> i32 {
                 let line = ctx.t.get("alias.none").to_string();
                 ctx.say(line);
             } else {
-                for line in table::lines(&["Name", "Command", "Summary"], &rows) {
-                    ctx.say(line);
-                }
+                ctx.table(&["Name", "Command", "Summary"], &rows);
             }
             return 0;
         }

@@ -523,3 +523,32 @@ desempenho, e cada um escolhe numa definição quais vão para o Scoop.
   ou espaços — `sco config rscoop_use_scoop install,uninstall`. Vale para qualquer comando (`update` inteiro, `list`…).
 - **`RSCOOP_NATIVE=0`** fica como interruptor de segurança: entrega ao Scoop tudo o que instala ou remove aplicações.
 - Lançada como 0.3.0 a 2026-11-28 (bucket atualizado).
+
+## 17. Tempos e cores (2026-11-28)
+
+Medido em `C:\Users\Miguel\scoop` (360 aplicações), do mesmo `pwsh`, mediana de três, em ms, a saída formatada mas
+não mostrada; `sco` é o 0.3.0 instalado pelo Scoop (passa pelo `shim.exe`):
+
+| Comando | Scoop | sco | | Comando | Scoop | sco |
+|---|---:|---:|---|---|---:|---:|
+| `list` | 9 676 | 461 | | `status --local` | 24 385 | 572 |
+| `shim list` | 38 657 | 1 065 | | `export` | 12 041 | 727 |
+| `bucket list` | 2 068 | 422 | | `search ripgrep` | 2 093 | 765 |
+| `info git` | 801 | 416 | | `depends git` | 328 | 137 |
+| `cat git` | 296 | 138 | | `help` | 444 | 132 |
+| `prefix git` | 185 | 134 | | `config` | 175 | 133 |
+| `cache show` | 237 | 139 | | `which git` | 236 | 347 → 66 |
+
+- **`which`** era o único mais lento: procurava `git` com uma consulta ao disco por pasta do `PATH` e por extensão (45 ×
+  13 = 585). Agora faz uma procura com padrão por pasta (`FindFirstFileW` de `git*`): 292 → 66 ms sem o shim.
+- **O shim do Scoop** custa uns 60 ms por comando (o `shim.exe` arranca o executável noutro processo): 137 ms pelo `sco`
+  contra 74 ms diretos no `help`. A função do `rscoop-cli hook` chama o executável diretamente e não paga isto.
+- **Por fazer, se valer a pena:** o `search` (700 ms) e o `list` (400 ms) leem os manifestos e os JSON das aplicações
+  um a um, e o antivírus pesa em cada um; um índice por bucket (pelo commit do git) e por aplicação (pelo tamanho e pela
+  data) num SQLite próprio levaria o `search` a poucas dezenas de ms. O `info` gasta ~200 ms no `git log` do "Updated by".
+
+**Cores:** a definição `rscoop_color_output` (`sco config rscoop_color_output true`) pinta as tabelas por coluna
+(`cmd/paint.rs`: cabeçalhos a verde, nomes a ciano, a versão instalada a amarelo e a mais recente a verde, o que falhou
+a vermelho, a origem a cinzento) e as mensagens (o começo de cada passo, o sucesso, os avisos a amarelo, os erros a
+vermelho), só num terminal e nunca com `--json` nem `NO_COLOR` (`FORCE_COLOR` força-as). Na consola antiga do Windows
+liga o modo de terminal virtual. Os números e os tamanhos das tabelas ficam alinhados à direita, as versões não.

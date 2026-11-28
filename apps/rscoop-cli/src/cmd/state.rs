@@ -95,9 +95,7 @@ pub fn status(ctx: &mut Ctx, args: &[String]) -> i32 {
             vec![name.clone(), s.version.clone(), latest(s), s.missing_deps.join(" | "), notes.join(", ")]
         })
         .collect();
-    for line in table::lines(&["Name", "Installed Version", "Latest Version", "Missing Dependencies", "Info"], &cells) {
-        ctx.say(line);
-    }
+    ctx.table(&["Name", "Installed Version", "Latest Version", "Missing Dependencies", "Info"], &cells);
     0
 }
 
@@ -166,9 +164,7 @@ pub fn bucket(ctx: &mut Ctx, args: &[String]) -> i32 {
             vec![b.name, b.source, updated, b.manifests.to_string()]
         })
         .collect();
-    for line in table::lines(&["Name", "Source", "Updated", "Manifests"], &cells) {
-        ctx.say(line);
-    }
+    ctx.table(&["Name", "Source", "Updated", "Manifests"], &cells);
     0
 }
 
@@ -213,9 +209,7 @@ pub fn cache(ctx: &mut Ctx, args: &[String]) -> i32 {
                 vec![app, version, size.to_string()]
             })
             .collect();
-        for line in table::lines(&["Name", "Version", "Length"], &cells) {
-            ctx.say(line);
-        }
+        ctx.table(&["Name", "Version", "Length"], &cells);
     }
     let text = ctx.t.fill("cache.total", &[("n", &files.len().to_string()), ("size", &table::filesize(total))]);
     ctx.say(text);
@@ -234,9 +228,7 @@ pub fn config(ctx: &mut Ctx, args: &[String]) -> i32 {
             ctx.print_json(&config);
         } else if let Json::Obj(members) = &ctx.scoop.config {
             let items: Vec<(String, String)> = members.iter().map(|(k, v)| (k.clone(), text(v))).collect();
-            for line in table::pairs(&items) {
-                ctx.say(line);
-            }
+            ctx.pairs(&items);
         }
         return 0;
     };

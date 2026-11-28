@@ -12,6 +12,7 @@ use super::download::{aria2_program, to_cache};
 use super::install::{install_app, show_suggestions, Options};
 use super::machinery::{mirror, remove_shims, say_changes, still_running, Scripts};
 use super::maintain::confirm;
+use super::paint;
 use super::{delegate, update, Ctx};
 use crate::sys::{is_admin, today};
 use rt_scoop::apps;
@@ -101,7 +102,7 @@ pub fn run(ctx: &mut Ctx, args: &[String]) -> i32 {
         } else if !every {
             if status.installed {
                 let line = ctx.t.fill("update.latest", &[("app", app), ("version", &status.version)]);
-                ctx.say(line);
+                ctx.say_as(line, paint::GOOD);
             } else {
                 let line = ctx.t.get("update.reinstall").to_string();
                 ctx.say(line);
@@ -117,7 +118,7 @@ pub fn run(ctx: &mut Ctx, args: &[String]) -> i32 {
             1 => ctx.t.get("update.one").to_string(),
             n => ctx.t.fill("update.many", &[("n", &n.to_string())]),
         };
-        ctx.say(line);
+        ctx.say_as(line, paint::GOOD);
     }
     // The new versions into the cache, several at a time.
     let mut planned = Vec::new();
@@ -195,7 +196,7 @@ fn update_app(ctx: &mut Ctx, app: &str, o: &Options, force: bool, quiet: bool, i
         return Ok(Vec::new());
     }
     let line = ctx.t.fill("update.updating", &[("app", app), ("old", &old), ("new", &new)]);
-    ctx.say(line);
+    ctx.say_as(line, paint::NAME);
     if still_running(ctx, app, global) {
         let line = ctx.t.get("update.running").to_string();
         ctx.say(line);

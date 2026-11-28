@@ -3,6 +3,7 @@
 
 use super::args::getopt;
 use super::machinery::{create_shims, say_changes, still_running};
+use super::paint;
 use super::{delegate, Ctx};
 use crate::sys::is_admin;
 use rt_scoop::apps;
@@ -148,7 +149,7 @@ pub fn run(ctx: &mut Ctx, args: &[String]) -> i32 {
 /// Err: the exit code when Scoop would stop the whole command.
 pub(super) fn reset_one(ctx: &mut Ctx, t: &Target) -> Result<(), i32> {
     let line = ctx.t.fill("reset.start", &[("app", &t.app), ("version", &t.version)]);
-    ctx.say(line);
+    ctx.say_as(line, paint::NAME);
     let original = env::absolute(&ctx.scoop.app(&t.app, t.global).join(&t.version));
     let persist_dir = ctx.scoop.persist(&t.app, t.global);
     if still_running(ctx, &t.app, t.global) {

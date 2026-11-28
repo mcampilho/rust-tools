@@ -44,6 +44,9 @@ never goes through a link into `persist`. **What it leaves to Scoop:** an update
 Scoop's own repository (another repository or branch, no git), the SQLite cache, `app@version`,
 manifests from a web address, and downloads through a proxy, FTP or FossHub.
 
+**Colours:** `sco config rscoop_color_output true` colours the tables (names, versions, what is held or failed) and the
+messages, on a terminal only (never with `--json` or `NO_COLOR`). Numbers and sizes are aligned to the right.
+
 `--json` gives the data of every command done here, `--root PATH` chooses the installation and
 `--lang en|pt|es` the language. The installation is the one Scoop would use: `--root`, `SCOOP`,
 `root_path`, where the `scoop` on `PATH` is, then `~\scoop`; a portable `config.json` in the root

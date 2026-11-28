@@ -17,6 +17,7 @@ mod install;
 mod listing;
 mod machinery;
 mod maintain;
+pub mod paint;
 mod query;
 mod reset;
 mod shim;
@@ -91,6 +92,8 @@ pub struct Ctx<'a> {
     pub system_arch: Arch,
     /// The registry, the Start menu and the processes.
     pub system: &'a dyn System,
+    /// Colours in the output (`rscoop_color_output`, a terminal, no `--json`).
+    pub color: bool,
     pub out: &'a mut dyn Write,
     pub err: &'a mut dyn Write,
 }
@@ -106,15 +109,47 @@ impl Ctx<'_> {
         self.say(text);
     }
 
-    /// A message on stderr; returns the exit code 1.
+    /// A message on stderr, in red when there are colours; returns the exit
+    /// code 1.
     pub fn fail(&mut self, key: &str, args: &[(&str, &str)]) -> i32 {
-        let text = self.t.fill(key, args);
-        let _ = writeln!(self.err, "{text}");
+        self.message(key, args, paint::BAD);
         1
     }
 
+    /// A message on stderr, in yellow when there are colours.
     pub fn warn(&mut self, key: &str, args: &[(&str, &str)]) {
-        let _ = self.fail(key, args);
+        self.message(key, args, paint::WARN);
+    }
+
+    fn message(&mut self, key: &str, args: &[(&str, &str)], code: &str) {
+        let text = self.t.fill(key, args);
+        let text = if self.color { paint::wrap(code, &text) } else { text };
+        let _ = writeln!(self.err, "{text}");
+    }
+
+    /// A line in a colour (`paint::GOOD`…) when there are colours.
+    pub fn say_as(&mut self, line: impl AsRef<str>, code: &str) {
+        let text = if self.color { paint::wrap(code, line.as_ref()) } else { line.as_ref().to_string() };
+        self.say(text);
+    }
+
+    /// A table ([`table::lines`]), with colours by column when there are.
+    pub fn table(&mut self, headers: &[&str], rows: &[Vec<String>]) {
+        let style: &dyn Fn(&str, &str) -> Option<&'static str> = &paint::cell;
+        for line in table::render(headers, rows, self.color.then_some(style)) {
+            self.say(line);
+        }
+    }
+
+    /// `Name : value` lines ([`table::pairs`]), the names in colour.
+    pub fn pairs(&mut self, items: &[(String, String)]) {
+        for line in table::pairs(items) {
+            let line = match line.split_once(" :") {
+                Some((key, rest)) if self.color && !key.starts_with(' ') => format!("{} :{rest}", paint::wrap(paint::NAME, key)),
+                _ => line,
+            };
+            self.say(line);
+        }
     }
 
     pub fn arch(&self) -> Arch {
@@ -212,6 +247,9 @@ pub fn is_native(command: &str, args: &[String]) -> bool {
 /// separated by commas or spaces.
 pub const USE_SCOOP: &str = "rscoop_use_scoop";
 
+/// The setting that turns the colours of the output on (`true`).
+pub const COLOR: &str = "rscoop_color_output";
+
 /// The commands `rscoop_use_scoop` names, in lower case.
 pub fn scoop_commands(scoop: &Scoop) -> Vec<String> {
     let words = |s: &str| s.split([',', ' ', ';']).filter(|w| !w.is_empty()).map(str::to_lowercase).collect::<Vec<_>>();
@@ -251,6 +289,14 @@ pub fn run(mut line: Line, outside: Outside, out: &mut dyn Write, err: &mut dyn 
     let located = core_root(&env, outside.exe.as_deref());
     let scoop = Scoop::locate(&env, line.root.as_deref(), located);
     let root_given = line.root.is_some();
+    // Colours: the user's choice, and only on a terminal.
+    let color = !line.json
+        && scoop.enabled(COLOR)
+        && env.get("NO_COLOR").is_none()
+        && (env.get("FORCE_COLOR").is_some() || std::io::IsTerminal::is_terminal(&std::io::stdout()));
+    if color {
+        crate::sys::enable_colors();
+    }
     let mut ctx = Ctx {
         scoop,
         env,
@@ -260,6 +306,7 @@ pub fn run(mut line: Line, outside: Outside, out: &mut dyn Write, err: &mut dyn 
         root_given,
         system_arch: outside.system_arch,
         system: outside.system,
+        color,
         out,
         err,
     };

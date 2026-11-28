@@ -90,10 +90,56 @@ pub(super) fn find_command(ctx: &Ctx, command: &str) -> Option<PathBuf> {
         .chain(ctx.env.get("PATHEXT").unwrap_or(".COM;.EXE;.BAT;.CMD").split(';').filter(|e| !e.is_empty()).map(str::to_ascii_lowercase))
         .collect();
     let has_extension = Path::new(command).extension().is_some();
+    let lower = command.to_lowercase();
     ctx.env.path().find_map(|dir| {
-        let exact = has_extension.then(|| dir.join(command)).filter(|p| p.is_file());
-        exact.or_else(|| extensions.iter().map(|e| dir.join(format!("{command}{e}"))).find(|p| p.is_file()))
+        // One look at the folder for `command` and `command.*`, not one for
+        // each extension (45 folders on PATH would be 585 looks).
+        let found = files_like(&dir, command)?;
+        let exact = (has_extension && found.contains(&lower)).then(|| dir.join(command));
+        exact.or_else(|| extensions.iter().find(|e| found.contains(&format!("{lower}{e}"))).map(|e| dir.join(format!("{command}{e}"))))
     })
+}
+
+/// The files of `dir` named `name` or `name.*`, in lower case; None when
+/// there are none (or no folder).
+#[cfg(windows)]
+fn files_like(dir: &Path, name: &str) -> Option<Vec<String>> {
+    use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
+    use windows_sys::Win32::Storage::FileSystem::{FindClose, FindFirstFileW, FindNextFileW, FILE_ATTRIBUTE_DIRECTORY, WIN32_FIND_DATAW};
+    let pattern = crate::sys::wide(&dir.join(format!("{name}*")).display().to_string());
+    let mut found = Vec::new();
+    // SAFETY: a NUL-terminated pattern; the handle is closed.
+    unsafe {
+        let mut data: WIN32_FIND_DATAW = std::mem::zeroed();
+        let handle = FindFirstFileW(pattern.as_ptr(), &mut data);
+        if handle == INVALID_HANDLE_VALUE {
+            return None;
+        }
+        loop {
+            if data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY == 0 {
+                let len = data.cFileName.iter().position(|&c| c == 0).unwrap_or(data.cFileName.len());
+                found.push(String::from_utf16_lossy(&data.cFileName[..len]).to_lowercase());
+            }
+            if FindNextFileW(handle, &mut data) == 0 {
+                break;
+            }
+        }
+        FindClose(handle);
+    }
+    (!found.is_empty()).then_some(found)
+}
+
+#[cfg(not(windows))]
+fn files_like(dir: &Path, name: &str) -> Option<Vec<String>> {
+    let prefix = name.to_lowercase();
+    let found: Vec<String> = std::fs::read_dir(dir)
+        .ok()?
+        .flatten()
+        .filter(|e| e.file_type().is_ok_and(|t| !t.is_dir()))
+        .map(|e| e.file_name().to_string_lossy().to_lowercase())
+        .filter(|n| n.starts_with(&prefix))
+        .collect();
+    (!found.is_empty()).then_some(found)
 }
 
 pub fn which(ctx: &mut Ctx, args: &[String]) -> i32 {
@@ -163,9 +209,7 @@ pub fn depends(ctx: &mut Ctx, args: &[String]) -> i32 {
         ctx.print_json(&Json::Arr(list));
     } else {
         let cells: Vec<Vec<String>> = rows.into_iter().map(|(s, n)| vec![s, n]).collect();
-        for line in table::lines(&["Source", "Name"], &cells) {
-            ctx.say(line);
-        }
+        ctx.table(&["Source", "Name"], &cells);
     }
     0
 }
@@ -346,9 +390,7 @@ pub fn info(ctx: &mut Ctx, args: &[String]) -> i32 {
         let members = items.into_iter().map(|(k, v)| (k, string(v))).collect();
         ctx.print_json(&Json::Obj(members));
     } else {
-        for line in table::pairs(&items) {
-            ctx.say(line);
-        }
+        ctx.pairs(&items);
     }
     0
 }

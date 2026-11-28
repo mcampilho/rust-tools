@@ -14,6 +14,7 @@
 use super::args::{getopt, Spec};
 use super::download::{aria2_program, job, prefetch, to_cache};
 use super::machinery::{create_shims, mirror, remove_shims, say_changes, Scripts};
+use super::paint;
 use super::versions::{self, Found};
 use super::{delegate, update, Ctx};
 use crate::sys::{is_admin, today, windows_11};
@@ -331,7 +332,7 @@ pub fn install_app(ctx: &mut Ctx, entry: &str, o: &Options, scripts: Option<&mut
         }
         Some(p) => ctx.t.fill("install.start_path", &[("app", &app), ("version", &version), ("arch", arch.name()), ("path", p)]),
     };
-    ctx.say(line);
+    ctx.say_as(line, paint::NAME);
     let query = from_path.clone().unwrap_or_else(|| format!("{bucket}/{app}"));
 
     let version_dir = ctx.scoop.app(&app, o.global).join(&version);
@@ -403,7 +404,7 @@ pub fn install_app(ctx: &mut Ctx, entry: &str, o: &Options, scripts: Option<&mut
     };
 
     let line = ctx.t.fill("install.done", &[("app", &app), ("version", &version)]);
-    ctx.say(line);
+    ctx.say_as(line, paint::GOOD);
     let notes = rt_scoop::manifest::strings(manifest.get("notes")).join("\n");
     if !notes.is_empty() {
         let notes = shortcuts::substitute(&notes, &dir, &original, &persist_dir);

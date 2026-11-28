@@ -48,16 +48,27 @@ pub(super) fn rscoop_on(root: &Path, args: &[&str], system: &rt_scoop::system::F
 
 /// `native`: false sets RSCOOP_NATIVE=0, which hands to Scoop what installs or removes apps.
 pub(super) fn rscoop_native(root: &Path, args: &[&str], system: &rt_scoop::system::FakeSystem, native: bool) -> (i32, String, String) {
+    rscoop_with(root, args, system, &[("RSCOOP_NATIVE", if native { "" } else { "0" })])
+}
+
+/// The same, with more variables.
+pub(super) fn rscoop_with(
+    root: &Path,
+    args: &[&str],
+    system: &rt_scoop::system::FakeSystem,
+    extra: &[(&str, &str)],
+) -> (i32, String, String) {
     let mut all = vec!["--lang".to_string(), "en".into(), "--root".into(), root.display().to_string()];
     all.extend(args.iter().map(|a| a.to_string()));
     let line = command_line(&all).expect("a command");
     let registry = FakeRegistry::new();
     let vars = HashMap::from([
-        ("RSCOOP_NATIVE".to_string(), if native { "" } else { "0" }.to_string()),
         ("USERPROFILE".to_string(), root.join("home").display().to_string()),
         // The shims of the installation, then the real programs (git, PowerShell).
         ("PATH".to_string(), format!("{};{}", root.join("shims").display(), std::env::var("PATH").unwrap_or_default())),
     ]);
+    let mut vars = vars;
+    vars.extend(extra.iter().map(|(k, v)| (k.to_string(), v.to_string())));
     let outside = Outside { vars, exe: None, system_arch: Arch::X64, registry: &registry, system };
     let (mut out, mut err) = (Vec::new(), Vec::new());
     let code = run(line, outside, &mut out, &mut err);
@@ -201,4 +212,21 @@ fn outdated_leaves_uses_size_unused_and_hook() {
     assert_eq!(out.trim(), "spare");
     let (_, out, _) = rscoop(&root, &["hook"]);
     assert!(out.contains("function scoop {") && out.contains("rscoop-cli") && out.contains("@args"), "{out}");
+}
+
+#[test]
+fn colours_only_when_asked_for() {
+    let root = installation("colours");
+    let (_, out, _) = rscoop(&root, &["list"]);
+    assert!(!out.contains('\x1b'), "{out}");
+    write(&root, "home/.config/scoop/config.json", r#"{"rscoop_color_output": true}"#);
+    // Not a terminal (the tests catch the output): still no colours.
+    let (_, out, _) = rscoop(&root, &["list"]);
+    assert!(!out.contains('\x1b'), "{out}");
+    let system = rt_scoop::system::FakeSystem::new(root.join("menu"));
+    let forced = [("FORCE_COLOR", "1")];
+    let (_, out, err) = rscoop_with(&root, &["list"], &system, &forced);
+    let (_, json, _) = rscoop_with(&root, &["--json", "list"], &system, &forced);
+    assert!(out.contains("\x1b[36mripgrep\x1b[0m") && out.contains("\x1b[32;1mName"), "{out}{err}");
+    assert!(!json.contains('\x1b'), "{json}");
 }

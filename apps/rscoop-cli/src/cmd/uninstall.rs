@@ -8,6 +8,7 @@
 use super::args::getopt;
 use super::machinery::{mirror, remove_shims, say_changes, still_running, Scripts};
 use super::maintain::confirm;
+use super::paint;
 use super::Ctx;
 use crate::sys::is_admin;
 use rt_scoop::apps;
@@ -93,7 +94,7 @@ fn uninstall_one(ctx: &mut Ctx, app: &str, global: bool, purge: bool) -> Result<
     let mut manifest = None;
     if let Some(version) = &version {
         let line = ctx.t.fill("uninstall.start", &[("app", app), ("version", version)]);
-        ctx.say(line);
+        ctx.say_as(line, paint::NAME);
         let dir = app_dir.join(version);
         let m = apps::installed_manifest(&ctx.scoop, app, version, global).unwrap_or(Manifest(Json::Obj(Vec::new())));
         let arch =
@@ -148,7 +149,7 @@ fn uninstall_one(ctx: &mut Ctx, app: &str, global: bool, purge: bool) -> Result<
         }
     }
     let line = ctx.t.fill("uninstall.done", &[("app", app)]);
-    ctx.say(line);
+    ctx.say_as(line, paint::GOOD);
     Ok(())
 }
 
