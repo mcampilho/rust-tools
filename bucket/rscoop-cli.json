@@ -1,13 +1,13 @@
 {
-    "version": "0.3.1",
+    "version": "0.3.2",
     "description": "A faster Scoop on the same installation (also as sco): lists, searches, updates and looks after it itself, hands the rest to Scoop, and checks and repairs what points to an old Scoop root",
     "homepage": "https://github.com/mcampilho/rust-tools/tree/master/apps/rscoop-cli",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/mcampilho/rust-tools/releases/download/rscoop-cli-v0.3.1/rscoop-cli-0.3.1-windows-x86_64.zip",
-            "hash": "8debac030dc71af9c78a1503c346ff0e2d59c8ee90d1b2691ece149ec3ebbcf7",
-            "extract_dir": "rscoop-cli-0.3.1-windows-x86_64"
+            "url": "https://github.com/mcampilho/rust-tools/releases/download/rscoop-cli-v0.3.2/rscoop-cli-0.3.2-windows-x86_64.zip",
+            "hash": "37edd7506d699d1c1328cb042d1bc5822384d669972ecb5940c2da98b80d5d8b",
+            "extract_dir": "rscoop-cli-0.3.2-windows-x86_64"
         }
     },
     "bin": [
