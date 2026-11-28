@@ -19,7 +19,7 @@ rscoop-cli list
 rscoop-cli search ripgrep
 rscoop-cli update
 rscoop-cli status
-rscoop-cli install ripgrep      (entregue ao Scoop)
+rscoop-cli install ripgrep
 ```
 
 | Comando | O que faz |
@@ -29,7 +29,7 @@ rscoop-cli install ripgrep      (entregue ao Scoop)
 | `status [--local]` | Se o Scoop e os buckets estão atrasados (consultados ao mesmo tempo) e depois as aplicações desatualizadas, estragadas, descontinuadas e removidas. `--local` não usa a rede. |
 | `which`, `prefix`, `depends` | O programa de um comando, a pasta de uma aplicação, o que ela precisa. |
 | `export [-c]`, `checkup` | A instalação em JSON; os testes do `scoop checkup` e depois as verificações abaixo (valem as opções delas). |
-| `update` | Atualiza o Scoop e os buckets, estes ao mesmo tempo. O `update <app>` é do Scoop. |
+| `update` | Sem nomes de aplicações: atualiza o Scoop e os buckets, estes ao mesmo tempo. |
 | `bucket list\|known\|add\|rm`, `config [nome [valor]]`, `alias add\|rm\|list` | Buckets, definições e aliases. |
 | `download <app…> [-f] [-s] [-a arq]` | Os ficheiros das aplicações para a cache, com as somas conferidas (aria2 quando o Scoop o usaria). |
 | `cache show\|rm`, `cleanup <app…>\|* [-g] [-k]` | O que fica guardado: descargas e versões antigas. |
@@ -42,7 +42,7 @@ rscoop-cli install ripgrep      (entregue ao Scoop)
 apagaria a instalação); o `cleanup` não remove nada quando não sabe qual é a versão atual, e nunca
 segue uma ligação para dentro do `persist`. **O que deixa para o Scoop:** uma atualização que
 reporia o repositório do próprio Scoop (outro repositório ou ramo, sem git), a cache SQLite,
-`app@versão`, manifestos de um endereço da web e descargas por proxy, FTP ou FossHub.
+manifestos de um ficheiro ou de um endereço da web e descargas por proxy, FTP ou FossHub.
 
 **Cores:** `sco config rscoop_color_output true` pinta as tabelas (nomes, versões, o que está fixado ou falhou), as
 mensagens, a ajuda e o relatório das verificações, só num terminal (nunca com `--json` nem `NO_COLOR`). Os números e tamanhos ficam alinhados à direita.
@@ -56,13 +56,15 @@ O `search` e o `list` guardam um índice em `%LOCALAPPDATA%\rscoop\index.db` (SQ
 manifesto e dos dados de instalação de cada aplicação, pelo tamanho e pela data do ficheiro: só se volta a ler o
 que mudou (`search` em 5 000 manifestos: 0,8 → 0,15 s). `RSCOOP_INDEX=0` desliga-o.
 
-Num PC com duas instalações (uma leitura de cada, não é um benchmark):
+Numa instalação com 367 aplicações e 5 010 manifestos (0.3.2, mediana de três, `sco` pelo shim do Scoop):
 
-| | Scoop, 361 aplicações | rscoop-cli, 361 | rscoop-cli, 1500 |
-|---|---:|---:|---:|
-| `list` | 10,7 s | 0,4 s | 1,5 s |
-| `status --local` | 24,8 s | 0,5 s | 2,0 s |
-| `search` | 4,6 s | 0,5 s | 1,2 s |
+| | Scoop | rscoop-cli |
+|---|---:|---:|
+| `list` | 10,5 s | 0,33 s |
+| `status --local` | 27,5 s | 0,73 s |
+| `search ripgrep` | 2,4 s | 0,23 s |
+| `export` | 13,7 s | 0,67 s |
+| `shim list` | 41,9 s | 1,14 s |
 
 ## Verificar uma instalação
 

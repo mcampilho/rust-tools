@@ -19,7 +19,7 @@ rscoop-cli list
 rscoop-cli search ripgrep
 rscoop-cli update
 rscoop-cli status
-rscoop-cli install ripgrep      (handed to Scoop)
+rscoop-cli install ripgrep
 ```
 
 | Command | What it does |
@@ -29,7 +29,7 @@ rscoop-cli install ripgrep      (handed to Scoop)
 | `status [--local]` | Whether Scoop and the buckets are behind (asked at the same time), then the outdated, broken, deprecated and removed apps. `--local` skips the network. |
 | `which`, `prefix`, `depends` | The program behind a command, the folder of an app, what an app needs. |
 | `export [-c]`, `checkup` | The installation as JSON; the tests of `scoop checkup`, then the checks below (their options apply). |
-| `update` | Pulls Scoop and the buckets, the buckets at the same time. `update <app>` is Scoop's. |
+| `update` | Without app names: pulls Scoop and the buckets, the buckets at the same time. |
 | `bucket list\|known\|add\|rm`, `config [name [value]]`, `alias add\|rm\|list` | Buckets, settings and aliases. |
 | `download <app…> [-f] [-s] [-a arch]` | The files of apps into the cache, with their hashes checked (aria2 when Scoop would use it). |
 | `cache show\|rm`, `cleanup <app…>\|* [-g] [-k]` | What is kept: downloads and old versions. |
@@ -41,8 +41,8 @@ rscoop-cli install ripgrep      (handed to Scoop)
 **Where it is more careful than Scoop:** `bucket rm` only takes the name of a bucket (`bucket rm ..`
 would remove the installation); `cleanup` removes nothing when the current version cannot be told, and
 never goes through a link into `persist`. **What it leaves to Scoop:** an update that would reset
-Scoop's own repository (another repository or branch, no git), the SQLite cache, `app@version`,
-manifests from a web address, and downloads through a proxy, FTP or FossHub.
+Scoop's own repository (another repository or branch, no git), the SQLite cache, manifests
+from a file or a web address, and downloads through a proxy, FTP or FossHub.
 
 **Colours:** `sco config rscoop_color_output true` colours the tables (names, versions, what is held or failed), the
 messages, the help and the report of the checks, on a terminal only (never with `--json` or `NO_COLOR`). Numbers and sizes are aligned to the right.
@@ -56,13 +56,15 @@ counts. `compare.ps1` compares the answers with the official Scoop.
 manifest and from each app's installation data, by the file's size and time: only what changed is read
 again (`search` over 5 000 manifests: 0.8 → 0.15 s). `RSCOOP_INDEX=0` turns it off.
 
-On a PC with two installations (one reading of each, not a benchmark):
+On an installation with 367 apps and 5,010 manifests (0.3.2, median of three, `sco` through Scoop's shim):
 
-| | Scoop, 361 apps | rscoop-cli, 361 apps | rscoop-cli, 1500 apps |
-|---|---:|---:|---:|
-| `list` | 10.7 s | 0.4 s | 1.5 s |
-| `status --local` | 24.8 s | 0.5 s | 2.0 s |
-| `search` | 4.6 s | 0.5 s | 1.2 s |
+| | Scoop | rscoop-cli |
+|---|---:|---:|
+| `list` | 10.5 s | 0.33 s |
+| `status --local` | 27.5 s | 0.73 s |
+| `search ripgrep` | 2.4 s | 0.23 s |
+| `export` | 13.7 s | 0.67 s |
+| `shim list` | 41.9 s | 1.14 s |
 
 ## Checking an installation
 
