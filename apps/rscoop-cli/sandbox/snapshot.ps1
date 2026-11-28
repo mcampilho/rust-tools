@@ -8,14 +8,19 @@
 #   env        the variables of the user (HKCU\Environment), not expanded
 #   registry   HKCU\Software\Classes and the Run and Uninstall keys
 #   shortcuts  the .lnk files in Start Menu\Programs\Scoop Apps
+#   global*    the same for the global apps: their root, the variables of the
+#              machine and the Start menu of all users
+#   config     Scoop's settings, without last_update
 #
 # Runs in Windows PowerShell 5.1 (the one Windows Sandbox has).
 #
 # Usage: ./snapshot.ps1 -Root C:\scoop -Out C:\share\results\official\1-installed.json
 param(
     [Parameter(Mandatory)][string]$Root,
+    [string]$GlobalRoot = "$env:ProgramData\scoop",
     [Parameter(Mandatory)][string]$Out,
-    [string]$Menu = (Join-Path ([Environment]::GetFolderPath('StartMenu')) 'Programs\Scoop Apps')
+    [string]$Menu = (Join-Path ([Environment]::GetFolderPath('StartMenu')) 'Programs\Scoop Apps'),
+    [string]$CommonMenu = (Join-Path ([Environment]::GetFolderPath('CommonStartMenu')) 'Programs\Scoop Apps')
 )
 $ErrorActionPreference = 'Stop'
 
@@ -51,18 +56,16 @@ namespace Rscoop {
 '@
 }
 
-$Root = (Resolve-Path -LiteralPath $Root).Path.TrimEnd('\')
 $skip = '^(cache|buckets|apps\\scoop)(\\|$)'
-$tree = New-Object System.Collections.Generic.List[string]
 
 function Get-Hash([string]$path) {
     (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.Substring(0, 16)
 }
 
-# Down the folders without going through links.
-function Add-Folder([string]$dir) {
+# Down the folders without going through links, into $tree, paths from $base.
+function Add-Folder([string]$dir, [string]$base, $tree) {
     foreach ($path in [IO.Directory]::EnumerateFileSystemEntries($dir)) {
-        $relative = $path.Substring($Root.Length + 1)
+        $relative = $path.Substring($base.Length + 1)
         if ($relative -match $skip) { continue }
         $attributes = [IO.File]::GetAttributes($path)
         $readonly = if ($attributes -band [IO.FileAttributes]::ReadOnly) { 'ro' } else { 'rw' }
@@ -71,7 +74,7 @@ function Add-Folder([string]$dir) {
             $tree.Add("link|$relative|$readonly|$target")
         } elseif ($attributes -band [IO.FileAttributes]::Directory) {
             $tree.Add("dir|$relative|$readonly")
-            Add-Folder $path
+            Add-Folder $path $base $tree
         } else {
             $size = (New-Object IO.FileInfo $path).Length
             $names = [Rscoop.Files]::Links($path)
@@ -80,15 +83,29 @@ function Add-Folder([string]$dir) {
         }
     }
 }
-Add-Folder $Root
-
-$env = New-Object System.Collections.Generic.List[string]
-$key = Get-Item -LiteralPath 'HKCU:\Environment'
-foreach ($name in $key.GetValueNames()) {
-    $kind = $key.GetValueKind($name)
-    $value = $key.GetValue($name, $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
-    $env.Add("$name|$kind|$value")
+function Get-Tree([string]$base) {
+    $tree = New-Object System.Collections.Generic.List[string]
+    if (Test-Path -LiteralPath $base) {
+        $base = (Resolve-Path -LiteralPath $base).Path.TrimEnd('\')
+        Add-Folder $base $base $tree
+    }
+    , $tree
 }
+$tree = Get-Tree $Root
+$globalTree = Get-Tree $GlobalRoot
+
+function Get-Variables([string]$path) {
+    $list = New-Object System.Collections.Generic.List[string]
+    $key = Get-Item -LiteralPath $path
+    foreach ($name in $key.GetValueNames()) {
+        $kind = $key.GetValueKind($name)
+        $value = $key.GetValue($name, $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+        $list.Add("$name|$kind|$value")
+    }
+    , $list
+}
+$env = Get-Variables 'HKCU:\Environment'
+$machineEnv = Get-Variables 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment'
 
 $registry = New-Object System.Collections.Generic.List[string]
 foreach ($base in 'HKCU:\Software\Classes', 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run', 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall') {
@@ -103,24 +120,42 @@ foreach ($base in 'HKCU:\Software\Classes', 'HKCU:\Software\Microsoft\Windows\Cu
     }
 }
 
-$shortcuts = New-Object System.Collections.Generic.List[string]
-if (Test-Path -LiteralPath $Menu) {
-    $shell = New-Object -ComObject WScript.Shell
-    foreach ($lnk in Get-ChildItem -LiteralPath $Menu -Recurse -Force) {
-        $relative = $lnk.FullName.Substring($Menu.Length).TrimStart('\')
-        if ($lnk.PSIsContainer) { $shortcuts.Add("dir|$relative"); continue }
-        $s = $shell.CreateShortcut($lnk.FullName)
-        $shortcuts.Add("lnk|$relative|$($s.TargetPath)|$($s.Arguments)|$($s.WorkingDirectory)|$($s.IconLocation)")
+function Get-Shortcuts([string]$folder) {
+    $list = New-Object System.Collections.Generic.List[string]
+    if (Test-Path -LiteralPath $folder) {
+        $shell = New-Object -ComObject WScript.Shell
+        foreach ($lnk in Get-ChildItem -LiteralPath $folder -Recurse -Force) {
+            $relative = $lnk.FullName.Substring($folder.Length).TrimStart('\')
+            if ($lnk.PSIsContainer) { $list.Add("dir|$relative"); continue }
+            $s = $shell.CreateShortcut($lnk.FullName)
+            $list.Add("lnk|$relative|$($s.TargetPath)|$($s.Arguments)|$($s.WorkingDirectory)|$($s.IconLocation)")
+        }
+    }
+    , $list
+}
+$shortcuts = Get-Shortcuts $Menu
+$commonShortcuts = Get-Shortcuts $CommonMenu
+
+$config = New-Object System.Collections.Generic.List[string]
+$configFile = Join-Path $env:USERPROFILE '.config\scoop\config.json'
+if (Test-Path -LiteralPath $configFile) {
+    $json = Get-Content -LiteralPath $configFile -Raw | ConvertFrom-Json
+    foreach ($p in $json.PSObject.Properties | Where-Object Name -ne 'last_update') {
+        $config.Add("$($p.Name)|$($p.Value | ConvertTo-Json -Compress -Depth 5)")
     }
 }
 
 $snapshot = [ordered]@{
-    tree      = @($tree | Sort-Object)
-    env       = @($env | Sort-Object)
-    registry  = @($registry | Sort-Object)
-    shortcuts = @($shortcuts | Sort-Object)
+    tree            = @($tree | Sort-Object)
+    env             = @($env | Sort-Object)
+    registry        = @($registry | Sort-Object)
+    shortcuts       = @($shortcuts | Sort-Object)
+    globaltree      = @($globalTree | Sort-Object)
+    machineenv      = @($machineEnv | Sort-Object)
+    globalshortcuts = @($commonShortcuts | Sort-Object)
+    config          = @($config | Sort-Object)
 }
 New-Item -ItemType Directory -Force -Path (Split-Path $Out) | Out-Null
 # One line per entry: easy to read and to compare.
 $snapshot | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $Out -Encoding UTF8
-Write-Host "Snapshot: $Out ($($tree.Count) files and folders, $($env.Count) variables, $($registry.Count) registry lines, $($shortcuts.Count) shortcuts)"
+Write-Host "Snapshot: $Out ($($tree.Count) + $($globalTree.Count) files and folders, $($env.Count) + $($machineEnv.Count) variables, $($registry.Count) registry lines, $($shortcuts.Count) + $($commonShortcuts.Count) shortcuts)"

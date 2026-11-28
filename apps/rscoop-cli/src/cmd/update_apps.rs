@@ -50,6 +50,9 @@ pub fn run(ctx: &mut Ctx, args: &[String]) -> i32 {
         Err(option) => return ctx.fail("cli.unknown_option", &[("opt", &option)]),
     };
     let (global, force, quiet, all) = (opts.has('g'), opts.has('f'), opts.has('q'), opts.has('a'));
+    if let Err(code) = update::defaults(ctx) {
+        return code;
+    }
     let to_scoop = |ctx: &mut Ctx| {
         let mut line = vec!["update".to_string()];
         line.extend(args.iter().cloned());

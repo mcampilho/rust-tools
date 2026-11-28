@@ -89,6 +89,9 @@ pub fn add_path(system: &dyn System, paths: &[String], variable: &str, global: b
     if !found.is_empty() && !force {
         return Ok(Vec::new());
     }
+    // A variable that is not there (or empty) gives Scoop an empty rest,
+    // and so a `;` at the end.
+    let rest = if current.is_empty() { vec![String::new()] } else { rest };
     let value: Vec<String> = paths.iter().cloned().chain(rest).collect();
     set_var(system, variable, Some(&value.join(";")), global)?;
     Ok(paths.iter().map(|p| Change::Added(p.clone())).collect())

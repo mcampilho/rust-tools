@@ -89,14 +89,20 @@ fn hand_over(ctx: &Ctx, git: &Git) -> bool {
         || git.text(&core, &["branch", "--show-current"]).is_some_and(|b| b != configured("scoop_branch", BRANCH))
 }
 
-/// `set_config` of the defaults and `Test-ScoopCoreOnHold`: is the update of
-/// Scoop itself held?
-fn core_held(ctx: &mut Ctx) -> Result<bool, i32> {
+/// What `scoop-update.ps1` does as it starts, whatever it updates: the
+/// repository and branch of Scoop written to the settings if they are not.
+pub fn defaults(ctx: &mut Ctx) -> Result<(), i32> {
     for (name, default) in [("scoop_repo", REPOSITORY), ("scoop_branch", BRANCH)] {
         if ctx.scoop.setting(name).str().is_empty() {
             set_setting(ctx, name, Some(string(default)))?;
         }
     }
+    Ok(())
+}
+
+/// `Test-ScoopCoreOnHold`: is the update of Scoop itself held?
+fn core_held(ctx: &mut Ctx) -> Result<bool, i32> {
+    defaults(ctx)?;
     let mut held = false;
     if let Some(until) = parse_time(ctx.scoop.setting("hold_update_until").str(), utc_offset()) {
         if until > now() {
