@@ -14,6 +14,7 @@
 use super::args::{getopt, Spec};
 use super::download::{aria2_program, job, prefetch, to_cache};
 use super::machinery::{create_shims, remove_shims, say_changes, Scripts};
+use super::versions::{self, Found};
 use super::{delegate, update, Ctx};
 use crate::sys::{is_admin, today, windows_11};
 use rt_scoop::apps;
@@ -47,23 +48,31 @@ pub struct Options {
     pub command: &'static str,
 }
 
-/// Why Scoop has to do the whole command, if it does.
-fn only_scoop(ctx: &Ctx, queries: &[String], global: bool) -> bool {
+/// The app an entry of the list names: the file's name for a manifest file.
+pub fn entry_name(entry: &str) -> String {
+    if entry.to_ascii_lowercase().ends_with(".json") {
+        let leaf = entry.rsplit(['/', '\\']).next().unwrap_or(entry);
+        return leaf[..leaf.len() - 5].to_string();
+    }
+    parse_app(entry).app
+}
+
+/// Why Scoop has to do the whole command, if it does. `made`: the manifest
+/// files of `app@version` written here, which are installed here.
+fn only_scoop(ctx: &Ctx, queries: &[String], global: bool, made: &[String]) -> bool {
     let proxy = !matches!(ctx.scoop.setting("proxy").str(), "" | "default");
     proxy
         || ctx.scoop.enabled("use_sqlite_cache")
         || ctx.scoop.enabled("show_manifest")
         || queries.iter().any(|q| {
-            let parsed = parse_app(q);
-            let name = parsed.app.rsplit(['/', '\\']).next().unwrap_or(&parsed.app).trim_end_matches(".json").to_string();
-            parsed.version.is_some()
-                || q.ends_with(".json")
-                || resolve::is_remote(q)
-                || Path::new(q).is_file()
+            let ours = made.contains(q);
+            let versioned = parse_app(q).version.is_some();
+            let name = entry_name(q);
+            (!ours && !versioned && (q.ends_with(".json") || resolve::is_remote(q) || Path::new(q).is_file()))
                 // A failed installation is repaired by Scoop's reset or uninstall.
                 || [global, !global].iter().any(|&g| apps::failed(&ctx.scoop, &name, g))
                 // Downloads only Scoop makes (FTP, FossHub, a private release).
-                || job(ctx, q).is_none()
+                || (!versioned && job(ctx, q).is_none())
         })
 }
 
@@ -97,7 +106,7 @@ pub fn run(ctx: &mut Ctx, args: &[String]) -> i32 {
         line.extend(args.iter().cloned());
         delegate::run(ctx, &line, ctx.root_given)
     };
-    if only_scoop(ctx, &explicit, global) {
+    if only_scoop(ctx, &explicit, global, &[]) {
         return delegate_all(ctx);
     }
     if update::outdated(ctx) {
@@ -107,7 +116,7 @@ pub fn run(ctx: &mut Ctx, args: &[String]) -> i32 {
             update::sync(ctx, &[]);
         }
     }
-    if explicit.len() == 1 {
+    if explicit.len() == 1 && parse_app(&explicit[0]).version.is_none() {
         let app = parse_app(&explicit[0]).app;
         if let Some(version) = apps::current_version(&ctx.scoop, &app, global) {
             let hint = if global { " --global" } else { "" };
@@ -115,6 +124,28 @@ pub fn run(ctx: &mut Ctx, args: &[String]) -> i32 {
             return 0;
         }
     }
+
+    // `app@version`: the manifest of that version, first in the list.
+    let mut made: Vec<String> = Vec::new();
+    let mut others: Vec<String> = Vec::new();
+    for entry in &explicit {
+        let wanted = parse_app(entry);
+        let Some(version) = wanted.version.clone() else {
+            others.push(entry.clone());
+            continue;
+        };
+        if apps::installed_manifest(&ctx.scoop, &wanted.app, &version, global).is_some() {
+            let hint = if global { " --global" } else { "" };
+            ctx.warn("install.already", &[("app", &wanted.app), ("version", &version), ("global", hint)]);
+            continue;
+        }
+        match versions::generate(ctx, &wanted.app, wanted.bucket.as_deref(), &version) {
+            Ok(Found::Path(path)) => made.push(path.display().to_string()),
+            Ok(Found::Scoop) => return delegate_all(ctx),
+            Err(code) => return code,
+        }
+    }
+    let explicit: Vec<String> = made.iter().cloned().chain(others).collect();
 
     // The dependencies first, each once (`Get-Dependency`).
     let mut all: Vec<String> = Vec::new();
@@ -126,7 +157,7 @@ pub fn run(ctx: &mut Ctx, args: &[String]) -> i32 {
             }
             vec![match &r.bucket {
                 Some(b) => format!("{b}/{}", r.app),
-                None => r.app.clone(),
+                None => r.url.clone().unwrap_or_else(|| r.app.clone()),
             }]
         } else {
             match resolve::dependencies(&ctx.scoop, query, arch) {
@@ -142,14 +173,14 @@ pub fn run(ctx: &mut Ctx, args: &[String]) -> i32 {
         }
     }
     // Dependencies Scoop would have to do bring it the whole command.
-    if only_scoop(ctx, &all, global) {
+    if only_scoop(ctx, &all, global, &made) {
         return delegate_all(ctx);
     }
     let mut to_install = Vec::new();
     for entry in all {
-        let app = parse_app(&entry).app;
+        let app = entry_name(&entry);
         if apps::installed(&ctx.scoop, &app, Some(global)) {
-            if explicit.iter().any(|e| parse_app(e).app.eq_ignore_ascii_case(&app)) {
+            if explicit.iter().any(|e| entry_name(e).eq_ignore_ascii_case(&app)) {
                 let version = apps::current_version(&ctx.scoop, &app, global).unwrap_or_default();
                 ctx.warn("install.skipping", &[("app", &app), ("version", &version)]);
             }
@@ -212,14 +243,14 @@ pub fn show_suggestions(ctx: &mut Ctx, suggested: &[(String, Json)]) {
 }
 
 /// The variables `install_app` has when the scripts run.
-fn setup(app: &str, bucket: &str, version: &str, arch: Arch, files: &[String], o: &Options) -> String {
+fn setup(app: &str, query: &str, version: &str, arch: Arch, files: &[String], o: &Options) -> String {
     let names: Vec<String> = files.iter().map(|f| quote(f)).collect();
     [
         format!("$cmd = {}", quote(o.command)),
         format!("$global = {}", boolean(o.global)),
         format!("$use_cache = {}", boolean(o.use_cache)),
         format!("$check_hash = {}", boolean(o.check_hash)),
-        format!("$null, $manifest, $bucket, $url = Get-Manifest {}", quote(&format!("{bucket}/{app}"))),
+        format!("$null, $manifest, $bucket, $url = Get-Manifest {}", quote(query)),
         format!("$app = {}", quote(app)),
         format!("$version = {}", quote(version)),
         format!("$is_nightly = {}", boolean(version.starts_with("nightly-"))),
@@ -290,8 +321,18 @@ pub fn install_app(ctx: &mut Ctx, entry: &str, o: &Options, scripts: Option<&mut
         ctx.warn("install.no_arch", &[("app", &app)]);
         return Ok(None);
     };
-    let line = ctx.t.fill("install.start", &[("app", &app), ("version", &version), ("arch", arch.name()), ("bucket", &bucket)]);
+    // An app from a manifest file (`app@version` among them) has no bucket.
+    let from_path = r.url.clone().filter(|_| r.bucket.is_none());
+    let workspace = ctx.scoop.root.join("workspace");
+    let line = match &from_path {
+        None => ctx.t.fill("install.start", &[("app", &app), ("version", &version), ("arch", arch.name()), ("bucket", &bucket)]),
+        Some(p) if Path::new(p).starts_with(&workspace) => {
+            ctx.t.fill("install.start_generated", &[("app", &app), ("version", &version), ("arch", arch.name())])
+        }
+        Some(p) => ctx.t.fill("install.start_path", &[("app", &app), ("version", &version), ("arch", arch.name()), ("path", p)]),
+    };
     ctx.say(line);
+    let query = from_path.clone().unwrap_or_else(|| format!("{bucket}/{app}"));
 
     let version_dir = ctx.scoop.app(&app, o.global).join(&version);
     std::fs::create_dir_all(&version_dir).map_err(|e| ctx.fail("error.remove", &[("why", &e.to_string())]))?;
@@ -312,7 +353,7 @@ pub fn install_app(ctx: &mut Ctx, entry: &str, o: &Options, scripts: Option<&mut
             names.push(name);
         }
 
-        let variables = setup(&app, &bucket, &version, arch, &names, o);
+        let variables = setup(&app, &query, &version, arch, &names, o);
         let dir = match scripts {
             Some(host) => {
                 host.set(ctx, &variables)?;
@@ -326,10 +367,22 @@ pub fn install_app(ctx: &mut Ctx, entry: &str, o: &Options, scripts: Option<&mut
             }
         };
 
-        // `save_installed_manifest` and `save_install_info`.
+        // `save_installed_manifest`: a copy of the bucket's file; from a
+        // path, its text written again with a line end (`Out-UTF8File`).
         let saved = dir.join("scoop-manifest.json");
-        std::fs::copy(&path, &saved).map_err(|e| ctx.fail("error.remove", &[("why", &format!("{}: {e}", saved.display()))]))?;
+        let copied = match &from_path {
+            None => std::fs::copy(&path, &saved).map(|_| ()),
+            Some(_) => std::fs::read(&path).and_then(|mut bytes| {
+                bytes.extend_from_slice(b"\r\n");
+                std::fs::write(&saved, bytes)
+            }),
+        };
+        copied.map_err(|e| ctx.fail("error.remove", &[("why", &format!("{}: {e}", saved.display()))]))?;
+        // `save_install_info`: the order Windows PowerShell gives the keys.
         let mut info = Vec::new();
+        if let Some(p) = &from_path {
+            info.push(("url".to_string(), json::string(p.clone())));
+        }
         if !bucket.is_empty() {
             info.push(("bucket".to_string(), json::string(bucket.clone())));
         }

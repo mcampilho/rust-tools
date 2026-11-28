@@ -343,8 +343,8 @@ fn import_sets_adds_installs_and_holds() {
     assert!(out.contains("'aria2-enabled' has been set to 'False'"), "{out}");
     let info = read(&at(&root, "apps/kept/1.0/scoop-install.json"));
     assert!(info.contains("\"hold\": true"), "{info}{out}{err}");
-    // An app installed as app@version is Scoop's.
-    assert_eq!(read(&at(&root, "handed.txt")).trim(), "install old@0.9");
+    // An app@version with no manifest anywhere: an error, as in Scoop.
+    assert!(err.contains("Could not find a manifest for 'old'"), "{err}");
     let (code, _, err) = rscoop_on(&root, &["import", &at(&root, "none.json").display().to_string()], &system);
     assert!(code == 1 && err.contains("not a valid JSON"), "{err}");
 }
@@ -412,4 +412,40 @@ fn apps_from_a_web_address_are_asked_there() {
     assert!(row("lost").get("Info").str().contains("Manifest removed"), "{out}");
     let (_, out, _) = rscoop_on(&root, &["outdated"], &system);
     assert!(out.contains("far") && out.contains("2.0"), "{out}");
+}
+
+#[test]
+fn a_version_comes_from_the_history_of_the_bucket() {
+    let root = installation("at-version");
+    let system = FakeSystem::new(root.join("menu"));
+    rt_scoop::config::set_member(&at(&root, "home/.config/scoop/config.json"), "last_update", Some(rt_scoop::json::string("2999-01-01")))
+        .unwrap();
+    static BODY: std::sync::OnceLock<Vec<u8>> = std::sync::OnceLock::new();
+    let body: &'static [u8] = BODY.get_or_init(|| exe(3));
+    let (address, _) = super::tests_write::server(vec![("one.exe", body), ("two.exe", body)]);
+    let hash = rt_core::sha256::hex(body);
+    let bucket = at(&root, "buckets/main");
+    super::tests_write::git(&bucket, &["init", "-q"]);
+    let manifest = |v: &str, f: &str| {
+        format!("{{\n    \"version\": \"{v}\",\n    \"url\": \"{address}/{f}#/old.exe\",\n    \"hash\": \"{hash}\"\n}}\n")
+    };
+    super::tests_write::commit(&bucket, "bucket/old.json", &manifest("1.0", "one.exe"), "old: 1.0");
+    super::tests_write::commit(&bucket, "bucket/old.json", &manifest("2.0", "two.exe"), "old: 2.0");
+
+    let (code, out, err) = rscoop_on(&root, &["install", "old@1.0"], &system);
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(out.contains("Resolving historical manifest for 'old' (1.0)") && out.contains("from generated manifest"), "{out}");
+    let generated = at(&root, "workspace/old.json");
+    // The text git gives, its lines joined by \n, and a line end.
+    assert_eq!(read(&generated), format!("{}\r\n", manifest("1.0", "one.exe").trim_end()));
+    assert_eq!(read(&at(&root, "apps/old/1.0/scoop-manifest.json")), format!("{}\r\n", read(&generated)));
+    let info = format!("{{\r\n    \"url\": {:?},\r\n    \"architecture\": \"64bit\"\r\n}}\r\n", generated.display().to_string());
+    assert_eq!(read(&at(&root, "apps/old/1.0/scoop-install.json")), info);
+    // Installed at that version, it is up to date for status (its manifest is the file).
+    let (_, out, err) = rscoop_on(&root, &["install", "old@1.0"], &system);
+    assert!(err.contains("is already installed"), "{out}{err}");
+    // A version nowhere in the history: Scoop would make it by autoupdate.
+    rscoop_on(&root, &["uninstall", "old"], &system);
+    rscoop_on(&root, &["install", "old@0.5"], &system);
+    assert_eq!(read(&at(&root, "handed.txt")).trim(), "install old@0.5");
 }

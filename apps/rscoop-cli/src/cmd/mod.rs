@@ -30,6 +30,7 @@ mod tests_write;
 mod uninstall;
 mod update;
 mod update_apps;
+mod versions;
 
 use crate::registry::Registry;
 use crate::text::{system_language, T};

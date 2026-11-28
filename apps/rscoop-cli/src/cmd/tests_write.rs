@@ -9,7 +9,7 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-fn git(dir: &Path, args: &[&str]) -> String {
+pub(super) fn git(dir: &Path, args: &[&str]) -> String {
     std::fs::create_dir_all(dir).unwrap();
     let out = Command::new("git")
         .arg("-C")
@@ -26,7 +26,7 @@ fn url(dir: &Path) -> String {
     format!("file:///{}", dir.display().to_string().replace('\\', "/").trim_start_matches('/'))
 }
 
-fn commit(repository: &Path, file: &str, text: &str, message: &str) {
+pub(super) fn commit(repository: &Path, file: &str, text: &str, message: &str) {
     write(repository, file, text);
     git(repository, &["add", "-A"]);
     git(repository, &["commit", "-q", "-m", message]);
