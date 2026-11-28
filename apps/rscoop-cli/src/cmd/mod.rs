@@ -1,8 +1,9 @@
 //! The commands of Scoop that rscoop-cli does itself: those that read, and
 //! the upkeep of the installation (update of Scoop and buckets, downloads,
 //! cleanup, hold, configuration), and `shim`, `install`, `update <app>`,
-//! `import`, `reset` and `uninstall` (these five only with RSCOOP_NATIVE=1 for now).
-//! The rest is handed to the Scoop of the installation (`delegate`).
+//! `import`, `reset` and `uninstall`. The rest, the commands named in the
+//! `rscoop_use_scoop` setting, and with RSCOOP_NATIVE=0 what installs or
+//! removes apps, are handed to the Scoop of the installation (`delegate`).
 
 mod args;
 mod bucket;
@@ -206,6 +207,26 @@ pub fn is_native(command: &str, args: &[String]) -> bool {
     }
 }
 
+/// The setting in Scoop's `config.json` that names the commands to hand to
+/// Scoop even though rscoop-cli does them: a list, or a text with the names
+/// separated by commas or spaces.
+pub const USE_SCOOP: &str = "rscoop_use_scoop";
+
+/// The commands `rscoop_use_scoop` names, in lower case.
+pub fn scoop_commands(scoop: &Scoop) -> Vec<String> {
+    let words = |s: &str| s.split([',', ' ', ';']).filter(|w| !w.is_empty()).map(str::to_lowercase).collect::<Vec<_>>();
+    match scoop.setting(USE_SCOOP) {
+        Json::Str(s) => words(s),
+        Json::Arr(items) => items.iter().flat_map(|i| words(i.str())).collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// Does the user want `command` from Scoop itself?
+fn uses_scoop(scoop: &Scoop, command: &str) -> bool {
+    scoop_commands(scoop).iter().any(|c| c == command)
+}
+
 /// What a command needs from the outside.
 pub struct Outside<'a> {
     pub vars: HashMap<String, String>,
@@ -218,12 +239,11 @@ pub struct Outside<'a> {
 /// Runs a command; returns the exit code.
 pub fn run(mut line: Line, outside: Outside, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let env = Env::new(outside.vars.clone());
-    // What removes apps stays Scoop's until it has been compared with Scoop
-    // in a throw-away Windows (docs/rscoop.pt.md §7); RSCOOP_NATIVE=1 tries it.
+    // RSCOOP_NATIVE=0: what installs or removes apps goes to Scoop.
     let writes_apps = matches!(line.command.as_str(), "install" | "import" | "reset" | "uninstall")
         || (line.command == "update" && update_apps::updates_apps(&line.args));
-    let on_trial = writes_apps && env.get("RSCOOP_NATIVE") != Some("1");
-    let native = is_native(&line.command, &line.args) && !on_trial;
+    let held_back = writes_apps && env.get("RSCOOP_NATIVE") == Some("0");
+    let mut native = is_native(&line.command, &line.args) && !held_back;
     if native {
         own_options(&mut line);
     }
@@ -243,6 +263,10 @@ pub fn run(mut line: Line, outside: Outside, out: &mut dyn Write, err: &mut dyn 
         out,
         err,
     };
+    // The commands the user wants from Scoop itself (`rscoop_use_scoop`).
+    if native && uses_scoop(&ctx.scoop, &line.command) {
+        native = false;
+    }
     if !native {
         let mut args = line.args.clone();
         if line.command != "scoop" {

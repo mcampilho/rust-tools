@@ -3,8 +3,10 @@
 *Read this in [Portuguese](README.pt.md).*
 
 [Scoop](https://scoop.sh), faster. It works on the same installation as Scoop: rscoop-cli does itself
-what reads and what keeps the installation up, and **hands to Scoop everything that installs or
-removes apps**, so it can be used in place of `scoop`. The plan for the rest is in
+every command of Scoop but `create`, `virustotal` and `shim alter`, which it hands to Scoop, so it can be
+used in place of `scoop`. **Which commands Scoop does is your choice**: the setting
+`rscoop_use_scoop` (`sco config rscoop_use_scoop install,uninstall`) lists the ones to hand to Scoop, and
+`RSCOOP_NATIVE=0` hands it every command that installs or removes apps. The plan for the rest is in
 [docs/rscoop.pt.md](../../docs/rscoop.pt.md).
 
 Without a command it does what it did before: it **validates the installation**. One 3.5 MB
@@ -33,7 +35,7 @@ rscoop-cli install ripgrep      (handed to Scoop)
 | `cache show\|rm`, `cleanup <app…>\|* [-g] [-k]` | What is kept: downloads and old versions. |
 | `hold`, `unhold` | Keep apps (or `scoop` itself) at their version. |
 | `shim add\|rm\|list\|info [-g]` | Shims as Scoop makes them (`.exe` and `.shim`, `.cmd`, `.ps1`, `sh`); one of another app is kept aside and comes back. `shim alter` is Scoop's. |
-| `install <app…> [-giksu]`, `update <app…>\|* [-gfiksq]`, `import <scoopfile.json>`, `reset <app…>\|*`, `uninstall <app…> [-g] [-p]` | Done here only with `RSCOOP_NATIVE=1` while they are being compared with Scoop; otherwise Scoop's. The extraction and the scripts of manifests run in Scoop's own code; `app@version` and manifests from a file or an address stay Scoop's. |
+| `install <app…> [-giksu]`, `update <app…>\|* [-gfiksq]`, `import <scoopfile.json>`, `reset <app…>\|*`, `uninstall <app…> [-g] [-p]` | Install, update, import, reset and remove apps; compared with Scoop in Windows Sandbox (user and global apps, `no_junction`, `use_isolated_path`, installers). The extraction and the scripts of manifests run in Scoop's own code; `app@version` comes from the bucket's git history; manifests from a file or an address stay Scoop's. |
 | `outdated`, `leaves`, `uses <app>`, `size [app…]`, `bucket unused` | Not in Scoop: the apps behind their bucket, those nothing needs, those that need an app, what each takes, buckets nothing came from. |
 
 **Where it is more careful than Scoop:** `bucket rm` only takes the name of a bucket (`bucket rm ..`

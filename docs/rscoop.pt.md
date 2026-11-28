@@ -1,7 +1,7 @@
 # rscoop-cli completo — análise e plano
 
 Escrito a 2026-11-27. **Estado (2026-11-28):** os comandos que instalam e removem iguais ao oficial nos quatro cenários
-da Sandbox (secção 15), ainda atrás de `RSCOOP_NATIVE=1`.
+da Sandbox (secção 15) e nativos por omissão desde a 0.3.0 (por lançar; secção 16).
 **Antes:** fases 0 a 3 feitas e comparadas no Windows Sandbox (secção 12); fase 4 com `install`,
 `update <app>` e `import` iguais ao oficial na Sandbox (secção 13); fase 5 com os extras (secção 14); versão 0.2.0
 lançada a 2026-11-27 (com o comando `sco` no bucket).
@@ -509,3 +509,17 @@ global, as variáveis da máquina, o menu Iniciar de todos e as definições do 
 - Erros do próprio ensaio: o `--global` passado letra a letra (uma lista de um só elemento desfeita pelo `if`), e o
   `app@versão` corrido depois de o Scoop ter removido o `git`.
 - Os `.pyc`, os lançadores do `pip` e o `RECORD` levam a hora da instalação: a fotografia compara-os só pelo tamanho.
+
+## 16. Nativo por omissão, com escolha do utilizador (0.3.0)
+
+Pedido do utilizador a 2026-11-28: o `rscoop-cli` faz os mesmos comandos que o Scoop oficial, para se poder comparar o
+desempenho, e cada um escolhe numa definição quais vão para o Scoop.
+
+- Todos os comandos que o `rscoop-cli` sabe fazer são feitos por ele, também `install`, `update <app>`, `import`,
+  `reset` e `uninstall` (o `RSCOOP_NATIVE=1` deixou de ser preciso). Continuam a ir para o Scoop os que ele não faz:
+  `create`, `virustotal`, `shim alter`.
+- **`rscoop_use_scoop`**, no `config.json` do Scoop (o Scoop guarda as chaves que não conhece, por isso tanto
+  `sco config` como `scoop config` a escrevem): os comandos a entregar ao Scoop, numa lista ou num texto com vírgulas
+  ou espaços — `sco config rscoop_use_scoop install,uninstall`. Vale para qualquer comando (`update` inteiro, `list`…).
+- **`RSCOOP_NATIVE=0`** fica como interruptor de segurança: entrega ao Scoop tudo o que instala ou remove aplicações.
+- A versão passou a 0.3.0 no `Cargo.toml` (por lançar).

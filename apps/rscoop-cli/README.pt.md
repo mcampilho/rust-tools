@@ -3,8 +3,10 @@
 *Ler em [inglês](README.md).*
 
 O [Scoop](https://scoop.sh), mais rápido. Trabalha sobre a mesma instalação do Scoop: o rscoop-cli
-faz ele próprio o que lê e o que mantém a instalação, e **entrega ao Scoop tudo o que instala ou
-remove aplicações**, por isso pode usar-se em vez do `scoop`. O plano do resto está em
+faz ele próprio todos os comandos do Scoop menos o `create`, o `virustotal` e o `shim alter`, que entrega ao Scoop,
+por isso pode usar-se em vez do `scoop`. **Quais os comandos que o Scoop faz é escolha de cada um**: a
+definição `rscoop_use_scoop` (`sco config rscoop_use_scoop install,uninstall`) lista os que vão para o Scoop, e
+`RSCOOP_NATIVE=0` manda-lhe todos os que instalam ou removem aplicações. O plano do resto está em
 [docs/rscoop.pt.md](../../docs/rscoop.pt.md).
 
 Sem comando faz o que já fazia: **valida a instalação**. Um só executável de 3,5 MB; textos em
@@ -33,7 +35,7 @@ rscoop-cli install ripgrep      (entregue ao Scoop)
 | `cache show\|rm`, `cleanup <app…>\|* [-g] [-k]` | O que fica guardado: descargas e versões antigas. |
 | `hold`, `unhold` | Fixar a versão de aplicações (ou do próprio `scoop`). |
 | `shim add\|rm\|list\|info [-g]` | Shims como o Scoop os faz (`.exe` e `.shim`, `.cmd`, `.ps1`, `sh`); o de outra aplicação fica de lado e volta. O `shim alter` é do Scoop. |
-| `install <app…> [-giksu]`, `update <app…>\|* [-gfiksq]`, `import <scoopfile.json>`, `reset <app…>\|*`, `uninstall <app…> [-g] [-p]` | Feitos aqui só com `RSCOOP_NATIVE=1`, enquanto se comparam com o Scoop; sem isso, do Scoop. A extração e os scripts dos manifestos correm no código do próprio Scoop; `app@versão` e manifestos de um ficheiro ou endereço ficam com o Scoop. |
+| `install <app…> [-giksu]`, `update <app…>\|* [-gfiksq]`, `import <scoopfile.json>`, `reset <app…>\|*`, `uninstall <app…> [-g] [-p]` | Instalar, atualizar, importar, repor e remover aplicações; comparados com o Scoop no Windows Sandbox (aplicações do utilizador e globais, `no_junction`, `use_isolated_path`, instaladores). A extração e os scripts dos manifestos correm no código do próprio Scoop; o `app@versão` vem do histórico git do bucket; manifestos de um ficheiro ou endereço ficam com o Scoop. |
 | `outdated`, `leaves`, `uses <app>`, `size [app…]`, `bucket unused` | Não há no Scoop: as aplicações atrás do bucket, as de que nada precisa, as que precisam de uma, o espaço de cada uma, buckets de onde não veio nada. |
 
 **Onde é mais cauteloso do que o Scoop:** o `bucket rm` só aceita o nome de um bucket (`bucket rm ..`

@@ -464,3 +464,24 @@ fn a_version_comes_from_the_history_of_the_bucket() {
     rscoop_on(&root, &["install", "old@0.5"], &system);
     assert_eq!(read(&at(&root, "handed.txt")).trim(), "install old@0.5");
 }
+
+#[test]
+fn the_user_chooses_the_commands_scoop_does() {
+    let root = installation("use-scoop");
+    let system = FakeSystem::new(root.join("menu"));
+    let config = at(&root, "home/.config/scoop/config.json");
+    // A text with commas, as `scoop config rscoop_use_scoop install,list` writes it.
+    rt_scoop::config::set_member(&config, "rscoop_use_scoop", Some(rt_scoop::json::string("Install, list"))).unwrap();
+    rscoop_on(&root, &["install", "x"], &system);
+    rscoop_on(&root, &["list"], &system);
+    let (code, out, _) = rscoop_on(&root, &["prefix", "tool"], &system);
+    assert!(code == 0 && out.contains(r"apps\tool\current"), "{out}");
+    assert_eq!(read(&at(&root, "handed.txt")).lines().collect::<Vec<_>>(), ["install x", "list"]);
+    // A list works too, and RSCOOP_NATIVE=0 still hands over what installs.
+    rt_scoop::config::set_member(&config, "rscoop_use_scoop", Some(rt_scoop::json::Json::Arr(vec![rt_scoop::json::string("reset")])))
+        .unwrap();
+    rscoop_on(&root, &["reset", "tool"], &system);
+    rscoop_native(&root, &["uninstall", "tool"], &system, false);
+    rscoop_on(&root, &["list"], &system);
+    assert_eq!(read(&at(&root, "handed.txt")).lines().skip(2).collect::<Vec<_>>(), ["reset tool", "uninstall tool"]);
+}

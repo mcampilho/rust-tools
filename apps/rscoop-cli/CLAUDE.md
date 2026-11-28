@@ -13,8 +13,10 @@ Comparação diferencial no Windows Sandbox: `sandbox/` (`docs/rscoop.pt.md` §1
 
 - `cmd/` — `mod.rs` (linha de comandos, `is_native`, ajuda), um módulo por assunto e `delegate.rs`, que corre o
   `scoop.ps1` da instalação para tudo o resto. O que instala ou remove aplicações só passa a nativo quando passar os
-  testes de compatibilidade do plano (fases 3 e 4): até lá, o `install`, o `update <app>`, o `import`, o `reset` e
-  o `uninstall` só são nativos com `RSCOOP_NATIVE=1` (`cmd/mod.rs`, `on_trial`); os testes ligam-no.
+  testes de compatibilidade do plano (fases 3 e 4); passaram a 2026-11-28 (Windows Sandbox, quatro cenários) e são
+  nativos por omissão desde a 0.3.0. A definição `rscoop_use_scoop` do Scoop (lista ou texto com vírgulas) nomeia os
+  comandos a entregar ao Scoop (`cmd::USE_SCOOP`, `scoop_commands`); `RSCOOP_NATIVE=0` entrega todos os que instalam ou
+  removem (`held_back` em `cmd/mod.rs`; nos testes, `rscoop_native(…, false)`).
 - Fase 4 (em curso): `cmd/install.rs` (`install_app`, também usado pelo `update`), `cmd/update_apps.rs` e
   `cmd/import.rs`. A extração (`Invoke-Extraction`) e os scripts correm no código do Scoop; o `download.rs` dá o
   `to_cache` ao `download` e ao `install`.

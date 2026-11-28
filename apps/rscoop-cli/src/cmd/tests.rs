@@ -46,14 +46,14 @@ pub(super) fn rscoop_on(root: &Path, args: &[&str], system: &rt_scoop::system::F
     rscoop_native(root, args, system, true)
 }
 
-/// `native`: with RSCOOP_NATIVE=1, which `reset` and `uninstall` need to be done here.
+/// `native`: false sets RSCOOP_NATIVE=0, which hands to Scoop what installs or removes apps.
 pub(super) fn rscoop_native(root: &Path, args: &[&str], system: &rt_scoop::system::FakeSystem, native: bool) -> (i32, String, String) {
     let mut all = vec!["--lang".to_string(), "en".into(), "--root".into(), root.display().to_string()];
     all.extend(args.iter().map(|a| a.to_string()));
     let line = command_line(&all).expect("a command");
     let registry = FakeRegistry::new();
     let vars = HashMap::from([
-        ("RSCOOP_NATIVE".to_string(), if native { "1" } else { "" }.to_string()),
+        ("RSCOOP_NATIVE".to_string(), if native { "" } else { "0" }.to_string()),
         ("USERPROFILE".to_string(), root.join("home").display().to_string()),
         // The shims of the installation, then the real programs (git, PowerShell).
         ("PATH".to_string(), format!("{};{}", root.join("shims").display(), std::env::var("PATH").unwrap_or_default())),

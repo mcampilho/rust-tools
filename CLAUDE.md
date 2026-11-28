@@ -26,7 +26,9 @@ Monorepo (workspace Cargo) com nove aplicações, cada uma um único `.exe`, e o
 - `apps/rscoop-cli` — linha de comandos, só Windows (desde 2026-11-17): verifica uma instalação do Scoop e corrige o que
   aponta para uma raiz antiga (`--fix`); port do `scoop-check` em Python, com cache SQLite (`rusqlite` bundled).
   Desde 2026-11-27 é também um Scoop mais rápido (crate `rt-scoop`; plano e fases em `docs/rscoop.pt.md`): lê e
-  mantém a instalação ele próprio, e entrega ao Scoop o que instala ou remove aplicações.
+  mantém a instalação ele próprio e, desde 2026-11-28 (0.3.0), também instala, atualiza, repõe e remove aplicações
+  (comparado com o oficial no Windows Sandbox); a definição `rscoop_use_scoop` do Scoop escolhe os comandos que vão para
+  o Scoop, e `RSCOOP_NATIVE=0` manda-lhe todos os que instalam ou removem.
   Não tem janela nem `--tray`; textos só em en/pt/es.
 - `apps/rsize-cli` — linha de comandos, Windows e Linux (desde 2026-11-18): o `du` do rsize (`-h`, `-s`, `-d`, `-a`,
   `-c`, `--apparent-size`, mais `--top`, `--sort`, `--json`, `--csv`, `--no-index`); lê com o `rt-scan` (Everything →
