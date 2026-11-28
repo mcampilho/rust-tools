@@ -64,29 +64,42 @@ pub fn manifest_dir(scoop: &Scoop, name: &str) -> PathBuf {
     }
 }
 
-fn walk(dir: &Path, out: &mut Vec<(String, PathBuf)>, depth: u8) {
+/// A manifest file: app, path and, when asked for, the file's metadata
+/// (free on Windows, where the directory listing carries it).
+type Found = (String, PathBuf, Option<std::fs::Metadata>);
+
+fn walk(dir: &Path, out: &mut Vec<Found>, depth: u8, metadata: bool) {
     let Ok(entries) = std::fs::read_dir(dir) else { return };
     for entry in entries.flatten() {
         let path = entry.path();
         let name = entry.file_name().to_string_lossy().into_owned();
         if entry.file_type().is_ok_and(|t| t.is_dir()) {
             if depth < 8 && !name.starts_with('.') {
-                walk(&path, out, depth + 1);
+                walk(&path, out, depth + 1, metadata);
             }
         } else if let Some(app) = name.len().checked_sub(5).and_then(|n| name.get(..n)) {
             if name[app.len()..].eq_ignore_ascii_case(".json") {
-                out.push((app.to_string(), path));
+                let meta = if metadata { entry.metadata().ok() } else { None };
+                out.push((app.to_string(), path, meta));
             }
         }
     }
 }
 
+/// [`manifests_under`] with the metadata of each file (size and time, for an index).
+pub fn manifests_with_metadata(dir: &Path) -> Vec<Found> {
+    let mut out = Vec::new();
+    walk(dir, &mut out, 0, true);
+    out.sort_by_cached_key(|(app, _, _)| app.to_ascii_lowercase());
+    out
+}
+
 /// Every manifest under `dir`, as (app, file), ordered by app.
 pub fn manifests_under(dir: &Path) -> Vec<(String, PathBuf)> {
     let mut out = Vec::new();
-    walk(dir, &mut out, 0);
-    out.sort_by_cached_key(|(app, _)| app.to_ascii_lowercase());
-    out
+    walk(dir, &mut out, 0, false);
+    out.sort_by_cached_key(|(app, _, _)| app.to_ascii_lowercase());
+    out.into_iter().map(|(app, path, _)| (app, path)).collect()
 }
 
 /// `manifest_path`: the manifest of `app` in `bucket`.

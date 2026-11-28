@@ -11,6 +11,7 @@ mod checks;
 mod cli;
 mod cmd;
 mod fix;
+mod index;
 mod lnk;
 mod paths;
 mod registry;

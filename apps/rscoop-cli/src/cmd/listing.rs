@@ -2,6 +2,7 @@
 
 use super::{state, Ctx};
 use crate::checks::parallel;
+use crate::index::{self, Entry, Index};
 use crate::sys::local_time;
 use regex_lite::{Regex, RegexBuilder};
 use rt_scoop::apps;
@@ -9,7 +10,8 @@ use rt_scoop::buckets;
 use rt_scoop::install::Scoop;
 use rt_scoop::json::{self, object, string, Json};
 use rt_scoop::manifest::{Arch, Manifest};
-use std::path::Path;
+use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
 
 /// One installed app, as `scoop list` shows it.
 #[derive(Debug)]
@@ -30,15 +32,62 @@ pub fn query(ctx: &mut Ctx, text: &str) -> Result<Regex, i32> {
     })
 }
 
-fn row(scoop: &Scoop, default_arch: Arch, name: &str, global: bool) -> Row {
-    let version = apps::current_version(scoop, name, global).unwrap_or_default();
-    let Some(info) = apps::install_info(scoop, name, &version, global) else {
+/// The apps in the `deprecated` folder of each bucket, lower case: listed
+/// once, not once per app.
+fn deprecated_apps(scoop: &Scoop) -> HashMap<String, HashSet<String>> {
+    buckets::local(scoop)
+        .into_iter()
+        .map(|b| {
+            let dir = buckets::repository(scoop, &b).join("deprecated");
+            let names = buckets::manifests_under(&dir).into_iter().map(|(n, _)| n.to_lowercase()).collect();
+            (b.to_lowercase(), names)
+        })
+        .collect()
+}
+
+/// The first of `names` in `dir` that is a file, with its metadata.
+fn first_file(dir: &Path, names: [&str; 2]) -> Option<(PathBuf, std::fs::Metadata)> {
+    names.iter().map(|n| dir.join(n)).find_map(|p| std::fs::metadata(&p).ok().filter(|m| m.is_file()).map(|m| (p, m)))
+}
+
+/// `apps::current_version`, with the version of the manifest in `current`
+/// from the index.
+fn current_version(scoop: &Scoop, index: &Index, name: &str, global: bool) -> Option<String> {
+    if !scoop.enabled("no_junction") {
+        let current = scoop.app(name, global).join("current");
+        let version = first_file(&current, apps::MANIFEST_FILES)
+            .and_then(|(p, m)| index.get(&p, Some(&m), || Manifest::read(&p).map(|m| m.version().to_string())))
+            .filter(|v| !v.is_empty() && v != "nightly");
+        if version.is_some() {
+            return version;
+        }
+    }
+    apps::current_version(scoop, name, global)
+}
+
+/// `apps::install_info` from the index: architecture, bucket, url and hold
+/// between tabs.
+fn install_info(index: &Index, path: &Path, meta: &std::fs::Metadata) -> Option<apps::InstallInfo> {
+    let text = index.get(path, Some(meta), || {
+        let i = apps::read_install_info(path)?;
+        let hold = if i.hold { "1" } else { "" };
+        Some([i.architecture.as_str(), i.bucket.as_deref().unwrap_or(""), i.url.as_deref().unwrap_or(""), hold].join("\t"))
+    })?;
+    let mut parts = text.split('\t').map(|s| (!s.is_empty()).then(|| s.to_string()));
+    let mut next = || parts.next().flatten();
+    Some(apps::InstallInfo { architecture: next().unwrap_or_default(), bucket: next(), url: next(), hold: next().is_some() })
+}
+
+fn row(scoop: &Scoop, index: &Index, default_arch: Arch, deprecated: &HashMap<String, HashSet<String>>, name: &str, global: bool) -> Row {
+    let version = current_version(scoop, index, name, global).unwrap_or_default();
+    let found = first_file(&scoop.app(name, global).join(&version), apps::INFO_FILES);
+    let Some((info, updated)) = found.and_then(|(p, m)| Some((install_info(index, &p, &m)?, m.modified().ok()))) else {
         let updated = std::fs::metadata(scoop.app(name, global)).and_then(|m| m.modified()).ok();
         return Row { name: name.into(), version, source: String::new(), updated, info: vec!["Install failed".into()] };
     };
-    let updated = apps::info_file(scoop, name, &version, global).and_then(|p| std::fs::metadata(p).ok()).and_then(|m| m.modified().ok());
     let mut notes = Vec::new();
-    if buckets::deprecated(scoop, name, info.bucket.as_deref().unwrap_or("")).is_some() {
+    let bucket = info.bucket.as_deref().unwrap_or("main").to_lowercase();
+    if deprecated.get(&bucket).is_some_and(|names| names.contains(&name.to_lowercase())) {
         notes.push("Deprecated package".to_string());
     }
     if global {
@@ -69,7 +118,13 @@ pub fn installed(ctx: &Ctx, filter: Option<&Regex>) -> Vec<Row> {
         }
     }
     let (scoop, arch) = (&ctx.scoop, ctx.arch());
-    parallel(&names, |(name, global)| row(scoop, arch, name, *global))
+    let deprecated = deprecated_apps(scoop);
+    let index = Index::load(index::location(&ctx.env), &[scoop.apps(false), scoop.apps(true)]);
+    let rows = parallel(&names, |(name, global)| row(scoop, &index, arch, &deprecated, name, *global));
+    // With a filter only some apps were seen: nothing is forgotten.
+    let scanned = if filter.is_none() { vec![scoop.apps(false), scoop.apps(true)] } else { Vec::new() };
+    let _ = index.save(&scanned);
+    rows
 }
 
 fn row_json(r: &Row) -> Json {
@@ -135,19 +190,23 @@ struct Found {
     binaries: String,
 }
 
-/// `bin_match_json`: the names of the programs that match. As in Scoop, only
-/// the general `bin` is looked at.
-fn bin_match(manifest: &Manifest, query: &Regex) -> Vec<String> {
+/// What `search` keeps of a manifest: its version and the programs of the
+/// general `bin` (as in Scoop, the bins of the architectures are not looked at).
+fn entry(manifest: &Manifest) -> Entry {
     let leaf = |p: &str| p.rsplit(['\\', '/']).next().unwrap_or(p).to_string();
     let bins = Manifest(object([("bin", manifest.get("bin").clone())])).bins(Arch::X64);
+    Entry { version: manifest.version().to_string(), bins: bins.into_iter().map(|b| (leaf(&b.target), b.alias)).collect() }
+}
+
+/// `bin_match_json`: the names of the programs that match.
+fn bin_match(bins: &[(String, Option<String>)], query: &Regex) -> Vec<String> {
     let mut found = Vec::new();
-    for bin in bins {
-        let file = leaf(&bin.target);
+    for (file, alias) in bins {
         let stem = file.rsplit_once('.').map_or(file.as_str(), |(s, _)| s);
         if query.is_match(stem) {
-            found.push(file);
-        } else if let Some(alias) = bin.alias.filter(|a| query.is_match(a)) {
-            found.push(alias);
+            found.push(file.clone());
+        } else if let Some(alias) = alias.as_ref().filter(|a| query.is_match(a)) {
+            found.push(alias.clone());
         }
     }
     found.dedup();
@@ -162,28 +221,28 @@ pub fn search(ctx: &mut Ctx, args: &[String]) -> i32 {
     };
     let mut files = Vec::new();
     for bucket in buckets::local(&ctx.scoop) {
-        for (name, path) in buckets::manifests_under(&buckets::manifest_dir(&ctx.scoop, &bucket)) {
-            files.push((bucket.clone(), name, path));
+        for (name, path, meta) in buckets::manifests_with_metadata(&buckets::manifest_dir(&ctx.scoop, &bucket)) {
+            files.push((bucket.clone(), name, path, meta));
         }
     }
-    let found: Vec<Found> = parallel(&files, |(bucket, name, path)| {
+    let index = Index::load(index::location(&ctx.env), &[ctx.scoop.buckets()]);
+    let found: Vec<Found> = parallel(&files, |(bucket, name, path, meta)| {
         let by_name = regex.is_match(name);
-        let content = json::read_text(path)?;
-        if !by_name && !regex.is_match(&content) {
+        let entry = index.entry(path, meta.as_ref(), || Some(entry(&Manifest(json::parse(&json::read_text(path)?)?))))?;
+        let binaries = if by_name { Vec::new() } else { bin_match(&entry.bins, &regex) };
+        // Scoop first leaves out the manifests whose text does not match
+        // (which differs with an anchored query, `^rg$`): only these few are
+        // read again.
+        if !by_name && (binaries.is_empty() || !regex.is_match(&json::read_text(path)?)) {
             return None;
         }
-        let manifest = Manifest(json::parse(&content)?);
-        let binaries = if by_name { Vec::new() } else { bin_match(&manifest, &regex) };
-        (by_name || !binaries.is_empty()).then(|| Found {
-            name: name.clone(),
-            version: manifest.version().to_string(),
-            source: bucket.clone(),
-            binaries: binaries.join(" | "),
-        })
+        Some(Found { name: name.clone(), version: entry.version, source: bucket.clone(), binaries: binaries.join(" | ") })
     })
     .into_iter()
     .flatten()
     .collect();
+    // Only a faster next search depends on it.
+    let _ = index.save(&[ctx.scoop.buckets()]);
     if ctx.json {
         let rows = found
             .iter()

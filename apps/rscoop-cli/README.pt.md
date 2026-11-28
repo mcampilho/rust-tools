@@ -52,6 +52,10 @@ mensagens, só num terminal (nunca com `--json` nem `NO_COLOR`). Os números e t
 pasta do `scoop` que está no `PATH` e por fim `~\scoop`; um `config.json` portátil na raiz conta. O
 `compare.ps1` compara as respostas com as do Scoop oficial.
 
+O `search` e o `list` guardam um índice em `%LOCALAPPDATA%\rscoop\index.db` (SQLite) do que leram de cada
+manifesto e dos dados de instalação de cada aplicação, pelo tamanho e pela data do ficheiro: só se volta a ler o
+que mudou (`search` em 5 000 manifestos: 0,8 → 0,15 s). `RSCOOP_INDEX=0` desliga-o.
+
 Num PC com duas instalações (uma leitura de cada, não é um benchmark):
 
 | | Scoop, 361 aplicações | rscoop-cli, 361 | rscoop-cli, 1500 |

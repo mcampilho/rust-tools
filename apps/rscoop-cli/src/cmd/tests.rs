@@ -142,6 +142,32 @@ fn list_status_and_search() {
 }
 
 #[test]
+fn search_and_list_the_same_with_the_index() {
+    let root = installation("index");
+    let system = rt_scoop::system::FakeSystem::new(root.join("menu"));
+    let local = root.join("local").display().to_string();
+    let run = |args: &[&str]| rscoop_with(&root, args, &system, &[("LOCALAPPDATA", local.as_str())]).1;
+    let plain = |args: &[&str]| rscoop_with(&root, args, &system, &[("RSCOOP_INDEX", "0")]).1;
+    for args in [&["search", "xx"][..], &["search", "^rg$"], &["list"], &["list", "--json"]] {
+        // The first run fills the index, the second reads from it.
+        assert_eq!(run(args), plain(args), "{args:?}");
+        assert_eq!(run(args), plain(args), "{args:?}");
+    }
+    assert!(root.join("local/rscoop/index.db").is_file());
+    // As in Scoop, a program found by an anchored query is shown only when
+    // the text of the manifest matches too.
+    assert!(!run(&["search", "^rg$"]).contains("ripgrep"));
+
+    // Changed files are read again.
+    write(&root, "buckets/main/bucket/ripgrep.json", r#"{"version":"15.0.0","bin":"other.exe"}"#);
+    app(&root, "tool", "1.0", r#"{"architecture":"64bit","bucket":"main"}"#);
+    let out = run(&["search", "other"]);
+    assert!(out.contains("15.0.0") && out.contains("other.exe"), "{out}");
+    assert!(!run(&["list"]).contains("Held"));
+    assert_eq!(run(&["list", "--json"]), plain(&["list", "--json"]));
+}
+
+#[test]
 fn one_app() {
     let root = installation("one-app");
     let (_, out, _) = rscoop(&root, &["info", "ripgrep"]);

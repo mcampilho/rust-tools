@@ -57,6 +57,10 @@ Comparação diferencial no Windows Sandbox: `sandbox/` (`docs/rscoop.pt.md` §1
 - `fix.rs` — `Fixer`; os atalhos são recriados por um script PowerShell (WScript.Shell), injetável nos testes.
 - `cache.rs` — cache SQLite própria (`files_v1`: chave `tipo|caminho normalizado`, tamanho, mtime em ns, dados) e
   leitura do `scoop.db` do Scoop.
+- `index.rs` — índice do `search` e do `list` (`%LOCALAPPDATA%\rscoop\index.db`, `files_v1`: caminho, tamanho,
+  mtime, dados em texto), carregado só para as pastas do comando; `RSCOOP_INDEX=0` desliga-o, e nos testes só existe
+  com `LOCALAPPDATA` dado por `rscoop_with`. O resultado tem de ser igual ao de sem índice (teste
+  `search_and_list_the_same_with_the_index`).
 - `report.rs`, `cli.rs`, `text.rs` + `strings.txt` (chave, en, pt, es: o `text.rs` é só `rt_cli::Texts` com a
   tabela; língua por `rt_cli::language("RSCOOP_LANG")`; não usa o `rt_core::i18n`, que é para as aplicações com
   interface em 10 línguas).

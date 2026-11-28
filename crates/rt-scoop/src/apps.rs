@@ -7,11 +7,13 @@ use crate::manifest::Manifest;
 use crate::resolve;
 use crate::version;
 use std::cmp::Ordering;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-const INFO_FILES: [&str; 2] = ["scoop-install.json", "install.json"];
-const MANIFEST_FILES: [&str; 2] = ["scoop-manifest.json", "manifest.json"];
+/// The files with the installation data of a version, the first found.
+pub const INFO_FILES: [&str; 2] = ["scoop-install.json", "install.json"];
+/// The manifests kept in a version folder, the first found.
+pub const MANIFEST_FILES: [&str; 2] = ["scoop-manifest.json", "manifest.json"];
 
 /// `scoop-install.json`.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -74,7 +76,12 @@ pub fn current_dir(scoop: &Scoop, app: &str, global: bool) -> PathBuf {
 }
 
 pub fn install_info(scoop: &Scoop, app: &str, version: &str, global: bool) -> Option<InstallInfo> {
-    let j = json::read(&info_file(scoop, app, version, global)?)?;
+    read_install_info(&info_file(scoop, app, version, global)?)
+}
+
+/// The installation data in the file `path`.
+pub fn read_install_info(path: &Path) -> Option<InstallInfo> {
+    let j = json::read(path)?;
     let text = |key: &str| Some(j.get(key).str().to_string()).filter(|s| !s.is_empty());
     Some(InstallInfo {
         architecture: j.get("architecture").str().to_string(),

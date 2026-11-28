@@ -543,9 +543,18 @@ não mostrada; `sco` é o 0.3.0 instalado pelo Scoop (passa pelo `shim.exe`):
   13 = 585). Agora faz uma procura com padrão por pasta (`FindFirstFileW` de `git*`): 292 → 66 ms sem o shim.
 - **O shim do Scoop** custa uns 60 ms por comando (o `shim.exe` arranca o executável noutro processo): 137 ms pelo `sco`
   contra 74 ms diretos no `help`. A função do `rscoop-cli hook` chama o executável diretamente e não paga isto.
-- **Por fazer, se valer a pena:** o `search` (700 ms) e o `list` (400 ms) leem os manifestos e os JSON das aplicações
-  um a um, e o antivírus pesa em cada um; um índice por bucket (pelo commit do git) e por aplicação (pelo tamanho e pela
-  data) num SQLite próprio levaria o `search` a poucas dezenas de ms. O `info` gasta ~200 ms no `git log` do "Updated by".
+- **Índice** (`src/index.rs`, `%LOCALAPPDATA%\rscoop\index.db`, tabela `files_v1`: caminho, tamanho, mtime em ns,
+  dados): o `search` guarda de cada manifesto dos buckets a versão e os programas do `bin` geral; o `list` guarda a
+  versão do manifesto em `current` e os dados de `scoop-install.json` de cada aplicação. Só se volta a abrir o que mudou
+  de tamanho ou de data; no Windows a listagem da pasta já traz os dois (`buckets::manifests_with_metadata`), e cada
+  comando só carrega as linhas das suas pastas. Esquece os ficheiros que desapareceram (o `list` só sem filtro).
+  `RSCOOP_INDEX=0` desliga-o. Medido sem o shim, mediana de sete, nos 5 010 manifestos e nas 367 aplicações:
+  `search ripgrep` 800 → 150 ms, `list` 430 → 250 ms (com o índice desligado, 730 e 280: a pasta `deprecated` de
+  cada bucket passou a ser lida uma vez e não uma por aplicação).
+- **O `search` filtra como o Scoop:** o Scoop deixa de fora os manifestos cujo texto não corresponde à pesquisa
+  (`$content -notmatch $query`) antes de ver os programas, e por isso `^rg$` não encontra nada. Como o índice não
+  guarda o texto, só os poucos manifestos cujos programas correspondem são lidos outra vez para o confirmar.
+- **Por fazer, se valer a pena:** o `info` gasta ~200 ms no `git log` do "Updated by".
 
 **Cores:** a definição `rscoop_color_output` (`sco config rscoop_color_output true`) pinta as tabelas por coluna
 (`cmd/paint.rs`: cabeçalhos a verde, nomes a ciano, a versão instalada a amarelo e a mais recente a verde, o que falhou

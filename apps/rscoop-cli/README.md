@@ -52,6 +52,10 @@ messages, on a terminal only (never with `--json` or `NO_COLOR`). Numbers and si
 `root_path`, where the `scoop` on `PATH` is, then `~\scoop`; a portable `config.json` in the root
 counts. `compare.ps1` compares the answers with the official Scoop.
 
+`search` and `list` keep an index in `%LOCALAPPDATA%\rscoop\index.db` (SQLite) of what they read from each
+manifest and from each app's installation data, by the file's size and time: only what changed is read
+again (`search` over 5 000 manifests: 0.8 → 0.15 s). `RSCOOP_INDEX=0` turns it off.
+
 On a PC with two installations (one reading of each, not a benchmark):
 
 | | Scoop, 361 apps | rscoop-cli, 361 apps | rscoop-cli, 1500 apps |
