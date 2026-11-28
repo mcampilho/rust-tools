@@ -1,6 +1,8 @@
 # rscoop-cli completo — análise e plano
 
-Escrito a 2026-11-27. **Estado:** fases 0 a 3 feitas e comparadas no Windows Sandbox (secção 12); fase 4 com `install`,
+Escrito a 2026-11-27. **Estado (2026-11-28):** os comandos que instalam e removem iguais ao oficial nos quatro cenários
+da Sandbox (secção 15), ainda atrás de `RSCOOP_NATIVE=1`.
+**Antes:** fases 0 a 3 feitas e comparadas no Windows Sandbox (secção 12); fase 4 com `install`,
 `update <app>` e `import` iguais ao oficial na Sandbox (secção 13); fase 5 com os extras (secção 14); versão 0.2.0
 lançada a 2026-11-27 (com o comando `sco` no bucket).
 
@@ -350,6 +352,7 @@ atalhos reais por COM foram lidos de volta com o leitor de `.lnk`; o registo ver
 ./apps/rscoop-cli/sandbox/sandbox.ps1 -Side rscoop    # só um lado outra vez
 ./apps/rscoop-cli/sandbox/sandbox.ps1 -CompareOnly    # só a comparação
 ./apps/rscoop-cli/sandbox/sandbox.ps1 -Side rscoop -KeepOpen   # a Sandbox fica aberta, para ver
+./apps/rscoop-cli/sandbox/sandbox.ps1 -Scenario all            # os quatro cenários (secção 15)
 # Desde a fase 4 os passos são seis: 1-installed (`install`), 2-updated (`update --force`), 3-reset,
 # 4-uninstalled, 5-official e 6-imported (`import`); o git e os buckets continuam a ser postos pelo Scoop.
 ```
@@ -470,3 +473,39 @@ uso, o texto do `hook`) e as duas descargas do teste do `install` feitas ao mesm
 só as leituras e o `hook` numa sessão à parte. Na Sandbox, com a cache vazia antes do lado `rscoop`:
 10 ficheiros descarregados ao mesmo tempo no `install` e os seis passos iguais aos do oficial. (A cache é partilhada:
 o lado que corre primeiro enche-a; para repetir, apagar `target\sandbox\share\cache` antes de `-Side rscoop`.)
+
+## 15. Comparação alargada e o que faltava (2026-11-28)
+
+**Os três pontos por fazer:**
+
+- O `update` volta a criar os shims do próprio `scoop` no fim, como o `Sync-Scoop` (`shim "$currentdir\bin\scoop.ps1"`).
+- As aplicações instaladas a partir de um endereço da web: o `status`, o `outdated` e o `update` vão buscar o manifesto
+  a esse endereço (o `url_manifest`; um caminho `\\servidor\…` lê-se do disco), e uma que não responda conta como
+  removida, como no oficial. A regra de rede do `CLAUDE.md` da raiz diz-o.
+- `app@versão` (`cmd/versions.rs`): o ficheiro do bucket se já tem essa versão, senão o histórico git do bucket
+  (`show HEAD`, `log -G`, `log -S`, como o `Find-HistoricalManifestInGit`), escrito em `<raiz>\workspace\<app>.json`; a
+  aplicação fica "de um caminho" (`url` antes de `architecture` no `scoop-install.json`, a ordem do Windows PowerShell;
+  o manifesto guardado com uma linha a mais no fim, como o `Out-UTF8File`). O que só o `autoupdate` faria, e o
+  `use_git_history` desligado, ficam com o Scoop.
+
+**Cenários da Sandbox** (`sandbox.ps1 -Scenario default|global|settings|heavy|all`; a fotografia passou a ter a raiz
+global, as variáveis da máquina, o menu Iniciar de todos e as definições do Scoop sem o `last_update`):
+
+| Cenário | O que tem | Resultado |
+|---|---|---|
+| `default` | as 11 aplicações de antes, e no fim `fzf@0.74.3` do histórico | igual nos sete passos |
+| `global` | 5 aplicações com `--global` (`C:\ProgramData\scoop`, `HKLM`, menu de todos) | igual |
+| `settings` | `no_junction` e `use_isolated_path` ligados | igual |
+| `heavy` | `python` (instalador por dark/msi, `pip` no `post_install`), `vscode`, `windows-terminal` | igual, depois das correções abaixo |
+
+**O que as voltas mostraram (corrigido):**
+
+- O `update` oficial grava `scoop_repo` e `scoop_branch` sempre que arranca, também quando só atualiza aplicações.
+- `Add-Path` numa variável que não existe deixa um `;` no fim (o `Split-PathLikeEnvVar` com um valor nulo).
+- Os scripts correm numa sessão do PowerShell que não via as mudanças feitas aqui ao `PATH` e às variáveis; no oficial,
+  o `Add-Path`, o `Remove-Path`, o `env_set` e o `env_rm` mudam também a sessão (o `post_install` do `python` corre
+  `python`). Agora as mesmas mudanças vão para a sessão dos scripts (`machinery::mirror`), antes do `post_install` e do
+  `post_uninstall`.
+- Erros do próprio ensaio: o `--global` passado letra a letra (uma lista de um só elemento desfeita pelo `if`), e o
+  `app@versão` corrido depois de o Scoop ter removido o `git`.
+- Os `.pyc`, os lançadores do `pip` e o `RECORD` levam a hora da instalação: a fotografia compara-os só pelo tamanho.
