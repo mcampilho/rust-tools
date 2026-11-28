@@ -78,7 +78,10 @@ function Add-Folder([string]$dir, [string]$base, $tree) {
         } else {
             $size = (New-Object IO.FileInfo $path).Length
             $names = [Rscoop.Files]::Links($path)
-            $contents = if ($relative -match '^(shims|persist|modules)\\' -or $relative -match '^apps\\[^\\]+\\[^\\]+\\[^\\]+\.json$') { Get-Hash $path } else { '' }
+            # What is made with the time of the installation in it (compiled
+            # Python, pip's launchers and its RECORD) is compared by size only.
+            $timed = $relative -match '\.pyc$|\.dist-info\\RECORD$|^persist\\[^\\]+\\Scripts\\[^\\]+\.exe$'
+            $contents = if (-not $timed -and ($relative -match '^(shims|persist|modules)\\' -or $relative -match '^apps\\[^\\]+\\[^\\]+\\[^\\]+\.json$')) { Get-Hash $path } else { '' }
             $tree.Add("file|$relative|$readonly|$size|names=$names|$contents")
         }
     }
