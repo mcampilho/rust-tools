@@ -1,6 +1,6 @@
 [package]
 name = "rscoop-cli"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 rust-version = "1.93"
 description = "A faster Scoop: lists, searches and checks the installation, and hands the other commands to Scoop"
