@@ -255,4 +255,11 @@ fn colours_only_when_asked_for() {
     let (_, json, _) = rscoop_with(&root, &["--json", "list"], &system, &forced);
     assert!(out.contains("\x1b[36mripgrep\x1b[0m") && out.contains("\x1b[32;1mName"), "{out}{err}");
     assert!(!json.contains('\x1b'), "{json}");
+    // The help and the report of the checker too.
+    let (_, out, _) = rscoop_with(&root, &["help"], &system, &forced);
+    assert!(out.contains("\x1b[36mlist\x1b[0m"), "{out}");
+    let (_, out, err) = rscoop_with(&root, &["checkup", "--checks", "current", "-q", "--no-cache"], &system, &forced);
+    assert!(out.contains("\x1b[32;1m") && out.contains("\x1b[36m["), "{out}{err}");
+    let (_, out, _) = rscoop_with(&root, &["checkup", "--checks", "current", "-q", "--no-cache"], &system, &[]);
+    assert!(!out.contains('\x1b'), "{out}");
 }

@@ -63,11 +63,30 @@ pub struct Extras {
     pub scoop_db: String,
 }
 
-pub fn text_report(ctx: &Context, results: &[CheckResult], t: &T, max: usize, seconds: Option<f64>, extras: &Extras) -> String {
+/// `text` in the colour `code` when there are colours.
+fn paint(color: bool, code: &str, text: &str) -> String {
+    if color && !text.is_empty() {
+        crate::cmd::paint::wrap(code, text)
+    } else {
+        text.to_string()
+    }
+}
+
+pub fn text_report(
+    ctx: &Context,
+    results: &[CheckResult],
+    t: &T,
+    max: usize,
+    seconds: Option<f64>,
+    extras: &Extras,
+    color: bool,
+) -> String {
+    use crate::cmd::paint::{BAD, BOLD, DIM, GOOD, HEADER, NAME, RULE, WARN};
+    let c = |code: &str, text: &str| paint(color, code, text);
     let mut out: Vec<String> = Vec::new();
     let title = t.get("report.title");
-    out.push(title.to_string());
-    out.push("=".repeat(title.chars().count()));
+    out.push(c(HEADER, title));
+    out.push(c(RULE, &"=".repeat(title.chars().count())));
     let labels: Vec<String> = ["info.root", "info.global_root", "info.other_roots", "info.cache", "info.scoop_db"]
         .iter()
         .map(|k| format!("{}:", t.get(k)))
@@ -79,7 +98,7 @@ pub fn text_report(ctx: &Context, results: &[CheckResult], t: &T, max: usize, se
     let others = other_roots(ctx);
     for (i, o) in others.iter().enumerate() {
         let state = t.get(if is_dir(o) { "status.exists" } else { "status.missing" });
-        out.push(format!("  {} {o}  ({state})", pad(if i == 0 { &labels[2] } else { "" }, w)));
+        out.push(format!("  {} {}  ({state})", pad(if i == 0 { &labels[2] } else { "" }, w), c(WARN, o)));
     }
     if others.is_empty() {
         out.push(format!("  {} {}", pad(&labels[2], w), t.get("report.none")));
@@ -92,35 +111,37 @@ pub fn text_report(ctx: &Context, results: &[CheckResult], t: &T, max: usize, se
         let mut parts = vec![t.fill("report.checked", &[("n", &r.checked.to_string())])];
         let (e, wn) = (r.count(Sev::Error), r.count(Sev::Warning));
         if e > 0 {
-            parts.push(t.fill("report.errors", &[("n", &e.to_string())]));
+            parts.push(c(BAD, &t.fill("report.errors", &[("n", &e.to_string())])));
         }
         if wn > 0 {
-            parts.push(t.fill("report.warnings", &[("n", &wn.to_string())]));
+            parts.push(c(WARN, &t.fill("report.warnings", &[("n", &wn.to_string())])));
         }
         if e == 0 && wn == 0 {
-            parts.push(t.get("report.ok").to_string());
+            parts.push(c(GOOD, t.get("report.ok")));
         }
-        let took = r.seconds.map(|s| format!("  ({s:.1} s)")).unwrap_or_default();
-        out.push(format!("[{}] {}{took}", t.get(&format!("check.{}", r.id)), parts.join(", ")));
+        let took = r.seconds.map(|s| c(DIM, &format!("  ({s:.1} s)"))).unwrap_or_default();
+        let name = c(NAME, &format!("[{}]", t.get(&format!("check.{}", r.id))));
+        out.push(format!("{name} {}{took}", parts.join(", ")));
         for (label, value, status) in &r.info {
-            out.push(format!("    {} = {value}  ({})", info_name(t, label), t.get(status)));
+            out.push(format!("    {} = {value}  {}", info_name(t, label), c(DIM, &format!("({})", t.get(status)))));
         }
         let mut problems: Vec<&Problem> = r.problems.iter().collect();
         problems.sort_by_key(|p| (p.severity != Sev::Error, p.item.to_lowercase()));
         let shown = if max == 0 { problems.len() } else { problems.len().min(max) };
         for p in &problems[..shown] {
-            let sev = t.get(if p.severity == Sev::Error { "sev.error" } else { "sev.warning" });
-            out.push(format!("  {} {}", pad(sev, 6), p.item));
+            let (key, code) = if p.severity == Sev::Error { ("sev.error", BAD) } else { ("sev.warning", WARN) };
+            out.push(format!("  {} {}", c(code, &pad(t.get(key), 6)), c(BOLD, &p.item)));
             out.push(format!("         {}", message(t, p)));
             if let Some(a) = p.actual.as_deref().filter(|a| !a.is_empty()) {
-                out.push(format!("         {}: {a}", t.get("report.found")));
+                out.push(format!("         {} {a}", c(DIM, &format!("{}:", t.get("report.found")))));
             }
             if let Some(x) = p.expected.as_deref().filter(|x| !x.is_empty()) {
+                let label = c(DIM, &format!("{}:", t.get("report.expected")));
                 if x.contains('<') {
-                    out.push(format!("         {}: {x}", t.get("report.expected")));
+                    out.push(format!("         {label} {x}"));
                 } else {
-                    let state = t.get(if exists(x) { "report.exists" } else { "report.not_exists" });
-                    out.push(format!("         {}: {x}  ({state})", t.get("report.expected")));
+                    let (key, code) = if exists(x) { ("report.exists", GOOD) } else { ("report.not_exists", BAD) };
+                    out.push(format!("         {label} {x}  {}", c(code, &format!("({})", t.get(key)))));
                 }
             }
         }
@@ -139,9 +160,16 @@ pub fn text_report(ctx: &Context, results: &[CheckResult], t: &T, max: usize, se
             ("total", &results.len().to_string()),
         ],
     );
-    out.push(format!("{}: {line}", t.get("report.summary")));
+    let code = if errors > 0 {
+        BAD
+    } else if warnings > 0 {
+        WARN
+    } else {
+        GOOD
+    };
+    out.push(format!("{} {}", c(BOLD, &format!("{}:", t.get("report.summary"))), c(code, &line)));
     if let Some(s) = seconds {
-        out.push(t.fill("report.duration", &[("s", &format!("{s:.1}"))]));
+        out.push(c(DIM, &t.fill("report.duration", &[("s", &format!("{s:.1}"))])));
     }
     out.join("\n") + "\n"
 }
@@ -153,20 +181,28 @@ fn entry_message(t: &T, key: &str, args: &[(String, String)]) -> String {
     t.fill(key, &a)
 }
 
-pub fn fix_report(log: &FixLog, backup_dir: &str, dry: bool, t: &T, max: usize) -> String {
+pub fn fix_report(log: &FixLog, backup_dir: &str, dry: bool, t: &T, max: usize, color: bool) -> String {
+    use crate::cmd::paint::{BAD, BOLD, DIM, GOOD, HEADER, NAME, NOTE, RULE};
+    let c = |code: &str, text: &str| paint(color, code, text);
     let mut out = vec![String::new()];
     let title = t.get(if dry { "fix.title_dry" } else { "fix.title" });
-    out.push(title.to_string());
-    out.push("=".repeat(title.chars().count()));
+    out.push(c(HEADER, title));
+    out.push(c(RULE, &"=".repeat(title.chars().count())));
     for s in FIX_STATUSES {
         let entries: Vec<_> = log.entries.iter().filter(|e| e.status == s).collect();
         if entries.is_empty() {
             continue;
         }
-        out.push(format!("[{}] {}", t.get(&format!("fix.status.{}", s.as_str())), entries.len()));
+        let code = match s {
+            Status::Done => GOOD,
+            Status::Planned => NOTE,
+            Status::Failed => BAD,
+            Status::Skipped => DIM,
+        };
+        out.push(format!("{} {}", c(code, &format!("[{}]", t.get(&format!("fix.status.{}", s.as_str())))), entries.len()));
         let shown = if max == 0 { entries.len() } else { entries.len().min(max) };
         for e in &entries[..shown] {
-            out.push(format!("  {} {}", pad(e.check, 10), e.item));
+            out.push(format!("  {} {}", c(NAME, &pad(e.check, 10)), c(BOLD, &e.item)));
             out.push(format!("             {}", entry_message(t, e.key, &e.args)));
         }
         if entries.len() > shown {

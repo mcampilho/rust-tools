@@ -108,7 +108,9 @@ fn parse(args: &[String], t: &T) -> Result<Opts, String> {
     Ok(o)
 }
 
-fn help(t: &T) -> String {
+fn help(t: &T, color: bool) -> String {
+    use crate::cmd::paint::{wrap, HEADER, NAME};
+    let c = |code: &str, text: &str| if color { wrap(code, text) } else { text.to_string() };
     let ids = CHECK_IDS.join(", ");
     let fix_ids = FIX_ORDER.join(", ");
     let rows: Vec<(&str, String)> = vec![
@@ -130,14 +132,15 @@ fn help(t: &T) -> String {
         ("-V, --version", t.get("cli.version").into()),
     ];
     let mut s = format!(
-        "{}: rscoop-cli [{}]\n\n{}\n\n{}:\n",
-        t.get("cli.usage"),
+        "{} rscoop-cli [{}]\n\n{}\n\n{}\n",
+        c(HEADER, &format!("{}:", t.get("cli.usage"))),
         t.get("cli.options"),
         t.get("cli.description"),
-        t.get("cli.options")
+        c(HEADER, &format!("{}:", t.get("cli.options")))
     );
     for (k, v) in rows {
-        s += &format!("  {k:<20} {v}\n");
+        let pad = " ".repeat(20usize.saturating_sub(k.chars().count()));
+        s += &format!("  {}{pad} {v}\n", c(NAME, k));
     }
     s += &format!("\n{}\n", t.get("cli.see_commands"));
     s
@@ -179,8 +182,16 @@ pub fn run(
             return 2;
         }
     };
+    let roots = find_roots(registry, &environ, home, o.root.as_deref());
+    // Colours as in the commands: `rscoop_color_output` of this installation.
+    let enabled = match roots.config.get(crate::cmd::COLOR) {
+        Json::Bool(b) => *b,
+        Json::Str(s) => s.eq_ignore_ascii_case("true"),
+        _ => false,
+    };
+    let color = crate::cmd::colours(enabled, o.json, &|name| environ.get(name).cloned());
     if o.help {
-        let _ = write!(out, "{}", help(&t));
+        let _ = write!(out, "{}", help(&t, color));
         return 0;
     }
     if o.version {
@@ -211,7 +222,6 @@ pub fn run(
         .filter(|c| (selected.is_empty() || selected.iter().any(|s| s == c)) && !skipped.iter().any(|s| s == c))
         .collect();
 
-    let roots = find_roots(registry, &environ, home, o.root.as_deref());
     let use_scoop_db = matches!(roots.config.get("use_sqlite_cache"), Json::Bool(true));
     let mut ctx = Context::new(roots, registry).with_old_roots(&o.old_roots);
     ctx.environ = environ;
@@ -268,9 +278,9 @@ pub fn run(
         let f = fix.as_ref().map(|(l, b, d)| (l, b.as_str(), *d));
         let _ = write!(out, "{}", json_report(&ctx, &results, &t, Some(seconds), f));
     } else {
-        let _ = write!(out, "{}", text_report(&ctx, &results, &t, o.max, Some(seconds), &extras));
+        let _ = write!(out, "{}", text_report(&ctx, &results, &t, o.max, Some(seconds), &extras, color));
         if let Some((log, backup, dry)) = &fix {
-            let _ = write!(out, "{}", fix_report(log, backup, *dry, &t, o.max));
+            let _ = write!(out, "{}", fix_report(log, backup, *dry, &t, o.max, color));
         }
     }
     if let Some((log, _, dry)) = &fix {

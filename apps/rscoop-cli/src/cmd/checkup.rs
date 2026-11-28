@@ -1,7 +1,7 @@
 //! `checkup`: the tests of Scoop's `lib\diagnostic.ps1` and
 //! `libexec\scoop-checkup.ps1`, then the checks of rscoop-cli.
 
-use super::{Ctx, Outside};
+use super::{paint, Ctx, Outside};
 use crate::registry::Registry;
 use crate::sys::{filesystem_name, is_admin, registry_dword};
 use rt_scoop::buckets;
@@ -84,14 +84,14 @@ pub fn run(ctx: &mut Ctx, args: &[String], outside: &Outside) -> i32 {
 
     if !ctx.json {
         let title = ctx.t.get("checkup.title").to_string();
-        ctx.say(title);
+        ctx.say_as(title, paint::HEADER);
         for (problem, advice) in &problems {
-            ctx.say(format!("  ! {problem}"));
-            ctx.say(format!("      {advice}"));
+            ctx.say_as(format!("  ! {problem}"), paint::WARN);
+            ctx.say_as(format!("      {advice}"), paint::DIM);
         }
         if problems.is_empty() {
             let ok = ctx.t.get("checkup.none").to_string();
-            ctx.say(format!("  {ok}"));
+            ctx.say_as(format!("  {ok}"), paint::GOOD);
         }
         ctx.say("");
     }

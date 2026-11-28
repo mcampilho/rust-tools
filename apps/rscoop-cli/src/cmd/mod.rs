@@ -250,6 +250,20 @@ pub const USE_SCOOP: &str = "rscoop_use_scoop";
 /// The setting that turns the colours of the output on (`true`).
 pub const COLOR: &str = "rscoop_color_output";
 
+/// Whether to colour the output: the user's choice (`enabled`, from
+/// `rscoop_color_output`), never with `--json` nor `NO_COLOR`, and only on a
+/// terminal unless `FORCE_COLOR` is set. Turns the colours of the console on.
+pub fn colours(enabled: bool, json: bool, var: &dyn Fn(&str) -> Option<String>) -> bool {
+    let on = enabled
+        && !json
+        && var("NO_COLOR").is_none()
+        && (var("FORCE_COLOR").is_some() || std::io::IsTerminal::is_terminal(&std::io::stdout()));
+    if on {
+        crate::sys::enable_colors();
+    }
+    on
+}
+
 /// The commands `rscoop_use_scoop` names, in lower case.
 pub fn scoop_commands(scoop: &Scoop) -> Vec<String> {
     let words = |s: &str| s.split([',', ' ', ';']).filter(|w| !w.is_empty()).map(str::to_lowercase).collect::<Vec<_>>();
@@ -289,14 +303,7 @@ pub fn run(mut line: Line, outside: Outside, out: &mut dyn Write, err: &mut dyn 
     let located = core_root(&env, outside.exe.as_deref());
     let scoop = Scoop::locate(&env, line.root.as_deref(), located);
     let root_given = line.root.is_some();
-    // Colours: the user's choice, and only on a terminal.
-    let color = !line.json
-        && scoop.enabled(COLOR)
-        && env.get("NO_COLOR").is_none()
-        && (env.get("FORCE_COLOR").is_some() || std::io::IsTerminal::is_terminal(&std::io::stdout()));
-    if color {
-        crate::sys::enable_colors();
-    }
+    let color = colours(scoop.enabled(COLOR), line.json, &|name| env.get(name).map(str::to_string));
     let mut ctx = Ctx {
         scoop,
         env,
@@ -374,7 +381,9 @@ fn help(ctx: &mut Ctx, args: &[String]) -> i32 {
     if let Some(command) = args.first() {
         return match NATIVE.iter().find(|(name, _, _)| name == command) {
             Some((name, usage, key)) => {
-                let text = format!("{}: rscoop-cli {name} {usage}\n\n{}", ctx.t.get("cli.usage"), ctx.t.get(key));
+                let head = format!("{}:", ctx.t.get("cli.usage"));
+                let head = if ctx.color { paint::wrap(paint::HEADER, &head) } else { head };
+                let text = format!("{head} rscoop-cli {name} {usage}\n\n{}", ctx.t.get(key));
                 ctx.say(text);
                 0
             }
@@ -382,10 +391,12 @@ fn help(ctx: &mut Ctx, args: &[String]) -> i32 {
             None => delegate::run(ctx, &["help".to_string(), command.clone()], false),
         };
     }
-    let mut text =
-        format!("{}: rscoop-cli <{}> [--json] [--root PATH] [--lang LANG]\n\n", ctx.t.get("cli.usage"), ctx.t.get("cli.command"));
+    let c = |code: &str, text: &str| if ctx.color { paint::wrap(code, text) } else { text.to_string() };
+    let usage = c(paint::HEADER, &format!("{}:", ctx.t.get("cli.usage")));
+    let mut text = format!("{usage} rscoop-cli <{}> [--json] [--root PATH] [--lang LANG]\n\n", ctx.t.get("cli.command"));
     for (name, usage, key) in NATIVE {
-        text += &format!("  {:<26} {}\n", format!("{name} {usage}"), ctx.t.get(key));
+        let pad = " ".repeat(25usize.saturating_sub(name.chars().count() + usage.chars().count()));
+        text += &format!("  {} {}{pad} {}\n", c(paint::NAME, name), c(paint::DIM, usage), ctx.t.get(key));
     }
     text += &format!("\n{}\n\n{}", ctx.t.get("cli.others"), ctx.t.get("cli.checker"));
     ctx.say(text);

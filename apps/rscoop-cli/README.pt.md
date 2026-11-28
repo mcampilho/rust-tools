@@ -44,8 +44,8 @@ segue uma ligação para dentro do `persist`. **O que deixa para o Scoop:** uma 
 reporia o repositório do próprio Scoop (outro repositório ou ramo, sem git), a cache SQLite,
 `app@versão`, manifestos de um endereço da web e descargas por proxy, FTP ou FossHub.
 
-**Cores:** `sco config rscoop_color_output true` pinta as tabelas (nomes, versões, o que está fixado ou falhou) e as
-mensagens, só num terminal (nunca com `--json` nem `NO_COLOR`). Os números e tamanhos ficam alinhados à direita.
+**Cores:** `sco config rscoop_color_output true` pinta as tabelas (nomes, versões, o que está fixado ou falhou), as
+mensagens, a ajuda e o relatório das verificações, só num terminal (nunca com `--json` nem `NO_COLOR`). Os números e tamanhos ficam alinhados à direita.
 
 `--json` dá os dados de todos os comandos feitos aqui, `--root CAMINHO` escolhe a instalação e
 `--lang en|pt|es` a língua. A instalação é a que o Scoop usaria: `--root`, `SCOOP`, `root_path`, a

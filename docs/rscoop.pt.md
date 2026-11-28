@@ -561,3 +561,6 @@ não mostrada; `sco` é o 0.3.0 instalado pelo Scoop (passa pelo `shim.exe`):
 a vermelho, a origem a cinzento) e as mensagens (o começo de cada passo, o sucesso, os avisos a amarelo, os erros a
 vermelho), só num terminal e nunca com `--json` nem `NO_COLOR` (`FORCE_COLOR` força-as). Na consola antiga do Windows
 liga o modo de terminal virtual. Os números e os tamanhos das tabelas ficam alinhados à direita, as versões não.
+Na 0.3.1 faltavam a ajuda (`help`, `--help`) e o relatório da verificação (`checkup` e sem comando), que vêm do
+verificador antigo (`cli.rs`, `report.rs`): agora seguem a mesma regra (`cmd::colours`), com os erros a vermelho, os
+avisos a amarelo, o nome de cada verificação a ciano e o resumo pela gravidade.
