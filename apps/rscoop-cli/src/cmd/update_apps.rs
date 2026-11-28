@@ -10,7 +10,7 @@
 use super::args::{getopt, Spec};
 use super::download::{aria2_program, to_cache};
 use super::install::{install_app, show_suggestions, Options};
-use super::machinery::{remove_shims, say_changes, still_running, Scripts};
+use super::machinery::{mirror, remove_shims, say_changes, still_running, Scripts};
 use super::maintain::confirm;
 use super::{delegate, update, Ctx};
 use crate::sys::{is_admin, today};
@@ -245,6 +245,7 @@ fn update_app(ctx: &mut Ctx, app: &str, o: &Options, force: bool, quiet: bool, i
         })();
         say_changes(ctx, &changes, global);
         removed.map_err(|why| ctx.fail("error.config", &[("why", &why)]))?;
+        mirror(ctx, &mut host, &changes, false)?;
         // The same version again: the old folder is kept aside.
         if force && old.eq_ignore_ascii_case(&new) {
             let parent = dir.parent().unwrap_or(&dir).to_path_buf();

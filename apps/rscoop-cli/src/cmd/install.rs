@@ -13,7 +13,7 @@
 
 use super::args::{getopt, Spec};
 use super::download::{aria2_program, job, prefetch, to_cache};
-use super::machinery::{create_shims, remove_shims, say_changes, Scripts};
+use super::machinery::{create_shims, mirror, remove_shims, say_changes, Scripts};
 use super::versions::{self, Found};
 use super::{delegate, update, Ctx};
 use crate::sys::{is_admin, today, windows_11};
@@ -458,7 +458,8 @@ fn link_in(
     }
     let dir = links::link_current(&ctx.scoop, original).map_err(|why| fail(ctx, why))?;
     host.run(ctx, &format!("$dir = {}", quote(&dir.display().to_string())))?;
-    create_shims(ctx, manifest, [&dir, original, persist_dir], global, arch)?;
+    let shims_path = create_shims(ctx, manifest, [&dir, original, persist_dir], global, arch)?;
+    mirror(ctx, host, &shims_path, false)?;
     for made in shortcuts::create(ctx.system, manifest, [&dir, original, persist_dir], global, arch) {
         match made {
             Made::Created(name, file) => {
@@ -497,6 +498,11 @@ fn link_in(
     }
     let changes = env::env_add_path(ctx.system, &ctx.scoop, manifest, &dir, global, arch).map_err(|why| fail(ctx, why))?;
     say_changes(ctx, &changes, global);
+    // `%SCOOP_PATH%` is added as it is, the folders of the app with -Force.
+    let (isolated, folders): (Vec<env::Change>, Vec<env::Change>) =
+        changes.into_iter().partition(|c| matches!(c, env::Change::Added(p) if p.starts_with('%')));
+    mirror(ctx, host, &isolated, false)?;
+    mirror(ctx, host, &folders, true)?;
 
     // `env_set`: here when the values are plain, else in Scoop's code.
     let env_lookup = |name: &str| ctx.env.get(name).map(String::from);
@@ -511,6 +517,7 @@ fn link_in(
         Some(values) => {
             let changes = env::env_set(ctx.system, &values, global).map_err(|why| fail(ctx, why))?;
             say_changes(ctx, &changes, global);
+            mirror(ctx, host, &changes, false)?;
         }
         None => host.run(ctx, "env_set $manifest $global $architecture")?,
     }

@@ -6,7 +6,7 @@
 //! here. Uninstalling Scoop itself is Scoop's.
 
 use super::args::getopt;
-use super::machinery::{remove_shims, say_changes, still_running, Scripts};
+use super::machinery::{mirror, remove_shims, say_changes, still_running, Scripts};
 use super::maintain::confirm;
 use super::Ctx;
 use crate::sys::is_admin;
@@ -200,6 +200,7 @@ fn remove_version(
     })();
     say_changes(ctx, &changes, global);
     done.map_err(|why| ctx.fail("error.config", &[("why", &why)]))?;
+    mirror(ctx, host, &changes, false)?;
 
     links::unlink_persist_data(m, dir);
     if remove_tree(dir).is_err() && dir.exists() {

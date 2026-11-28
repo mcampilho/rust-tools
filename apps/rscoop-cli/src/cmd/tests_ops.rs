@@ -37,6 +37,18 @@ function Get-Manifest($query) {
     $m = Get-Content "$env:SCOOP\buckets\$bucket\bucket\$name.json" -Raw | ConvertFrom-Json
     return $name, $m, $bucket, $null
 }
+function Split-PathLikeEnvVar {
+    param([string[]]$Pattern, [string]$Path)
+    if ($null -eq $Path -and $Path -eq '') { return $null, $null }
+    $splitPattern = $Pattern.Split(';', [System.StringSplitOptions]::RemoveEmptyEntries)
+    $splitPath = $Path.Split(';', [System.StringSplitOptions]::RemoveEmptyEntries)
+    $inPath = @()
+    foreach ($p in $splitPattern) {
+        $inPath += $splitPath.Where({ $_ -like $p })
+        $splitPath = $splitPath.Where({ $_ -notlike $p })
+    }
+    return ($inPath -join ';'), ($splitPath -join ';')
+}
 function manifest($app, $bucket, $url) { (Get-Manifest "$bucket/$app")[1] }
 function Invoke-Extraction($Path, $Name, $Manifest, $ProcessorArchitecture) { Note "extract $($Name -join ',') $ProcessorArchitecture" }
 "#;
@@ -238,7 +250,7 @@ fn install_downloads_extracts_links_and_records_and_uninstall_takes_it_back() {
         &format!(
             r#"{{"version":"1.0","url":"{address}/hello.exe","hash":"{hash}","bin":"hello.exe","depends":"main/dep",
             "shortcuts":[["hello.exe","Hello"]],"env_set":{{"HELLO":"$dir"}},"persist":"data","notes":"See $dir",
-            "pre_install":"Note \"pre $cmd $version\"","post_install":"Note \"post $dir\"","suggest":{{"x":"main/jq"}}}}"#
+            "pre_install":"Note \"pre $cmd $version\"","post_install":["Note \"post $dir\"","Note \"env $env:HELLO\"","Note \"path $(($env:PATH -split ';')[0])\""],"suggest":{{"x":"main/jq"}}}}"#
         ),
     );
     write(&root, "buckets/main/bucket/dep.json", &format!(r#"{{"version":"2.0","url":"{address}/dep.exe","hash":"{hash}"}}"#));
@@ -249,6 +261,9 @@ fn install_downloads_extracts_links_and_records_and_uninstall_takes_it_back() {
     let pre = notes.find("pre install 1.0").expect(&notes);
     let post = notes.find(&format!("post {}", current.display())).expect(&notes);
     assert!(pre < post && notes.starts_with("extract dep.exe 64bit"), "{notes}");
+    // The session of the scripts sees what Scoop's would: the variable, and the shims on PATH.
+    assert!(notes.contains(&format!("env {}", current.display())), "{notes}");
+    assert!(notes.contains(&format!("path {}", at(&root, "shims").display())), "{notes}");
     assert!(at(&root, "apps/hello/1.0/hello.exe").is_file() && at(&root, "apps/dep/2.0/dep.exe").is_file());
     assert_eq!(read(&at(&root, "apps/hello/1.0/scoop-manifest.json")), read(&at(&root, "buckets/main/bucket/hello.json")));
     assert_eq!(

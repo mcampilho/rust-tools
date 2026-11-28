@@ -53,8 +53,10 @@ pub fn shim_name(bin: &rt_scoop::manifest::Bin) -> String {
 }
 
 /// `create_shims`; Err is the exit code when Scoop would stop (`abort`).
-pub fn create_shims(ctx: &mut Ctx, manifest: &Manifest, dirs: [&Path; 3], global: bool, arch: Arch) -> Result<(), i32> {
+/// Ok: what the shims added to `PATH` (the shims folder, once).
+pub fn create_shims(ctx: &mut Ctx, manifest: &Manifest, dirs: [&Path; 3], global: bool, arch: Arch) -> Result<Vec<Change>, i32> {
     let [dir, original_dir, persist_dir] = dirs;
+    let mut added = Vec::new();
     for bin in manifest.bins(arch) {
         let shown = match &bin.alias {
             Some(alias) => alias.clone(),
@@ -74,11 +76,14 @@ pub fn create_shims(ctx: &mut Ctx, manifest: &Manifest, dirs: [&Path; 3], global
         let args: Vec<String> = bin.args.iter().map(|a| rt_scoop::shortcuts::substitute(a, dir, original_dir, persist_dir)).collect();
         let name = bin.alias.clone().filter(|a| !a.is_empty());
         match shims::create(&ctx.scoop, ctx.system, &path, global, name.as_deref(), &args) {
-            Ok(made) => say_made(ctx, &made, global),
+            Ok(made) => {
+                say_made(ctx, &made, global);
+                added.extend(made.path);
+            }
             Err(why) => return Err(ctx.fail("error.config", &[("why", &why)])),
         }
     }
-    Ok(())
+    Ok(added)
 }
 
 /// The messages of `shim`.
@@ -173,4 +178,50 @@ fn stopped(ctx: &mut Ctx, stop: Stop) -> i32 {
         Stop::Start(why) => ctx.fail("error.start", &[("what", "PowerShell"), ("why", &why)]),
         Stop::Ended(code) => code,
     }
+}
+
+/// What Scoop's own `Add-Path`, `Remove-Path`, `env_set` and `env_rm` also
+/// change in the session they run in (`$env:PATH`, `env:`), sent to the
+/// session of the scripts, so that a later script finds what Scoop's would
+/// (the `post_install` of python runs `python`). `force`: `Add-Path -Force`.
+pub fn mirror(ctx: &mut Ctx, host: &mut Scripts, changes: &[Change], force: bool) -> Result<(), i32> {
+    use rt_scoop::hooks::{boolean, quote};
+    let list = |paths: &[&String]| format!("@({})", paths.iter().map(|p| quote(p)).collect::<Vec<_>>().join(", "));
+    let mut lines = Vec::new();
+    let mut i = 0;
+    while i < changes.len() {
+        match &changes[i] {
+            Change::Added(_) | Change::Removed(_) => {
+                let adding = matches!(changes[i], Change::Added(_));
+                let mut group = Vec::new();
+                while let Some(Change::Added(p) | Change::Removed(p)) = changes.get(i) {
+                    if matches!(changes[i], Change::Added(_)) != adding {
+                        break;
+                    }
+                    group.push(p);
+                    i += 1;
+                }
+                let paths = list(&group);
+                lines.push(if adding {
+                    format!(
+                        "$__rscoop_in, $__rscoop_rest = Split-PathLikeEnvVar {paths} $env:PATH; if (!$__rscoop_in -or {}) {{ $env:PATH = ({paths} + $__rscoop_rest) -join ';' }}",
+                        boolean(force)
+                    )
+                } else {
+                    format!("$__rscoop_in, $__rscoop_rest = Split-PathLikeEnvVar {paths} $env:PATH; if ($__rscoop_in) {{ $env:PATH = $__rscoop_rest }}")
+                });
+                continue;
+            }
+            Change::Set(name, value) => lines.push(format!("Set-Content {} {}", quote(&format!("env:\\{name}")), quote(value))),
+            Change::Unset(name) => {
+                let item = quote(&format!("env:\\{name}"));
+                lines.push(format!("if (Test-Path {item}) {{ Remove-Item {item} }}"));
+            }
+        }
+        i += 1;
+    }
+    if lines.is_empty() {
+        return Ok(());
+    }
+    host.set(ctx, &lines.join("\n"))
 }
