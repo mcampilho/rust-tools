@@ -101,6 +101,18 @@ fn fetch(ctx: &mut Ctx, url: &str, to: &Path, manifest: &Manifest) -> Result<(),
     }
 }
 
+/// `url_manifest`: the manifest at a web address (or a network path), for
+/// an app installed from there.
+pub(super) fn remote_manifest(url: &str) -> Option<Manifest> {
+    if url.starts_with(r"\\") {
+        return Manifest::read(Path::new(url));
+    }
+    let answer = rt_sys::net::get(url, 4 << 20, &agent()).ok()?;
+    match rt_scoop::json::parse(&String::from_utf8_lossy(&answer.body)) {
+        Some(j @ rt_scoop::json::Json::Obj(_)) => Some(Manifest(j)),
+        _ => None,
+    }
+}
 /// One file of [`prefetch`].
 struct Wanted {
     url: String,

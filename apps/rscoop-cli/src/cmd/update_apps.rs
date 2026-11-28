@@ -85,7 +85,7 @@ pub fn run(ctx: &mut Ctx, args: &[String]) -> i32 {
     let day = today();
     let mut outdated = Vec::new();
     for (app, g) in &targets {
-        let status = apps::status(&ctx.scoop, app, *g, &day);
+        let status = apps::status(&ctx.scoop, app, *g, &day, &super::download::remote_manifest);
         if status.installed && (force || status.outdated) {
             if status.hold {
                 ctx.warn("update.held_app", &[("app", app), ("version", &status.version)]);

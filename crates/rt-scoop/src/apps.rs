@@ -119,9 +119,10 @@ pub struct Status {
     pub missing_deps: Vec<String>,
 }
 
-/// The state of an installed app. A manifest installed from a web address is
-/// not fetched here: such an app is shown as up to date.
-pub fn status(scoop: &Scoop, app: &str, global: bool, today: &str) -> Status {
+/// The state of an installed app. `remote` fetches the manifest of an app
+/// installed from a web address (Scoop's `url_manifest`); when it gives
+/// nothing, the app counts as removed, as in Scoop.
+pub fn status(scoop: &Scoop, app: &str, global: bool, today: &str, remote: &dyn Fn(&str) -> Option<Manifest>) -> Status {
     let version = current_version(scoop, app, global);
     let mut s = Status {
         installed: version.is_some(),
@@ -134,13 +135,14 @@ pub fn status(scoop: &Scoop, app: &str, global: bool, today: &str) -> Status {
     s.hold = info.hold;
     s.deprecated = buckets::deprecated(scoop, app, info.bucket.as_deref().unwrap_or("")).is_some();
 
-    let remote = info.url.as_deref().is_some_and(resolve::is_remote);
+    // `manifest`: the bucket wins; a web address, then the path itself.
     let manifest = match (&info.bucket, &info.url) {
         (Some(bucket), _) => buckets::manifest_path(scoop, app, bucket).and_then(|p| Manifest::read(&p)),
-        (None, Some(url)) if !remote => Manifest::read(url.as_ref()),
+        (None, Some(url)) if resolve::is_remote(url) => remote(url).or_else(|| Manifest::read(url.as_ref())),
+        (None, Some(url)) => Manifest::read(url.as_ref()),
         _ => None,
     };
-    s.removed = manifest.is_none() && !remote;
+    s.removed = manifest.is_none();
     if let Some(m) = &manifest {
         if !m.version().is_empty() {
             s.latest = m.version().to_string();
@@ -172,11 +174,11 @@ mod tests {
 
         assert_eq!(installed_names(&s, false), ["broken", "gone", "tool"]);
         assert_eq!(current_version(&s, "tool", false).as_deref(), Some("1.1"));
-        let st = status(&s, "tool", false, "20260101");
+        let st = status(&s, "tool", false, "20260101", &|_| None);
         assert!(st.installed && st.outdated && st.hold && !st.failed && !st.removed);
         assert_eq!((st.version.as_str(), st.latest.as_str()), ("1.1", "1.2"));
         assert_eq!(st.missing_deps, ["extras/helper"]);
-        assert!(status(&s, "gone", false, "").removed);
-        assert!(status(&s, "broken", false, "").failed);
+        assert!(status(&s, "gone", false, "", &|_| None).removed);
+        assert!(status(&s, "broken", false, "", &|_| None).failed);
     }
 }

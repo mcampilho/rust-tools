@@ -76,8 +76,9 @@ em `E:` ou `D:`). Come o `--`: passa `'--'` entre aspas.
   utilizador), o rview descarrega as imagens `http(s)` de um documento, só se ele ligar Ver › Mostrar imagens da web
   (desligado por omissão; GET simples por `rt_sys::net`, nunca a `localhost` nem a redes privadas). E, desde
   2026-11-27 (aprovado pelo utilizador), o rscoop-cli, limitado ao que o `scoop` faz: git do Scoop e dos buckets
-  (`update`, `status`, `bucket add`) e os endereços dos manifestos (`download`, por `rt_sys::net::download` ou aria2).
-  Nenhuma outra.
+  (`update`, `status`, `bucket add`), os endereços dos manifestos (`download`, `install`, `update <app>`, por
+  `rt_sys::net::download` ou aria2) e o manifesto de uma aplicação instalada a partir de um endereço (`status`,
+  `outdated`, como o `url_manifest` do Scoop). Nenhuma outra.
 - Bucket do Scoop na pasta `bucket/` (desde 2026-11-17): um manifesto por app com release (rpack, rinst e rclean
   entram com o primeiro), `checkver` pelo `tag_name` dos releases e `autoupdate` com a soma do `SHA256SUMS.txt`;
   depois de um release, `checkver.ps1 -Dir bucket -Update`.

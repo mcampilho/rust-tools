@@ -41,7 +41,7 @@ pub fn status(ctx: &mut Ctx, args: &[String]) -> i32 {
         names.extend(apps::installed_names(&ctx.scoop, global).into_iter().map(|n| (n, global)));
     }
     let (scoop, day) = (&ctx.scoop, today());
-    let states = parallel(&names, |(name, global)| apps::status(scoop, name, *global, &day));
+    let states = parallel(&names, |(name, global)| apps::status(scoop, name, *global, &day, &super::download::remote_manifest));
     let rows: Vec<(String, apps::Status)> = names
         .into_iter()
         .zip(states)

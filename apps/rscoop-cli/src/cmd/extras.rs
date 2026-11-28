@@ -31,7 +31,7 @@ pub fn outdated(ctx: &mut Ctx) -> i32 {
     let mut rows = Vec::new();
     let mut found = Vec::new();
     for (app, global) in installed(ctx) {
-        let s = apps::status(&ctx.scoop, &app, global, &day);
+        let s = apps::status(&ctx.scoop, &app, global, &day, &super::download::remote_manifest);
         if !s.installed || !s.outdated {
             continue;
         }

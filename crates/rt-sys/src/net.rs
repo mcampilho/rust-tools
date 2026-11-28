@@ -4,9 +4,10 @@
 //! The tools stay off the network. The exceptions are rwall (the picture
 //! services and the weather the user turned on), rview (the pictures of a
 //! document, only with View › Show Online Images on), checking for updates
-//! when the user asks (`crate::update`) and rscoop-cli's `download` (the
-//! addresses of a manifest, with the headers Scoop would send). Only GET
-//! requests, no account, no telemetry.
+//! when the user asks (`crate::update`) and rscoop-cli, as Scoop does (the
+//! addresses of a manifest, with the headers Scoop would send, and the
+//! manifest of an app installed from a web address). Only GET requests, no
+//! account, no telemetry.
 
 use std::time::Duration;
 

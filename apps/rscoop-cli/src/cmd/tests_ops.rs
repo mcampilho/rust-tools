@@ -393,3 +393,23 @@ fn a_failed_install_is_undone_and_a_failed_update_puts_the_old_version_back() {
     assert_eq!(system.var("BAD", false).as_deref(), Some("1.0"));
     assert!(system.var("PATH", false).unwrap().contains(&current.display().to_string()));
 }
+
+#[test]
+fn apps_from_a_web_address_are_asked_there() {
+    let root = installation("from-url");
+    let system = FakeSystem::new(root.join("menu"));
+    let (address, _) = super::tests_write::server(vec![("far.json", br#"{"version":"2.0"}"#)]);
+    for (app, url) in [("far", format!("{address}/far.json")), ("lost", format!("{address}/lost.json"))] {
+        for folder in ["1.0", "current"] {
+            write(&root, &format!("apps/{app}/{folder}/scoop-manifest.json"), r#"{"version":"1.0"}"#);
+            write(&root, &format!("apps/{app}/{folder}/scoop-install.json"), &format!(r#"{{"architecture":"64bit","url":"{url}"}}"#));
+        }
+    }
+    let (_, out, _) = rscoop_on(&root, &["--json", "status", "--local"], &system);
+    let rows = rt_scoop::json::parse(&out).unwrap();
+    let row = |name: &str| rows.items().iter().find(|r| r.get("Name").str() == name).cloned().unwrap_or(rt_scoop::json::Json::Null);
+    assert_eq!(row("far").get("Latest Version").str(), "2.0", "{out}");
+    assert!(row("lost").get("Info").str().contains("Manifest removed"), "{out}");
+    let (_, out, _) = rscoop_on(&root, &["outdated"], &system);
+    assert!(out.contains("far") && out.contains("2.0"), "{out}");
+}
