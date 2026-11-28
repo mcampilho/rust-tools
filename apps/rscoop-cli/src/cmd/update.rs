@@ -141,6 +141,12 @@ fn sync_core(ctx: &mut Ctx, git: &Git, show_log: bool) -> bool {
             ctx.say(text);
         }
     }
+    // `shim "$currentdir\bin\scoop.ps1" $false`: the shims of Scoop itself,
+    // and the shims folder on PATH.
+    match rt_scoop::shims::create(&ctx.scoop, ctx.system, &core.join("bin").join("scoop.ps1"), false, None, &[]) {
+        Ok(made) => super::machinery::say_made(ctx, &made, false),
+        Err(why) => ctx.warn("error.config", &[("why", &why)]),
+    }
     true
 }
 

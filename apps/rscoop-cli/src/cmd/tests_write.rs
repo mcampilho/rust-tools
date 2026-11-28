@@ -101,6 +101,11 @@ fn update_pulls_scoop_and_the_buckets() {
     assert!(out.contains("'plain' is not a git repository") && out.contains("updated successfully"), "{out}");
     assert!(!setting(&root, "last_update").str().is_empty());
     assert_eq!(handed(&root), "", "nothing is handed to Scoop");
+    // Scoop's own shims are made again, as `Sync-Scoop` ends.
+    let core = root.join("apps").join("scoop").join("current").join("bin").join("scoop.ps1");
+    let shim = std::fs::read_to_string(root.join("shims").join("scoop.ps1")).unwrap();
+    assert!(shim.starts_with(&format!("# {}\r\n$path = Join-Path $PSScriptRoot", core.display())), "{shim}");
+    assert!(root.join("shims").join("scoop.cmd").is_file() && root.join("shims").join("scoop").is_file());
 }
 
 #[test]
